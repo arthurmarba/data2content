@@ -7,6 +7,7 @@ import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel from "@/app/models/User";
+import AccountInsightModel from "@/app/models/AccountInsight";
 import { normalizeCreatorAvatarUrl, resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { resolveFreshInstagramAvatar } from "@/app/lib/instagram/resolveFreshAvatar";
 import { getProxiedImageUrl } from "@/utils/imageUtils";
@@ -36,7 +37,7 @@ function safeRedirectUrl(value: string, request: NextRequest): URL | null {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { creatorId: string } },
+  { params }: { params: Promise<{ creatorId: string }> },
 ) {
   const session = (await getServerSession(await resolveAuthOptions())) as Session | null;
   if (!session?.user?.id) {
@@ -61,25 +62,18 @@ export async function GET(
     );
   }
 
-  if (!Types.ObjectId.isValid(params.creatorId)) {
+  const { creatorId } = await params;
+  if (!Types.ObjectId.isValid(creatorId)) {
     return NextResponse.json({ ok: false, error: "Invalid creator id" }, { status: 400 });
   }
 
   await connectToDatabase();
-  const creator = await UserModel.findById(params.creatorId)
+  const creator = await UserModel.findById(creatorId)
     .select(
       "profile_picture_url image providerImage isInstagramConnected instagramAccountId instagramAccessToken availableIgAccounts.igAccountId availableIgAccounts.profile_picture_url mediaKitSlug",
     )
     .lean<any>();
   if (!creator) return new Response(null, { status: 404 });
-
-  if (creator.mediaKitSlug) {
-    const destination = new URL(
-      `/api/mediakit/${encodeURIComponent(creator.mediaKitSlug)}/avatar?v=20260719-collab-avatar-v4`,
-      request.nextUrl.origin,
-    );
-    return NextResponse.redirect(destination, 307);
-  }
 
   const refreshedInstagramAvatar = await resolveFreshInstagramAvatar({
     userId: creator._id,
@@ -87,10 +81,23 @@ export async function GET(
     instagramAccountId: creator.instagramAccountId ?? null,
     instagramAccessToken: creator.instagramAccessToken ?? null,
   });
-  const avatarUrl = resolveCreatorAvatar({
+  let avatarUrl = resolveCreatorAvatar({
     ...creator,
     profile_picture_url: refreshedInstagramAvatar,
   });
+  if (!avatarUrl) {
+    const historical = await AccountInsightModel.findOne({
+      user: creator._id,
+      "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
+    })
+      .sort({ recordedAt: -1 })
+      .select("accountDetails.profile_picture_url")
+      .lean<{ accountDetails?: { profile_picture_url?: string | null } } | null>();
+    avatarUrl = resolveCreatorAvatar({
+      isInstagramConnected: true,
+      profile_picture_url: historical?.accountDetails?.profile_picture_url ?? null,
+    });
+  }
   if (!avatarUrl) return new Response(null, { status: 404 });
 
   const stableUrl = getProxiedImageUrl(avatarUrl, true);

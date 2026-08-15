@@ -34,6 +34,13 @@ import {
 } from "./contentIdeaMapAnchors";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
+import {
+  buildOpportunityEvidenceSummary,
+  sanitizeContentIdeaOpportunityBrief,
+  simplifyUserFacingText,
+  type ContentIdeaOpportunityBrief,
+  type ContentIdeaOpportunityKind,
+} from "./contentIdeaOpportunity";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -61,6 +68,7 @@ export interface ContentIdeasGenerationResult {
     scriptClosing: string | null;
     scriptBlueprint: ContentIdeaScriptBlueprint | null;
     resonanceNote: string | null;
+    opportunityBrief: ContentIdeaOpportunityBrief;
     generatedAt: string;
   }>;
   errorCode?: ContentIdeasGenerationErrorCode;
@@ -152,6 +160,7 @@ function sanitizeIdea(
   scriptClosing: string | null;
   scriptBlueprint: ContentIdeaScriptBlueprint | null;
   resonanceNote: string | null;
+  opportunityBrief: ContentIdeaOpportunityBrief;
   creativeMode: ContentIdeaCreativeMode;
 } | null {
   const allowedTerritories = context.territories.map((territory) => territory.label);
@@ -218,15 +227,15 @@ function sanitizeIdea(
   const scriptBlueprint = sanitizedBlueprint
     ? {
         ...sanitizedBlueprint,
-        visualPremise: cleanIdeaText(sanitizedBlueprint.visualPremise),
+        visualPremise: cleanIdeaText(simplifyUserFacingText(sanitizedBlueprint.visualPremise, 180) ?? sanitizedBlueprint.visualPremise),
         scenes: sanitizedBlueprint.scenes.map((scene) => ({
           ...scene,
-          visual: cleanIdeaText(scene.visual),
-          spokenIntent: cleanIdeaText(scene.spokenIntent),
-          onScreenText: scene.onScreenText ? cleanIdeaText(scene.onScreenText) : null,
-          shot: scene.shot ? cleanIdeaText(scene.shot) : null,
+          visual: cleanIdeaText(simplifyUserFacingText(scene.visual, 180) ?? scene.visual),
+          spokenIntent: cleanIdeaText(simplifyUserFacingText(scene.spokenIntent, 180) ?? scene.spokenIntent),
+          onScreenText: scene.onScreenText ? cleanIdeaText(simplifyUserFacingText(scene.onScreenText, 90) ?? scene.onScreenText) : null,
+          shot: scene.shot ? cleanIdeaText(simplifyUserFacingText(scene.shot, 80) ?? scene.shot) : null,
         })),
-        recordingChecklist: sanitizedBlueprint.recordingChecklist.map(cleanIdeaText),
+        recordingChecklist: sanitizedBlueprint.recordingChecklist.map((item) => cleanIdeaText(simplifyUserFacingText(item, 120) ?? item)),
       }
     : null;
 
@@ -246,20 +255,39 @@ function sanitizeIdea(
     assets,
     tone: context.tone,
   });
+  const opportunityKind: ContentIdeaOpportunityKind = raw.opportunityKind === "collab_optional"
+    ? "collab_optional"
+    : "individual";
+  const signals = context.opportunityContext?.creativeSignals ?? null;
+  const opportunityBrief = sanitizeContentIdeaOpportunityBrief({
+    version: 1,
+    kind: opportunityKind,
+    whyNow: typeof raw.whyNow === "string" ? raw.whyNow : null,
+    collabReason: typeof raw.collabReason === "string" ? raw.collabReason : null,
+    evidenceSummary: buildOpportunityEvidenceSummary(signals?.postsAnalyzed ?? 0),
+    evidenceLevel: signals?.confidence === "high"
+      ? "strong"
+      : signals?.confidence === "medium"
+        ? "medium"
+        : "exploratory",
+    postsAnalyzed: signals?.postsAnalyzed ?? 0,
+    timing: context.opportunityContext?.timing ?? null,
+  })!;
 
   return {
-    title: cleanIdeaText(title),
-    angle: cleanIdeaText(angle),
-    hook: cleanIdeaText(hook),
+    title: cleanIdeaText(simplifyUserFacingText(title, 160) ?? title),
+    angle: cleanIdeaText(simplifyUserFacingText(angle, 400) ?? angle),
+    hook: cleanIdeaText(simplifyUserFacingText(hook, 220) ?? hook),
     territory: matchedTerritory,
     assets,
     suggestedFormat,
-    whyItFits: cleanIdeaText(whyItFits),
+    whyItFits: cleanIdeaText(simplifyUserFacingText(whyItFits, 400) ?? whyItFits),
     mapAnchors,
-    scriptPoints: scriptPoints.map(cleanIdeaText),
-    scriptClosing: scriptClosing ? cleanIdeaText(scriptClosing) : null,
+    scriptPoints: scriptPoints.map((item) => cleanIdeaText(simplifyUserFacingText(item, 160) ?? item)),
+    scriptClosing: scriptClosing ? cleanIdeaText(simplifyUserFacingText(scriptClosing, 160) ?? scriptClosing) : null,
     scriptBlueprint,
-    resonanceNote: resonanceNote ? cleanIdeaText(resonanceNote) : null,
+    resonanceNote: resonanceNote ? cleanIdeaText(simplifyUserFacingText(resonanceNote, 200) ?? resonanceNote) : null,
+    opportunityBrief,
     creativeMode,
   };
 }
@@ -275,7 +303,7 @@ export async function generateContentIdeas(
     return {
       ok: false,
       errorCode: "missing_api_key",
-      message: "Geração de pautas indisponível no momento.",
+      message: "A geração de ideias está indisponível no momento.",
     };
   }
 
@@ -354,7 +382,7 @@ export async function generateContentIdeas(
     return {
       ok: false,
       errorCode: "gemini_call_failed",
-      message: "Não foi possível gerar pautas agora. Tente novamente em instantes.",
+      message: "Não foi possível gerar ideias agora. Tente novamente em instantes.",
     };
   }
 
@@ -387,7 +415,7 @@ export async function generateContentIdeas(
     return {
       ok: false,
       errorCode: "invalid_gemini_response",
-      message: "Nenhuma pauta válida foi gerada. Tente novamente.",
+      message: "Nenhuma ideia válida foi gerada. Tente novamente.",
     };
   }
 
@@ -440,6 +468,7 @@ export async function generateContentIdeas(
         scriptClosing: idea.scriptClosing,
         scriptBlueprint: idea.scriptBlueprint,
         resonanceNote: idea.resonanceNote,
+        opportunityBrief: idea.opportunityBrief,
         mapContextHash,
         modelVersion: DEFAULT_MODEL,
         generatedAt,
@@ -482,6 +511,7 @@ export async function generateContentIdeas(
         scriptClosing: d.scriptClosing ?? null,
         scriptBlueprint: d.scriptBlueprint ?? null,
         resonanceNote: d.resonanceNote ?? null,
+        opportunityBrief: sanitizeContentIdeaOpportunityBrief(d.opportunityBrief)!,
         generatedAt: d.generatedAt.toISOString(),
       })),
     };

@@ -18,9 +18,11 @@ describe("DiagnosticoTabBar", () => {
 
     expect(screen.getByRole("button", { name: "Collabs" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Perfil" })).not.toHaveAttribute("aria-current");
-    expect(screen.queryByText("Escanear")).not.toBeInTheDocument();
+    expect(screen.getByText("Analisar")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Navegação do Perfil" })).toHaveClass("bg-[var(--ds-color-paper)]");
     expect(container.querySelector("nav")).not.toHaveClass("shadow-lg");
+    expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toHaveClass("-mt-[18px]");
+    expect(screen.getByRole("button", { name: "Analisar conteúdo" })).toHaveClass("h-11", "w-11");
 
     fireEvent.click(screen.getByRole("button", { name: "Perfil" }));
     fireEvent.click(screen.getByRole("button", { name: "Collabs" }));

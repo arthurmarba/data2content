@@ -9,6 +9,7 @@ const mockBuildPool = jest.fn();
 const mockBuildMatch = jest.fn();
 const mockAssign = jest.fn();
 const mockFetchLocation = jest.fn();
+const mockIncomingInterests = jest.fn();
 jest.mock("./narrativeCollabMatchingService", () => ({
   buildNarrativeCandidatePool: (...a: unknown[]) => mockBuildPool(...a),
   buildMatchFromCandidate: (...a: unknown[]) => mockBuildMatch(...a),
@@ -19,6 +20,9 @@ jest.mock("./narrativeCollabMatchingService", () => ({
     const norm = (s?: string | null) => (s ?? "").toLowerCase().trim();
     return norm(a?.city) && norm(a?.city) === norm(b?.city) ? "presencial" : "remoto";
   },
+}));
+jest.mock("./collabReciprocityService", () => ({
+  getIncomingCollabInterests: (...a: unknown[]) => mockIncomingInterests(...a),
 }));
 
 /** Candidato com territórios reais (o que dá relevância ao match por-pauta). */
@@ -41,12 +45,15 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockAssign.mockResolvedValue(new Map()); // por padrão: LLM "não opina" → determinístico
   mockFetchLocation.mockResolvedValue(null); // viewer sem cidade por padrão → remoto
-  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string, mode?: string, blueprint?: unknown) => ({
+  mockIncomingInterests.mockResolvedValue([]);
+  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string, mode?: string, blueprint?: unknown, contributions?: { viewer?: string; partner?: string }) => ({
     id: eligible.userId,
     narrativeFitReason: fit,
     collabRecordingIdea: rec ?? null,
     collabMode: mode ?? null,
     collabBlueprint: blueprint ?? null,
+    viewerContribution: contributions?.viewer ?? null,
+    partnerContribution: contributions?.partner ?? null,
   }));
 });
 
@@ -105,6 +112,25 @@ describe("matchCollabsForPautas — fallback determinístico (LLM não opina)", 
 });
 
 describe("matchCollabsForPautas — atribuição semântica (Gemini)", () => {
+  it("prioriza discretamente quem já demonstrou interesse no mesmo assunto", async () => {
+    mockBuildPool.mockResolvedValue(poolOf(
+      poolEntry("c1", ["Paternidade"]),
+      poolEntry("c2", ["Paternidade"]),
+    ));
+    mockIncomingInterests.mockResolvedValue([{ creatorId: "c2", territoryNorm: "paternidade" }]);
+    mockAssign.mockResolvedValue(new Map([
+      ["p1", { candidateId: "c1", fitReason: "LLM_FIT", recordingIdea: "LLM_REC" }],
+    ]));
+
+    const r = await matchCollabsForPautas(
+      "viewer",
+      [{ id: "p1", territory: "Paternidade" }],
+      "narrativa",
+    );
+
+    expect(r.get("p1")?.id).toBe("c2");
+  });
+
   it("usa a escolha do LLM mesmo que não seja a do word-overlap, com fit/recording dele", async () => {
     mockBuildPool.mockResolvedValue(poolOf(
       poolEntry("c1", ["Paternidade"]),
@@ -139,6 +165,30 @@ describe("matchCollabsForPautas — atribuição semântica (Gemini)", () => {
 });
 
 describe("matchCollabsForPautas — guardas", () => {
+  it("não procura parceria para uma ideia marcada como individual", async () => {
+    const r = await matchCollabsForPautas("viewer", [{
+      id: "p1",
+      territory: "Paternidade",
+      opportunityKind: "individual",
+    }], "narrativa");
+
+    expect(r.get("p1")).toBeNull();
+    expect(mockBuildPool).not.toHaveBeenCalled();
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  it("procura parceria quando outra pessoa pode acrescentar algo", async () => {
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"])));
+    const r = await matchCollabsForPautas("viewer", [{
+      id: "p1",
+      territory: "Paternidade",
+      opportunityKind: "collab_optional",
+    }], "narrativa", { geminiCallCap: 0 });
+
+    expect(r.get("p1")?.id).toBe("c1");
+    expect(mockBuildPool).toHaveBeenCalledTimes(1);
+  });
+
   it("pauta sem território → null, e não chama o pool", async () => {
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "" }], "narrativa");
     expect(r.get("p1")).toBeNull();
@@ -212,5 +262,30 @@ describe("matchCollabsForPautas — distância (presencial × remoto)", () => {
       hook: "Eu achei que estava protegendo ele",
     });
     expect(mockAssign.mock.calls[0][0].pautas[0].scriptBlueprint.visualPremise).toContain("dois ambientes");
+  });
+
+  it("preserva o que cada pessoa acrescenta no resultado", async () => {
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade", "Finanças"])));
+    mockAssign.mockResolvedValue(new Map([[
+      "p1",
+      {
+        candidateId: "c1",
+        fitReason: "Os dois conhecem a rotina da casa.",
+        recordingIdea: "Cada pessoa mostra uma decisão.",
+        viewerContribution: "A experiência como pai.",
+        partnerContribution: "A organização das contas da casa.",
+      },
+    ]]));
+
+    const r = await matchCollabsForPautas("viewer", [{
+      id: "p1",
+      territory: "Paternidade",
+      opportunityKind: "collab_optional",
+    }], "narrativa");
+
+    expect(r.get("p1")).toMatchObject({
+      viewerContribution: "A experiência como pai.",
+      partnerContribution: "A organização das contas da casa.",
+    });
   });
 });

@@ -28,6 +28,7 @@ import {
   type ContentIdeaCollabBlueprint,
   type ContentIdeaScriptBlueprint,
 } from "./contentIdeaBlueprint";
+import { simplifyUserFacingText } from "./contentIdeaOpportunity";
 
 // Configurável por env (GEMINI_COLLAB_MODEL) para A/B de modelo — candidato a
 // gemini-2.5-flash-lite. Default idêntico ao histórico.
@@ -42,6 +43,14 @@ const CANDIDATE_POOL_SIZE = 30; // Pool final (após ranking) — o matcher por-
 // 30 que o Mongo devolveu". Também melhora a SIMETRIA do match — um par
 // genuinamente compatível tende a cair no top-30 dos DOIS lados.
 const CANDIDATE_SCAN_SIZE = 150;
+
+const EMPTY_COLLAB_CREATIVE_SIGNALS: CollabCreativeSignals = {
+  themes: [],
+  assets: [],
+  tone: null,
+  formats: [],
+  visualStyle: [],
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +74,9 @@ export interface NarrativeCollabMatch {
   sharedSignal: string | null;
   /** Territórios DELE que o viewer não tem — o ângulo novo que a collab traz. */
   distinctSignals: string[];
+  /** Explicação pronta e simples do papel de cada pessoa. */
+  viewerContribution?: string | null;
+  partnerContribution?: string | null;
   /**
    * Como gravar dada a distância: "presencial" só quando os dois moram na MESMA
    * cidade; "remoto" quando moram longe OU a localização é desconhecida (nunca
@@ -141,7 +153,7 @@ async function generateNarrativeFitReason(
   viewerTerritoryLabels: string[] = [],
 ): Promise<string> {
   const apiKey = readApiKey();
-  if (!apiKey) return `Narrativa compatível com o seu mapa.`;
+  if (!apiKey) return "A outra pessoa acrescenta um ponto de vista diferente.";
 
   const territoriesLine = viewerTerritoryLabels.length > 0
     ? `\nTerritórios confirmados do Criador A: ${viewerTerritoryLabels.slice(0, 4).join(", ")}`
@@ -172,7 +184,7 @@ Responda apenas com a frase, sem pontuação no final.`;
     // Non-fatal
   }
 
-  return `Narrativa complementar ao seu mapa confirmado.`;
+  return "A outra pessoa acrescenta um ponto de vista diferente.";
 }
 
 /**
@@ -193,6 +205,25 @@ function buildNarrativeExample(reading: {
   }
 
   return title || summary;
+}
+
+function simplifyCollabBlueprint(
+  raw: unknown,
+): ContentIdeaCollabBlueprint | null {
+  const blueprint = sanitizeContentIdeaCollabBlueprint(raw);
+  if (!blueprint) return null;
+  return {
+    ...blueprint,
+    format: simplifyUserFacingText(blueprint.format, 100) ?? blueprint.format,
+    scenes: blueprint.scenes.map((scene) => ({
+      ...scene,
+      visual: simplifyUserFacingText(scene.visual, 180) ?? scene.visual,
+      spokenIntent: simplifyUserFacingText(scene.spokenIntent, 180) ?? scene.spokenIntent,
+      transition: simplifyUserFacingText(scene.transition, 140),
+    })),
+    editPlan: simplifyUserFacingText(blueprint.editPlan, 240) ?? blueprint.editPlan,
+    handoffChecklist: blueprint.handoffChecklist.map((item) => simplifyUserFacingText(item, 140) ?? item),
+  };
 }
 
 // ─── Pool de candidatos (fan-out ao Mongo, compartilhável) ─────────────────────
@@ -222,13 +253,25 @@ export interface EligibleCandidate {
     userId: Types.ObjectId;
     videoReading: { title: string; summary: string; mainNarrative: string };
     publishIntent: "yes" | "no" | null;
+    speechReading?: { openingRead?: string; pacingRead?: string } | null;
+    productionReading?: { framing?: string; firstFrame?: string; editingRhythm?: string } | null;
   };
+  creativeSignals: CollabCreativeSignals;
+}
+
+export interface CollabCreativeSignals {
+  themes: string[];
+  assets: string[];
+  tone: string | null;
+  formats: string[];
+  visualStyle: string[];
 }
 
 export interface NarrativeCandidatePool {
   pool: EligibleCandidate[];
   /** Territórios confirmados de cada candidato (por userId) — "o que ela traz de novo". */
   candidateTerritoriesById: Map<string, string[]>;
+  viewerCreativeSignals: CollabCreativeSignals;
 }
 
 /**
@@ -256,8 +299,17 @@ export async function buildNarrativeCandidatePool(
 
     // Mapa do PRÓPRIO viewer — base do ranking de relevância abaixo.
     const viewerSeed = await MapaSeed.findOne({ userId: new Types.ObjectId(viewerUserId) })
-      .select("mapa.narrativa_central mapa.territorios")
-      .lean<{ mapa?: { narrativa_central?: string; territorios?: string[] } } | null>();
+      .select("mapa.narrativa_central mapa.territorios mapa.temas mapa.assets mapa.tom mapa.formatos")
+      .lean<{ mapa?: { narrativa_central?: string; territorios?: string[]; temas?: string[]; assets?: string[]; tom?: string; formatos?: string[] } } | null>();
+    const viewerCreativeSignals: CollabCreativeSignals = viewerSeed?.mapa
+      ? {
+          themes: (viewerSeed.mapa.temas ?? []).filter(Boolean).slice(0, 5),
+          assets: (viewerSeed.mapa.assets ?? []).filter(Boolean).slice(0, 5),
+          tone: viewerSeed.mapa.tom?.trim() || null,
+          formats: (viewerSeed.mapa.formatos ?? []).filter(Boolean).slice(0, 4),
+          visualStyle: [],
+        }
+      : EMPTY_COLLAB_CREATIVE_SIGNALS;
     const viewerTokens = buildViewerTokens([
       viewerSeed?.mapa?.narrativa_central ?? "",
       ...((viewerSeed?.mapa?.territorios ?? []).filter((t): t is string => typeof t === "string")),
@@ -268,11 +320,11 @@ export async function buildNarrativeCandidatePool(
       "mapa.narrativa_central": { $exists: true, $ne: "" },
       userId: { $ne: new Types.ObjectId(viewerUserId) },
     })
-      .select("userId mapa.narrativa_central mapa.territorios mapa.temas")
+      .select("userId mapa.narrativa_central mapa.territorios mapa.temas mapa.assets mapa.tom mapa.formatos")
       .limit(CANDIDATE_SCAN_SIZE)
-      .lean<Array<{ userId: Types.ObjectId; mapa: { narrativa_central?: string; territorios?: string[]; temas?: string[] } }>>();
+      .lean<Array<{ userId: Types.ObjectId; mapa: { narrativa_central?: string; territorios?: string[]; temas?: string[]; assets?: string[]; tom?: string; formatos?: string[] } }>>();
 
-    if (seeds.length === 0) return { pool: [], candidateTerritoriesById: new Map() };
+    if (seeds.length === 0) return { pool: [], candidateTerritoriesById: new Map(), viewerCreativeSignals };
 
     const candidateIds = seeds.map((s) => s.userId);
 
@@ -337,6 +389,8 @@ export async function buildNarrativeCandidatePool(
           userId: { $first: "$userId" },
           videoReading: { $first: "$videoReading" },
           publishIntent: { $first: "$publishIntent" },
+          speechReading: { $first: "$speechReading" },
+          productionReading: { $first: "$productionReading" },
         },
       },
     ]);
@@ -348,6 +402,10 @@ export async function buildNarrativeCandidatePool(
       const userId = seed.userId.toString();
       const user = userMap.get(userId);
       if (!user) continue; // precisa de User real (nome/avatar/mídia kit)
+      // O card principal de collab depende da presença da pessoa. Quem ainda
+      // não tem uma foto real resolvível volta ao pool quando a conta receber
+      // uma fonte válida; até lá, não vira sugestão com avatar genérico.
+      if (!user.avatarUrl) continue;
 
       const narrativa = seed.mapa?.narrativa_central?.trim() ?? "";
       if (!narrativa) continue;
@@ -371,7 +429,24 @@ export async function buildNarrativeCandidatePool(
         publishIntent: null,
       };
 
-      pool.push({ userId, user, reading });
+      const visualStyle = [
+        reading.productionReading?.framing,
+        reading.productionReading?.firstFrame,
+        reading.productionReading?.editingRhythm,
+        reading.speechReading?.openingRead,
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0).slice(0, 4);
+      pool.push({
+        userId,
+        user,
+        reading,
+        creativeSignals: {
+          themes: (seed.mapa?.temas ?? []).filter(Boolean).slice(0, 5),
+          assets: (seed.mapa?.assets ?? []).filter(Boolean).slice(0, 5),
+          tone: seed.mapa?.tom?.trim() || null,
+          formats: (seed.mapa?.formatos ?? []).filter(Boolean).slice(0, 4),
+          visualStyle,
+        },
+      });
     }
 
     // Rankeia por relevância ao viewer (sobreposição de palavras significativas
@@ -396,7 +471,7 @@ export async function buildNarrativeCandidatePool(
 
     // candidateTerritoriesById pode ter entradas fora do top-N; deixamos como
     // está (é um lookup por id, os ids extras são inofensivos e não vazam).
-    return { pool: ranked, candidateTerritoriesById };
+    return { pool: ranked, candidateTerritoriesById, viewerCreativeSignals };
   } catch (err) {
     console.error("[narrativeCollabMatching] buildNarrativeCandidatePool erro:", err);
     return null;
@@ -429,6 +504,7 @@ export function buildMatchFromCandidate(
   collabRecordingIdea?: string | null,
   collabMode?: CollabMode | null,
   collabBlueprint?: ContentIdeaCollabBlueprint | null,
+  contributions?: { viewer: string | null; partner: string | null } | null,
 ): NarrativeCollabMatch {
   const { user, reading } = eligible;
   const candidateNarrative = reading.videoReading.mainNarrative?.trim() ?? "";
@@ -443,11 +519,13 @@ export function buildMatchFromCandidate(
     mediaKitSlug: user.mediaKitSlug ?? null,
     narrativeExample: buildNarrativeExample(reading),
     suggestedNarrativeLabel: candidateNarrative,
-    narrativeFitReason,
-    collabRecordingIdea: collabRecordingIdea ?? null,
-    collabBlueprint: collabBlueprint ?? null,
+    narrativeFitReason: simplifyUserFacingText(narrativeFitReason, 240) ?? "A outra pessoa acrescenta um ponto de vista diferente.",
+    collabRecordingIdea: simplifyUserFacingText(collabRecordingIdea, 240),
+    collabBlueprint: simplifyCollabBlueprint(collabBlueprint),
     sharedSignal: findSharedLabel(viewerTerritoryLabels, candidateNarrative),
     distinctSignals: findDistinctLabels(viewerTerritoryLabels, herTerritories, 3),
+    viewerContribution: simplifyUserFacingText(contributions?.viewer, 180),
+    partnerContribution: simplifyUserFacingText(contributions?.partner, 180),
     collabMode: collabMode ?? null,
     narrativeMatch: true,
   };
@@ -496,9 +574,7 @@ Responda apenas com o JSON, sem cercas de código.`;
     const text = response.text?.trim();
     if (text) {
       const parsed = JSON.parse(text) as { fitReason?: unknown; recordingIdea?: unknown };
-      const fitReason = typeof parsed.fitReason === "string" && parsed.fitReason.trim().length > 5
-        ? parsed.fitReason.trim()
-        : fallbackFitReason;
+      const fitReason = simplifyUserFacingText(parsed.fitReason, 240) ?? fallbackFitReason;
       const recordingIdea = typeof parsed.recordingIdea === "string" && parsed.recordingIdea.trim().length > 5
         ? parsed.recordingIdea.trim()
         : null;
@@ -522,6 +598,7 @@ export interface CollabCandidateForLLM {
   territories: string[];
   /** Cidade do candidato — pro "como gravar" respeitar a distância. */
   city?: string | null;
+  creativeSignals?: CollabCreativeSignals;
 }
 
 export interface CollabAssignment {
@@ -530,6 +607,8 @@ export interface CollabAssignment {
   fitReason: string;
   recordingIdea: string | null;
   collabBlueprint?: ContentIdeaCollabBlueprint | null;
+  viewerContribution?: string | null;
+  partnerContribution?: string | null;
 }
 
 export interface CollabPautaForLLM {
@@ -550,6 +629,7 @@ export interface CollabPautaForLLM {
 export async function assignCollabsByPauta(params: {
   viewerNarrative: string;
   viewerCity?: string | null;
+  viewerCreativeSignals?: CollabCreativeSignals;
   pautas: CollabPautaForLLM[];
   candidates: CollabCandidateForLLM[];
 }): Promise<Map<string, CollabAssignment>> {
@@ -564,8 +644,12 @@ Você é diretor criativo de collabs da Data2Content. Para CADA pauta, escolha u
 Regras de matching:
 - O creator escolhido precisa viver ou falar legitimamente do território. Se não houver ninguém, candidateId = null.
 - Evite repetir o mesmo creator em pautas diferentes.
-- fitReason nomeia o chão comum e o ponto de vista exclusivo que o outro creator acrescenta.
+- Só escolha alguém quando essa pessoa acrescentar conhecimento, experiência ou um ponto de vista que não existe na versão individual.
+- fitReason explica em palavras comuns por que vale fazer juntos.
+- viewerContribution e partnerContribution descrevem somente a contribuição. Não comece com "Você", com o nome da pessoa ou com dois-pontos; a interface já mostra quem é.
 - Nunca use métricas, algoritmo, alcance, performance ou seguidores.
+- Não copie frases ou detalhes privados dos vídeos. Use apenas os sinais gerais para decidir.
+- Todo texto deve ser curto, direto e sem termos técnicos ou metáforas.
 
 Regras do plano:
 - O plano pertence à PAUTA ESPECÍFICA: use o título, a abertura e o storyboard; não entregue uma frase genérica sobre o território.
@@ -576,7 +660,8 @@ Regras do plano:
 - Se as cidades forem diferentes ou desconhecidas, o formato é remoto e cada creator grava no próprio ambiente. Se forem iguais, pode ser presencial.
 - editPlan explica como as partes se unem. handoffChecklist traz 2 a 4 combinados práticos de captação/arquivos.
 
-Creator base: narrativa "${params.viewerNarrative}" — cidade ${params.viewerCity?.trim() || "desconhecida"}
+Creator base: tema "${params.viewerNarrative}" — cidade ${params.viewerCity?.trim() || "desconhecida"}
+Sinais gerais do creator base: assuntos ${(params.viewerCreativeSignals?.themes ?? []).join(", ") || "não informados"}; elementos ${(params.viewerCreativeSignals?.assets ?? []).join(", ") || "não informados"}; jeito de falar ${params.viewerCreativeSignals?.tone || "não informado"}; tipos de vídeo ${(params.viewerCreativeSignals?.formats ?? []).join(", ") || "não informados"}
 
 Pautas:
 ${params.pautas.map((p) => {
@@ -585,7 +670,7 @@ ${params.pautas.map((p) => {
 }).join("\n")}
 
 Creators disponíveis:
-${params.candidates.map((c) => `[${c.id}] ${c.name} | narrativa: ${c.narrative} | territórios: ${c.territories.join(", ")} | cidade: ${c.city?.trim() || "desconhecida"}`).join("\n")}
+${params.candidates.map((c) => `[${c.id}] ${c.name} | tema: ${c.narrative} | assuntos: ${c.territories.join(", ")} | outros temas: ${c.creativeSignals?.themes.join(", ") || "não informados"} | elementos: ${c.creativeSignals?.assets.join(", ") || "não informados"} | jeito de falar: ${c.creativeSignals?.tone || "não informado"} | tipos de vídeo: ${c.creativeSignals?.formats.join(", ") || "não informados"} | estilo de gravação: ${c.creativeSignals?.visualStyle.join("; ") || "não informado"} | cidade: ${c.city?.trim() || "desconhecida"}`).join("\n")}
 
 Responda APENAS com JSON:
 {
@@ -593,7 +678,9 @@ Responda APENAS com JSON:
     {
       "pautaId": "<id exato>",
       "candidateId": "<id exato ou null>",
-      "fitReason": "<chão comum + contribuição exclusiva>",
+      "fitReason": "<assunto que os dois conhecem + o que a outra pessoa acrescenta>",
+      "viewerContribution": "<contribuição da pessoa base, sem começar com Você>",
+      "partnerContribution": "<contribuição da pessoa escolhida, sem começar com o nome>",
       "recordingIdea": "<resumo em uma frase de como gravar>",
       "collabBlueprint": {
         "format": "<formato concreto e compatível com a distância>",
@@ -642,15 +729,17 @@ Responda APENAS com JSON:
       const candidateId = typeof raw.candidateId === "string" && raw.candidateId.trim()
         ? raw.candidateId.trim()
         : null;
-      const fitReason = typeof raw.fitReason === "string" ? raw.fitReason.trim().slice(0, 240) : "";
-      const recordingIdea = typeof raw.recordingIdea === "string" && raw.recordingIdea.trim()
-        ? raw.recordingIdea.trim().slice(0, 240)
-        : null;
+      const fitReason = simplifyUserFacingText(raw.fitReason, 240) ?? "";
+      const recordingIdea = simplifyUserFacingText(raw.recordingIdea, 240);
+      const viewerContribution = simplifyUserFacingText(raw.viewerContribution, 180);
+      const partnerContribution = simplifyUserFacingText(raw.partnerContribution, 180);
       out.set(pautaId, {
         candidateId,
         fitReason,
         recordingIdea,
-        collabBlueprint: sanitizeContentIdeaCollabBlueprint(raw.collabBlueprint),
+        collabBlueprint: simplifyCollabBlueprint(raw.collabBlueprint),
+        viewerContribution,
+        partnerContribution,
       });
     }
   } catch (error) {
@@ -744,7 +833,7 @@ Responda APENAS com JSON, sem cercas de código:
       const territory = typeof a.territory === "string" ? a.territory.trim() : "";
       if (!territory) continue;
       const candidateId = typeof a.candidateId === "string" && a.candidateId.trim() ? a.candidateId.trim() : null;
-      const fitReason = typeof a.fitReason === "string" && a.fitReason.trim().length > 5 ? a.fitReason.trim() : "";
+      const fitReason = simplifyUserFacingText(a.fitReason, 240) ?? "";
       const recordingIdea = typeof a.recordingIdea === "string" && a.recordingIdea.trim().length > 5 ? a.recordingIdea.trim() : null;
       out.set(territory.toLowerCase(), { candidateId, fitReason, recordingIdea });
     }

@@ -39,14 +39,14 @@ export function CreatorWeeklyCollabsGate({
             <span className="ds-eyebrow">Collabs</span>
             <span className="ds-badge ds-badge--neutral">Exemplo</span>
           </div>
-          <h1 className="mt-2 text-[2rem] font-bold leading-none text-[var(--ds-color-ink)]">Uma pauta, duas casas.</h1>
-          <p className="ds-body mt-2">O exemplo mostra como o encaixe é explicado antes de qualquer convite.</p>
+          <h1 className="mt-2 text-[2rem] font-bold leading-none text-[var(--ds-color-ink)]">Uma ideia para gravar em parceria</h1>
+          <p className="ds-body mt-2">Veja quando outra pessoa realmente acrescenta algo e como dividir a gravação.</p>
         </header>
 
         <section className="ds-notebook-section mt-6">
-          <span className="ds-eyebrow">Por que combina</span>
+          <span className="ds-eyebrow">Por que recomendamos</span>
           <h2 className="mt-3 text-[1.4rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">
-            Vocês falam de rotina real por ângulos diferentes.
+            Vocês falam de rotina real a partir de experiências diferentes.
           </h2>
           <p className="ds-body mt-3">Uma mostra a decisão por dentro; a outra transforma a mesma situação em passo prático.</p>
           <div className="mt-5">
@@ -70,15 +70,15 @@ export function CreatorWeeklyCollabsGate({
     <main className="ds-notebook-page ds-analysis-editorial">
       <header>
         <span className="ds-eyebrow">Collabs</span>
-        <h1 className="mt-2 text-[2rem] font-bold leading-none text-[var(--ds-color-ink)]">Criadores que combinam com você</h1>
+        <h1 className="mt-2 text-[2rem] font-bold leading-none text-[var(--ds-color-ink)]">Ideias para gravar sozinho ou em parceria</h1>
       </header>
 
       <section className="ds-notebook-section mt-6">
-        <span className="ds-eyebrow">Ainda não dá</span>
+        <span className="ds-eyebrow">O que falta</span>
         <h2 className="mt-3 text-[1.45rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">
-          Para achar quem combina com você, a D2C precisa ver os seus vídeos.
+          Para sugerir boas parcerias, a D2C precisa analisar os seus vídeos.
         </h2>
-        <p className="ds-body mt-3">A combinação é por assunto e jeito de gravar — não por número de seguidores.</p>
+        <p className="ds-body mt-3">Comparamos os assuntos e o jeito de gravar. O número de seguidores não decide.</p>
         <button
           type="button"
           className="ds-button ds-button--primary mt-5"
@@ -90,8 +90,8 @@ export function CreatorWeeklyCollabsGate({
 
       <section className="ds-notebook-section">
         <span className="ds-eyebrow">Veja por dentro</span>
-        <h2 className="mt-2 text-[1.35rem] font-bold leading-tight text-[var(--ds-color-ink)]">O exemplo também tem as collabs.</h2>
-        <p className="ds-body mt-2">Veja quem combina com quem, por quê e o passo a passo para gravar.</p>
+        <h2 className="mt-2 text-[1.35rem] font-bold leading-tight text-[var(--ds-color-ink)]">Veja um exemplo de parceria</h2>
+        <p className="ds-body mt-2">Entenda por que a parceria ajuda e veja o passo a passo para gravar.</p>
         <button type="button" className="ds-button ds-button--quiet mt-4" onClick={() => changeDemo(true)}>
           Ver exemplo
         </button>

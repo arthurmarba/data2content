@@ -18,6 +18,10 @@ import {
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 import { CollabModeBadge } from "./CollabModeBadge";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
+import {
+  buildOpportunityEvidenceSummary,
+  simplifyUserFacingText,
+} from "@/app/dashboard/boards/videoUpload/contentIdeaOpportunity";
 
 interface Props {
   idea: ContentIdeaListItem;
@@ -25,6 +29,8 @@ interface Props {
   isPro?: boolean;
   decisionPending?: boolean;
   onDecide?: (decision: "interested" | "dismissed") => void;
+  /** Salva a ideia para gravar; funciona tanto no plano solo quanto como alternativa à parceria. */
+  onSaveIdea?: () => void;
   awaitingOtherSide?: boolean;
   onOpenCreatorMediaKit?: (slug: string) => void;
   onUpgrade?: () => void;
@@ -40,7 +46,7 @@ const BEAT_LABEL: Record<ContentIdeaSceneBeat, string> = {
 
 function ownerLabel(owner: CollabSceneOwner, partnerName: string): string {
   if (owner === "viewer") return "Você";
-  if (owner === "partner") return partnerName.split(" ")[0] || "Outro creator";
+  if (owner === "partner") return partnerName.split(" ")[0] || "Outra pessoa";
   return "Os dois";
 }
 
@@ -51,7 +57,7 @@ function copyTextForIdea(idea: ContentIdeaListItem): string {
     idea.angle,
     `ABERTURA\n${idea.hook}`,
     ...blueprint.scenes.map((scene, index) =>
-      `${String(index + 1).padStart(2, "0")} · ${BEAT_LABEL[scene.beat]}\nVISUAL: ${scene.visual}\nINTENÇÃO: ${scene.spokenIntent}`,
+      `${String(index + 1).padStart(2, "0")} · ${BEAT_LABEL[scene.beat]}\nVISUAL: ${scene.visual}\nO QUE DIZER: ${scene.spokenIntent}`,
     ),
     blueprint.recordingChecklist.length > 0
       ? `ANTES DE GRAVAR\n${blueprint.recordingChecklist.map((item) => `• ${item}`).join("\n")}`
@@ -65,6 +71,7 @@ export function DiagnosticoIdeaDetailSheet({
   isPro = false,
   decisionPending = false,
   onDecide,
+  onSaveIdea,
   awaitingOtherSide = false,
   onOpenCreatorMediaKit,
   onUpgrade,
@@ -115,16 +122,6 @@ export function DiagnosticoIdeaDetailSheet({
       });
     });
   }, [activePlan, reduceMotion]);
-  const mapAnchors = useMemo(
-    () => selectContentIdeaCardAnchors(resolveContentIdeaMapAnchors({
-      mapAnchors: idea.mapAnchors,
-      territory: idea.territory,
-      assets: idea.assets,
-      tone: idea.tone,
-    })),
-    [idea],
-  );
-
   return (
     <div
       className="d2c-mobile-app ds-notebook fixed inset-0 z-[270] flex items-end justify-center ds-scrim sm:items-center sm:p-4"
@@ -160,8 +157,8 @@ export function DiagnosticoIdeaDetailSheet({
             <div className="flex min-h-11 items-center justify-between gap-3">
               {hasScrolled && collab ? (
                 <div className="inline-flex rounded-full bg-zinc-100 p-0.5" aria-label="Escolha do plano fixa">
-                  <PlanToggle compact active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Solo</PlanToggle>
-                  <PlanToggle compact active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>A dois</PlanToggle>
+                  <PlanToggle compact active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Só você</PlanToggle>
+                  <PlanToggle compact active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>Em parceria</PlanToggle>
                 </div>
               ) : (
                 <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">
@@ -185,7 +182,8 @@ export function DiagnosticoIdeaDetailSheet({
               ref={titleRef}
               id="idea-detail-title"
               tabIndex={-1}
-              className="max-w-[12ch] font-display text-[clamp(1.95rem,8.4vw,2.4rem)] font-bold leading-[0.98] tracking-[-0.048em] text-zinc-950 outline-none"
+              style={{ outline: "none" }}
+              className="max-w-[22ch] font-display text-[clamp(1.8rem,7.2vw,2.35rem)] font-bold leading-[1.02] tracking-[-0.045em] text-zinc-950 outline-none"
             >
               {idea.title}
             </h2>
@@ -195,28 +193,13 @@ export function DiagnosticoIdeaDetailSheet({
               </p>
             ) : null}
 
-            {mapAnchors.length > 0 ? (
-              <div className="mt-4 border-t border-zinc-100 pt-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Do seu mapa</p>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {mapAnchors.map((anchor) => (
-                    <span
-                      key={`${anchor.kind}:${anchor.label}`}
-                      className="grid min-w-0 grid-cols-1 rounded-lg bg-[var(--ds-color-neutral)] px-2.5 py-2 text-[var(--ds-color-ink)]"
-                      title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
-                    >
-                      <span className="truncate text-[8px] font-bold uppercase tracking-[0.04em] text-zinc-500">{contentIdeaMapAnchorLabel(anchor.kind)}</span>
-                      <span className="mt-1 truncate text-[11px] font-semibold leading-none">{anchor.label}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {collab ? (
-              <div className="mt-4 inline-flex rounded-full bg-zinc-100 p-1" aria-label="Escolha do plano">
-                <PlanToggle active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Solo</PlanToggle>
-                <PlanToggle active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>A dois</PlanToggle>
+              <div className="mt-5">
+                <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-500">Como você quer gravar?</p>
+                <div className="inline-flex rounded-full bg-zinc-100 p-1" aria-label="Como você quer gravar?">
+                  <PlanToggle active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Só você</PlanToggle>
+                  <PlanToggle active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>Em parceria</PlanToggle>
+                </div>
               </div>
             ) : null}
           </div>
@@ -232,6 +215,7 @@ export function DiagnosticoIdeaDetailSheet({
                   transition={{ duration: reduceMotion ? 0 : 0.2 }}
                 >
                   <CollabPlan
+                    idea={idea}
                     collab={collab}
                     onOpenCreatorMediaKit={onOpenCreatorMediaKit}
                     reduceMotion={Boolean(reduceMotion)}
@@ -250,37 +234,45 @@ export function DiagnosticoIdeaDetailSheet({
               )}
             </AnimatePresence>
 
-            {!collab && !isPro ? <CollabContextTeaser onUpgrade={onUpgrade} /> : null}
+            {!collab && !isPro && idea.opportunityBrief?.kind === "collab_optional" ? (
+              <CollabContextTeaser onUpgrade={onUpgrade} />
+            ) : null}
           </div>
         </div>
 
-        {decisionPending && onDecide ? (
+        {activePlan === "collab" && decisionPending && onDecide && collab ? (
           <div className="shrink-0 border-t border-zinc-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-7">
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onDecide("interested")}
+              className="ds-button ds-button--primary min-h-12 w-full"
+            >
+              Quero gravar com {collab.name.split(" ")[0]}
+            </button>
+            {onSaveIdea ? (
               <button
                 type="button"
-                onClick={() => onDecide("dismissed")}
-                aria-label="Não agora"
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-transform active:scale-95"
+                onClick={onSaveIdea}
+                className="mt-2 min-h-11 w-full text-[13px] font-semibold text-zinc-600"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                </svg>
+                Salvar somente a ideia
               </button>
-              <button
-                type="button"
-                onClick={() => onDecide("interested")}
-                className="ds-button ds-button--primary min-h-12 flex-1"
-              >
-                Quero fazer essa collab
-              </button>
-            </div>
+            ) : null}
           </div>
-        ) : awaitingOtherSide ? (
+        ) : activePlan === "collab" && awaitingOtherSide && collab ? (
           <div className="shrink-0 border-t border-[var(--ds-color-line)] bg-[var(--ds-color-warning-soft)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-center sm:px-7">
             <p className="text-[14px] font-semibold text-[var(--ds-color-warning)]">
-              Você topou — aguardando o outro lado
+              Você escolheu gravar com {collab.name.split(" ")[0]}.
             </p>
+            <p className="mt-1 text-[12.5px] leading-[1.4] text-[var(--ds-color-text-secondary)]">
+              Se essa pessoa também escolher, avisamos aqui e no WhatsApp conectado.
+            </p>
+          </div>
+        ) : activePlan === "solo" && onSaveIdea && idea.status !== "saved" ? (
+          <div className="shrink-0 border-t border-zinc-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-7">
+            <button type="button" onClick={onSaveIdea} className="ds-button ds-button--primary min-h-12 w-full">
+              Salvar ideia para gravar
+            </button>
           </div>
         ) : null}
       </motion.section>
@@ -305,6 +297,12 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
   const blueprint = resolveContentIdeaScriptBlueprint(idea.scriptBlueprint, idea);
   const openingScene = blueprint.scenes.find((scene) => scene.beat === "abertura") ?? blueprint.scenes[0];
   const remainingScenes = blueprint.scenes.filter((scene) => scene !== openingScene);
+  const mapAnchors = selectContentIdeaCardAnchors(resolveContentIdeaMapAnchors({
+    mapAnchors: idea.mapAnchors,
+    territory: idea.territory,
+    assets: idea.assets,
+    tone: idea.tone,
+  }));
 
   return (
     <div>
@@ -331,9 +329,9 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
       <section aria-labelledby="storyboard-title">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-500">Storyboard</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-500">Como gravar</p>
             <h3 id="storyboard-title" className="mt-1 font-display text-[1.55rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
-              O caminho do vídeo
+              Passo a passo do vídeo
             </h3>
           </div>
           <CopyButton text={copyTextForIdea(idea)} label="Copiar plano" />
@@ -367,18 +365,46 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
         </div>
       </section>
 
+      {idea.opportunityBrief?.timing ? (
+        <section className="mt-8 border-y border-zinc-100 py-5" aria-labelledby="idea-timing-title">
+          <p id="idea-timing-title" className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">
+            Quando publicar
+          </p>
+          <p className="mt-2 font-display text-[1.35rem] font-bold tracking-[-0.03em] text-zinc-950">
+            {idea.opportunityBrief.timing.dayLabel}, {idea.opportunityBrief.timing.windowLabel}
+          </p>
+          <p className="mt-2 text-[14px] leading-[1.45] text-zinc-600">
+            {idea.opportunityBrief.timing.reason}
+          </p>
+        </section>
+      ) : null}
+
       {blueprint.recordingChecklist.length > 0 ? (
         <Checklist title="Antes de gravar" items={blueprint.recordingChecklist} />
       ) : null}
 
-      {(idea.whyItFits || idea.resonanceNote) ? (
+      {(idea.whyItFits || idea.resonanceNote || idea.opportunityBrief || mapAnchors.length > 0) ? (
         <details className="mt-8 border-y border-zinc-100 py-4">
           <summary className="cursor-pointer list-none text-[15px] font-semibold text-zinc-800">
-            Por que essa ideia faz sentido <span aria-hidden="true" className="float-right text-zinc-400">＋</span>
+            Por que sugerimos esta ideia <span aria-hidden="true" className="float-right text-zinc-400">＋</span>
           </summary>
           <div className="mt-4 space-y-4 text-[15px] leading-[1.5] text-zinc-600">
-            {idea.whyItFits ? <p><strong className="text-zinc-800">No seu mapa: </strong>{idea.whyItFits}</p> : null}
-            {idea.resonanceNote ? <p><strong className="text-[var(--ds-color-success)]">No que reconhecem em você: </strong>{idea.resonanceNote}</p> : null}
+            {idea.opportunityBrief?.whyNow ? (
+              <p><strong className="text-zinc-800">Por que agora: </strong>{simplifyUserFacingText(idea.opportunityBrief.whyNow, 220)}</p>
+            ) : null}
+            <p>{idea.opportunityBrief?.evidenceSummary ?? buildOpportunityEvidenceSummary(0)}</p>
+            {idea.whyItFits ? <p><strong className="text-zinc-800">O que combina com você: </strong>{simplifyUserFacingText(idea.whyItFits, 300)}</p> : null}
+            {idea.resonanceNote ? <p><strong className="text-[var(--ds-color-success)]">O que as pessoas costumam salvar: </strong>{simplifyUserFacingText(idea.resonanceNote, 220)}</p> : null}
+            {mapAnchors.length > 0 ? (
+              <ul className="divide-y divide-zinc-100 border-y border-zinc-100">
+                {mapAnchors.map((anchor) => (
+                  <li key={`${anchor.kind}:${anchor.label}`} className="flex items-start justify-between gap-4 py-3">
+                    <span className="text-[12px] font-semibold text-zinc-500">{contentIdeaMapAnchorLabel(anchor.kind)}</span>
+                    <span className="text-right text-[13px] font-semibold text-zinc-800">{anchor.label}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         </details>
       ) : null}
@@ -386,11 +412,35 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
   );
 }
 
+function copyTextForCollab(idea: ContentIdeaListItem, collab: NarrativeCollabMatch): string {
+  const blueprint = resolveContentIdeaCollabBlueprint(
+    collab.collabBlueprint,
+    collab.collabRecordingIdea,
+    collab.collabMode,
+  );
+  return [
+    idea.title,
+    `COM QUEM\n${collab.name}`,
+    collab.narrativeFitReason ? `POR QUE ESSA PESSOA\n${collab.narrativeFitReason}` : "",
+    blueprint
+      ? blueprint.scenes.map((scene, index) =>
+          `${String(index + 1).padStart(2, "0")} · ${ownerLabel(scene.owner, collab.name)} · ${BEAT_LABEL[scene.beat]}\nVISUAL: ${scene.visual}\nO QUE DIZER: ${scene.spokenIntent}`,
+        ).join("\n\n")
+      : "",
+    blueprint?.editPlan ? `COMO JUNTAR OS VÍDEOS\n${blueprint.editPlan}` : "",
+    blueprint?.handoffChecklist.length
+      ? `COMBINEM ANTES\n${blueprint.handoffChecklist.map((item) => `• ${item}`).join("\n")}`
+      : "",
+  ].filter(Boolean).join("\n\n");
+}
+
 function CollabPlan({
+  idea,
   collab,
   onOpenCreatorMediaKit,
   reduceMotion,
 }: {
+  idea: ContentIdeaListItem;
   collab: NarrativeCollabMatch;
   onOpenCreatorMediaKit?: (slug: string) => void;
   reduceMotion: boolean;
@@ -424,7 +474,7 @@ function CollabPlan({
           />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Plano a dois</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Plano da parceria</p>
           <h3 id="collab-plan-title" className="mt-0.5 truncate font-display text-[1.6rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
             Você + {collab.name.split(" ")[0]}
           </h3>
@@ -435,27 +485,39 @@ function CollabPlan({
         </div>
       </section>
 
-      <div className="ds-notebook-note mt-6">
-        <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-400">Por que vocês</p>
-        <p className="mt-1 text-[16px] font-semibold leading-[1.45] text-zinc-800">{collab.narrativeFitReason}</p>
-        {collab.sharedSignal ? (
-          <p className="mt-2 text-[14px] leading-[1.45] text-zinc-500">
-            <strong className="text-zinc-700">Ponto em comum:</strong> {collab.sharedSignal}
+      {collab.narrativeFitReason ? (
+        <p className="mt-5 max-w-[42ch] text-[16px] font-semibold leading-[1.45] text-zinc-800">
+          {simplifyUserFacingText(collab.narrativeFitReason, 220)}
+        </p>
+      ) : null}
+
+      {collab.viewerContribution || collab.partnerContribution ? (
+        <div className="ds-notebook-note mt-5">
+          <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-400">O que cada pessoa faz</p>
+        {collab.viewerContribution ? (
+            <p className="mt-3 text-[14px] leading-[1.45] text-zinc-600">
+              <strong className="text-zinc-800">Você entra com: </strong>{simplifyUserFacingText(collab.viewerContribution, 180)}
           </p>
         ) : null}
-        {collab.distinctSignals.length > 0 ? (
-          <p className="mt-1 text-[14px] leading-[1.45] text-zinc-500">
-            <strong className="text-zinc-700">Ela/ele traz:</strong> {collab.distinctSignals.join(", ")}
+        {collab.partnerContribution ? (
+          <p className="mt-1 text-[14px] leading-[1.45] text-zinc-600">
+              <strong className="text-zinc-800">{collab.name.split(" ")[0]} entra com: </strong>{simplifyUserFacingText(collab.partnerContribution, 180)}
           </p>
         ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {blueprint ? (
         <section className="mt-8" aria-labelledby="collab-storyboard-title">
-          <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Como gravar essa collab</p>
-          <h4 id="collab-storyboard-title" className="mt-1 font-display text-[1.55rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
-            Quem faz o quê
-          </h4>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Como gravar juntos</p>
+              <h4 id="collab-storyboard-title" className="mt-1 font-display text-[1.55rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
+                Quem faz cada parte
+              </h4>
+            </div>
+            <CopyButton text={copyTextForCollab(idea, collab)} label="Copiar plano" />
+          </div>
 
           <div className="mt-5">
             {blueprint.scenes.map((scene, index) => (
@@ -478,21 +540,37 @@ function CollabPlan({
                   </div>
                   <p className="mt-2 text-[17px] font-semibold leading-[1.35] text-zinc-900">{scene.visual}</p>
                   <p className="mt-2 text-[15px] leading-[1.5] text-zinc-600">
-                    <span className="font-semibold text-zinc-800">Intenção: </span>{scene.spokenIntent}
+                    <span className="font-semibold text-zinc-800">O que dizer: </span>{scene.spokenIntent}
                   </p>
-                  {scene.transition ? <p className="mt-2 text-[13px] italic leading-[1.4] text-zinc-500">Transição: {scene.transition}</p> : null}
+                  {scene.transition ? <p className="mt-2 text-[13px] leading-[1.4] text-zinc-500">Depois: {scene.transition}</p> : null}
                 </div>
               </motion.article>
             ))}
           </div>
 
           <div className="mt-3 border-y border-zinc-100 py-5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-400">Na edição</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-400">Como juntar os vídeos</p>
             <p className="mt-2 text-[16px] leading-[1.5] text-zinc-700">{blueprint.editPlan}</p>
           </div>
 
           {blueprint.handoffChecklist.length > 0 ? <Checklist title="Combinem antes" items={blueprint.handoffChecklist} /> : null}
         </section>
+      ) : null}
+
+      {collab.sharedSignal || collab.distinctSignals.length > 0 ? (
+        <details className="mt-8 border-y border-zinc-100 py-4">
+          <summary className="cursor-pointer list-none text-[15px] font-semibold text-zinc-800">
+            Por que vocês combinam <span aria-hidden="true" className="float-right text-zinc-400">＋</span>
+          </summary>
+          <div className="mt-4 space-y-3 text-[14px] leading-[1.5] text-zinc-600">
+            {collab.sharedSignal ? (
+              <p><strong className="text-zinc-800">Assunto em comum: </strong>{collab.sharedSignal}</p>
+            ) : null}
+            {collab.distinctSignals.length > 0 ? (
+              <p><strong className="text-zinc-800">O que {collab.name.split(" ")[0]} acrescenta: </strong>{collab.distinctSignals.join(", ")}</p>
+            ) : null}
+          </div>
+        </details>
       ) : null}
     </div>
   );
@@ -500,9 +578,14 @@ function CollabPlan({
 
 function SceneMeta({ shot, onScreenText, durationSeconds }: { shot: string | null; onScreenText: string | null; durationSeconds: number | null }) {
   if (!shot && !onScreenText && !durationSeconds) return null;
+  const plainShot = shot
+    ?.replace(/plano pr[oó]ximo/gi, "câmera próxima")
+    .replace(/plano m[eé]dio/gi, "câmera da cintura para cima")
+    .replace(/plano aberto/gi, "câmera mais afastada")
+    .replace(/close[- ]?up/gi, "câmera próxima");
   return (
     <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[13px] leading-[1.4] text-zinc-500">
-      {shot ? <span>{shot}</span> : null}
+      {plainShot ? <span>{plainShot}</span> : null}
       {durationSeconds ? <span>{durationSeconds}s</span> : null}
       {onScreenText ? <span className="basis-full text-zinc-600">Na tela: “{onScreenText}”</span> : null}
     </div>
@@ -538,8 +621,8 @@ function CollabContextTeaser({ onUpgrade }: { onUpgrade?: () => void }) {
         ?
       </div>
       <div className="min-w-0 flex-1">
-        <span className="block text-[15px] font-bold text-zinc-950">Um creator combina com essa ideia</span>
-        <span className="mt-0.5 block text-[13px] text-[var(--ds-color-brand-strong)]">Veja quem e receba o plano de gravação a dois →</span>
+        <span className="block text-[15px] font-bold text-zinc-950">Esta ideia também pode ser feita em parceria</span>
+        <span className="mt-0.5 block text-[13px] text-[var(--ds-color-brand-strong)]">Veja uma sugestão e como vocês podem gravar →</span>
       </div>
     </button>
   );

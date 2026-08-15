@@ -24,7 +24,14 @@ jest.mock("framer-motion", () => {
     motion: new Proxy({}, { get: (_, prop) => MotionTag(prop as string) }),
     AnimatePresence: ({ children }: any) => React.createElement(React.Fragment, null, children),
     animate: jest.fn(),
-    useMotionValue: () => ({ get: () => 0, set: () => {} }),
+    useMotionValue: (initial = 0) => {
+      const valueRef = React.useRef(initial);
+      const motionValueRef = React.useRef({
+        get: () => valueRef.current,
+        set: (next: number) => { valueRef.current = next; },
+      });
+      return motionValueRef.current;
+    },
     useTransform: () => 0,
     useReducedMotion: () => true,
   };
@@ -63,6 +70,8 @@ function match(name: string): NarrativeCollabMatch {
     narrativeFitReason: "fala de dinheiro sem culpa",
     sharedSignal: "Paternidade",
     distinctSignals: ["Finanças"],
+    partnerContribution: "um olhar financeiro que completa essa história",
+    collabMode: "remoto",
     narrativeMatch: true,
   };
 }
@@ -88,8 +97,8 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: /Pauta:/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Preparando suas ideias" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Ideia:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Ver combinadas/ })).not.toBeInTheDocument();
 
     rerender(
@@ -100,9 +109,9 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.queryByRole("status", { name: "Preparando suas collabs" })).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta a" })).toBeInTheDocument();
-    expect(screen.getByText("Marina")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Preparando suas ideias" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Parceria recomendada: Pauta a/ })).toBeInTheDocument();
+    expect(screen.getByText("Com Marina")).toBeInTheDocument();
   });
 
   it("falha de bootstrap nunca se disfarça de pauta solo e oferece retry", () => {
@@ -119,13 +128,13 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Não conseguimos preparar suas collabs");
-    expect(screen.queryByRole("group", { name: /Pauta:/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Não conseguimos preparar suas ideias");
+    expect(screen.queryByRole("group", { name: /Ideia:/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(onRetryBootstrap).toHaveBeenCalledTimes(1);
   });
 
-  it("mantém cards de trás fora da árvore acessível e abre o topo pelo teclado", () => {
+  it("mantém cards de trás fora da árvore acessível e vira o topo pelo teclado", () => {
     const onOpenIdea = jest.fn();
     render(
       <DiagnosticoCollabsFeed
@@ -137,10 +146,42 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    const top = screen.getByRole("group", { name: "Pauta: Pauta a" });
+    const top = screen.getByRole("group", { name: /Ideia: Pauta a/ });
     fireEvent.keyDown(top, { key: "Enter" });
+    expect(screen.getByTestId("collab-flashcard-back")).toBeInTheDocument();
+    expect(onOpenIdea).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir plano completo da ideia" }));
     expect(onOpenIdea).toHaveBeenCalledWith("a");
     expect(screen.getByText("Pauta b").closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it("mantém a frente minimalista e revela a justificativa apenas no verso", () => {
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("a")]}
+        pautaCollabs={new Map([["a", match("Marina")]])}
+        collabDecisions={new Map()}
+      />,
+    );
+
+    const collabCard = screen.getByRole("group", { name: /Parceria recomendada: Pauta a/ });
+    expect(collabCard).toHaveTextContent("Pauta a");
+    expect(collabCard).toHaveTextContent("Collab sugerida");
+    expect(collabCard).toHaveTextContent("Com Marina");
+    expect(collabCard).toHaveTextContent("Marina");
+    expect(collabCard).not.toHaveTextContent("Um olhar financeiro que completa essa história");
+    expect(collabCard).not.toHaveTextContent("Reel falado");
+    expect(collabCard).not.toHaveTextContent("Cada pessoa grava de onde estiver");
+
+    const identityHeader = screen.getByTestId("collab-identity-header");
+    expect(identityHeader).toHaveStyle({ borderBottom: "1px solid var(--ds-color-line)" });
+    expect(identityHeader.nextElementSibling).toHaveTextContent("Pauta a");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver por que combina" }));
+    expect(screen.getByTestId("collab-flashcard-back")).toHaveTextContent("Um olhar financeiro que completa essa história");
+    expect(screen.getByTestId("collab-flashcard-back")).toHaveTextContent("Reel falado");
+    expect(screen.getByTestId("collab-flashcard-back")).toHaveTextContent("À distância");
   });
 
   it("todas as pautas entram no deck; a collab surge no meio, nunca como 1º card", () => {
@@ -153,7 +194,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     // Topo do deck = pauta solo (b), não a collab (a) — o prêmio surge no meio.
-    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta b/ })).toBeInTheDocument();
     // Nada de lista de leitura fora da estante: sem seção "Pra gravar" ainda.
     expect(screen.queryByText("Pra gravar")).not.toBeInTheDocument();
   });
@@ -178,10 +219,14 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta b/ })).toBeInTheDocument();
     expect(screen.getByText("Pauta a").closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.getByText("1 de 5")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Quero gravar essa pauta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver como gravar" }));
+    expect(screen.getByTestId("collab-flashcard-back")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar ideia" }));
     expect(onSavePauta).toHaveBeenCalledWith("b");
 
     rerender(
@@ -195,7 +240,10 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta a" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Parceria recomendada: Pauta a/ })).toBeInTheDocument();
+    expect(screen.getAllByTestId("collab-flashcard-front").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("collab-flashcard-back")).not.toBeInTheDocument();
+    expect(screen.getByText("2 de 5")).toBeInTheDocument();
   });
 
   it("promove exatamente o card visível atrás depois de descartar o topo", () => {
@@ -218,10 +266,10 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta b/ })).toBeInTheDocument();
     expect(screen.getByText("Pauta a").closest('[aria-hidden="true"]')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Não é pra mim" }));
+    fireEvent.click(screen.getByRole("button", { name: "Descartar ideia" }));
     expect(onDismissPauta).toHaveBeenCalledWith("b");
 
     rerender(
@@ -235,11 +283,11 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta a" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Parceria recomendada: Pauta a/ })).toBeInTheDocument();
   });
 
-  it("renderiza títulos de card sem quebra agressiva no meio de palavra", () => {
-    const title = "A verdade sobre como eu decido o que gravar sem depender de ninguém";
+  it("prioriza a frase inteira antes de aplicar reticências", () => {
+    const title = "A verdade sobre como a IA mudou o jeito que eu trabalho";
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -248,11 +296,12 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
       />,
     );
-    expect(screen.getByText(title)).toHaveStyle({
-      overflowWrap: "normal",
-      wordBreak: "normal",
-      hyphens: "none",
-    });
+    const titleElement = screen.getByText(title);
+    expect(titleElement).toHaveStyle({ width: "100%", hyphens: "none" });
+    expect(titleElement.style.maxWidth).toBe("100%");
+    expect(titleElement).toHaveAttribute("data-max-lines", "4");
+    expect(titleElement.style.overflowWrap).toBe("normal");
+    expect(titleElement.style.wordBreak).toBe("normal");
   });
 
   it("limpa texto corrompido salvo antes de renderizar cards antigos", () => {
@@ -275,7 +324,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.queryByText(/ningu\s*R/)).not.toBeInTheDocument();
   });
 
-  it("mostra a pauta e as evidências do Seu mapa como chips, sem roteiro corrido", () => {
+  it("mantém a frente limpa e leva as evidências do mapa para o detalhe", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -298,11 +347,14 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    expect(screen.getByText("Do seu mapa")).toBeInTheDocument();
-    expect(screen.getByText("Situação real")).toBeInTheDocument();
-    expect(screen.getByText("Refazendo o mesmo vídeo")).toBeInTheDocument();
-    expect(screen.getByText("Jeito de falar")).toBeInTheDocument();
+    expect(screen.queryByText("Do seu mapa")).not.toBeInTheDocument();
+    expect(screen.queryByText("Situação real")).not.toBeInTheDocument();
+    expect(screen.queryByText("Refazendo o mesmo vídeo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jeito de falar")).not.toBeInTheDocument();
     expect(screen.queryByText(/Eu estava copiando/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver como gravar" }));
+    expect(screen.getByTestId("collab-flashcard-back")).toHaveTextContent("Eu estava copiando até a versão antiga de mim.");
     expect(screen.queryByText(/Abra a pasta/)).not.toBeInTheDocument();
   });
 
@@ -319,14 +371,38 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         onAcceptCollabPauta={onAcceptCollabPauta}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Quero gravar essa pauta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar ideia" }));
     expect(onSavePauta).toHaveBeenCalledWith("b");
     expect(onAcceptCollabPauta).not.toHaveBeenCalled(); // solo não é collab
   });
 
-  it("aceitar collab → salva + registra interesse; REJEITAR (qualquer card) → descarte permanente", () => {
+  it("no Free, abre a assinatura sem retirar nem salvar o card atual", () => {
+    const onSavePauta = jest.fn();
+    const onUpgrade = jest.fn();
+    const { container } = render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        isPro={false}
+        pautas={[pauta("free-a"), pauta("free-b")]}
+        pautaCollabs={new Map()}
+        collabDecisions={new Map()}
+        onSavePauta={onSavePauta}
+        onUpgrade={onUpgrade}
+      />,
+    );
+
+    const topBefore = container.querySelector('[data-stack-position="0"]')?.getAttribute("data-stack-card-id");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar ideia" }));
+
+    expect(onUpgrade).toHaveBeenCalledWith("narrative_map");
+    expect(onSavePauta).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-stack-position="0"]')).toHaveAttribute("data-stack-card-id", topBefore);
+  });
+
+  it("aceitar parceria registra interesse; recusar a pessoa preserva a ideia", () => {
     const onSavePauta = jest.fn();
     const onAcceptCollabPauta = jest.fn();
+    const onDeclineCollabPauta = jest.fn();
     const onDismissPauta = jest.fn();
     const { rerender } = render(
       <DiagnosticoCollabsFeed
@@ -336,11 +412,12 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
         onSavePauta={onSavePauta}
         onAcceptCollabPauta={onAcceptCollabPauta}
+        onDeclineCollabPauta={onDeclineCollabPauta}
         onDismissPauta={onDismissPauta}
       />,
     );
     // Só a collab "a" restou no deck (solo já está salva → estante).
-    fireEvent.click(screen.getByRole("button", { name: "Quero fazer essa collab" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quero gravar com Marina" }));
     expect(onAcceptCollabPauta).toHaveBeenCalledWith("a");
     expect(onSavePauta).not.toHaveBeenCalled();
     expect(onDismissPauta).not.toHaveBeenCalled();
@@ -355,14 +432,31 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
         onSavePauta={onSavePauta}
         onAcceptCollabPauta={onAcceptCollabPauta}
+        onDeclineCollabPauta={onDeclineCollabPauta}
         onDismissPauta={onDismissPauta}
       />,
     );
-    // Rejeitar a collab → descarta a pauta de vez (não salva, não registra collab).
-    fireEvent.click(screen.getByRole("button", { name: "Não é pra mim" }));
-    expect(onDismissPauta).toHaveBeenCalledWith("b");
+    // Recusar a pessoa → registra só a recusa da parceria; a ideia não é apagada.
+    fireEvent.click(screen.getByRole("button", { name: "Agora não quero esta parceria" }));
+    expect(onDeclineCollabPauta).toHaveBeenCalledWith("b");
+    expect(onDismissPauta).not.toHaveBeenCalled();
     expect(onSavePauta).not.toHaveBeenCalled();
     expect(onAcceptCollabPauta).not.toHaveBeenCalled();
+
+    rerender(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("solo", { status: "saved" }), pauta("b")]}
+        pautaCollabs={new Map([["b", match("Théo")], ["solo", null]])}
+        collabDecisions={new Map([["b", "dismissed" as const]])}
+        onSavePauta={onSavePauta}
+        onAcceptCollabPauta={onAcceptCollabPauta}
+        onDeclineCollabPauta={onDeclineCollabPauta}
+        onDismissPauta={onDismissPauta}
+      />,
+    );
+    expect(screen.getByRole("group", { name: /Ideia: Pauta b/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar ideia" })).toBeInTheDocument();
   });
 
   it("usa a rota interna estável para a foto no card real de collab", () => {
@@ -375,11 +469,11 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    const avatar = container.querySelector('img[src^="/api/mediakit/marina-slug/avatar"]');
+    const avatar = container.querySelector('img[src^="/api/dashboard/mobile-strategic-profile/collabs/creators/creator-Marina/avatar"]');
     expect(avatar).not.toBeNull();
     expect(avatar).toHaveAttribute(
       "src",
-      "/api/mediakit/marina-slug/avatar?v=20260719-collab-avatar-v4",
+      "/api/dashboard/mobile-strategic-profile/collabs/creators/creator-Marina/avatar?v=20260719-collab-avatar-v4",
     );
   });
 
@@ -398,7 +492,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         onRetryPautaAction={onRetryPautaAction}
       />,
     );
-    expect(screen.queryByRole("group", { name: /Pauta: Pauta a/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Ideia: Pauta a/ })).not.toBeInTheDocument();
     expect(screen.getByText("Não foi possível salvar agora. Tente novamente.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     expect(onRetryPautaAction).toHaveBeenCalledWith("a");
@@ -414,8 +508,8 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautaActionStates={new Map([["a", { kind: "save" as const, phase: "pending" as const }]])}
       />,
     );
-    expect(screen.queryByRole("group", { name: /Pauta: Pauta a/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ver pautas salvas (1)" }));
+    expect(screen.queryByRole("group", { name: /Ideia: Pauta a/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver ideia sendo salva" }));
     expect(screen.getByText("Pauta a")).toBeInTheDocument();
     expect(screen.getByText("Salvando...")).toBeInTheDocument();
   });
@@ -431,26 +525,25 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         onUnsavePauta={onUnsavePauta}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Ver pautas salvas (1)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remover de Pra gravar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver ideias salvas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tirar das ideias salvas" }));
     expect(onUnsavePauta).toHaveBeenCalledWith("salva");
   });
 
-  it("unsave confirmado remove a pauta da sessão sem voltar para deck ou gaveta", () => {
+  it("tirar das salvas devolve a ideia ativa para o deck", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
-        pautas={[pauta("salva", { status: "saved" })]}
+        pautas={[pauta("salva", { status: "active" })]}
         pautaCollabs={new Map([["salva", null]])}
         collabDecisions={new Map()}
-        pautaActionStates={new Map([["salva", { kind: "unsave" as const, phase: "confirmed" as const }]])}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Ver pautas salvas/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: /Pauta: Pauta salva/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver ideias salvas/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta salva/ })).toBeInTheDocument();
   });
 
-  it("unsave confirmado com status local active também não volta para o deck", () => {
+  it("estado antigo de unsave não transforma uma ideia ativa em descarte", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -460,11 +553,12 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautaActionStates={new Map([["salva", { kind: "unsave" as const, phase: "confirmed" as const }]])}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Ver pautas salvas/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: /Pauta: Pauta salva/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver ideias salvas/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta salva/ })).toBeInTheDocument();
   });
 
-  it("falha de unsave mantém a pauta fora da gaveta sem pedir sincronização manual", () => {
+  it("falha ao tirar das salvas mantém a ideia salva e oferece nova tentativa", () => {
+    const onRetryPautaAction = jest.fn();
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -473,14 +567,16 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
         pautaActionStates={new Map([[
           "salva",
-          { kind: "unsave" as const, phase: "failed" as const, message: "Removida da lista. Não consegui sincronizar; se recarregar, ela pode voltar." },
+          { kind: "unsave" as const, phase: "failed" as const, message: "Não foi possível tirar a ideia das salvas. Tente novamente." },
         ]])}
+        onRetryPautaAction={onRetryPautaAction}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Ver pautas salvas/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: /Pauta: Pauta salva/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("Removida da lista. Não consegui sincronizar; se recarregar, ela pode voltar.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sincronizar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ver ideias salvas/ })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Ideia: Pauta salva/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Não foi possível tirar a ideia das salvas. Tente novamente.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(onRetryPautaAction).toHaveBeenCalledWith("salva");
   });
 
   it("pauta descartada (status dismissed) some do deck E da estante — nunca reaparece", () => {
@@ -493,7 +589,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     // "a" foi descartada → nem no deck nem na estante. Topo é "b".
-    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Ideia: Pauta b/ })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /Pauta a/ })).not.toBeInTheDocument();
     expect(screen.queryByText("com Marina")).not.toBeInTheDocument();
   });
@@ -520,24 +616,25 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
 
     // Ícone de salvas → salvas-solo + aguardando. A CASADA NÃO mora aqui:
     // a célula completa dela vive em Combinadas (uma casa por item).
-    fireEvent.click(screen.getByRole("button", { name: "Ver pautas salvas (2)" }));
-    expect(screen.getByRole("dialog", { name: "Pra gravar" })).toBeInTheDocument();
-    expect(screen.getByText("Aguardando Marina")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver ideias salvas (2)" }));
+    expect(screen.getByRole("dialog", { name: "Ideias salvas" })).toBeInTheDocument();
+    expect(screen.getByText("Interesse registrado")).toBeInTheDocument();
     // A espera fecha o loop: diz o que falta e onde a resposta chega.
-    expect(screen.getByText(/Se Marina também topar essa pauta, é match/)).toBeInTheDocument();
+    expect(screen.getByText(/Se houver interesse dos dois lados, avisamos você no WhatsApp/)).toBeInTheDocument();
     expect(screen.queryByText(/Combinada com/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Você e Théo toparam")).not.toBeInTheDocument();
+    expect(screen.queryByText("Parceria com Théo confirmada")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
 
     // Ícone de combinadas → só os matches + o alerta de WhatsApp no rodapé.
-    fireEvent.click(screen.getByRole("button", { name: "Ver combinadas (1)" }));
-    expect(screen.getByRole("dialog", { name: "Combinadas" })).toBeInTheDocument();
-    expect(screen.getByText("Você e Théo toparam")).toBeInTheDocument();
-    expect(screen.getByText(/Te avisamos no WhatsApp/)).toBeInTheDocument();
-    expect(screen.queryByText("Aguardando Marina")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver parcerias confirmadas (1)" }));
+    expect(screen.getByRole("dialog", { name: "Parcerias confirmadas" })).toBeInTheDocument();
+    expect(screen.getByText("Parceria com Théo confirmada")).toBeInTheDocument();
+    expect(screen.getByText("Próximo passo: combinar a gravação.")).toBeInTheDocument();
+    expect(screen.getByText(/Avisamos no WhatsApp/)).toBeInTheDocument();
+    expect(screen.queryByText("Interesse registrado")).not.toBeInTheDocument();
   });
 
-  it("Combinadas fica sempre visível, mesmo sem nenhum match — e abre um estado vazio explicado", () => {
+  it("Parcerias confirmadas fica sempre visível, mesmo sem nenhuma — e abre um estado vazio explicado", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -548,15 +645,15 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     // O botão não pode sumir por falta de match — sumir lê como "essa função não existe".
-    const combinadasBtn = screen.getByRole("button", { name: "Ver combinadas — nenhuma ainda" });
+    const combinadasBtn = screen.getByRole("button", { name: "Ver parcerias confirmadas — nenhuma ainda" });
     expect(combinadasBtn).toBeInTheDocument();
     // Sem contador numérico quando é zero (o badge só existe pra número > 0).
     expect(combinadasBtn).not.toHaveTextContent(/\d/);
 
     fireEvent.click(combinadasBtn);
-    expect(screen.getByRole("dialog", { name: "Combinadas" })).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma collab combinada ainda")).toBeInTheDocument();
-    expect(screen.getByText("Quando um criador topar a mesma pauta que você, aparece aqui.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Parcerias confirmadas" })).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma parceria confirmada ainda")).toBeInTheDocument();
+    expect(screen.getByText("Quando outra pessoa escolher a mesma ideia, ela aparecerá aqui.")).toBeInTheDocument();
   });
 
   it("zerar o deck mostra a recompensa do ritual (com a contagem da mochila)", () => {
@@ -579,8 +676,8 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     expect(screen.getByText("Rodada concluída")).toBeInTheDocument();
-    expect(screen.getByText("Pronto para novas pautas?")).toBeInTheDocument();
-    expect(screen.getByText("1 pauta guardada nesta rodada.")).toBeInTheDocument();
+    expect(screen.getByText("Quer ver novas ideias?")).toBeInTheDocument();
+    expect(screen.getByText("1 ideia salva nesta rodada.")).toBeInTheDocument();
   });
 
   it("assinante encerra a rodada apenas com a próxima ação de pautas", () => {
@@ -594,7 +691,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         onGenerate={onGenerate}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Carregar nova rodada" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver novas ideias" }));
     expect(onGenerate).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Entrar no grupo do WhatsApp" })).not.toBeInTheDocument();
   });
@@ -629,8 +726,8 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         onGenerate={onGenerate}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(/gerações de pautas deste mês/i);
-    expect(screen.queryByRole("button", { name: /Carregar nova rodada/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/gerações de ideias deste mês/i);
+    expect(screen.queryByRole("button", { name: /Ver novas ideias/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Tentar novamente/ })).not.toBeInTheDocument();
     expect(onGenerate).not.toHaveBeenCalled();
   });
@@ -650,7 +747,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Carregar nova rodada/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Ver novas ideias/ }));
     expect(onUpgrade).toHaveBeenLastCalledWith("planning");
     expect(screen.queryByRole("button", { name: /Entrar no grupo do WhatsApp/ })).not.toBeInTheDocument();
     expect(onGenerate).not.toHaveBeenCalled();
@@ -676,15 +773,26 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       <DiagnosticoCollabsFeed
         {...baseProps}
         isPro={false}
-        pautas={[pauta("a", { status: "dismissed" }), pauta("b")]}
+        pautas={[pauta("a", { status: "dismissed" }), pauta("b", {
+          opportunityBrief: {
+            version: 1,
+            kind: "collab_optional",
+            whyNow: "Esse assunto aparece nos seus vídeos recentes.",
+            collabReason: "Outra pessoa pode mostrar uma experiência diferente.",
+            evidenceSummary: "Usamos o seu Mapa e 8 vídeos recentes.",
+            evidenceLevel: "medium",
+            postsAnalyzed: 8,
+            timing: null,
+          },
+        })]}
         collabDecisions={new Map()}
         onUpgrade={onUpgrade}
         onAcceptCollabPauta={onAcceptCollabPauta}
       />,
     );
     // "a" foi descartada; sobra "b" — que é o card misterioso (2ª posição original).
-    expect(screen.getByText("Um criador combina com essa pauta")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Quero fazer essa collab" }));
+    expect(screen.getByText("Há uma pessoa indicada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver sugestão de parceria no Pro" }));
     expect(onUpgrade).toHaveBeenCalledWith("narrative_map");
     expect(onAcceptCollabPauta).not.toHaveBeenCalled();
   });

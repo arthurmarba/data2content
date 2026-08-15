@@ -261,11 +261,12 @@ async function buildAvatarCandidates(user: any) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   await connectToDatabase();
 
-  const resolvedToken = await resolveMediaKitToken(params.token);
+  const { token } = await params;
+  const resolvedToken = await resolveMediaKitToken(token);
   if (!resolvedToken?.userId) {
     return new Response(null, { status: 404 });
   }
@@ -301,6 +302,10 @@ export async function GET(
         'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
       },
     });
+  }
+
+  if (req.nextUrl.searchParams.get('strict') === '1') {
+    return new Response(null, { status: 404 });
   }
 
   return new Response(buildFallbackAvatarSvg(), {

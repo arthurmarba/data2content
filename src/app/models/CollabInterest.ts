@@ -53,6 +53,9 @@ export interface ICollabInterest extends Document {
   collabBlueprint: ContentIdeaCollabBlueprint | null;
   /** "presencial" (mesma cidade) | "remoto" (longe/desconhecido). */
   collabMode: "presencial" | "remoto" | null;
+  /** Explicação curta do que cada pessoa acrescenta ao vídeo. */
+  viewerContribution: string | null;
+  partnerContribution: string | null;
 
   /** Preenchido nos DOIS docs quando o par casa. */
   matchedAt: Date | null;
@@ -84,6 +87,8 @@ const CollabInterestSchema = new Schema<ICollabInterest>(
     recordingIdea: { type: String, default: null },
     collabBlueprint: { type: Schema.Types.Mixed, default: null },
     collabMode: { type: String, enum: ["presencial", "remoto", null], default: null },
+    viewerContribution: { type: String, default: null },
+    partnerContribution: { type: String, default: null },
 
     matchedAt: { type: Date, default: null },
     celebratedAt: { type: Date, default: null },

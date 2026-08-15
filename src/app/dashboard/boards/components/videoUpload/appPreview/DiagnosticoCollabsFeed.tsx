@@ -1,16 +1,13 @@
 "use client";
 
-// Aba "Collabs" — duas linguagens, uma regra.
+// Aba "Collabs" — uma pilha, decisões diferentes.
 //
-//   PILHA (DiagnosticoCollabStack)  = decisão a dois. Toda pauta com criador
-//     compatível vira card arrastável. A decisão de collab mora AQUI, e só aqui.
-//   LISTA                           = ideia solo. Pautas sem par continuam como
-//     card de lista, sem swipe — não há segundo lado esperando resposta.
+//   IDEIA SOLO = salvar ou descartar a ideia.
+//   PARCERIA   = gravar com a pessoa indicada ou avaliar a ideia sem ela.
 //
-// O bloco de collab embutido no card de lista só volta quando o match está
-// COMBINADO (aí é status, não decisão). Free vê a pilha com o criador
-// misterioso (coração abre paywall, zero custo de match). Seções que dependem
-// de dado real somem quando não há dado — sem placeholder (guardrail).
+// O plano completo preserva a escolha entre gravar sozinho e em parceria.
+// Free vê a pilha com o criador misterioso (cadeado abre paywall, zero custo
+// de match). Seções que dependem de dado real somem quando não há dado.
 //
 // Ver docs/brief-collabs-gamificada-fable.md para as decisões travadas.
 
@@ -22,7 +19,6 @@ import type { PaywallContext } from "@/types/paywall";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import {
   DiagnosticoCollabStack,
-  MetaChip,
   type CollabStackDecision,
   type CollabStackItem,
 } from "./DiagnosticoCollabStack";
@@ -45,7 +41,7 @@ const WA_GREEN = "#25D366";
 const FEED_BG = "var(--ds-color-neutral)";
 const FEED_CARD_SHADOW = "var(--ds-shadow-raised)";
 
-export type PautaActionKind = "save" | "unsave" | "dismiss" | "collab-interest";
+export type PautaActionKind = "save" | "unsave" | "dismiss" | "collab-interest" | "collab-decline";
 export type PautaActionPhase = "pending" | "failed" | "confirmed";
 
 export interface PautaActionState {
@@ -96,7 +92,9 @@ interface Props {
   onUnsavePauta?: (id: string) => void;
   /** Aceita a collab: salva a pauta e registra interesse no servidor. */
   onAcceptCollabPauta?: (id: string) => void;
-  /** Descarte PERMANENTE (status "dismissed") — a pauta rejeitada nunca mais volta. */
+  /** Recusa somente a pessoa sugerida; a ideia volta ao deck para ser avaliada sozinha. */
+  onDeclineCollabPauta?: (id: string) => void;
+  /** Descarta a ideia, e não apenas a pessoa sugerida. */
   onDismissPauta?: (id: string) => void;
   onConnectWhatsApp?: () => void;
   onUpgrade?: (context?: PaywallContext) => void;
@@ -176,6 +174,7 @@ function HeaderIconButton({
 
 function FeedHeader({
   savedCount,
+  hasSavedItems,
   matchCount,
   loading,
   showTitle,
@@ -184,6 +183,8 @@ function FeedHeader({
 }: {
   /** Pautas salvas (pra gravar). */
   savedCount: number;
+  /** Inclui operações ainda sincronizando, para a gaveta nunca desaparecer. */
+  hasSavedItems: boolean;
   /** Collabs combinadas. */
   matchCount: number;
   loading?: boolean;
@@ -195,7 +196,7 @@ function FeedHeader({
     // Hero em Bricolage (creator-studio) — piloto do design system da landing.
     // Compacto de propósito: nesta tela o header é coadjuvante do deck — cada
     // pt gasto aqui é pt tirado do card (que é a experiência inteira da aba).
-    <div style={{ padding: "12px 20px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 20px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
       {/* O contador do marcador "pulsa" quando um card cai na mochila. */}
       <style>{`@keyframes d2c-pocket-pop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}`}</style>
       <div style={{ minWidth: 0, flex: 1 }}>
@@ -227,16 +228,16 @@ function FeedHeader({
           <>
             <HeaderIconButton
               onClick={onOpenCombinadas}
-              ariaLabel={matchCount > 0 ? `Ver combinadas (${matchCount})` : "Ver combinadas — nenhuma ainda"}
+              ariaLabel={matchCount > 0 ? `Ver parcerias confirmadas (${matchCount})` : "Ver parcerias confirmadas — nenhuma ainda"}
               badge={matchCount}
               badgeTone="match"
             >
               <CollabGlyph />
             </HeaderIconButton>
-            {savedCount > 0 ? (
+            {hasSavedItems ? (
               <HeaderIconButton
                 onClick={onOpenSalvas}
-                ariaLabel={`Ver pautas salvas (${savedCount})`}
+                ariaLabel={savedCount > 0 ? `Ver ideias salvas (${savedCount})` : "Ver ideia sendo salva"}
                 badge={savedCount}
                 badgeTone="neutral"
                 pulseKey={savedCount}
@@ -253,12 +254,12 @@ function FeedHeader({
 
 // ─── Guardadas — a gaveta que reúne combinadas + pautas salvas ─────────────────
 //
-// O deck tria; a gaveta guarda. Combinadas (verde, com atalho pro match) em
-// cima; "Pra gravar" (salvas, com selos de status) embaixo; o alerta de
+// O deck apresenta; as gavetas guardam. Parcerias confirmadas (verde, com
+// atalho para o plano) em cima; Ideias salvas embaixo; o alerta de
 // WhatsApp mora no rodapé — "te aviso quando der match" ao lado dos matches.
 
 // Casca comum das gavetas — handle, título, ×, corpo rolável. Cada gaveta é
-// single-purpose (Combinadas OU Pra gravar), pra nenhuma ficar poluída.
+// single-purpose (Parcerias confirmadas OU Ideias salvas), sem poluição.
 function CollabSheet({
   title,
   children,
@@ -324,7 +325,7 @@ function CombinadasSheet({
   onClose: () => void;
 }) {
   return (
-    <CollabSheet title="Combinadas" onClose={onClose}>
+    <CollabSheet title="Parcerias confirmadas" onClose={onClose}>
       <div style={{ padding: "0 16px" }}>
         {matches.length > 0 ? (
           <ConfirmedMatchesRow matches={matches} pautaById={pautaById} onOpenMatch={onOpenMatch} framed={false} withHeading={false} />
@@ -340,10 +341,10 @@ function CombinadasSheet({
               <CollabGlyph size={22} color="var(--ds-color-brand-strong)" />
             </span>
             <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.3 }}>
-              Nenhuma collab combinada ainda
+              Nenhuma parceria confirmada ainda
             </p>
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, margin: "5px 0 0" }}>
-              Quando um criador topar a mesma pauta que você, aparece aqui.
+              Quando outra pessoa escolher a mesma ideia, ela aparecerá aqui.
             </p>
           </div>
         )}
@@ -351,7 +352,7 @@ function CombinadasSheet({
       {/* Alerta de WhatsApp — "te aviso quando der match" mora junto dos matches. */}
       <div style={{ borderTop: `1px solid ${CS_LINE}`, margin: "16px 0 0", padding: "13px 20px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontSize: 12.5, color: TEXT_BODY_HEX, lineHeight: 1.4 }}>
-          Te avisamos no WhatsApp quando uma collab der match.
+          Avisamos no WhatsApp quando outra pessoa escolher a mesma ideia.
         </span>
         {whatsappLinked ? (
           <span style={{
@@ -382,8 +383,8 @@ function CombinadasSheet({
   );
 }
 
-// Painel Pra gravar — salvas-solo + aguardando. Casada NÃO mora aqui: a célula
-// completa dela (handoff, como gravar) vive em Combinadas — uma casa por item.
+// Painel Ideias salvas — salvas-solo + aguardando. Uma parceria confirmada não
+// mora aqui: o plano dela vive em Parcerias confirmadas — uma casa por item.
 function SalvasSheet({
   shelfPautas,
   awaitingByPauta,
@@ -404,7 +405,7 @@ function SalvasSheet({
   onClose: () => void;
 }) {
   return (
-    <CollabSheet title="Pra gravar" onClose={onClose}>
+    <CollabSheet title="Ideias salvas" onClose={onClose}>
       <div style={{ padding: "0 16px 20px" }}>
         {shelfPautas.length > 0 ? (
           <div style={{ display: "grid", gap: 12 }}>
@@ -423,7 +424,7 @@ function SalvasSheet({
           </div>
         ) : (
           <p style={{ fontSize: 13.5, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, textAlign: "center", padding: "8px 16px 12px" }}>
-            O que você quiser gravar cai aqui — arraste pra direita no deck.
+            As ideias que você salvar aparecerão aqui.
           </p>
         )}
       </div>
@@ -435,8 +436,8 @@ function SalvasSheet({
 
 function StackSkeleton() {
   return (
-    <div role="status" aria-label="Preparando suas collabs">
-      <span className="sr-only">Preparando suas collabs…</span>
+    <div role="status" aria-label="Preparando suas ideias">
+      <span className="sr-only">Preparando suas ideias…</span>
       <style>{`@keyframes d2c-collab-pulse{0%,100%{opacity:.55}50%{opacity:.25}}`}</style>
       <div style={{ padding: "0 2px 10px" }}>
         <div style={{ height: 11, width: 96, borderRadius: 6, background: "var(--ds-color-line-strong)", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
@@ -485,10 +486,10 @@ function CollabsLoadError({ message, onRetry }: { message?: string | null; onRet
         !
       </span>
       <p style={{ margin: "14px 0 0", fontSize: 16, fontWeight: 750, color: TEXT_PRIMARY_HEX }}>
-        Não conseguimos preparar suas collabs
+        Não conseguimos preparar suas ideias
       </p>
       <p style={{ margin: "6px 0 0", maxWidth: 280, fontSize: 13, lineHeight: 1.5, color: TEXT_SECONDARY_HEX }}>
-        {message || "Suas pautas continuam seguras. Tente carregar a rodada novamente."}
+        {message || "Suas ideias continuam salvas. Tente carregar novamente."}
       </p>
       {onRetry ? (
         <button
@@ -532,21 +533,23 @@ function ConfirmedMatchesRow({
     <div style={{ padding: framed ? "20px 16px 0" : 0 }}>
       {withHeading ? (
         <span style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", color: "var(--ds-color-success)", padding: "0 2px", marginBottom: 10 }}>
-          Combinadas
+          Parcerias confirmadas
         </span>
       ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {matches.map(({ pautaId, collab }) => {
+        {matches.map((entry) => {
+          const { pautaId, collab } = entry;
           const firstName = (collab.name || "").trim().split(" ")[0] || collab.name;
           const initials = firstName.slice(0, 1).toUpperCase();
           const pauta = pautaById.get(pautaId);
-          const pautaTitle = pauta ? cleanIdeaText(pauta.title) : "";
+          const snapshot = (entry as typeof entry & { pautaSnapshot?: { title?: string } }).pautaSnapshot;
+          const pautaTitle = pauta ? cleanIdeaText(pauta.title) : cleanIdeaText(snapshot?.title ?? "");
           return (
             <button
               key={pautaId}
               type="button"
               onClick={onOpenMatch ? () => onOpenMatch(pautaId) : undefined}
-              aria-label={pauta ? `Collab combinada com ${collab.name}: ${pautaTitle}` : `Collab combinada com ${collab.name}`}
+              aria-label={pautaTitle ? `Abrir plano da parceria com ${collab.name}: ${pautaTitle}` : `Abrir plano da parceria com ${collab.name}`}
               style={{
                 display: "flex", alignItems: "center", gap: 11, width: "100%",
                 borderRadius: 12, padding: "10px 14px 10px 10px", textAlign: "left",
@@ -580,15 +583,18 @@ function ConfirmedMatchesRow({
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.2 }}>
-                  Você e {firstName} toparam
+                  Parceria com {firstName} confirmada
                 </span>
-                {pauta ? (
+                {pautaTitle ? (
                   <span style={{ display: "block", fontSize: 12, color: "var(--ds-color-success)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {pautaTitle}
                   </span>
                 ) : null}
+                <span style={{ display: "block", marginTop: 4, fontSize: 11.5, color: TEXT_SECONDARY_HEX }}>
+                  Próximo passo: combinar a gravação.
+                </span>
               </div>
-              {onOpenMatch ? <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ds-color-success)", flexShrink: 0 }}>Ver ›</span> : null}
+              {onOpenMatch ? <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ds-color-success)", flexShrink: 0 }}>Abrir plano ›</span> : null}
             </button>
           );
         })}
@@ -597,13 +603,13 @@ function ConfirmedMatchesRow({
   );
 }
 
-// ─── Card de lista (pauta salva — vive só dentro de "Pra gravar") ─────────────
+// ─── Card de lista (ideia salva — vive só em "Ideias salvas") ─────────────────
 
-function TrashIcon({ size = 16 }: { size?: number }) {
+function RemoveBookmarkIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v12.5A1.5 1.5 0 0 1 15.5 21h-7A1.5 1.5 0 0 1 7 19.5V7h10z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75V20l-5-3.15L7 20V4.75z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9.5 9.5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -626,10 +632,10 @@ function AwaitingCollabRow({ collab, whatsappLinked }: { collab: NarrativeCollab
           <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2.4" />
           <path d="M12 8v4.2l2.8 1.6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
         </svg>
-        Aguardando {firstName}
+        Interesse registrado
       </span>
       <p style={{ fontSize: 11.5, color: TEXT_SECONDARY_HEX, lineHeight: 1.45, margin: "6px 0 0" }}>
-        Se {firstName} também topar essa pauta, é match — {whatsappLinked ? "te avisamos no WhatsApp" : "você fica sabendo aqui"}.
+        Se houver interesse dos dois lados, {whatsappLinked ? "avisamos você no WhatsApp" : "a collab aparecerá aqui"}.
       </p>
     </div>
   );
@@ -645,7 +651,9 @@ function PautaActionRow({
   const pending = state.phase === "pending";
   const label = pending
     ? state.kind === "collab-interest"
-      ? "Registrando collab..."
+      ? "Registrando parceria..."
+      : state.kind === "collab-decline"
+        ? "Atualizando sugestão..."
       : state.kind === "unsave"
         ? "Removendo..."
         : state.kind === "dismiss"
@@ -653,15 +661,17 @@ function PautaActionRow({
           : "Salvando..."
     : state.message ?? (
         state.kind === "collab-interest"
-          ? "Collab não sincronizada"
+          ? "Parceria não sincronizada"
+          : state.kind === "collab-decline"
+            ? "Não foi possível atualizar a sugestão"
           : state.kind === "unsave"
             ? "Removida da lista. Sincronização pendente."
             : state.kind === "dismiss"
-              ? "Descartada nesta sessão. Sincronização pendente."
+              ? "Não foi possível descartar a ideia."
               : "Não foi possível salvar agora"
       );
-  const retryLabel = state.kind === "unsave" || state.kind === "dismiss" ? "Sincronizar" : "Tentar de novo";
-  const warningTone = state.kind === "unsave" || state.kind === "dismiss";
+  const retryLabel = "Tentar de novo";
+  const warningTone = false;
   return (
     <div
       style={{
@@ -704,7 +714,7 @@ function PautaCard({
   whatsappLinked?: boolean;
   actionState?: PautaActionState | null;
   onOpenIdea?: (id: string) => void;
-  /** Tira a pauta de "Pra gravar" (des-salva). Card só existe aqui já salvo —
+  /** Tira a pauta de "Ideias salvas". Card só existe aqui já salvo —
    * não é alternância salvar/dessalvar, é remoção da lista. */
   onUnsavePauta?: (id: string) => void;
   onRetryPautaAction?: (id: string) => void;
@@ -725,7 +735,7 @@ function PautaCard({
           <button
             type="button"
             onClick={() => onUnsavePauta?.(pauta.id)}
-            aria-label="Remover de Pra gravar"
+            aria-label="Tirar das ideias salvas"
             style={{
               position: "absolute", top: 10, right: 10, zIndex: 1,
               display: "grid", placeItems: "center", width: 34, height: 34,
@@ -733,7 +743,7 @@ function PautaCard({
               background: "transparent", color: TEXT_SECONDARY_HEX, fontFamily: "inherit",
             }}
           >
-            <TrashIcon />
+            <RemoveBookmarkIcon />
           </button>
         ) : null}
         <button
@@ -741,14 +751,17 @@ function PautaCard({
           onClick={onOpenIdea ? () => onOpenIdea(pauta.id) : undefined}
           style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, paddingRight: canRemove ? 36 : 0, cursor: onOpenIdea ? "pointer" : "default", fontFamily: "inherit" }}
         >
-          {pauta.territory ? (
-            <span style={{ display: "block", marginBottom: 8 }}>
-              <MetaChip label={pauta.territory} />
-            </span>
-          ) : null}
           <p style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: 0, lineHeight: 1.3, margin: 0, overflowWrap: "normal", wordBreak: "normal", hyphens: "none" }}>
             {title}
           </p>
+          <span style={{ display: "block", marginTop: 7, fontSize: 12, color: TEXT_SECONDARY_HEX, lineHeight: 1.35 }}>
+            {[pauta.suggestedFormat, pauta.opportunityBrief?.timing?.shortLabel].filter(Boolean).join(" · ")}
+          </span>
+          {onOpenIdea ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "var(--ds-color-brand-strong)" }}>
+              Abrir plano <span aria-hidden="true">›</span>
+            </span>
+          ) : null}
         </button>
         {awaitingCollab ? (
           <AwaitingCollabRow collab={awaitingCollab} whatsappLinked={whatsappLinked} />
@@ -771,7 +784,7 @@ function GenerateButton({
   if (isGeneratingIdeas) {
     return (
       <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, textAlign: "center", margin: 0 }}>
-        Gerando novas pautas…
+        Gerando novas ideias…
       </p>
     );
   }
@@ -808,10 +821,10 @@ function RoundBlockerNotice({
     : null;
   const message = isQuota
     ? resetLabel
-      ? `Você usou todas as suas gerações de pautas deste mês. Novas a partir de ${resetLabel}.`
-      : "Você usou todas as suas gerações de pautas deste mês."
+      ? `Você usou todas as suas gerações de ideias deste mês. Novas a partir de ${resetLabel}.`
+      : "Você usou todas as suas gerações de ideias deste mês."
     : isPremium
-      ? "Gerar novas rodadas de pautas é um recurso Pro."
+      ? "Gerar novas rodadas de ideias é um recurso Pro."
       : "Não foi possível carregar a nova rodada agora. Tente novamente.";
   return (
     <div
@@ -871,7 +884,7 @@ function RoundCompleteActions({
           opacity: isGeneratingIdeas ? 0.72 : 1,
         }}
       >
-        <span>{isGeneratingIdeas ? "Criando sua próxima rodada…" : blocker === "failed" ? "Tentar novamente" : "Carregar nova rodada"}</span>
+        <span>{isGeneratingIdeas ? "Criando novas ideias…" : blocker === "failed" ? "Tentar novamente" : "Ver novas ideias"}</span>
         {!isGeneratingIdeas ? proBadge : null}
       </button>
       ) : null}
@@ -899,6 +912,7 @@ export function DiagnosticoCollabsFeed({
   onSavePauta,
   onUnsavePauta,
   onAcceptCollabPauta,
+  onDeclineCollabPauta,
   onDismissPauta,
   onConnectWhatsApp,
   onUpgrade,
@@ -910,16 +924,17 @@ export function DiagnosticoCollabsFeed({
   const mapless = ideaGenerationBlocker === "map_incomplete";
   const bootstrapPending = bootstrapStatus === "idle" || bootstrapStatus === "loading";
   const bootstrapFailed = bootstrapStatus === "error";
+  const surfaceBackground = showHeaderTitle ? FEED_BG : "var(--ds-color-surface)";
   // Duas gavetas single-purpose, dois pontos de entrada no header: novidade
-  // (Combinadas) × acervo (Pra gravar). Nunca as duas abertas ao mesmo tempo.
+  // (Parcerias confirmadas) × acervo (Ideias salvas). Nunca as duas abertas.
   const [openSheet, setOpenSheet] = useState<null | "combinadas" | "salvas">(null);
   // A ordem é uma propriedade da RODADA, não do conjunto de cards ainda
   // ativos. Recalcular a intercalação depois de cada decisão fazia o item
   // mostrado atrás do topo trocar de posição no mesmo instante em que o topo
   // saía. Este snapshot só é substituído quando a rodada realmente muda.
-  const [deckOrder, setDeckOrder] = useState<{ fingerprint: string; pautaIds: string[] }>({
+  const [deckOrder, setDeckOrder] = useState<{ fingerprint: string; cardIds: string[] }>({
     fingerprint: "",
-    pautaIds: [],
+    cardIds: [],
   });
 
   const deckRoundFingerprint = useMemo(() => {
@@ -943,12 +958,12 @@ export function DiagnosticoCollabsFeed({
   //   - Card "collab" (o prêmio, intercalado NO MEIO — nunca 1º): direita =
   //     quero fazer (+ salva a pauta), esquerda = não agora → a PAUTA re-entra
   //     no fim do deck como card solo (recusar o parceiro não custa a ideia).
-  //   - Estante "Pra gravar": salvas ∪ interesse pendente ∪ combinadas — com
+  //   - Estante "Ideias salvas": salvas ∪ interesse pendente — com
   //     selo de status quando houver.
   const failedAction = useMemo(() => {
     if (!pautaActionStates) return null;
     for (const [id, state] of pautaActionStates.entries()) {
-      if (state.phase === "failed" && state.kind !== "unsave" && state.kind !== "dismiss") return { id, state };
+      if (state.phase === "failed") return { id, state };
     }
     return null;
   }, [pautaActionStates]);
@@ -959,48 +974,53 @@ export function DiagnosticoCollabsFeed({
     );
     const awaiting = new Map<string, NarrativeCollabMatch>();
     const pautaCards: CollabStackItem[] = [];
+    const declinedPartnerCards: CollabStackItem[] = [];
     const collabCards: CollabStackItem[] = [];
     const shelf: ContentIdeaListItem[] = [];
 
     // Free: a 2ª pauta da geração vira o card misterioso — id fixo (não posição
     // do deck), pra não "pular" de card conforme as decisões avançam.
-    const mysteryId = !isPro && pautas.length > 1 ? pautas[1]!.id : null;
+    const mysteryId = !isPro
+      ? pautas.find((pauta) => pauta.opportunityBrief?.kind === "collab_optional")?.id ?? null
+      : null;
 
     for (const pauta of pautas) {
       const actionState = pautaActionStates?.get(pauta.id) ?? null;
       const locallySaved =
         actionState?.kind === "save" || actionState?.kind === "collab-interest";
-      const locallyDismissed = actionState?.kind === "dismiss";
-      const locallyUnsaved = actionState?.kind === "unsave";
+      const locallyDismissed = actionState?.kind === "dismiss" && actionState.phase !== "failed";
+      const decliningPartner = actionState?.kind === "collab-decline" && actionState.phase === "pending";
 
       // Rejeitada é PERMANENTE: descartada nunca reaparece — nem no deck, nem na
       // estante. (O read service já filtra "dismissed"; isto cobre o otimismo
       // local da sessão, antes do reload.)
-      if (locallyUnsaved || locallyDismissed || pauta.status === "dismissed" || pauta.status === "posted") continue;
+      if (locallyDismissed || decliningPartner || pauta.status === "dismissed" || pauta.status === "posted") continue;
 
       const collab = isPro ? pautaCollabs?.get(pauta.id) ?? null : null;
       const collabDecision = collabDecisions?.get(pauta.id);
       const isMatched = matched.has(pauta.id);
-      const isSaved = !locallyUnsaved && (locallySaved || pauta.status === "saved");
+      const isSaved = locallySaved || pauta.status === "saved";
       const isInterested = collabDecision === "interested";
 
       if (isInterested && !isMatched && collab) awaiting.set(pauta.id, collab);
 
       // Casada tem UMA casa: Combinadas (célula rica, com handoff e como
-      // gravar). Antes ela também aparecia em "Pra gravar" como selo — o mesmo
+      // gravar). Antes ela também aparecia em "Ideias salvas" como selo — o mesmo
       // item em duas gavetas com pesos diferentes confundia mais do que
       // ajudava. Sai do deck e da estante; vive só na gaveta de matches.
       if (isMatched) continue;
 
       // Estante: o que o criador ACEITOU e ainda espera ação dele (salvou /
-      // topou e aguarda o outro lado). Rejeição não cai aqui — vira
-      // "dismissed" e some de vez.
+      // topou e aguarda o outro lado). Uma parceria recusada volta como ideia
+      // solo; uma ideia descartada sai da experiência.
       if (isSaved || isInterested) {
         shelf.push(pauta);
         continue;
       }
 
-      if (collab) {
+      if (collabDecision === "dismissed") {
+        declinedPartnerCards.push({ kind: "pauta", pauta, collab: null });
+      } else if (collab) {
         collabCards.push({ kind: "collab", pauta, collab }); // o prêmio
       } else {
         pautaCards.push({ kind: pauta.id === mysteryId ? "mystery" : "pauta", pauta, collab: null });
@@ -1009,12 +1029,16 @@ export function DiagnosticoCollabsFeed({
 
     // Intercala PELA ORDEM DA GERAÇÃO (pos. 1, 4, 7…). Os cards aqui já são só os
     // não-decididos (decididos foram pra estante ou descartados acima), então o
-    // deck é exatamente o que resta pra triar — sem re-entrada de rejeitadas.
+    // deck é exatamente o que resta para avaliar. Parcerias recusadas voltam
+    // depois como ideia solo; ideias descartadas não voltam.
     const proposedDeck: CollabStackItem[] = [...pautaCards];
     collabCards.forEach((card, i) => {
       const pos = Math.min(1 + i * 3, proposedDeck.length);
       proposedDeck.splice(pos, 0, card);
     });
+    // Recusar uma pessoa não apaga a ideia. Ela volta depois das demais como
+    // uma decisão solo, para não reaparecer imediatamente no mesmo lugar.
+    proposedDeck.push(...declinedPartnerCards);
 
     // Estante: aguardando primeiro (tem gente do outro lado), depois salvas.
     shelf.sort((a, b) => {
@@ -1025,43 +1049,54 @@ export function DiagnosticoCollabsFeed({
     return { proposedDeck, shelfPautas: shelf, awaitingByPauta: awaiting };
   }, [pautas, pautaCollabs, collabDecisions, confirmedMatches, isPro, pautaActionStates]);
 
-  const proposedDeckPautaIds = useMemo(
-    () => proposedDeck.map((item) => item.pauta.id),
+  const confirmedSavedCount = useMemo(
+    () => shelfPautas.filter((pauta) => pauta.status === "saved").length,
+    [shelfPautas],
+  );
+
+  const proposedDeckCardIds = useMemo(
+    () => proposedDeck.map((item) => `${item.kind}:${item.pauta.id}`),
     [proposedDeck],
   );
 
   useEffect(() => {
     setDeckOrder((current) => {
       if (current.fingerprint === deckRoundFingerprint) return current;
-      return { fingerprint: deckRoundFingerprint, pautaIds: proposedDeckPautaIds };
+      return { fingerprint: deckRoundFingerprint, cardIds: proposedDeckCardIds };
     });
-  }, [deckRoundFingerprint, proposedDeckPautaIds]);
+  }, [deckRoundFingerprint, proposedDeckCardIds]);
 
   const deckItems = useMemo(() => {
     // Na primeira renderização de uma nova rodada, usa imediatamente a ordem
     // proposta. O efeito acima a transforma no snapshot persistente antes das
     // decisões seguintes.
-    const pautaIds = deckOrder.fingerprint === deckRoundFingerprint
-      ? deckOrder.pautaIds
-      : proposedDeckPautaIds;
-    const proposedByPautaId = new Map(proposedDeck.map((item) => [item.pauta.id, item]));
-    return pautaIds
-      .map((pautaId) => proposedByPautaId.get(pautaId))
+    const cardIds = deckOrder.fingerprint === deckRoundFingerprint
+      ? deckOrder.cardIds
+      : proposedDeckCardIds;
+    const proposedByCardId = new Map(proposedDeck.map((item) => [`${item.kind}:${item.pauta.id}`, item]));
+    const ordered = cardIds
+      .map((cardId) => proposedByCardId.get(cardId))
       .filter((item): item is CollabStackItem => Boolean(item));
-  }, [deckOrder, deckRoundFingerprint, proposedDeck, proposedDeckPautaIds]);
+    const known = new Set(cardIds);
+    for (const item of proposedDeck) {
+      const cardId = `${item.kind}:${item.pauta.id}`;
+      if (!known.has(cardId)) ordered.push(item);
+    }
+    return ordered;
+  }, [deckOrder, deckRoundFingerprint, proposedDeck, proposedDeckCardIds]);
 
   const pautaById = useMemo(() => new Map(pautas.map((p) => [p.id, p])), [pautas]);
   // Roteia a decisão pelo tipo do card — o gesto é um, as consequências não.
-  //   REJEITAR (qualquer card) = descarte PERMANENTE da pauta: nunca mais volta,
-  //   nem no reload nem numa geração futura. (Antes: rejeitar collab devolvia a
-  //   pauta como solo — removido; "rejeitou, sumiu".)
+  //   RECUSAR parceria = recusa só a pessoa; a ideia volta depois como solo.
+  //   DESCARTAR ideia = remove a ideia da experiência.
   //   ACEITAR: collab → guarda + registra interesse (pode casar); solo → guarda.
   const handleDeckDecision = (pautaId: string, decision: CollabStackDecision) => {
     const item = deckItems.find((i) => i.pauta.id === pautaId);
     if (!item) return;
 
     if (decision === "dismissed") {
-      onDismissPauta?.(pautaId);
+      if (item.kind === "collab") onDeclineCollabPauta?.(pautaId);
+      else onDismissPauta?.(pautaId);
       return;
     }
 
@@ -1083,11 +1118,12 @@ export function DiagnosticoCollabsFeed({
     <div
       className="ds-notebook"
       aria-busy={bootstrapPending || undefined}
-      style={{ background: FEED_BG, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
+      style={{ background: surfaceBackground, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
     >
-      <div style={{ background: FEED_BG, paddingTop: showHeaderTitle ? SAFE_TOP : 0, paddingBottom: 6 }}>
+      <div style={{ background: surfaceBackground, paddingTop: showHeaderTitle ? SAFE_TOP : 0, paddingBottom: 6 }}>
         <FeedHeader
-          savedCount={shelfPautas.length}
+          savedCount={confirmedSavedCount}
+          hasSavedItems={shelfPautas.length > 0}
           matchCount={confirmedMatches?.length ?? 0}
           loading={bootstrapPending}
           showTitle={showHeaderTitle}
@@ -1097,7 +1133,7 @@ export function DiagnosticoCollabsFeed({
       </div>
 
       {failedAction ? (
-        <div style={{ padding: "8px 20px 0" }}>
+        <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "8px 20px 0" }}>
           <div
             role="status"
             style={{
@@ -1119,7 +1155,7 @@ export function DiagnosticoCollabsFeed({
                   fontFamily: "inherit", fontSize: 12, fontWeight: 800, padding: 0, cursor: "pointer",
                 }}
               >
-                {failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "Sincronizar" : "Tentar de novo"}
+                Tentar de novo
               </button>
             ) : null}
           </div>
@@ -1129,16 +1165,17 @@ export function DiagnosticoCollabsFeed({
       {hasPautas ? (
         // A MESA — inclusive vazia. O stack possui um único estado final para
         // qualquer rodada sem cards, evitando CTA órfão e variações de layout.
-        <div style={{ padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+        <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
           {bootstrapPending ? (
             <StackSkeleton />
           ) : bootstrapFailed ? (
             <CollabsLoadError message={bootstrapError} onRetry={onRetryBootstrap} />
           ) : (
             <DiagnosticoCollabStack
+              key={deckRoundFingerprint}
               items={deckItems}
               isPro={isPro}
-              shelfCount={shelfPautas.length}
+              shelfCount={confirmedSavedCount}
               clearedActions={
                 <RoundCompleteActions
                   isPro={isPro}
@@ -1157,12 +1194,12 @@ export function DiagnosticoCollabsFeed({
         </div>
       ) : mapless ? (
         // Estado travado: sem mapa, devolve ao Perfil. Sem feed vazio.
-        <div style={{ padding: "32px 24px", textAlign: "center" }}>
+        <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "32px 24px", textAlign: "center" }}>
           <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, margin: 0 }}>
-            Suas pautas nascem do seu mapa
+            Suas ideias começam no seu mapa
           </p>
           <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, margin: "8px 0 18px" }}>
-            Monte seu mapa no Perfil e suas primeiras pautas — com criadores pra collab — aparecem aqui.
+            Monte seu mapa no Perfil. Depois, você recebe ideias e sugestões de parceria quando elas realmente ajudarem.
           </p>
           <button
             type="button"
@@ -1174,12 +1211,12 @@ export function DiagnosticoCollabsFeed({
         </div>
       ) : (
         // Mapa pronto, ainda sem pautas: convite calmo a gerar.
-        <div style={{ padding: "28px 24px", textAlign: "center" }}>
+        <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "28px 24px", textAlign: "center" }}>
           <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, margin: 0 }}>
-            Pronto para suas primeiras pautas?
+            Pronto para suas primeiras ideias?
           </p>
           <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, margin: "8px 0 18px" }}>
-            A D2C cria ideias do seu mapa, na sua voz — e indica criadores pra postar junto.
+            A D2C cria ideias a partir do seu mapa e indica outra pessoa somente quando a parceria melhora o vídeo.
           </p>
           {(ideaGenerationBlocker === "quota_exceeded" ||
             ideaGenerationBlocker === "failed" ||
@@ -1194,7 +1231,7 @@ export function DiagnosticoCollabsFeed({
               isGeneratingIdeas={isGeneratingIdeas}
               onGenerate={onGenerate}
               onUpgrade={onUpgrade}
-              label={ideaGenerationBlocker === "failed" ? "Tentar novamente" : "Gerar pautas"}
+              label={ideaGenerationBlocker === "failed" ? "Tentar novamente" : "Gerar ideias"}
             />
           ) : null}
         </div>

@@ -449,6 +449,7 @@ export function DiagnosticoRealShellClient({
   const pautaActionInFlightRef = useRef<Set<string>>(new Set());
   const [confirmedMatches, setConfirmedMatches] = useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
   const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
+  const [matchCelebrationQueue, setMatchCelebrationQueue] = useState<string[]>([]);
   const [collabsBootstrap, setCollabsBootstrap] = useState<{
     status: CollabsBootstrapStatus;
     signature: string | null;
@@ -472,7 +473,7 @@ export function DiagnosticoRealShellClient({
   );
   const collabsInputSignature = useMemo(
     () => JSON.stringify({
-      version: 2,
+      version: 3,
       plan: data.userInfo.plan,
       narrativeLabel: collabsNarrativeLabel,
       pautas: collabsPautas.map((p) => ({
@@ -483,6 +484,7 @@ export function DiagnosticoRealShellClient({
         hook: p.hook,
         suggestedFormat: p.suggestedFormat,
         scriptBlueprint: p.scriptBlueprint ?? null,
+        opportunityKind: p.opportunityBrief?.kind ?? null,
       })),
     }),
     [collabsNarrativeLabel, collabsPautas, data.userInfo.plan],
@@ -526,6 +528,7 @@ export function DiagnosticoRealShellClient({
       setPautaCollabs(new Map());
       setCollabDecisions(new Map());
       setConfirmedMatches([]);
+      setMatchCelebrationQueue([]);
       commitReady();
       return () => controller.abort();
     }
@@ -535,6 +538,7 @@ export function DiagnosticoRealShellClient({
       setPautaCollabs(new Map());
       setCollabDecisions(new Map());
       setConfirmedMatches([]);
+      setMatchCelebrationQueue([]);
       commitReady();
       return () => controller.abort();
     }
@@ -564,6 +568,7 @@ export function DiagnosticoRealShellClient({
                 hook: p.hook,
                 suggestedFormat: p.suggestedFormat,
                 scriptBlueprint: p.scriptBlueprint ?? null,
+                opportunityKind: p.opportunityBrief?.kind ?? null,
               })),
             }),
             signal: controller.signal,
@@ -600,19 +605,11 @@ export function DiagnosticoRealShellClient({
         setPautaCollabs(new Map(Object.entries(matchesJson.matches ?? {})));
         setCollabDecisions(nextDecisions);
         setConfirmedMatches(nextMatches);
+        setMatchCelebrationQueue(freshMatches.map((match: { pautaId: string }) => match.pautaId));
         if (freshMatches.length > 0) {
           setOpenMatch({ pautaId: freshMatches[0].pautaId, variant: "celebration" });
         }
         commitReady();
-
-        if (freshMatches.length > 0) {
-          const celebratedPautaIds = freshMatches.map((match: { pautaId: string }) => match.pautaId);
-          void fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ celebratedPautaIds }),
-          }).catch(() => {});
-        }
       } catch {
         if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
         setCollabsBootstrap({
@@ -642,6 +639,31 @@ export function DiagnosticoRealShellClient({
     setCollabsBootstrapRetry((value) => value + 1);
   }, []);
 
+  const acknowledgeMatchCelebration = useCallback((pautaId: string) => {
+    void fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ celebratedPautaIds: [pautaId] }),
+    }).catch(() => {});
+  }, []);
+
+  const closeMatchOverlay = useCallback(() => {
+    if (!openMatch || openMatch.variant !== "celebration" || !matchCelebrationQueue.includes(openMatch.pautaId)) {
+      setOpenMatch(null);
+      return;
+    }
+    acknowledgeMatchCelebration(openMatch.pautaId);
+    const remaining = matchCelebrationQueue.filter((id) => id !== openMatch.pautaId);
+    setMatchCelebrationQueue(remaining);
+    setOpenMatch(remaining[0] ? { pautaId: remaining[0], variant: "celebration" } : null);
+  }, [acknowledgeMatchCelebration, matchCelebrationQueue, openMatch]);
+
+  const closeIdeaDetail = useCallback(() => {
+    setOpenIdeaId(null);
+    const nextMatchId = matchCelebrationQueue[0];
+    if (nextMatchId) setOpenMatch({ pautaId: nextMatchId, variant: "celebration" });
+  }, [matchCelebrationQueue]);
+
   const setLocalIdeaStatus = useCallback((
     id: string,
     status: DiagnosticoPageData["contentIdeas"][number]["status"],
@@ -670,8 +692,9 @@ export function DiagnosticoRealShellClient({
 
   const actionErrorMessage = useCallback((kind: PautaActionKind, reason?: string) => {
     if (kind === "collab-interest") return "Não foi possível registrar a collab agora. Tente novamente.";
-    if (kind === "dismiss") return "Descartada nesta sessão. Não consegui sincronizar; se recarregar, ela pode voltar.";
-    if (kind === "unsave") return "Removida da lista. Não consegui sincronizar; se recarregar, ela pode voltar.";
+    if (kind === "collab-decline") return "Não foi possível atualizar a sugestão de parceria. Tente novamente.";
+    if (kind === "dismiss") return "Não foi possível descartar a ideia. Tente novamente.";
+    if (kind === "unsave") return "Não foi possível tirar a ideia das salvas. Tente novamente.";
     if (reason === "storage_unavailable") return "Não foi possível salvar agora. Tente novamente.";
     return "Não foi possível salvar agora. Tente novamente.";
   }, []);
@@ -685,12 +708,20 @@ export function DiagnosticoRealShellClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({})) as { reason?: string; message?: string };
+    const body = await res.json().catch(() => ({})) as {
+      ok?: boolean;
+      id?: string;
+      status?: DiagnosticoPageData["contentIdeas"][number]["status"];
+      updatedAt?: string;
+      reason?: string;
+      message?: string;
+    };
+    if (!res.ok || body.ok !== true || body.id !== id || body.status !== status || !body.updatedAt) {
       const err = new Error(body.message ?? String(res.status)) as Error & { reason?: string };
       err.reason = body.reason;
       throw err;
     }
+    return body;
   }, []);
 
   const findCurrentPauta = useCallback((pautaId: string) => {
@@ -698,7 +729,7 @@ export function DiagnosticoRealShellClient({
     return pautasNow.find((p) => p.id === pautaId) ?? null;
   }, [data.contentIdeas, localContentIdeas]);
 
-  const registerCollabInterest = useCallback(async (pautaId: string) => {
+  const registerCollabDecision = useCallback(async (pautaId: string, decision: CollabStackDecision) => {
     const collab = pautaCollabs.get(pautaId);
     const pauta = findCurrentPauta(pautaId);
     if (!collab || !pauta) throw new Error("missing_collab_context");
@@ -716,7 +747,9 @@ export function DiagnosticoRealShellClient({
         recordingIdea: collab.collabRecordingIdea,
         collabBlueprint: collab.collabBlueprint ?? null,
         collabMode: collab.collabMode,
-        decision: "interested",
+        viewerContribution: collab.viewerContribution ?? null,
+        partnerContribution: collab.partnerContribution ?? null,
+        decision,
       }),
     });
     if (!res.ok) throw new Error(String(res.status));
@@ -725,11 +758,11 @@ export function DiagnosticoRealShellClient({
 
     setCollabDecisions((prev) => {
       const next = new Map(prev);
-      next.set(pautaId, "interested");
+      next.set(pautaId, decision);
       return next;
     });
 
-    if (json.matched && json.match) {
+    if (decision === "interested" && json.matched && json.match) {
       setConfirmedMatches((prev) =>
         prev.some((m) => m.pautaId === pautaId) ? prev : [...prev, { pautaId, collab: json.match }],
       );
@@ -821,8 +854,8 @@ export function DiagnosticoRealShellClient({
     pautaActionInFlightRef.current.delete(id);
   }, []);
 
-  // Salvar explicitamente: usado no deck. Falha não recoloca a pauta no deck;
-  // ela fica na estante da sessão como "não sincronizada" com retry.
+  // A gaveta pode mostrar o estado "Salvando...", mas o status local só vira
+  // `saved` depois que a API devolve a própria pauta + status + updatedAt.
   const handleSavePauta = useCallback((id: string) => {
     if (!hasProAccess) {
       openPaywallModal({
@@ -835,11 +868,11 @@ export function DiagnosticoRealShellClient({
     }
     if (!beginPautaAction(id)) return;
     forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setLocalIdeaStatus(id, "saved");
     setPautaAction(id, { kind: "save", phase: "pending" });
     void (async () => {
       try {
         await persistPautaStatus(id, "saved");
+        setLocalIdeaStatus(id, "saved");
         clearPautaAction(id);
       } catch (err) {
         setPautaAction(id, {
@@ -864,24 +897,31 @@ export function DiagnosticoRealShellClient({
     setPautaAction,
   ]);
 
-  // Remover da estante explicitamente: decisão final do usuário, não volta ao deck.
+  // Tirar das salvas não apaga a ideia: ela volta a ficar disponível no deck.
   const handleUnsavePauta = useCallback((id: string) => {
     if (!beginPautaAction(id)) return;
-    rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "unsave");
-    setLocalIdeaStatus(id, "dismissed");
-    setPautaAction(id, { kind: "unsave", phase: "confirmed" });
+    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
+    setLocalIdeaStatus(id, "active");
+    setPautaAction(id, { kind: "unsave", phase: "pending" });
     void (async () => {
       try {
-        await persistPautaStatus(id, "dismissed");
-        setPautaAction(id, { kind: "unsave", phase: "confirmed" });
-      } catch {
-        setPautaAction(id, { kind: "unsave", phase: "confirmed" });
+        await persistPautaStatus(id, "active");
+        clearPautaAction(id);
+      } catch (err) {
+        setLocalIdeaStatus(id, "saved");
+        setPautaAction(id, {
+          kind: "unsave",
+          phase: "failed",
+          message: actionErrorMessage("unsave", (err as { reason?: string })?.reason),
+        });
       } finally {
         finishPautaAction(id);
       }
     })();
   }, [
+    actionErrorMessage,
     beginPautaAction,
+    clearPautaAction,
     finishPautaAction,
     localPautaDecisionStorageKey,
     persistPautaStatus,
@@ -894,20 +934,27 @@ export function DiagnosticoRealShellClient({
   // nem numa geração futura. Rejeitar é livre (sem paywall); só salvar/gerar é Pro.
   const handleDismissPauta = useCallback((id: string) => {
     if (!beginPautaAction(id)) return;
-    rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "dismiss");
+    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
     setLocalIdeaStatus(id, "dismissed");
-    setPautaAction(id, { kind: "dismiss", phase: "confirmed" });
+    setPautaAction(id, { kind: "dismiss", phase: "pending" });
     void (async () => {
       try {
         await persistPautaStatus(id, "dismissed");
+        rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "dismiss");
         clearPautaAction(id);
-      } catch {
-        setPautaAction(id, { kind: "dismiss", phase: "confirmed" });
+      } catch (err) {
+        setLocalIdeaStatus(id, "active");
+        setPautaAction(id, {
+          kind: "dismiss",
+          phase: "failed",
+          message: actionErrorMessage("dismiss", (err as { reason?: string })?.reason),
+        });
       } finally {
         finishPautaAction(id);
       }
     })();
   }, [
+    actionErrorMessage,
     beginPautaAction,
     clearPautaAction,
     finishPautaAction,
@@ -929,7 +976,6 @@ export function DiagnosticoRealShellClient({
     }
     if (!beginPautaAction(id)) return;
     forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setLocalIdeaStatus(id, "saved");
     setPautaAction(id, { kind: "save", phase: "pending" });
     void (async () => {
       try {
@@ -937,6 +983,7 @@ export function DiagnosticoRealShellClient({
         if (pauta?.status !== "saved") {
           await persistPautaStatus(id, "saved");
         }
+        setLocalIdeaStatus(id, "saved");
       } catch (err) {
         setPautaAction(id, {
           kind: "save",
@@ -949,7 +996,7 @@ export function DiagnosticoRealShellClient({
 
       setPautaAction(id, { kind: "collab-interest", phase: "pending" });
       try {
-        await registerCollabInterest(id);
+        await registerCollabDecision(id, "interested");
         clearPautaAction(id);
       } catch {
         setPautaAction(id, {
@@ -971,10 +1018,44 @@ export function DiagnosticoRealShellClient({
     finishPautaAction,
     localPautaDecisionStorageKey,
     persistPautaStatus,
-    registerCollabInterest,
+    registerCollabDecision,
     setLocalIdeaStatus,
     setPautaAction,
   ]);
+
+  const handleDeclineCollabPauta = useCallback((id: string) => {
+    if (!hasProAccess) {
+      openPaywallModal({
+        context: "narrative_map",
+        source: "mobile_collabs_decline",
+        returnTo: profileRoute,
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      });
+      return;
+    }
+    if (!beginPautaAction(id)) return;
+    setCollabDecisions((prev) => new Map(prev).set(id, "dismissed"));
+    setPautaAction(id, { kind: "collab-decline", phase: "pending" });
+    void (async () => {
+      try {
+        await registerCollabDecision(id, "dismissed");
+        clearPautaAction(id);
+      } catch {
+        setCollabDecisions((prev) => {
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+        setPautaAction(id, {
+          kind: "collab-decline",
+          phase: "failed",
+          message: actionErrorMessage("collab-decline"),
+        });
+      } finally {
+        finishPautaAction(id);
+      }
+    })();
+  }, [actionErrorMessage, beginPautaAction, clearPautaAction, data.instagramConnected, finishPautaAction, hasProAccess, profileRoute, registerCollabDecision, setPautaAction]);
 
   const handleRetryPautaAction = useCallback((id: string) => {
     const state = pautaActionStates.get(id);
@@ -985,10 +1066,12 @@ export function DiagnosticoRealShellClient({
       handleUnsavePauta(id);
     } else if (state.kind === "dismiss") {
       handleDismissPauta(id);
+    } else if (state.kind === "collab-decline") {
+      handleDeclineCollabPauta(id);
     } else {
       handleAcceptCollabPauta(id);
     }
-  }, [handleAcceptCollabPauta, handleDismissPauta, handleSavePauta, handleUnsavePauta, pautaActionStates]);
+  }, [handleAcceptCollabPauta, handleDeclineCollabPauta, handleDismissPauta, handleSavePauta, handleUnsavePauta, pautaActionStates]);
 
   const handleOpenAccountCommunity = useCallback(() => {
     // Abre a Comunidade DENTRO do shell (não sai para outra rota) —
@@ -1119,6 +1202,7 @@ export function DiagnosticoRealShellClient({
           scriptPoints: string[]; scriptClosing: string | null;
           scriptBlueprint?: import("@/app/dashboard/boards/videoUpload/contentIdeaBlueprint").ContentIdeaScriptBlueprint | null;
           resonanceNote?: string | null;
+          opportunityBrief?: import("@/app/dashboard/boards/videoUpload/contentIdeaOpportunity").ContentIdeaOpportunityBrief | null;
           generatedAt: string;
         }>;
       };
@@ -1131,6 +1215,7 @@ export function DiagnosticoRealShellClient({
           scriptBlueprint: idea.scriptBlueprint ?? null,
           mapAnchors: idea.mapAnchors ?? [],
           resonanceNote: idea.resonanceNote ?? null,
+          opportunityBrief: idea.opportunityBrief ?? null,
           status: "active" as const,
           scheduledFor: null,
         }));
@@ -1947,13 +2032,12 @@ export function DiagnosticoRealShellClient({
       <div
         ref={tabScrollContainerRef}
         data-mobile-profile-scroll-container="true"
-        className={`flex-1 overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] ${
+        className={`flex-1 overflow-y-auto overscroll-contain pb-[calc(var(--ds-tab-bar-height)+0.75rem)] ${
           surface === "responsive" ? "lg:pb-8" : ""
         }`}
         style={{
-          // Fundo branco explícito: essa faixa reservada (paddingBottom, ~1rem
-          // maior que a altura real da DiagnosticoTabBar de propósito — é
-          // respiro visual antes da tab bar) hoje mostra branco só porque o
+          // Fundo branco explícito: essa faixa reservada (tab bar + respiro)
+          // hoje mostra branco só porque o
           // gradiente acima já resolveu pra #ffffff bem antes de chegar aqui.
           // Isso é uma dependência implícita e frágil: se algum dia o
           // gradiente mudar (parar mais peachy, por mais tempo), essa faixa
@@ -1992,6 +2076,7 @@ export function DiagnosticoRealShellClient({
             onSavePauta={handleSavePauta}
             onUnsavePauta={handleUnsavePauta}
             onAcceptCollabPauta={handleAcceptCollabPauta}
+            onDeclineCollabPauta={handleDeclineCollabPauta}
             onDismissPauta={handleDismissPauta}
             onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
             onUpgrade={(ctx) => openPaywallModal({
@@ -2077,10 +2162,10 @@ export function DiagnosticoRealShellClient({
         const idea = hydratedData.contentIdeas.find((i) => i.id === openIdeaId);
         if (!idea) return null;
         // Decisão da pilha dentro da ficha — mesma ação, lugar diferente. Só pra
-        // match real (Pro): no free a decisão fica na pilha (coração = paywall).
-        const ideaCollab = pautaCollabs.get(openIdeaId) ?? null;
-        const ideaMatched = confirmedMatches.some((m) => m.pautaId === openIdeaId);
+        // match real (Pro): no free a decisão fica na pilha (cadeado = paywall).
         const ideaDecision = collabDecisions.get(openIdeaId);
+        const ideaCollab = ideaDecision === "dismissed" ? null : pautaCollabs.get(openIdeaId) ?? null;
+        const ideaMatched = confirmedMatches.some((m) => m.pautaId === openIdeaId);
         return (
           <DiagnosticoIdeaDetailSheet
             idea={idea}
@@ -2091,9 +2176,13 @@ export function DiagnosticoRealShellClient({
               if (decision === "interested") {
                 handleAcceptCollabPauta(openIdeaId);
               } else {
-                handleDismissPauta(openIdeaId);
+                handleDeclineCollabPauta(openIdeaId);
               }
-              setOpenIdeaId(null);
+              closeIdeaDetail();
+            }}
+            onSaveIdea={() => {
+              handleSavePauta(openIdeaId);
+              closeIdeaDetail();
             }}
             awaitingOtherSide={Boolean(ideaCollab) && ideaDecision === "interested" && !ideaMatched}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
@@ -2103,7 +2192,7 @@ export function DiagnosticoRealShellClient({
               returnTo: profileRoute,
               postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
             })}
-            onClose={() => setOpenIdeaId(null)}
+            onClose={closeIdeaDetail}
           />
         );
       })()}
@@ -2112,7 +2201,11 @@ export function DiagnosticoRealShellClient({
           Combinadas ou pelo status no card. */}
       {openMatch && (() => {
         const match = confirmedMatches.find((m) => m.pautaId === openMatch.pautaId);
-        const pauta = hydratedData.contentIdeas.find((i) => i.id === openMatch.pautaId);
+        const persistedPauta = hydratedData.contentIdeas.find((i) => i.id === openMatch.pautaId);
+        const pautaSnapshot = (match as typeof match & {
+          pautaSnapshot?: { id: string; title: string; territory?: string | null };
+        } | undefined)?.pautaSnapshot;
+        const pauta = persistedPauta ?? pautaSnapshot ?? null;
         return match && pauta ? (
           <DiagnosticoCollabMatchOverlay
             pauta={pauta}
@@ -2120,11 +2213,15 @@ export function DiagnosticoRealShellClient({
             viewerName={hydratedData.userInfo.name ?? "Você"}
             viewerAvatarUrl={hydratedData.userInfo.imageUrl}
             variant={openMatch.variant}
-            onOpenIdea={(id) => {
+            onOpenIdea={persistedPauta ? (id) => {
+              if (openMatch.variant === "celebration" && matchCelebrationQueue.includes(openMatch.pautaId)) {
+                acknowledgeMatchCelebration(openMatch.pautaId);
+                setMatchCelebrationQueue((current) => current.filter((pautaId) => pautaId !== openMatch.pautaId));
+              }
               setOpenMatch(null);
               handleOpenIdea(id);
-            }}
-            onClose={() => setOpenMatch(null)}
+            } : undefined}
+            onClose={closeMatchOverlay}
           />
         ) : null;
       })()}

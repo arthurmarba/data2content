@@ -47,9 +47,15 @@ function writeStore(key: string, store: Record<string, StoredDecision>) {
 }
 
 export function readContentIdeaLocalDecisions(key: string): Map<string, ContentIdeaLocalDecisionKind> {
-  return new Map(
-    Object.entries(readStore(key)).map(([id, decision]) => [id, decision.kind]),
-  );
+  const store = readStore(key);
+  const currentEntries = Object.entries(store).filter(([, decision]) => decision.kind === "dismiss");
+  // Versões anteriores tratavam "tirar das salvas" como descarte e guardavam
+  // `unsave` para sempre. A ação agora é reversível; removemos esse estado antigo
+  // para que a ideia volte a ficar disponível normalmente.
+  if (currentEntries.length !== Object.keys(store).length) {
+    writeStore(key, Object.fromEntries(currentEntries));
+  }
+  return new Map(currentEntries.map(([id, decision]) => [id, decision.kind]));
 }
 
 export function rememberContentIdeaLocalDecision(

@@ -78,7 +78,7 @@ export function DiagnosticoCollabMatchOverlay({
   onOpenIdea,
   onClose,
 }: {
-  pauta: ContentIdeaListItem;
+  pauta: Pick<ContentIdeaListItem, "id" | "title">;
   collab: NarrativeCollabMatch;
   viewerName: string;
   viewerAvatarUrl?: string | null;
@@ -107,7 +107,7 @@ export function DiagnosticoCollabMatchOverlay({
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label="Match de collab"
+      aria-label="Parceria confirmada"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -159,12 +159,12 @@ export function DiagnosticoCollabMatchOverlay({
             transition={celebrate ? { delay: 0.5, duration: 0.3 } : { duration: 0.18 }}
           >
             <p style={{ fontFamily: font.display, fontSize: 28, fontWeight: 700, color: color.ink, letterSpacing: "-0.04em", margin: "14px 0 0" }}>
-              É um match
+              Vocês dois querem fazer esta collab
             </p>
             <p style={{ fontSize: 14, color: color.textSecondary, margin: "6px 0 0", lineHeight: 1.45 }}>
-              Você e {firstName}, pela mesma pauta
+              O interesse dos dois foi confirmado
             </p>
-            <p style={{ fontSize: 13, color: color.textMuted, fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 13, color: color.textMuted, margin: "10px 0 0", lineHeight: 1.45 }}>
               &ldquo;{pautaTitle}&rdquo;
             </p>
 
@@ -187,13 +187,19 @@ export function DiagnosticoCollabMatchOverlay({
                   {collab.collabMode ? <CollabModeBadge mode={collab.collabMode} /> : null}
                 </div>
                 <p style={{ fontSize: 13, color: color.textSecondary, lineHeight: 1.45, margin: 0 }}>
-                  {collab.collabMode === "presencial" && "Vocês estão na mesma cidade — o caminho é "}
-                  {collab.collabMode === "remoto" && "Vocês moram longe — o caminho é "}
-                  {!collab.collabMode && "O caminho é "}
-                  {collab.collabRecordingIdea}. Combinem no Instagram.
+                  {collab.collabRecordingIdea}
                 </p>
               </div>
             ) : null}
+
+            <div style={{ marginTop: 12, borderTop: `1px solid ${color.line}`, paddingTop: 12, textAlign: "left" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: color.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Próximo passo
+              </span>
+              <p style={{ fontSize: 13, color: color.textSecondary, lineHeight: 1.45, margin: "5px 0 0" }}>
+                Chame {firstName} no Instagram e combinem quem grava cada parte.
+              </p>
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
               {instagramUrl ? (
@@ -216,7 +222,7 @@ export function DiagnosticoCollabMatchOverlay({
                 onClick={() => onOpenIdea?.(pauta.id)}
                 className="ds-button ds-button--quiet ds-button--block"
               >
-                Ver a pauta completa
+                Ver plano da parceria
               </button>
               <button
                 type="button"

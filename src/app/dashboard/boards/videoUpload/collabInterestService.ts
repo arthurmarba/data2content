@@ -26,6 +26,7 @@ import CollabInterest, {
   type CollabInterestDecision,
   type ICollabInterest,
 } from "@/app/models/CollabInterest";
+import CollabMatch from "@/app/models/CollabMatch";
 import UserModel from "@/app/models/User";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { logger } from "@/app/lib/logger";
@@ -33,6 +34,8 @@ import { resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "./narrativeCollabMatchingService";
 import type { ContentIdeaCollabBlueprint } from "./contentIdeaBlueprint";
+import { simplifyUserFacingText } from "./contentIdeaOpportunity";
+import { invalidateCachedPerPautaMatches } from "./perPautaCollabCache";
 
 const TAG = "[collabInterestService]";
 
@@ -51,6 +54,8 @@ export interface RegisterCollabDecisionInput {
   recordingIdea?: string | null;
   collabBlueprint?: ContentIdeaCollabBlueprint | null;
   collabMode?: "presencial" | "remoto" | null;
+  viewerContribution?: string | null;
+  partnerContribution?: string | null;
   decision: CollabInterestDecision;
 }
 
@@ -71,7 +76,12 @@ export interface CollabInterestState {
    * `isNew` = casou enquanto o criador estava fora e ele ainda não viu a
    * comemoração → o shell dispara a festa na volta e marca como visto.
    */
-  matches: Array<{ pautaId: string; collab: NarrativeCollabMatch; isNew: boolean }>;
+  matches: Array<{
+    pautaId: string;
+    pautaSnapshot: { id: string; title: string; territory: string | null };
+    collab: NarrativeCollabMatch;
+    isNew: boolean;
+  }>;
   error?: string;
 }
 
@@ -101,7 +111,16 @@ const PARTNER_FIELDS = "_id name username instagramUsername image providerImage 
 /** Monta o parceiro no shape NarrativeCollabMatch que a UI de match já consome. */
 function buildMatchPayload(
   user: PartnerUserLean,
-  interest: Pick<ICollabInterest, "fitReason" | "sharedSignal" | "recordingIdea" | "collabBlueprint" | "collabMode">,
+  interest: Pick<
+    ICollabInterest,
+    | "fitReason"
+    | "sharedSignal"
+    | "recordingIdea"
+    | "collabBlueprint"
+    | "collabMode"
+    | "viewerContribution"
+    | "partnerContribution"
+  >,
 ): NarrativeCollabMatch {
   const handle = user.username ?? user.instagramUsername ?? null;
   return {
@@ -121,6 +140,8 @@ function buildMatchPayload(
     collabMode: interest.collabMode ?? null,
     sharedSignal: interest.sharedSignal ?? null,
     distinctSignals: [],
+    viewerContribution: interest.viewerContribution ?? null,
+    partnerContribution: interest.partnerContribution ?? null,
     narrativeMatch: true,
   };
 }
@@ -139,6 +160,10 @@ function normalizeTerritory(t?: string | null): string {
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase()
     .trim();
+}
+
+function canonicalMatchKey(firstInterestId: unknown, secondInterestId: unknown): string {
+  return [String(firstInterestId), String(secondInterestId)].sort().join(":");
 }
 
 /**
@@ -160,8 +185,8 @@ async function notifyMatchedPair(
     if (!target.whatsappVerified || !target.whatsappPhone) return;
     const firstName = partnerName.trim().split(" ")[0] || partnerName;
     const body =
-      `Você e ${firstName} toparam fazer uma collab juntos. ` +
-      `A pauta: "${pautaTitle}". Abra o app pra ver e chamar no Instagram.`;
+      `Você e ${firstName} escolheram fazer um vídeo juntos. ` +
+      `Ideia: "${pautaTitle}". Abra o app para ver o plano e falar pelo Instagram.`;
     await sendWhatsAppMessage(target.whatsappPhone, body);
   };
   const results = await Promise.allSettled([
@@ -212,6 +237,8 @@ export async function registerCollabDecision(
         recordingIdea: input.recordingIdea ?? null,
         collabBlueprint: input.collabBlueprint ?? null,
         collabMode: input.collabMode ?? null,
+        viewerContribution: simplifyUserFacingText(input.viewerContribution, 180),
+        partnerContribution: simplifyUserFacingText(input.partnerContribution, 180),
         expiresAt: daysFromNow(ttlDays),
       },
     },
@@ -222,6 +249,11 @@ export async function registerCollabDecision(
   if (decision !== "interested") {
     return { ok: true, matched: false, match: null };
   }
+
+  // O parceiro precisa ter uma chance real de avaliar a dupla. Invalidamos o
+  // deck dele sem enviar aviso; na próxima abertura, o matcher prioriza este
+  // criador no mesmo território de forma totalmente privada.
+  await invalidateCachedPerPautaMatches(partnerId);
 
   // Sem território não há como exigir "mesmo tema" — não casa (fica aguardando).
   // Na prática toda pauta tem território (o matcher é por-território), mas isto
@@ -279,6 +311,27 @@ export async function registerCollabDecision(
   own.collabBlueprint = sharedCollabBlueprint;
   own.collabMode = sharedMode;
 
+  // Um documento canônico por par de decisões torna este match idempotente sem
+  // impedir que as mesmas pessoas façam outra collab futura no mesmo assunto.
+  // Dois swipes simultâneos podem reivindicar documentos de interesse
+  // diferentes, mas apenas um deles cria este registro e envia os avisos.
+  const [userA, userB] = [userId, partnerId].sort();
+  let shouldNotify = false;
+  try {
+    await CollabMatch.create({
+      pairKey: canonicalMatchKey(own._id, reciprocal._id),
+      userA: new Types.ObjectId(userA),
+      userB: new Types.ObjectId(userB),
+      territoryNorm,
+    });
+    shouldNotify = true;
+  } catch (error) {
+    const code = (error as { code?: unknown })?.code;
+    if (code !== 11000) {
+      logger.warn(`${TAG} match confirmado, mas o registro canônico falhou`, error);
+    }
+  }
+
   // 4. Perfis pros payloads + aviso.
   const [viewer, partner] = await Promise.all([
     UserModel.findById(userOid).select(PARTNER_FIELDS).lean<PartnerUserLean>(),
@@ -290,7 +343,7 @@ export async function registerCollabDecision(
     return { ok: true, matched: true, match: null };
   }
 
-  if (viewer) {
+  if (viewer && shouldNotify) {
     await notifyMatchedPair(
       { user: viewer, pautaTitle: cleanIdeaText(own.pautaTitle), partnerName: partner.name ?? "outro criador" },
       { user: partner, pautaTitle: cleanIdeaText(reciprocal.pautaTitle), partnerName: viewer.name ?? "outro criador" },
@@ -331,7 +384,16 @@ export async function getCollabInterestState(userId: string): Promise<CollabInte
       const partner = byId.get(d.partner.toString());
       // isNew = casou mas este criador ainda não viu a comemoração (estava fora
       // quando o outro topou) → o shell dispara a festa na volta.
-      return partner ? [{ pautaId: d.pautaId, collab: buildMatchPayload(partner, d), isNew: !d.celebratedAt }] : [];
+      return partner ? [{
+        pautaId: d.pautaId,
+        pautaSnapshot: {
+          id: d.pautaId,
+          title: cleanIdeaText(d.pautaTitle ?? ""),
+          territory: d.pautaTerritory ?? null,
+        },
+        collab: buildMatchPayload(partner, d),
+        isNew: !d.celebratedAt,
+      }] : [];
     });
   }
 

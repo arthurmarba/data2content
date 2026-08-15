@@ -18,6 +18,10 @@ import {
   resolveContentIdeaMapAnchors,
   type ContentIdeaMapAnchor,
 } from "./contentIdeaMapAnchors";
+import {
+  sanitizeContentIdeaOpportunityBrief,
+  type ContentIdeaOpportunityBrief,
+} from "./contentIdeaOpportunity";
 
 export interface ContentIdeaListItem {
   id: string;
@@ -39,6 +43,8 @@ export interface ContentIdeaListItem {
   scriptBlueprint?: ContentIdeaScriptBlueprint | null;
   /** Audience match — why this is what people most keep from the creator (null when none) */
   resonanceNote: string | null;
+  /** Resumo adaptativo da recomendação. Ausente em ideias antigas. */
+  opportunityBrief?: ContentIdeaOpportunityBrief | null;
   status: CreatorContentIdeaStatus;
   generatedAt: string;
   /** ISO date string when the creator scheduled this idea. Null when unscheduled. */
@@ -99,6 +105,7 @@ export async function listContentIdeasForUser(userId: string): Promise<ContentId
           }
         : null,
       resonanceNote: d.resonanceNote ? cleanIdeaText(d.resonanceNote) : null,
+      opportunityBrief: sanitizeContentIdeaOpportunityBrief(d.opportunityBrief),
       status: d.status,
       generatedAt: d.generatedAt.toISOString(),
       scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
@@ -172,7 +179,12 @@ export async function updateContentIdeaStatus(
   userId: string,
   ideaId: string,
   status: CreatorContentIdeaStatus,
-): Promise<{ ok: boolean; error?: "not_found" | "storage_unavailable" | "unknown" }> {
+): Promise<{
+  ok: boolean;
+  status?: CreatorContentIdeaStatus;
+  updatedAt?: string;
+  error?: "not_found" | "storage_unavailable" | "unknown";
+}> {
   if (
     !userId ||
     !Types.ObjectId.isValid(userId) ||
@@ -187,8 +199,17 @@ export async function updateContentIdeaStatus(
     const result = await CreatorContentIdea.findOneAndUpdate(
       { _id: new Types.ObjectId(ideaId), userId: new Types.ObjectId(userId) },
       { $set: { status } },
-    );
-    return result != null ? { ok: true } : { ok: false, error: "not_found" };
+      { new: true },
+    )
+      .select("status updatedAt")
+      .lean<{ status: CreatorContentIdeaStatus; updatedAt?: Date } | null>();
+    return result != null
+      ? {
+          ok: true,
+          status: result.status,
+          updatedAt: result.updatedAt?.toISOString() ?? new Date().toISOString(),
+        }
+      : { ok: false, error: "not_found" };
   } catch (err) {
     console.error("[contentIdeas:update] Erro:", err);
     return { ok: false, error: isMongoStorageUnavailableError(err) ? "storage_unavailable" : "unknown" };

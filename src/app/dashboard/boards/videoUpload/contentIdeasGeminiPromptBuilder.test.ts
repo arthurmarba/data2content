@@ -169,6 +169,54 @@ describe("buildContentIdeasPrompt — blindagens de conteúdo", () => {
   });
 });
 
+describe("buildContentIdeasPrompt — recomendação prática", () => {
+  it("inclui os sinais recentes e o horário somente quando o servidor os fornece", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({
+        opportunityContext: {
+          creativeSignals: {
+            postsAnalyzed: 12,
+            windowDays: 180,
+            confidence: "high",
+            subject: "rotina de gravação",
+            place: "mesa de trabalho",
+            object: "caderno",
+            framing: "câmera próxima",
+            tone: "direto",
+            openingLines: ["Eu quase desisti ontem"],
+            screenTitles: ["O erro que eu repetia"],
+          },
+          timing: {
+            dayLabel: "Terça-feira",
+            windowLabel: "entre 19h e 21h",
+            shortLabel: "Terça, 19h–21h",
+            confidence: "high",
+            reason: "Seus posts costumam receber mais respostas nesse período.",
+            sampleSize: 12,
+          },
+        },
+      }),
+      count: 3,
+    });
+
+    expect(userInstruction).toContain("Dados recentes que podem deixar a ideia mais específica");
+    expect(userInstruction).toContain("mesa de trabalho");
+    expect(userInstruction).toContain("caderno");
+    expect(userInstruction).toContain("Terça, 19h–21h");
+  });
+
+  it("obriga a decidir primeiro se a ideia é individual e proíbe parceria forçada", () => {
+    const { systemInstruction, userInstruction } = buildContentIdeasPrompt({ context: baseContext(), count: 3 });
+    const itemSchema = (CONTENT_IDEAS_RESPONSE_JSON_SCHEMA as any).properties.ideas.items;
+
+    expect(itemSchema.required).toEqual(expect.arrayContaining(["opportunityKind", "whyNow", "collabReason"]));
+    expect(userInstruction).toContain("Não force parceria");
+    expect(userInstruction).toContain("quando a própria pessoa sustenta a ideia");
+    expect(systemInstruction).toContain("palavras comuns, frases curtas e voz direta");
+    expect(systemInstruction).toContain("whyNow, collabReason");
+  });
+});
+
 describe("buildContentIdeasPrompt — campo resonanceNote", () => {
   it("torna resonanceNote OBRIGATÓRIO quando a pauta se apoia em qualquer sinal da audiência", () => {
     const { userInstruction } = buildContentIdeasPrompt({ context: baseContext(), count: 3 });

@@ -61,7 +61,8 @@ describe("DiagnosticoCollabMatchOverlay", () => {
     expect(screen.getByText("Como gravar")).toBeInTheDocument();
     expect(screen.getByText("À distância")).toBeInTheDocument();
     expect(screen.queryByText(/Presencial/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Vocês moram longe — o caminho é gravar no computador\. Combinem no Instagram\./)).toBeInTheDocument();
+    expect(screen.getByText("gravar no computador")).toBeInTheDocument();
+    expect(screen.getByText(/Chame Marina no Instagram e combinem quem grava cada parte\./)).toBeInTheDocument();
   });
 
   it("exibe o bloco 'Como gravar' com o selo e o texto para collab presencial", () => {
@@ -81,7 +82,8 @@ describe("DiagnosticoCollabMatchOverlay", () => {
     expect(screen.getByText("Como gravar")).toBeInTheDocument();
     expect(screen.getByText("Presencial · mesma cidade")).toBeInTheDocument();
     expect(screen.queryByText("À distância")).not.toBeInTheDocument();
-    expect(screen.getByText(/Vocês estão na mesma cidade — o caminho é encontro no café\. Combinem no Instagram\./)).toBeInTheDocument();
+    expect(screen.getByText("encontro no café")).toBeInTheDocument();
+    expect(screen.getByText(/Chame Marina no Instagram e combinem quem grava cada parte\./)).toBeInTheDocument();
   });
 
   it("não exibe o bloco 'Como gravar' se collabRecordingIdea for nulo", () => {

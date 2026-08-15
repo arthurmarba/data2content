@@ -28,6 +28,7 @@ import {
   buildLegacyCollabBlueprint,
   type ContentIdeaScriptBlueprint,
 } from "./contentIdeaBlueprint";
+import { getIncomingCollabInterests } from "./collabReciprocityService";
 
 export interface PautaForMatch {
   id: string;
@@ -37,6 +38,7 @@ export interface PautaForMatch {
   hook?: string;
   suggestedFormat?: string;
   scriptBlueprint?: ContentIdeaScriptBlueprint | null;
+  opportunityKind?: "individual" | "collab_optional";
 }
 
 /**
@@ -65,10 +67,40 @@ function territoryRelevance(
   return score;
 }
 
+function normalizeTerritoryLabel(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+function executionRelevance(
+  pauta: PautaForMatch,
+  creativeSignals: { themes?: string[]; assets?: string[]; tone?: string | null; formats?: string[]; visualStyle?: string[] } | undefined,
+): number {
+  if (!creativeSignals) return 0;
+  const pautaWords = new Set(significantWords([
+    pauta.title ?? "",
+    pauta.angle ?? "",
+    pauta.hook ?? "",
+    pauta.suggestedFormat ?? "",
+    pauta.scriptBlueprint?.visualPremise ?? "",
+  ].join(" ")));
+  const candidateWords = significantWords([
+    ...(creativeSignals.themes ?? []),
+    ...(creativeSignals.assets ?? []),
+    creativeSignals.tone ?? "",
+    ...(creativeSignals.formats ?? []),
+    ...(creativeSignals.visualStyle ?? []),
+  ].join(" "));
+  return candidateWords.filter((word) => pautaWords.has(word)).length;
+}
+
 /** Fit reason barato (sem LLM) — usado após estourar o teto de chamadas Gemini. */
 function fallbackFitReason(territory: string): string {
   const t = territory.trim();
-  return t ? `Conecta com ${t} no seu mapa.` : "Narrativa complementar ao seu mapa.";
+  return t ? `A outra pessoa acrescenta um ponto de vista diferente sobre ${t}.` : "A outra pessoa acrescenta um ponto de vista diferente.";
 }
 
 /** Ideia de gravação barata (sem LLM) — fallback após o teto. Respeita a
@@ -78,7 +110,7 @@ function fallbackRecordingIdea(territory: string, mode: CollabMode): string {
   if (mode === "presencial") {
     return t
       ? `Gravem juntos um diálogo sobre ${t} — cada um trazendo o seu ângulo.`
-      : "Gravem juntos um diálogo onde cada um traz o seu ângulo da narrativa.";
+      : "Gravem juntos um diálogo em que cada pessoa mostra o seu ponto de vista.";
   }
   // Remoto: revezamento (funciona à distância).
   return t
@@ -99,18 +131,29 @@ export async function matchCollabsForPautas(
   const result = new Map<string, NarrativeCollabMatch | null>();
   for (const p of pautas) result.set(p.id, null);
 
-  const withTerritory = pautas.filter((p) => p.territory && p.territory.trim());
+  // Ideias novas dizem explicitamente quando outra pessoa pode acrescentar
+  // algo. Ideias antigas não têm o campo e mantêm o comportamento anterior.
+  const withTerritory = pautas.filter((p) =>
+    p.territory && p.territory.trim() && p.opportunityKind !== "individual",
+  );
   if (withTerritory.length === 0 || !narrativeLabel?.trim()) return result;
 
-  const [poolResult, viewerLocation] = await Promise.all([
+  const [poolResult, viewerLocation, incomingInterests] = await Promise.all([
     buildNarrativeCandidatePool(viewerUserId),
     fetchCreatorLocation(viewerUserId),
+    getIncomingCollabInterests(viewerUserId),
   ]);
   if (!poolResult || poolResult.pool.length === 0) return result;
 
   const excludeIds = new Set<string>();
   const viewerTokens = buildViewerTokens([narrativeLabel]);
   const poolById = new Map(poolResult.pool.map((e) => [e.userId, e]));
+  const incomingByTerritory = new Map<string, string[]>();
+  for (const interest of incomingInterests) {
+    const ids = incomingByTerritory.get(interest.territoryNorm) ?? [];
+    if (!ids.includes(interest.creatorId)) ids.push(interest.creatorId);
+    incomingByTerritory.set(interest.territoryNorm, ids);
+  }
 
   // ── 1) Atribuição + direção criativa (1 chamada Gemini para todo o lote). ───
   // `geminiCallCap <= 0` desliga o LLM (testes / modo barato) → só determinístico.
@@ -120,6 +163,7 @@ export async function matchCollabsForPautas(
     llmAssignments = await assignCollabsByPauta({
       viewerNarrative: narrativeLabel,
       viewerCity: viewerLocation?.city ?? null,
+      viewerCreativeSignals: poolResult.viewerCreativeSignals,
       pautas: withTerritory.map((p) => ({
         id: p.id,
         territory: p.territory,
@@ -135,6 +179,7 @@ export async function matchCollabsForPautas(
         narrative: e.reading.videoReading.mainNarrative ?? "",
         territories: poolResult.candidateTerritoriesById.get(e.userId) ?? [],
         city: e.user.location?.city ?? null,
+        creativeSignals: e.creativeSignals,
       })),
     });
   }
@@ -148,9 +193,20 @@ export async function matchCollabsForPautas(
     let llmRecordingIdea: string | null = null;
     let usedAssignedCandidate = false;
 
+    // Reciprocidade privada: se alguém já escolheu este viewer no mesmo
+    // território, essa pessoa ganha prioridade no próximo deck. A tela não
+    // revela o interesse anterior; apenas garante que o segundo lado realmente
+    // tenha a oportunidade de avaliar a dupla.
+    const incomingCandidateId = (incomingByTerritory.get(normalizeTerritoryLabel(label)) ?? [])
+      .find((candidateId) => !excludeIds.has(candidateId) && poolById.has(candidateId));
+    if (incomingCandidateId) {
+      eligible = poolById.get(incomingCandidateId);
+      fitReason = fallbackFitReason(label);
+    }
+
     // Verdict do Gemini para este território (semântico, primário).
     const assignment = llmAssignments.get(pauta.id);
-    if (assignment?.candidateId) {
+    if (!eligible && assignment?.candidateId) {
       const cand = poolById.get(assignment.candidateId);
       if (cand && !excludeIds.has(cand.userId)) {
         eligible = cand;
@@ -176,10 +232,11 @@ export async function matchCollabsForPautas(
             e,
             rel: territoryRelevance(label, candTerr, candNarr),
             chem: complementarityScore(viewerTokens, candNarr),
+            execution: executionRelevance(pauta, e.creativeSignals),
           };
         })
         .filter((x) => x.rel > 0) // sem laço real com o território → fora (coerência)
-        .sort((a, b) => (b.rel - a.rel) || (b.chem - a.chem))[0]?.e;
+        .sort((a, b) => (b.rel - a.rel) || (b.execution - a.execution) || (b.chem - a.chem))[0]?.e;
       if (best) {
         eligible = best;
         fitReason = fallbackFitReason(label);
@@ -196,6 +253,14 @@ export async function matchCollabsForPautas(
     const recordingIdea = llmRecordingIdea ?? fallbackRecordingIdea(label, collabMode);
     const collabBlueprint = (usedAssignedCandidate ? assignment?.collabBlueprint : null)
       ?? buildLegacyCollabBlueprint(recordingIdea, collabMode);
+    const candidateTerritories = poolResult.candidateTerritoriesById.get(eligible.userId) ?? [];
+    const differentSubject = candidateTerritories.find((territory) => territory.toLocaleLowerCase("pt-BR") !== label.toLocaleLowerCase("pt-BR"));
+    const contributions = {
+      viewer: assignment?.viewerContribution ?? `Sua experiência com ${label}.`,
+      partner: assignment?.partnerContribution ?? (differentSubject
+        ? `A experiência com ${differentSubject}.`
+        : "Uma forma diferente de lidar com o mesmo assunto."),
+    };
 
     excludeIds.add(eligible.userId);
     const match = buildMatchFromCandidate(
@@ -206,6 +271,7 @@ export async function matchCollabsForPautas(
       recordingIdea,
       collabMode,
       collabBlueprint,
+      contributions,
     );
     result.set(pauta.id, match);
   }

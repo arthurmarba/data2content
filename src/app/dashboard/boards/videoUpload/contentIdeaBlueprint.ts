@@ -144,7 +144,7 @@ export function buildLegacyContentIdeaBlueprint(
       visual: firstAsset ? `Comece mostrando ${firstAsset}` : "Comece em um enquadramento direto e próximo",
       spokenIntent: input.hook.trim(),
       onScreenText: null,
-      shot: "plano próximo",
+      shot: "câmera próxima",
       asset: firstAsset,
       durationSeconds: null,
     });
@@ -169,7 +169,7 @@ export function buildLegacyContentIdeaBlueprint(
       visual: "Volte ao enquadramento inicial para fechar a ideia",
       spokenIntent: input.scriptClosing.trim(),
       onScreenText: null,
-      shot: "plano próximo",
+      shot: "câmera próxima",
       asset: null,
       durationSeconds: null,
     });
@@ -251,13 +251,13 @@ export function buildLegacyCollabBlueprint(
         beat: "abertura",
         visual: remote ? "Grave a abertura olhando direto para a câmera" : "Abra a conversa com os dois no quadro",
         spokenIntent: recordingIdea,
-        transition: remote ? "Termine deixando uma pergunta clara para o outro creator" : null,
+        transition: remote ? "Termine deixando uma pergunta clara para a outra pessoa" : null,
       },
       {
         owner: "partner",
         beat: "virada",
-        visual: remote ? "O outro creator responde no próprio ambiente" : "O outro creator assume a resposta",
-        spokenIntent: "Traga o ponto de vista complementar que só o outro creator consegue sustentar",
+        visual: remote ? "A outra pessoa responde no próprio ambiente" : "A outra pessoa assume a resposta",
+        spokenIntent: "Mostre o ponto de vista diferente que a outra pessoa conhece bem",
         transition: remote ? "Use a pergunta anterior como corte entre os vídeos" : "Corte para a reação de quem abriu",
       },
       {

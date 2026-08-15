@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import { registerCollabDecision, getCollabInterestState, markMatchesCelebrated } from "./collabInterestService";
 import CollabInterest from "@/app/models/CollabInterest";
 import UserModel from "@/app/models/User";
+import CollabMatch from "@/app/models/CollabMatch";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 
 jest.mock("@/app/lib/mongoose", () => ({ connectToDatabase: jest.fn() }));
@@ -12,6 +13,10 @@ jest.mock("@/app/models/CollabInterest", () => ({
   find: jest.fn(),
 }));
 jest.mock("@/app/models/User", () => ({ findById: jest.fn(), find: jest.fn() }));
+jest.mock("@/app/models/CollabMatch", () => ({ create: jest.fn() }));
+jest.mock("./perPautaCollabCache", () => ({
+  invalidateCachedPerPautaMatches: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("@/app/lib/whatsappService", () => ({ sendWhatsAppMessage: jest.fn() }));
 jest.mock("@/app/lib/logger", () => ({ logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 
@@ -21,6 +26,7 @@ const mockUpdateMany = CollabInterest.updateMany as jest.Mock;
 const mockInterestFind = CollabInterest.find as jest.Mock;
 const mockUserFindById = UserModel.findById as jest.Mock;
 const mockUserFind = UserModel.find as jest.Mock;
+const mockCollabMatchCreate = CollabMatch.create as jest.Mock;
 const mockSendWhatsApp = sendWhatsAppMessage as jest.Mock;
 
 const userId = new Types.ObjectId().toString();
@@ -38,6 +44,8 @@ const baseInput = {
   pautaTerritory: "Paternidade",
   fitReason: "fala de dinheiro sem culpa",
   sharedSignal: "Paternidade",
+  viewerContribution: "Experiência de pai na rotina",
+  partnerContribution: "Experiência de mãe que trabalha fora",
   decision: "interested" as const,
 };
 
@@ -55,6 +63,7 @@ beforeEach(() => {
   mockUpdateOne.mockResolvedValue({ acknowledged: true });
   mockUpdateMany.mockResolvedValue({ acknowledged: true });
   mockSendWhatsApp.mockResolvedValue("wamid.x");
+  mockCollabMatchCreate.mockResolvedValue({ _id: new Types.ObjectId() });
 });
 
 describe("registerCollabDecision", () => {
@@ -75,6 +84,8 @@ describe("registerCollabDecision", () => {
     expect(ownUpdate.$set).toHaveProperty("recordingIdea");
     expect(ownUpdate.$set).toHaveProperty("collabBlueprint");
     expect(ownUpdate.$set).toHaveProperty("collabMode");
+    expect(ownUpdate.$set.viewerContribution).toBe("Experiência de pai na rotina");
+    expect(ownUpdate.$set.partnerContribution).toBe("Experiência de mãe que trabalha fora");
     // Território normalizado gravado (lowercase, sem acento) — base do match por tema.
     expect(ownUpdate.$set.pautaTerritoryNorm).toBe("paternidade");
     // O recíproco é buscado EXIGINDO o mesmo território normalizado.
@@ -113,7 +124,14 @@ describe("registerCollabDecision", () => {
   });
 
   it("com recíproco vigente: casa os dois, notifica os dois lados e devolve o parceiro", async () => {
-    const ownDoc = { _id: new Types.ObjectId(), pautaTitle: baseInput.pautaTitle, fitReason: baseInput.fitReason, sharedSignal: "Paternidade" };
+    const ownDoc = {
+      _id: new Types.ObjectId(),
+      pautaTitle: baseInput.pautaTitle,
+      fitReason: baseInput.fitReason,
+      sharedSignal: "Paternidade",
+      viewerContribution: baseInput.viewerContribution,
+      partnerContribution: baseInput.partnerContribution,
+    };
     const reciprocalDoc = { _id: new Types.ObjectId(), pautaTitle: "Pauta da Marina" };
     mockFindOneAndUpdate
       .mockResolvedValueOnce(ownDoc)
@@ -134,6 +152,8 @@ describe("registerCollabDecision", () => {
       name: "Marina Braga",
       username: "marinabraga",
       narrativeFitReason: "fala de dinheiro sem culpa",
+      viewerContribution: "Experiência de pai na rotina",
+      partnerContribution: "Experiência de mãe que trabalha fora",
       narrativeMatch: true,
     });
     // Claim atômico do recíproco: só casa quem ainda não casou e não expirou
@@ -149,6 +169,22 @@ describe("registerCollabDecision", () => {
     // Aviso só no match, pros DOIS lados
     expect(mockSendWhatsApp).toHaveBeenCalledTimes(2);
     expect(mockSendWhatsApp.mock.calls.map((c) => c[0]).sort()).toEqual(["+551188", "+551199"]);
+    expect(mockSendWhatsApp.mock.calls[0][1]).toContain("escolheram fazer um vídeo juntos");
+  });
+
+  it("não duplica avisos quando a mesma dupla já tem match canônico", async () => {
+    mockFindOneAndUpdate
+      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "Ideia A", fitReason: null, sharedSignal: null })
+      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "Ideia B" });
+    mockUserFindById
+      .mockReturnValueOnce(leanChain(viewerUser))
+      .mockReturnValueOnce(leanChain(partnerUser));
+    mockCollabMatchCreate.mockRejectedValueOnce(Object.assign(new Error("duplicate"), { code: 11000 }));
+
+    const result = await registerCollabDecision(baseInput);
+
+    expect(result.matched).toBe(true);
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
   });
 
   it("'não agora' é silencioso: registra e nunca busca recíproco nem notifica", async () => {
@@ -188,8 +224,8 @@ describe("getCollabInterestState", () => {
     const docs = [
       { pautaId: "p-pendente", decision: "interested", matchedAt: null, partner: partnerOid, fitReason: null, sharedSignal: null },
       { pautaId: "p-dispensada", decision: "dismissed", matchedAt: null, partner: partnerOid, fitReason: null, sharedSignal: null },
-      { pautaId: "p-casada-vista", decision: "interested", matchedAt: new Date(), celebratedAt: new Date(), partner: partnerOid, fitReason: "fala de dinheiro sem culpa", sharedSignal: "Paternidade", recordingIdea: "Revezamento sobre paternidade", collabMode: "remoto" },
-      { pautaId: "p-casada-nova", decision: "interested", matchedAt: new Date(), celebratedAt: null, partner: partnerOid, fitReason: "x", sharedSignal: null },
+      { pautaId: "p-casada-vista", pautaTitle: "Rotina e dinheiro", pautaTerritory: "Paternidade", decision: "interested", matchedAt: new Date(), celebratedAt: new Date(), partner: partnerOid, fitReason: "fala de dinheiro sem culpa", sharedSignal: "Paternidade", recordingIdea: "Revezamento sobre paternidade", collabMode: "remoto", viewerContribution: "Experiência do dia a dia", partnerContribution: "Explicação prática" },
+      { pautaId: "p-casada-nova", pautaTitle: "Culpa e trabalho", pautaTerritory: "Trabalho", decision: "interested", matchedAt: new Date(), celebratedAt: null, partner: partnerOid, fitReason: "x", sharedSignal: null },
     ];
     mockInterestFind.mockReturnValue({ sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(docs) }) });
     mockUserFind.mockReturnValue(leanChain([partnerUser]));
@@ -205,10 +241,17 @@ describe("getCollabInterestState", () => {
     // isNew: casou sem celebratedAt (o outro topou com este criador fora) → festa na volta.
     expect(state.matches.find((m) => m.pautaId === "p-casada-vista")?.isNew).toBe(false);
     expect(state.matches.find((m) => m.pautaId === "p-casada-nova")?.isNew).toBe(true);
+    expect(state.matches.find((m) => m.pautaId === "p-casada-vista")?.pautaSnapshot).toEqual({
+      id: "p-casada-vista",
+      title: "Rotina e dinheiro",
+      territory: "Paternidade",
+    });
     // "como gravar" + modo sobrevivem ao match e chegam ao payload do pós-match.
     const casadaVista = state.matches.find((m) => m.pautaId === "p-casada-vista")?.collab;
     expect(casadaVista?.collabRecordingIdea).toBe("Revezamento sobre paternidade");
     expect(casadaVista?.collabMode).toBe("remoto");
+    expect(casadaVista?.viewerContribution).toBe("Experiência do dia a dia");
+    expect(casadaVista?.partnerContribution).toBe("Explicação prática");
   });
 });
 

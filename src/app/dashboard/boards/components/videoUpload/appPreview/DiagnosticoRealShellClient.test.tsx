@@ -743,14 +743,14 @@ describe("DiagnosticoRealShellClient", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
-    expect(await screen.findByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Preparando suas ideias" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /Pauta estável/ })).not.toBeInTheDocument();
 
     await act(async () => {
       resolveInterest(new Response(JSON.stringify({ ok: true, decisions: [], matches: [] }), { status: 200 }));
       await Promise.resolve();
     });
-    expect(screen.getByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Preparando suas ideias" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /Pauta estável/ })).not.toBeInTheDocument();
 
     await act(async () => {
@@ -775,9 +775,9 @@ describe("DiagnosticoRealShellClient", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta estável" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: /Parceria recomendada: Pauta estável/ })).toBeInTheDocument();
     });
-    expect(screen.queryByRole("status", { name: "Preparando suas collabs" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Preparando suas ideias" })).not.toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 });

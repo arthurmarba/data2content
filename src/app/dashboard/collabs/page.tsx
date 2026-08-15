@@ -9,7 +9,7 @@ import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 /**
- * Workspace desktop de pautas e conexões. O dashboard recebe apenas o resumo;
+ * Workspace desktop de ideias e parcerias. O dashboard recebe apenas o resumo;
  * aqui a experiência completa pode usar a largura disponível.
  */
 export default function CollabsPage() {
@@ -29,9 +29,9 @@ export default function CollabsPage() {
         </div>
         <div className="hidden lg:block">
           <DesktopWorkspaceHeader
-            eyebrow="Pautas e conexões"
+            eyebrow="Ideias e parcerias"
             title="Collabs"
-            description="Explore ideias conectadas ao seu mapa e encontre criadores com afinidade narrativa."
+            description="Veja ideias prontas para gravar e sugestões de parceria quando outra pessoa realmente acrescenta algo."
           />
         </div>
         <div className="min-h-0 flex-1 lg:pb-7">

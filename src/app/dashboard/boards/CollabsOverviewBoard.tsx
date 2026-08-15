@@ -50,11 +50,11 @@ export default function CollabsOverviewBoard({
   const leadingIdea = ideas[0] ?? null;
   const savedCount = ideas.filter((idea) => idea.status === "saved").length;
   const headline = state === "error"
-    ? "Suas pautas continuam na página completa"
-    : leadingIdea?.title ?? "Pronto para criar suas primeiras pautas?";
+    ? "Suas ideias continuam na página completa"
+    : leadingIdea?.title ?? "Pronto para criar suas primeiras ideias?";
   const description = state === "error"
     ? "Não foi possível atualizar o resumo agora."
-    : leadingIdea?.whyItFits || leadingIdea?.angle || "Gere ideias conectadas ao seu mapa e encontre criadores com afinidade narrativa.";
+    : leadingIdea?.whyItFits || leadingIdea?.angle || "Veja ideias ligadas ao seu mapa e sugestões de parceria quando outra pessoa realmente acrescenta algo.";
   const tags = leadingIdea
     ? [leadingIdea.territory, leadingIdea.suggestedFormat, leadingIdea.tone ?? ""].filter(Boolean)
     : [];
@@ -62,17 +62,17 @@ export default function CollabsOverviewBoard({
   return (
     <DashboardOverviewBoard
       title="Collabs"
-      eyebrow={leadingIdea ? "Pauta recomendada" : "Pautas e conexões"}
+      eyebrow={leadingIdea ? "Ideia recomendada" : "Ideias e parcerias"}
       headline={headline}
       description={description}
       icon={UsersRound}
       tone="violet"
       tags={tags}
       stats={[
-        { label: "Pautas disponíveis", value: String(ideas.length) },
-        { label: "Pautas salvas", value: String(savedCount) },
+        { label: "Ideias disponíveis", value: String(ideas.length) },
+        { label: "Ideias salvas", value: String(savedCount) },
       ]}
-      actionLabel={leadingIdea ? "Explorar todas as pautas" : "Criar pautas"}
+      actionLabel={leadingIdea ? "Explorar todas as ideias" : "Criar ideias"}
       onAction={() => router.push("/dashboard/collabs")}
       isHighlighted={isHighlighted}
       loading={state === "idle" || state === "loading"}

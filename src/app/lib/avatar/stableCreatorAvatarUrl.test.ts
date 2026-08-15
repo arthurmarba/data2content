@@ -5,7 +5,7 @@ describe("resolveStableCreatorAvatarUrl", () => {
     expect(resolveStableCreatorAvatarUrl({
       avatarUrl: "https://example.com/old.jpg",
       mediaKitSlug: "marina braga",
-    })).toBe("/api/mediakit/marina%20braga/avatar?v=20260719-collab-avatar-v4");
+    })).toBe("/api/mediakit/marina%20braga/avatar?v=20260719-collab-avatar-v4&strict=1");
   });
 
   it("usa proxy estrito para uma URL assinada do Instagram", () => {
@@ -22,6 +22,14 @@ describe("resolveStableCreatorAvatarUrl", () => {
     })).toBe(
       "/api/dashboard/mobile-strategic-profile/collabs/creators/507f191e810c19729de860ea/avatar?v=20260719-collab-avatar-v4",
     );
+  });
+
+  it("prioriza um avatar já hospedado no próprio app", () => {
+    expect(resolveStableCreatorAvatarUrl({
+      creatorId: "507f191e810c19729de860ea",
+      avatarUrl: "/images/community/avatars/marina-dutra.jpg",
+      mediaKitSlug: "marina",
+    })).toBe("/images/community/avatars/marina-dutra.jpg");
   });
 
   it("mantém URLs de provedores não bloqueados e retorna null sem fonte", () => {

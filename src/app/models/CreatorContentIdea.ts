@@ -17,6 +17,7 @@
 import mongoose, { Schema, Types, Document, model } from "mongoose";
 import type { ContentIdeaScriptBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
 import type { ContentIdeaMapAnchor } from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
+import type { ContentIdeaOpportunityBrief } from "@/app/dashboard/boards/videoUpload/contentIdeaOpportunity";
 
 export type CreatorContentIdeaStatus =
   | "active"
@@ -64,6 +65,8 @@ export interface ICreatorContentIdea extends Document {
    * mais guardam do criador. Null quando a pauta não toca num sinal de reconhecimento.
    */
   resonanceNote: string | null;
+  /** Resumo V1 usado pela frente e pelo plano detalhado de Collabs. */
+  opportunityBrief: ContentIdeaOpportunityBrief | null;
 
   // ── Scheduling (OS Diário) ─────────────────────────────────────────────────
   /** Date the creator scheduled this idea to publish. Null when unscheduled. */
@@ -126,6 +129,9 @@ const CreatorContentIdeaSchema = new Schema<ICreatorContentIdea>(
     scriptClosing: { type: String, default: null, maxlength: 160 },
     scriptBlueprint: { type: Schema.Types.Mixed, default: null },
     resonanceNote: { type: String, default: null, maxlength: 200 },
+    // Estrutura validada na aplicação. Mixed mantém a evolução aditiva sem
+    // exigir migração de ideias antigas; o read service aplica o fallback.
+    opportunityBrief: { type: Schema.Types.Mixed, default: null },
     scheduledFor: { type: Date, default: null },
     postedAt: { type: Date, default: null },
     mapContextHash: { type: String, required: true, maxlength: 64 },

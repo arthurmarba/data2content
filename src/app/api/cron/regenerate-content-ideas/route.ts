@@ -32,6 +32,7 @@ import {
   hasNarrativeMapPremiumAccess,
 } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 import type { ContentIdeasMapContext } from "@/app/dashboard/boards/videoUpload/contentIdeasGeminiPromptBuilder";
+import { buildContentIdeasOpportunityContext } from "@/app/dashboard/boards/videoUpload/contentIdeasOpportunityContext";
 import { buildAudienceInsights, isPlaceholderTerritory } from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
 import { buildContentIdeasAudienceResonance } from "@/app/dashboard/boards/videoUpload/contentIdeasAudienceResonance";
 import { getMapaSeedReadinessSource } from "@/app/dashboard/boards/videoUpload/mapaSeedReadinessSource";
@@ -196,6 +197,12 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
       if (resonance) context.audienceResonance = resonance;
     } catch (err) {
       logger.warn(`[Cron RegenerateIdeas] userId=${userId} audience resonance skipped:`, err);
+    }
+
+    try {
+      context.opportunityContext = await buildContentIdeasOpportunityContext(userId);
+    } catch (err) {
+      logger.warn(`[Cron RegenerateIdeas] userId=${userId} opportunity context skipped:`, err);
     }
 
     // ── 6. Generate ───────────────────────────────────────────────────────

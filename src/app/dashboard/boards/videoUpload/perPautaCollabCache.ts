@@ -14,7 +14,7 @@ import type { PautaForMatch } from "./perPautaCollabMatchingService";
 
 // v5 invalida snapshots que ainda guardavam URLs assinadas e já expiradas do
 // Instagram/Facebook. A recomputação usa o resolvedor que descarta essas URLs.
-const PER_PAUTA_MATCHER_CACHE_VERSION = 5;
+const PER_PAUTA_MATCHER_CACHE_VERSION = 6;
 
 /** Hash estável do input do matcher — ordena as pautas pra ser ordem-independente. */
 export function computePerPautaCacheKey(pautas: PautaForMatch[], narrativeLabel: string): string {
@@ -27,6 +27,7 @@ export function computePerPautaCacheKey(pautas: PautaForMatch[], narrativeLabel:
       hook: (p.hook ?? "").replace(/\s+/g, " ").trim().toLowerCase(),
       suggestedFormat: (p.suggestedFormat ?? "").trim().toLowerCase(),
       scriptBlueprint: p.scriptBlueprint ?? null,
+      opportunityKind: p.opportunityKind ?? null,
     }))
     .sort();
   const stable = JSON.stringify({
@@ -76,5 +77,20 @@ export async function setCachedPerPautaMatches(
     );
   } catch (err) {
     console.warn("[perPautaCollabCache] falha ao gravar cache (non-fatal):", err);
+  }
+}
+
+/**
+ * Um interesse recebido muda a prioridade do próximo deck do parceiro. Apaga
+ * apenas o cache desse criador para que a reciprocidade possa ser apresentada
+ * na próxima abertura, sem revelar quem já demonstrou interesse.
+ */
+export async function invalidateCachedPerPautaMatches(userId: string): Promise<void> {
+  if (!Types.ObjectId.isValid(userId)) return;
+  try {
+    await connectToDatabase();
+    await PerPautaCollabCache.deleteMany({ user: new Types.ObjectId(userId) });
+  } catch (err) {
+    console.warn("[perPautaCollabCache] falha ao invalidar cache do parceiro (non-fatal):", err);
   }
 }

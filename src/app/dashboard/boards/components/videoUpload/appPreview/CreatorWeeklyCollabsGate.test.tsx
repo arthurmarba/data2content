@@ -34,7 +34,7 @@ describe("CreatorWeeklyCollabsGate", () => {
       />,
     );
 
-    expect(screen.getByText("Uma pauta, duas casas.")).toBeInTheDocument();
+    expect(screen.getByText("Uma ideia para gravar em parceria")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sair do exemplo" }));
     expect(onDemoChange).toHaveBeenCalledWith(false);
   });

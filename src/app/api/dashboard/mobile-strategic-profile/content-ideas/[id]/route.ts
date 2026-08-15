@@ -38,7 +38,7 @@ function storageUnavailableMessage(status: CreatorContentIdeaStatus): string {
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isMobileStrategicProfileEnabled()) {
     return NextResponse.json({ message: "Recurso não habilitado." }, { status: 404 });
@@ -60,7 +60,9 @@ export async function PATCH(
     return NextResponse.json({ message: "Body inválido." }, { status: 400 });
   }
 
-  const ideaId = params.id;
+  const { id: ideaId } = await params;
+  let persistedStatus: CreatorContentIdeaStatus | undefined;
+  let persistedUpdatedAt: string | undefined;
 
   // Handle status update
   if ("status" in body) {
@@ -81,6 +83,8 @@ export async function PATCH(
       }
       return NextResponse.json({ message: "Pauta não encontrada." }, { status: 404 });
     }
+    persistedStatus = result.status;
+    persistedUpdatedAt = result.updatedAt;
   }
 
   // Handle scheduledFor update
@@ -97,5 +101,10 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    id: ideaId,
+    status: persistedStatus,
+    updatedAt: persistedUpdatedAt,
+  });
 }

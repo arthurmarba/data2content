@@ -29,6 +29,11 @@ export type CreatorEngagementBaseline = {
     subject: CreatorEngagementPattern | null;
     tone: CreatorEngagementPattern | null;
     place: CreatorEngagementPattern | null;
+    object: CreatorEngagementPattern | null;
+  };
+  examples: {
+    openingLines: string[];
+    screenTitles: string[];
   };
 };
 
@@ -43,6 +48,7 @@ type MetricLike = {
     placeId?: string | null;
     openingLine?: string | null;
     screenTitle?: string | null;
+    objects?: string[];
   } | null;
 };
 
@@ -78,6 +84,21 @@ function median(values: Array<number | null>): number | null {
 
 function normalizeOpenLabel(value: string): string {
   return value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function uniqueExamples(values: Array<string | null | undefined>, limit = 3): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of values) {
+    const value = raw?.replace(/\s+/g, " ").trim();
+    if (!value) continue;
+    const key = value.toLocaleLowerCase("pt-BR");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value.slice(0, 140));
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 function strongestPattern(
@@ -137,6 +158,14 @@ export function buildCreatorEngagementBaselineFromMetrics(
         top.map((metric) => metric.sceneElements?.placeId ?? "").filter(Boolean),
         (key) => canonicalPlaceById(key)?.label ?? null,
       ),
+      object: strongestPattern(
+        top.flatMap((metric) => metric.sceneElements?.objects ?? []),
+        (key) => normalizeOpenLabel(key),
+      ),
+    },
+    examples: {
+      openingLines: uniqueExamples(top.map((metric) => metric.sceneElements?.openingLine)),
+      screenTitles: uniqueExamples(top.map((metric) => metric.sceneElements?.screenTitle)),
     },
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
-import { resolveStableCreatorAvatarUrl } from "@/app/lib/avatar/stableCreatorAvatarUrl";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { resolveStableCreatorAvatarUrls } from "@/app/lib/avatar/stableCreatorAvatarUrl";
 
 export function StableCreatorAvatar({
   name,
@@ -24,7 +24,12 @@ export function StableCreatorAvatar({
   imageStyle?: CSSProperties;
   alt?: string;
 }) {
-  const resolvedUrl = resolveStableCreatorAvatarUrl({ avatarUrl, creatorId, mediaKitSlug });
+  const resolvedUrls = useMemo(
+    () => resolveStableCreatorAvatarUrls({ avatarUrl, creatorId, mediaKitSlug }),
+    [avatarUrl, creatorId, mediaKitSlug],
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const resolvedUrl = resolvedUrls[candidateIndex] ?? null;
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const fallback = (fallbackText ?? (name || "?").trim().slice(0, 1).toUpperCase()) || "?";
@@ -32,7 +37,11 @@ export function StableCreatorAvatar({
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
-  }, [resolvedUrl]);
+  }, [candidateIndex, resolvedUrl]);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [resolvedUrls]);
 
   return (
     <>
@@ -58,7 +67,15 @@ export function StableCreatorAvatar({
           referrerPolicy="no-referrer"
           className={imageClassName}
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onError={() => {
+            if (candidateIndex + 1 < resolvedUrls.length) {
+              setLoaded(false);
+              setFailed(false);
+              setCandidateIndex((current) => current + 1);
+            } else {
+              setFailed(true);
+            }
+          }}
           style={{
             position: "absolute",
             inset: 0,

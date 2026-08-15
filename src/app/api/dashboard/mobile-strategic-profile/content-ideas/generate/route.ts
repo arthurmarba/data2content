@@ -19,6 +19,7 @@ import {
 import type { ContentIdeasMapContext } from "@/app/dashboard/boards/videoUpload/contentIdeasGeminiPromptBuilder";
 import { buildAudienceInsights, isPlaceholderTerritory } from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
 import { buildContentIdeasAudienceResonance } from "@/app/dashboard/boards/videoUpload/contentIdeasAudienceResonance";
+import { buildContentIdeasOpportunityContext } from "@/app/dashboard/boards/videoUpload/contentIdeasOpportunityContext";
 
 export async function GET() {
   return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
@@ -190,7 +191,7 @@ export async function POST(request: Request) {
     if (!narrativeLabel) {
       console.warn(`[content-ideas:generate] no narrative signal for userId=${userId} — all fallbacks exhausted`);
       return NextResponse.json(
-        { message: "Mapa ainda sem narrativa detectada. Analise um vídeo para começar.", reason: "no_narrative" },
+        { message: "Seu mapa ainda não tem um tema principal. Analise um vídeo para começar.", reason: "no_narrative" },
         { status: 422 },
       );
     }
@@ -269,7 +270,7 @@ export async function POST(request: Request) {
 
     if (context.territories.length === 0) {
       return NextResponse.json(
-        { message: "Mapa ainda sem territórios detectados. Analise mais um vídeo para o mapa identificar seus assuntos.", reason: "no_territories" },
+        { message: "Seu mapa ainda não tem assuntos suficientes. Analise mais um vídeo para continuar.", reason: "no_territories" },
         { status: 422 },
       );
     }
@@ -287,6 +288,14 @@ export async function POST(request: Request) {
       }
     } catch (err) {
       console.warn("[content-ideas:generate] audience resonance skipped (non-fatal):", err);
+    }
+
+    // Assuntos, aberturas, lugares, objetos e horários dos vídeos recentes.
+    // Best-effort: sem Instagram ou com poucos dados, a ideia continua vindo do Mapa.
+    try {
+      context.opportunityContext = await buildContentIdeasOpportunityContext(userId);
+    } catch (err) {
+      console.warn("[content-ideas:generate] opportunity context skipped (non-fatal):", err);
     }
 
     console.log(`[content-ideas:generate] territories=[${context.territories.map(t => t.label).join(", ")}] count=${effectiveCount}`);

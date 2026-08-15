@@ -32,13 +32,17 @@ function makeRequest(body: object) {
 }
 
 function makeParams(id = "665f0f2c8a0b7d1f2c3a4b5d") {
-  return { params: { id } };
+  return { params: Promise.resolve({ id }) };
 }
 
 describe("PATCH /content-ideas/[id]", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUpdateContentIdeaStatus.mockResolvedValue({ ok: true });
+    mockUpdateContentIdeaStatus.mockResolvedValue({
+      ok: true,
+      status: "dismissed",
+      updatedAt: "2026-08-15T18:30:00.000Z",
+    });
     mockScheduleContentIdea.mockResolvedValue({ ok: true });
   });
 
@@ -85,7 +89,12 @@ describe("PATCH /content-ideas/[id]", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body).toEqual({ ok: true });
+    expect(body).toEqual({
+      ok: true,
+      id: "665f0f2c8a0b7d1f2c3a4b5d",
+      status: "dismissed",
+      updatedAt: "2026-08-15T18:30:00.000Z",
+    });
     expect(mockUpdateContentIdeaStatus).toHaveBeenCalledWith(
       "665f0f2c8a0b7d1f2c3a4b5c",
       "665f0f2c8a0b7d1f2c3a4b5d",

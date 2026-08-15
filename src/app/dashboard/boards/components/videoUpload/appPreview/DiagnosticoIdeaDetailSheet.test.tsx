@@ -59,7 +59,7 @@ describe("DiagnosticoIdeaDetailSheet — match audiência", () => {
 
     const scrollSurface = screen.getByTestId("idea-detail-scroll");
     expect(scrollSurface).toContainElement(screen.getByRole("heading", { name: "Por que parei de montar equipe" }));
-    expect(scrollSurface).toContainElement(screen.getByText("Do seu mapa"));
+    expect(scrollSurface).toContainElement(screen.getByText("Por que sugerimos esta ideia"));
     expect(scrollSurface).toContainElement(screen.getByText("Comece assim"));
 
     Object.defineProperty(scrollSurface, "scrollTop", { configurable: true, value: 32 });
@@ -89,12 +89,12 @@ describe("DiagnosticoIdeaDetailSheet — match audiência", () => {
     expect(screen.getByRole("heading", { name: "Por que parei de montar equipe" })).toBeInTheDocument();
     expect(screen.getByText("A história mostra o custo invisível de tentar controlar tudo.")).toBeInTheDocument();
     expect(screen.getByText("Comece assim")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "O caminho do vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Passo a passo do vídeo" })).toBeInTheDocument();
     expect(screen.getByText("Retire as tarefas uma a uma")).toBeInTheDocument();
     expect(screen.getByText("Separar a agenda")).toBeInTheDocument();
   });
 
-  it("mantém no detalhe a mesma assinatura do Seu mapa exibida no swipe", () => {
+  it("mantém os dados do mapa no detalhe, sem poluir a frente do card", () => {
     render(
       <DiagnosticoIdeaDetailSheet
         idea={makeIdea({
@@ -107,7 +107,7 @@ describe("DiagnosticoIdeaDetailSheet — match audiência", () => {
         onClose={() => {}}
       />,
     );
-    expect(screen.getByText("Do seu mapa")).toBeInTheDocument();
+    expect(screen.getByText("Por que sugerimos esta ideia")).toBeInTheDocument();
     expect(screen.getByText("Gravando sozinho no quarto")).toBeInTheDocument();
     expect(screen.getByText("Jeito de falar")).toBeInTheDocument();
   });
@@ -119,20 +119,17 @@ describe("DiagnosticoIdeaDetailSheet — match audiência", () => {
         onClose={() => {}}
       />,
     );
-    expect(screen.getByText(/No que reconhecem em você/)).toBeInTheDocument();
+    expect(screen.getByText(/O que as pessoas costumam salvar/)).toBeInTheDocument();
     expect(
       screen.getByText("Toda vez que você aparece assim, é o que mais guardam pra rever."),
     ).toBeInTheDocument();
-    // a metade-mapa continua presente — o encontro tem os dois lados. O rótulo
-    // agora é embutido na frase (roteiro em fluxo único, não caixa própria).
-    expect(screen.getByText(/No seu mapa:/)).toBeInTheDocument();
+    expect(screen.getByText(/O que combina com você:/)).toBeInTheDocument();
   });
 
   it("NÃO mostra o bloco de reconhecimento quando resonanceNote é null", () => {
     render(<DiagnosticoIdeaDetailSheet idea={makeIdea({ resonanceNote: null })} onClose={() => {}} />);
-    expect(screen.queryByText(/No que reconhecem em você/)).not.toBeInTheDocument();
-    // a metade-mapa segue aparecendo normalmente
-    expect(screen.getByText(/No seu mapa:/)).toBeInTheDocument();
+    expect(screen.queryByText(/O que as pessoas costumam salvar/)).not.toBeInTheDocument();
+    expect(screen.getByText(/O que combina com você:/)).toBeInTheDocument();
   });
 });
 
@@ -151,12 +148,12 @@ describe("DiagnosticoIdeaDetailSheet — Bloco de Collab", () => {
       />
     );
 
-    // Ponto em comum
-    expect(screen.getByText(/Ponto em comum:/)).toBeInTheDocument();
+    // Assunto em comum
+    expect(screen.getByText(/Assunto em comum:/)).toBeInTheDocument();
     expect(screen.getAllByText(/Paternidade/).length).toBeGreaterThan(0);
 
-    // Ela/ele traz
-    expect(screen.getByText(/Ela\/ele traz:/)).toBeInTheDocument();
+    // O que Marina acrescenta
+    expect(screen.getByText(/O que Marina acrescenta:/)).toBeInTheDocument();
     expect(screen.getByText(/Finanças, Planejamento/)).toBeInTheDocument();
 
     // Razão de fit
@@ -203,10 +200,36 @@ describe("DiagnosticoIdeaDetailSheet — Bloco de Collab", () => {
         onClose={() => {}}
       />
     );
-    expect(screen.queryByText("Ponto em comum")).not.toBeInTheDocument();
-    expect(screen.queryByText("Ela/ele traz")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assunto em comum")).not.toBeInTheDocument();
+    expect(screen.queryByText("O que Marina acrescenta")).not.toBeInTheDocument();
     expect(screen.queryByText("À distância")).not.toBeInTheDocument();
     expect(screen.queryByText("Presencial · mesma cidade")).not.toBeInTheDocument();
-    expect(screen.queryByText("Como gravar essa collab")).not.toBeInTheDocument();
+    expect(screen.queryByText("Como gravar juntos")).not.toBeInTheDocument();
+  });
+
+  it("muda a ação principal junto com a escolha solo ou parceria", () => {
+    const onDecide = jest.fn();
+    const onSaveIdea = jest.fn();
+    render(
+      <DiagnosticoIdeaDetailSheet
+        idea={makeIdea()}
+        collab={makeCollab()}
+        isPro
+        decisionPending
+        onDecide={onDecide}
+        onSaveIdea={onSaveIdea}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Quero gravar com Marina" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar somente a ideia" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Só você" }));
+
+    expect(screen.queryByRole("button", { name: "Quero gravar com Marina" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar ideia para gravar" }));
+    expect(onSaveIdea).toHaveBeenCalledTimes(1);
+    expect(onDecide).not.toHaveBeenCalled();
   });
 });

@@ -94,6 +94,8 @@ export interface ContentIdeasMapContext {
    * se comporta exatamente como antes: pautas a partir do mapa, sem priorização.
    */
   audienceResonance?: ContentIdeasAudienceResonance | null;
+  /** Padrões reais dos vídeos publicados e horário validado pelo servidor. */
+  opportunityContext?: import("./contentIdeaOpportunity").ContentIdeasOpportunityContext | null;
 }
 
 export interface ContentIdeasPromptParams {
@@ -150,6 +152,9 @@ const ideaJsonSchema = {
           "scriptClosing",
           "scriptBlueprint",
           "creativeMode",
+          "opportunityKind",
+          "whyNow",
+          "collabReason",
         ],
         properties: {
           title: { type: "string", maxLength: 80 },
@@ -219,6 +224,9 @@ const ideaJsonSchema = {
           // Só preenchido quando a pauta cai num sinal de reconhecimento.
           resonanceNote: { type: "string", maxLength: 200 },
           creativeMode: { type: "string", enum: CONTENT_IDEA_CREATIVE_MODES },
+          opportunityKind: { type: "string", enum: ["individual", "collab_optional"] },
+          whyNow: { type: "string", maxLength: 180 },
+          collabReason: { type: ["string", "null"], maxLength: 180 },
         },
       },
     },
@@ -248,6 +256,13 @@ const FORBIDDEN_VOCAB = [
   "autonomia criativa",
   "narrativa central",
   "mapa narrativo",
+  "território narrativo",
+  "ressonância",
+  "insight",
+  "framework",
+  "score",
+  "alta confiança",
+  "complementaridade",
 ];
 
 const ALLOWED_FORMATS = ["Reels", "Carrossel", "Story", "Foto", "Vídeo longo"];
@@ -270,13 +285,18 @@ export function buildContentIdeasPrompt(
     "Vocabulário PROIBIDO (nunca use estas palavras, nem variações):",
     FORBIDDEN_VOCAB.map((w) => `  - ${w}`).join("\n"),
     "",
-    "Em vez de \"viralizar\" ou \"engajamento\", fale sobre \"ressonância\", \"reconhecimento\", \"identificação\", \"profundidade\".",
-    "Em vez de \"audiência\", fale sobre \"as pessoas que te seguem porque enxergam algo em você\".",
-    "Em vez de \"tendência\", fale sobre \"o que pulsa na sua vida agora\".",
+    "LINGUAGEM OBRIGATÓRIA EM TODOS OS CAMPOS VISÍVEIS:",
+    "- Use palavras comuns, frases curtas e voz direta.",
+    "- Explique o que a pessoa pode fazer e por que a ideia foi sugerida.",
+    "- Não use metáforas, linguagem publicitária ou termos técnicos.",
+    "- Não diga que a IA, o algoritmo ou o sistema decidiu algo.",
+    "- Não use: insight, narrativa, território, ressonância, complementaridade, performance, score, framework.",
+    "- Prefira: tema, assunto, frase para começar, resultado dos posts, o que cada pessoa acrescenta.",
+    "- Cada frase deve ser entendida por alguém que nunca trabalhou com criação de conteúdo.",
     "",
     "IMPORTANTE — \"pauta\" é termo INTERNO desta plataforma. A palavra \"pauta\" (e \"pautas\")",
     "NUNCA pode aparecer em nenhum texto novo que o criador lê (title, hook, scriptPoints, scriptClosing, scriptBlueprint,",
-    "whyItFits, resonanceNote). Use \"vídeo\", \"ideia\" ou \"roteiro\". Ex.: ❌ \"a estrutura de uma pauta\" → ✅ \"a estrutura do vídeo\".",
+    "whyItFits, resonanceNote, whyNow, collabReason). Use \"vídeo\", \"ideia\" ou \"roteiro\". Ex.: ❌ \"a estrutura de uma pauta\" → ✅ \"a estrutura do vídeo\".",
     "Exceção: mapAnchors.label deve copiar literalmente um rótulo já confirmado pelo próprio criador, mesmo quando esse rótulo contém um termo da lista proibida.",
     "",
     "Cada pauta deve responder, de forma natural, a essa pergunta implícita:",
@@ -401,6 +421,34 @@ export function buildContentIdeasPrompt(
     return lines.length > 0 ? `\nRestrições desta geração:\n${lines.join("\n")}` : "";
   })();
 
+  const opportunityBlock = (() => {
+    const signals = context.opportunityContext?.creativeSignals;
+    const timing = context.opportunityContext?.timing;
+    if (!signals && !timing) return "";
+    const lines: string[] = [];
+    if (signals) {
+      lines.push(`  - Vídeos recentes usados: ${signals.postsAnalyzed}`);
+      if (signals.subject) lines.push(`  - Assunto presente entre os vídeos com melhor resposta: ${signals.subject}`);
+      if (signals.place) lines.push(`  - Local presente entre os vídeos com melhor resposta: ${signals.place}`);
+      if (signals.object) lines.push(`  - Objeto presente entre os vídeos com melhor resposta: ${signals.object}`);
+      if (signals.framing) lines.push(`  - Forma de enquadrar presente entre os vídeos com melhor resposta: ${signals.framing}`);
+      if (signals.tone) lines.push(`  - Jeito de falar presente entre os vídeos com melhor resposta: ${signals.tone}`);
+      if (signals.openingLines.length > 0) {
+        lines.push(`  - Frases usadas em aberturas recentes (não copie; entenda o jeito): ${signals.openingLines.join(" | ")}`);
+      }
+      if (signals.screenTitles.length > 0) {
+        lines.push(`  - Textos usados no começo de vídeos recentes (não copie): ${signals.screenTitles.join(" | ")}`);
+      }
+    }
+    if (timing) lines.push(`  - Melhor momento já conferido pelo servidor: ${timing.shortLabel}`);
+    return [
+      "",
+      "Dados recentes que podem deixar a ideia mais específica:",
+      ...lines,
+      "Use somente o que realmente ajudar. Não copie frases antigas e não invente números.",
+    ].join("\n");
+  })();
+
   const userInstruction = [
     "Mapa narrativo confirmado deste criador:",
     "",
@@ -436,6 +484,7 @@ export function buildContentIdeasPrompt(
     dismissedBlock,
     adjacentNarrativesBlock,
     audienceResonanceBlock,
+    opportunityBlock,
     focusBlock,
     "",
     `Tarefa: gere exatamente ${count} pauta${count === 1 ? "" : "s"} que respeitem TODAS as crenças e o vocabulário permitido.`,
@@ -526,8 +575,7 @@ export function buildContentIdeasPrompt(
     "  - territory: nome exato de um território confirmado da lista acima",
     "  - assets: 0 a 3 assets confirmados envolvidos (se houver assets a confirmar, deixe vazio)",
     `  - suggestedFormat: um destes: ${ALLOWED_FORMATS.join(", ")}`,
-    "  - whyItFits: 1-2 frases em linguagem de criador — por que esta pauta é naturalmente dele,",
-    "    como se você fosse um amigo próximo confirmando: 'isso é a sua cara'.",
+    "  - whyItFits: 1-2 frases simples explicando por que esta ideia combina com o que a pessoa já vive ou mostra.",
     "    NÃO mencione 'narrativa central', 'território', 'asset' ou qualquer jargão de produto.",
     "    LADO MAPA, NÃO AUDIÊNCIA: o whyItFits fala só do CRIADOR — da vida, do jeito, do que ele já faz.",
     "    NUNCA fale do que 'as pessoas', 'elas', 'a audiência' acham/salvam/reconhecem — esse é o trabalho EXCLUSIVO da resonanceNote.",
@@ -598,6 +646,14 @@ export function buildContentIdeasPrompt(
     "    ✅ 'Você fala pouco disso — mas é o que mais fica com quem te acompanha.'",
     "    SÓ deixe de fora quando a pauta for puramente do mapa, sem nenhum sinal de reconhecimento envolvido. Nesse caso, não invente.",
     "  - creativeMode: metadado INTERNO. Escolha exatamente um dos modos permitidos para representar o gesto principal desta ideia. Não escreva esse rótulo em nenhum outro campo.",
+    "  - opportunityKind: use 'individual' quando a própria pessoa sustenta a ideia. Use 'collab_optional' somente quando outra pessoa puder acrescentar conhecimento, experiência ou um ponto de vista diferente. Não force parceria.",
+    "  - whyNow: 1 frase curta e literal explicando por que sugerimos esta ideia. Use um dado recente acima quando existir. Sem metáfora e sem termos técnicos.",
+    "    ✅ 'Seus vídeos sobre rotina recebem mais salvamentos.'",
+    "    ✅ 'Você fala sobre esse assunto no Mapa, mas ainda publicou pouco sobre ele.'",
+    "    ❌ 'Este tema está pulsando na sua narrativa.'",
+    "  - collabReason: quando opportunityKind='collab_optional', explique em 1 frase o que outra pessoa poderia acrescentar. Quando for individual, use null.",
+    "    ✅ 'Outra pessoa pode mostrar uma forma diferente de organizar a mesma situação.'",
+    "    ❌ 'Uma voz complementar amplia a ressonância desta oportunidade.'",
     "",
     "Exemplos de títulos BOM vs RUIM:",
     "  ✅ 'POV: você percebe que seu conteúdo sempre volta pro mesmo tema'",

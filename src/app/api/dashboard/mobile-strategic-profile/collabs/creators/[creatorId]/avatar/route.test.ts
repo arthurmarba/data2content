@@ -4,6 +4,7 @@ import { GET } from "./route";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
 import { resolveFreshInstagramAvatar } from "@/app/lib/instagram/resolveFreshAvatar";
 import UserModel from "@/app/models/User";
+import AccountInsightModel from "@/app/models/AccountInsight";
 
 jest.mock("next-auth/next", () => ({ getServerSession: jest.fn() }));
 jest.mock("@/app/api/auth/resolveAuthOptions", () => ({ resolveAuthOptions: jest.fn(async () => ({})) }));
@@ -17,11 +18,16 @@ jest.mock("@/app/models/User", () => ({
   __esModule: true,
   default: { findById: jest.fn() },
 }));
+jest.mock("@/app/models/AccountInsight", () => ({
+  __esModule: true,
+  default: { findOne: jest.fn() },
+}));
 
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
 const mockEnsurePlannerAccess = ensurePlannerAccess as jest.Mock;
 const mockResolveFreshAvatar = resolveFreshInstagramAvatar as jest.Mock;
 const mockFindById = UserModel.findById as jest.Mock;
+const mockInsightFindOne = AccountInsightModel.findOne as jest.Mock;
 const VIEWER_ID = "507f1f77bcf86cd799439011";
 const CREATOR_ID = "507f191e810c19729de860ea";
 
@@ -37,6 +43,17 @@ function lookup(value: any) {
   mockFindById.mockReturnValue({ select });
 }
 
+function historicalLookup(value: any) {
+  const lean = jest.fn().mockResolvedValue(value);
+  const select = jest.fn().mockReturnValue({ lean });
+  const sort = jest.fn().mockReturnValue({ select });
+  mockInsightFindOne.mockReturnValue({ sort });
+}
+
+function params(creatorId = CREATOR_ID) {
+  return { params: Promise.resolve({ creatorId }) };
+}
+
 describe("GET collab creator avatar", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,11 +63,13 @@ describe("GET collab creator avatar", () => {
       normalizedStatus: "active",
       source: "database",
     });
+    mockResolveFreshAvatar.mockResolvedValue(null);
+    historicalLookup(null);
   });
 
   it("exige autenticação", async () => {
     getServerSession.mockResolvedValue(null);
-    const response = await GET(request(), { params: { creatorId: CREATOR_ID } });
+    const response = await GET(request(), params());
     expect(response.status).toBe(401);
     expect(mockFindById).not.toHaveBeenCalled();
   });
@@ -61,25 +80,27 @@ describe("GET collab creator avatar", () => {
       normalizedStatus: null,
       source: "database",
     });
-    const response = await GET(request(), { params: { creatorId: CREATOR_ID } });
+    const response = await GET(request(), params());
     expect(response.status).toBe(403);
     expect(mockFindById).not.toHaveBeenCalled();
   });
 
   it("rejeita creatorId inválido antes de consultar o banco", async () => {
-    const response = await GET(request(), { params: { creatorId: "invalid" } });
+    const response = await GET(request(), params("invalid"));
     expect(response.status).toBe(400);
     expect(mockFindById).not.toHaveBeenCalled();
   });
 
-  it("redireciona para a rota consolidada quando existe mídia kit", async () => {
-    lookup({ _id: CREATOR_ID, mediaKitSlug: "marina kit" });
-    const response = await GET(request(), { params: { creatorId: CREATOR_ID } });
+  it("não usa o slug como foto e prefere uma fonte real do perfil", async () => {
+    lookup({
+      _id: CREATOR_ID,
+      mediaKitSlug: "marina kit",
+      providerImage: "https://lh3.googleusercontent.com/provider.jpg",
+    });
+    const response = await GET(request(), params());
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost/api/mediakit/marina%20kit/avatar?v=20260719-collab-avatar-v4",
-    );
-    expect(mockResolveFreshAvatar).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBe("https://lh3.googleusercontent.com/provider.jpg");
+    expect(mockResolveFreshAvatar).toHaveBeenCalled();
   });
 
   it("atualiza o Instagram e envia a foto fresca pelo proxy interno", async () => {
@@ -94,7 +115,7 @@ describe("GET collab creator avatar", () => {
     const fresh = "https://scontent.fgru1-1.fna.fbcdn.net/fresh.jpg?oe=FFFFFFFF";
     mockResolveFreshAvatar.mockResolvedValue(fresh);
 
-    const response = await GET(request(), { params: { creatorId: CREATOR_ID } });
+    const response = await GET(request(), params());
 
     expect(mockResolveFreshAvatar).toHaveBeenCalledWith(expect.objectContaining({
       userId: CREATOR_ID,
@@ -116,8 +137,26 @@ describe("GET collab creator avatar", () => {
     });
     mockResolveFreshAvatar.mockResolvedValue(null);
 
-    const response = await GET(request(), { params: { creatorId: CREATOR_ID } });
+    const response = await GET(request(), params());
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://lh3.googleusercontent.com/provider.jpg");
+  });
+
+  it("usa a última foto histórica quando as fontes atuais não têm imagem", async () => {
+    lookup({
+      _id: CREATOR_ID,
+      mediaKitSlug: "marina kit",
+      profile_picture_url: null,
+      providerImage: null,
+    });
+    const historical = "https://scontent.fgru1-1.fna.fbcdn.net/historical.jpg?oe=FFFFFFFF";
+    historicalLookup({ accountDetails: { profile_picture_url: historical } });
+
+    const response = await GET(request(), params());
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      `http://localhost/api/proxy/thumbnail/${encodeURIComponent(historical)}?strict=1`,
+    );
   });
 });

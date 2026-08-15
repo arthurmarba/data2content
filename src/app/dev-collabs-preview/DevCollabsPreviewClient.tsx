@@ -32,18 +32,66 @@ function pauta(id: string, o: Partial<ContentIdeaListItem>): ContentIdeaListItem
     ],
     scriptPoints: ["Abre com a pergunta do filho", "Conta o que passou na cabeça", "Fecha com a decisão que tomou"],
     scriptClosing: "E você, já parou pra pensar no que o automático te custou?",
+    scriptBlueprint: {
+      version: 2,
+      visualPremise: "A rotina de trabalho muda de ritmo quando a pergunta do filho entra em cena.",
+      estimatedDurationSeconds: 45,
+      scenes: [
+        { beat: "abertura", visual: "Mostre o computador aberto e olhe para fora do quadro", spokenIntent: "Repita a pergunta que seu filho fez", onScreenText: "Eu precisava mesmo trabalhar?", shot: "câmera próxima", asset: "Mesa de trabalho", durationSeconds: 6 },
+        { beat: "contexto", visual: "Mostre a lista de tarefas daquele dia", spokenIntent: "Explique por que tudo parecia urgente", onScreenText: null, shot: "detalhe", asset: null, durationSeconds: 12 },
+        { beat: "virada", visual: "Feche o computador e se afaste da mesa", spokenIntent: "Conte a decisão simples que tomou naquele momento", onScreenText: "Presença também entra na agenda", shot: "câmera mais afastada", asset: "Mesa de trabalho", durationSeconds: 17 },
+        { beat: "fechamento", visual: "Fale diretamente com a câmera", spokenIntent: "Convide quem assiste a rever o próprio automático", onScreenText: null, shot: "câmera próxima", asset: null, durationSeconds: 10 },
+      ],
+      recordingChecklist: ["Separar uma lista de tarefas real", "Gravar a mesa antes e depois de fechar o computador"],
+    },
+    opportunityBrief: {
+      version: 1,
+      kind: "collab_optional",
+      whyNow: "Seus vídeos sobre escolhas reais da rotina são os que mais geram identificação.",
+      collabReason: "Outra pessoa pode trazer uma decisão diferente para a mesma situação.",
+      evidenceSummary: "Usamos o seu Mapa e 18 vídeos recentes.",
+      evidenceLevel: "strong",
+      postsAnalyzed: 18,
+      timing: {
+        dayLabel: "quinta-feira",
+        windowLabel: "entre 18h e 21h",
+        shortLabel: "quinta à noite",
+        confidence: "high",
+        reason: "Nesse período, seus vídeos de rotina receberam mais respostas e salvamentos.",
+        sampleSize: 18,
+      },
+    },
     resonanceNote: null, status: "active", generatedAt: "2026-07-01T00:00:00.000Z", scheduledFor: null,
     ...o,
   };
 }
 
 function match(name: string, o: Partial<NarrativeCollabMatch> = {}): NarrativeCollabMatch {
+  const previewAvatar = name.includes("Marina")
+    ? "/images/community/avatars/marina-dutra.jpg"
+    : name.includes("Théo")
+      ? "/images/community/avatars/arthur-marba.jpg"
+      : "/images/community/avatars/joao-lucas.jpg";
   return {
-    id: `c-${name}`, name, username: name.toLowerCase().replace(/\s/g, ""), avatarUrl: null,
+    id: `c-${name}`, name, username: name.toLowerCase().replace(/\s/g, ""), avatarUrl: previewAvatar,
     mediaKitSlug: `${name.toLowerCase()}-slug`, narrativeExample: "Como saí do vermelho — resumo",
     suggestedNarrativeLabel: "Dinheiro sem culpa",
     narrativeFitReason: "fala de dinheiro sem culpa — cruza com o seu território de paternidade",
     collabRecordingIdea: "Vocês trocam de casa por um dia e narram a rotina financeira um do outro.",
+    viewerContribution: "uma situação real de paternidade e trabalho",
+    partnerContribution: "uma forma prática de organizar as decisões financeiras da família",
+    collabBlueprint: {
+      version: 1,
+      format: "Reel em tela dividida",
+      openingOwner: "viewer",
+      scenes: [
+        { owner: "viewer", beat: "abertura", visual: "Você mostra a pergunta que recebeu em casa", spokenIntent: "Conte o que seu filho perguntou", transition: "Envie a pergunta para Marina responder" },
+        { owner: "partner", beat: "contexto", visual: "Marina mostra uma conta comum da rotina familiar", spokenIntent: "Explique como dinheiro e tempo se misturam nessa decisão", transition: "Volte para sua reação" },
+        { owner: "both", beat: "fechamento", visual: "Os dois fecham com uma escolha prática", spokenIntent: "Cada um diz o que faria diferente hoje", transition: null },
+      ],
+      editPlan: "Alterne as falas e termine com os dois vídeos lado a lado.",
+      handoffChecklist: ["Combinar a duração de cada fala", "Gravar na vertical e com luz parecida"],
+    },
     sharedSignal: "Paternidade", distinctSignals: ["Finanças"], narrativeMatch: true, ...o,
   };
 }
@@ -115,7 +163,7 @@ export function DevCollabsPreviewClient() {
       })
     },
   ]);
-  // Rejeitadas = descarte permanente (status "dismissed"), como no shell real.
+  // Ideias descartadas recebem status "dismissed", como no shell real.
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
@@ -128,7 +176,7 @@ export function DevCollabsPreviewClient() {
     return () => clearTimeout(t);
   }, []);
 
-  // Status derivado — salvas → "saved" (estante); rejeitadas → "dismissed" (somem).
+  // Status derivado — salvas → "saved"; ideias descartadas → "dismissed".
   const pautasWithStatus = useMemo(
     () => PAUTAS.map((p) =>
       dismissedIds.has(p.id) ? { ...p, status: "dismissed" as const }
@@ -158,7 +206,11 @@ export function DevCollabsPreviewClient() {
       next.delete(id);
       return next;
     });
-    setActionStates((prev) => new Map(prev).set(id, { kind: "unsave", phase: "confirmed" }));
+    setActionStates((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const dismissPauta = (id: string) => {
@@ -178,9 +230,18 @@ export function DevCollabsPreviewClient() {
     }
   };
 
+  const declineCollabPauta = (pautaId: string) => {
+    setDecisions((prev) => new Map(prev).set(pautaId, "dismissed"));
+    setActionStates((prev) => {
+      const next = new Map(prev);
+      next.delete(pautaId);
+      return next;
+    });
+  };
+
   const openIdea = openIdeaId ? pautaById.get(openIdeaId) ?? null : null;
-  const openIdeaCollab = openIdeaId ? MATCHES.get(openIdeaId) ?? null : null;
   const openIdeaDecision = openIdeaId ? decisions.get(openIdeaId) : undefined;
+  const openIdeaCollab = openIdeaId && openIdeaDecision !== "dismissed" ? MATCHES.get(openIdeaId) ?? null : null;
   const openIdeaMatched = confirmed.some((m) => m.pautaId === openIdeaId);
 
   const matchEntry = openMatch ? confirmed.find((m) => m.pautaId === openMatch.pautaId) ?? null : null;
@@ -193,7 +254,7 @@ export function DevCollabsPreviewClient() {
     // a tela, sem ser a mesma estrutura de espaço.
     <div
       className={`d2c-mobile-app fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
-      style={{ maxWidth: 420, margin: "0 auto", background: "var(--ds-color-paper)" }}
+      style={{ width: "100%", margin: "0 auto", background: "var(--ds-color-paper)" }}
     >
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
@@ -213,6 +274,7 @@ export function DevCollabsPreviewClient() {
           onSavePauta={savePauta}
           onUnsavePauta={unsavePauta}
           onAcceptCollabPauta={acceptCollabPauta}
+          onDeclineCollabPauta={declineCollabPauta}
           onDismissPauta={dismissPauta}
           onGenerate={() => {}}
           onUpgrade={() => alert("paywall")}
@@ -234,7 +296,11 @@ export function DevCollabsPreviewClient() {
           decisionPending={Boolean(openIdeaCollab) && !openIdeaDecision && !openIdeaMatched}
           onDecide={(d) => {
             if (d === "interested") acceptCollabPauta(openIdeaId!);
-            else dismissPauta(openIdeaId!);
+            else declineCollabPauta(openIdeaId!);
+            setOpenIdeaId(null);
+          }}
+          onSaveIdea={() => {
+            savePauta(openIdeaId!);
             setOpenIdeaId(null);
           }}
           awaitingOtherSide={Boolean(openIdeaCollab) && openIdeaDecision === "interested" && !openIdeaMatched}

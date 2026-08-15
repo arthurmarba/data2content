@@ -37,6 +37,9 @@ function parsePautas(value: unknown): PautaForMatch[] {
       hook: typeof r.hook === "string" ? r.hook : undefined,
       suggestedFormat: typeof r.suggestedFormat === "string" ? r.suggestedFormat : undefined,
       scriptBlueprint: sanitizeContentIdeaScriptBlueprint(r.scriptBlueprint),
+      opportunityKind: r.opportunityKind === "individual" || r.opportunityKind === "collab_optional"
+        ? r.opportunityKind
+        : undefined,
     });
   }
   return out;

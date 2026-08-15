@@ -9,7 +9,7 @@
 //               Direita = quero fazer; esquerda = não agora (silencioso — o
 //               outro lado nunca sabe; a pauta volta ao fim do deck como card
 //               solo: recusar o parceiro não custa a ideia).
-//   "mystery" — versão free do prêmio: silhueta borrada; coração abre paywall.
+//   "mystery" — versão free do prêmio: silhueta borrada; cadeado abre paywall.
 //
 // Toque sem arrastar abre a ficha completa (DiagnosticoIdeaDetailSheet).
 //
@@ -20,7 +20,7 @@
 //   - sem ranking, sem streak; o "N de M" é ritual pessoal
 //   - positivo é "quero", nunca "curtir"
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   motion,
   animate,
@@ -30,12 +30,8 @@ import {
 } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
-import {
-  contentIdeaMapAnchorLabel,
-  resolveContentIdeaMapAnchors,
-  selectContentIdeaCardAnchors,
-  type ContentIdeaMapAnchorKind,
-} from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
+import { resolveContentIdeaScriptBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
+import { simplifyUserFacingText } from "@/app/dashboard/boards/videoUpload/contentIdeaOpportunity";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import {
@@ -70,25 +66,17 @@ function stackItemIdentity(item: CollabStackItem | null) {
 
 // Acento do prêmio (collab) = brand creator-studio; tintas derivadas do rosa.
 const COLLAB_ACCENT = CS_BRAND_HEX;
-const COLLAB_TINT_BG = "var(--ds-color-brand-soft)";
 const CARD_BG = "var(--ds-color-surface)";
 const STACK_CARD_SHADOW = "var(--ds-shadow-raised)";
 /** Deslocamento (px) a partir do qual soltar o card confirma a decisão. */
 const SWIPE_CONFIRM_PX = 96;
 const SWIPE_CONFIRM_VELOCITY = 600;
 /**
- * Teto de altura do card. O conteúdo (StackCardBody) é ANCORADO no topo — sem
- * justifyContent:center interno — então o espaço sobrando cai como respiro
- * normal depois da zona e antes do rodapé, não como vão vazio no meio (isso já
- * foi resolvido na anatomia única do card). Por isso o teto pode ficar
- * generoso: com o header compacto e o deck ancorado no topo, um iPhone padrão
- * (844pt) oferece ~620px entre header e tab bar — 560px deixa o card dominar
- * a tela com uma margem honesta embaixo, sem esticar até a tela inteira.
- * O conteúdo cresce junto (teasers com mais linhas, rodapé maior), então o
- * teto maior não reabre o vão interno. Em telas baixas o flex:1 ainda encolhe
- * abaixo disso — o teto só entra quando SOBRA espaço, nunca quando falta.
+ * Teto da experiência completa: progresso, face do flashcard e decisões. A
+ * face usa o espaço restante e preserva o mesmo respiro no mobile e desktop.
  */
-const CARD_MAX_HEIGHT = 560;
+const CARD_MAX_HEIGHT = 480;
+const DECISION_ZONE_HEIGHT = 96;
 
 // ─── Ícones (stroke style do app) ─────────────────────────────────────────────
 
@@ -100,16 +88,32 @@ function XIcon({ size = 20, color = "var(--ds-color-text-muted)" }: { size?: num
   );
 }
 
-function HeartIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
+function BookmarkIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M12 20.3l-7.1-6.8a4.6 4.6 0 0 1 0-6.7 5 5 0 0 1 6.9 0l.2.2.2-.2a5 5 0 0 1 6.9 0 4.6 4.6 0 0 1 0 6.7L12 20.3z"
+        d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75V20l-5-3.15L7 20V4.75z"
         stroke={color}
         strokeWidth="2"
         strokeLinejoin="round"
-        fill="none"
       />
+    </svg>
+  );
+}
+
+function CheckIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5l4.3 4.3L19 7" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LockIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5.5" y="10" width="13" height="10" rx="2" stroke={color} strokeWidth="2" />
+      <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -190,55 +194,139 @@ function DecisionStamp({
 // por que combina, como gravar juntos, roteiro) mora no "verso": tocar o corpo
 // vira o cartão e abre a tela de detalhe (ficha) com × pra voltar.
 
-function CollabPill({ label }: { label: string }) {
-  return (
-    <span style={{
-      alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 5,
-      borderRadius: 999, padding: "4px 11px", marginBottom: 12,
-      background: COLLAB_TINT_BG, color: COLLAB_ACCENT,
-      fontSize: 10, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase",
-    }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="8.5" cy="8" r="3" stroke={COLLAB_ACCENT} strokeWidth="2.4" />
-        <circle cx="16.5" cy="9.5" r="2.4" stroke={COLLAB_ACCENT} strokeWidth="2.4" />
-        <path d="M3.5 19c0-2.6 2.3-4.4 5-4.4 1.5 0 2.8.5 3.7 1.3" stroke={COLLAB_ACCENT} strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-      {label}
-    </span>
-  );
-}
-
 function PautaEyebrow() {
   return (
     <span style={{
-      display: "block", alignSelf: "flex-start", marginBottom: 13, paddingRight: 96,
+      display: "block", alignSelf: "flex-start",
       color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
       letterSpacing: 0.72, textTransform: "uppercase",
     }}>
-      Pauta para você
+      Ideia para você
     </span>
   );
 }
 
-function FlipHint() {
+function flashcardTitleFontSize(title: string, kind: CollabStackCardKind): string {
+  const length = title.trim().length;
+  if (length > 88) return "clamp(23px, min(7vw, 3.7dvh), 30px)";
+  if (length > 58) return "clamp(25px, min(7.8vw, 4.15dvh), 33px)";
+  return kind === "pauta"
+    ? "clamp(28px, min(8.8vw, 4.8dvh), 38px)"
+    : "clamp(27px, min(8.2vw, 4.45dvh), 35px)";
+}
+
+function FlashcardTitle({ title, kind }: { title: string; kind: CollabStackCardKind }) {
   return (
-    <span
-      aria-hidden="true"
+    <p
+      className="d2c-flashcard-title"
+      data-max-lines="4"
       style={{
-        position: "absolute", top: 12, right: 14, zIndex: 1,
-        display: "inline-flex", alignItems: "center", gap: 4,
-        // TEXT_SECONDARY_HEX (não um cinza custom): ~4.6:1 sobre branco — o hint
-        // de flip é a única pista da interação, não pode ficar abaixo do AA.
-        fontSize: 10, fontWeight: 700, color: TEXT_SECONDARY_HEX,
+        width: "100%", maxWidth: "100%",
+        fontSize: flashcardTitleFontSize(title, kind),
+        fontFamily: CS_FONT_DISPLAY,
+        fontWeight: 680, color: CS_INK_HEX, letterSpacing: CS_DISPLAY_TRACKING_CARD,
+        lineHeight: 1.055, margin: 0, textAlign: "center", textWrap: "balance",
+        overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
+        display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
       }}
     >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-        <path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-        <path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="sm:hidden">toque para virar</span>
-      <span className="hidden sm:inline">clique para virar</span>
-    </span>
+      {title}
+    </p>
+  );
+}
+
+function CollabIdentityHeader({
+  kind,
+  collab,
+}: {
+  kind: "collab" | "mystery";
+  collab: NarrativeCollabMatch | null;
+}) {
+  const initials = (collab?.name || "?").trim().slice(0, 1).toUpperCase();
+  const isRealCollab = kind === "collab" && collab != null;
+
+  return (
+    <div
+      data-testid="collab-identity-header"
+      className="d2c-collab-identity"
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 14,
+        paddingBottom: "clamp(12px, 1.8dvh, 16px)",
+        borderBottom: "1px solid var(--ds-color-line)",
+      }}
+    >
+      {isRealCollab ? (
+        <div
+          className="d2c-collab-identity-avatar"
+          style={{
+            width: "clamp(62px, 9.5dvh, 68px)", height: "clamp(62px, 9.5dvh, 68px)",
+            borderRadius: 9999, flexShrink: 0, overflow: "hidden", position: "relative",
+            background: CS_INK_HEX, color: "var(--ds-color-on-brand)", display: "grid", placeItems: "center",
+            fontSize: "clamp(18px, 2.6dvh, 22px)", fontWeight: 700,
+            boxShadow: `0 0 0 2px ${CS_PAPER_HEX}, 0 0 0 3.5px ${CS_BRAND_HEX}`,
+          }}
+        >
+          <StableCreatorAvatar
+            name={collab.name}
+            avatarUrl={collab.avatarUrl}
+            creatorId={collab.id}
+            mediaKitSlug={collab.mediaKitSlug}
+            fallbackText={initials}
+          />
+        </div>
+      ) : (
+        <div className="d2c-collab-identity-avatar" style={{ width: 62, height: 62, flexShrink: 0 }}>
+          <MysteryAvatar size={62} />
+        </div>
+      )}
+
+      <div style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+        <span style={{ display: "block", color: COLLAB_ACCENT, fontSize: 10, fontWeight: 800, letterSpacing: 0.68, textTransform: "uppercase" }}>
+          {isRealCollab ? "Collab sugerida" : "Collab disponível"}
+        </span>
+        <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginTop: 4, color: CS_INK_HEX, fontSize: "clamp(17px, 2.5dvh, 20px)", fontWeight: 760, lineHeight: 1.12, letterSpacing: -0.3 }}>
+          {isRealCollab ? `Com ${collab.name}` : "Há uma pessoa indicada"}
+        </span>
+        {!isRealCollab ? (
+          <span style={{ display: "block", marginTop: 3, color: TEXT_SECONDARY_HEX, fontSize: 11.5, fontWeight: 600 }}>
+            Disponível no Pro
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function FlipIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4.5 10a7.5 7.5 0 1 1 1.6 6.1" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M4.5 4.8V10h5.2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FlipHint({ label, onFlip, active = true }: { label: string; onFlip: () => void; active?: boolean }) {
+  return (
+    <button
+      type="button"
+      tabIndex={active ? 0 : -1}
+      aria-label={label}
+      onPointerDownCapture={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onFlip();
+      }}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        minHeight: 36, padding: "0 8px", border: 0, background: "transparent",
+        cursor: "pointer", fontFamily: "inherit",
+        fontSize: 12, fontWeight: 700, color: TEXT_SECONDARY_HEX,
+      }}
+    >
+      <span>{label}</span>
+      <FlipIcon />
+    </button>
   );
 }
 
@@ -264,224 +352,192 @@ export function MetaChip({ label, tone = "violet" }: { label: string; tone?: "vi
   );
 }
 
-function MapAnchorIcon({ kind }: { kind: ContentIdeaMapAnchorKind }) {
-  if (kind === "subject") {
-    return <path d="M5 8.5h10M5 13.5h10M9 4l-2 14M15 4l-2 14" />;
-  }
-  if (kind === "situation") {
-    return <><rect x="4" y="4" width="12" height="12" rx="3" /><path d="M7 8h6M7 12h4" /></>;
-  }
-  if (kind === "scene") {
-    return <><path d="M4 16l4-4 3 3 3-3 2 2" /><circle cx="8" cy="8" r="2" /></>;
-  }
-  return <><path d="M5 8.5h10M5 12.5h7" /><path d="M7 16.5l-2 2v-4" /></>;
+function conciseCardText(value: string | null | undefined, max = 105): string | null {
+  const clean = simplifyUserFacingText(value, Math.max(max + 15, 120));
+  if (!clean) return null;
+  const firstSentence = clean.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? clean;
+  const concise = simplifyUserFacingText(firstSentence, max);
+  if (!concise) return null;
+  return concise.charAt(0).toLocaleUpperCase("pt-BR") + concise.slice(1);
 }
 
-function MapAnchorBand({ pauta, reduceMotion }: { pauta: ContentIdeaListItem; reduceMotion: boolean }) {
-  const anchors = selectContentIdeaCardAnchors(resolveContentIdeaMapAnchors({
-    mapAnchors: pauta.mapAnchors,
-    territory: pauta.territory,
-    assets: pauta.assets,
-    tone: pauta.tone,
-  }));
-  if (anchors.length === 0) return null;
+function formatCardFormat(value: string): string {
+  const normalized = value.trim().toLocaleLowerCase("pt-BR");
+  if (normalized === "reels" || normalized === "reel") return "Reel";
+  return value.trim();
+}
+
+function executionSummary(item: CollabStackItem): string {
+  const blueprint = resolveContentIdeaScriptBlueprint(item.pauta.scriptBlueprint, item.pauta);
+  const format = item.kind === "collab" && item.collab?.collabBlueprint?.format
+    ? item.collab.collabBlueprint.format
+    : item.pauta.suggestedFormat;
+  const parts = [
+    item.kind === "collab" && item.collab?.collabMode
+      ? item.collab.collabMode === "presencial" ? "Presencial" : "À distância"
+      : null,
+    formatCardFormat(format),
+    blueprint.estimatedDurationSeconds ? `${blueprint.estimatedDurationSeconds}s` : null,
+    item.pauta.opportunityBrief?.timing?.shortLabel ?? null,
+  ].filter((value): value is string => Boolean(value));
+  return parts.join(" · ");
+}
+
+function FlashcardFront({
+  item,
+  onFlip,
+  active = true,
+}: {
+  item: CollabStackItem;
+  onFlip: () => void;
+  active?: boolean;
+}) {
+  const { kind, pauta, collab } = item;
+  const title = cleanIdeaText(pauta.title);
+  const flipLabel = kind === "collab"
+    ? "Ver por que combina"
+    : kind === "mystery" ? "Ver indicação" : "Ver como gravar";
 
   return (
-    <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid var(--ds-color-line)" }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-        <span style={{
-          color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
-          letterSpacing: 0.7, textTransform: "uppercase",
-        }}>
-          Do seu mapa
-        </span>
-        {pauta.suggestedFormat ? (
-          <span style={{
-            minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            color: CS_MUTED, fontSize: 10.5, fontWeight: 650,
-          }}>
-            {pauta.suggestedFormat}
-          </span>
-        ) : null}
+    <div
+      data-testid="collab-flashcard-front"
+      className="d2c-flashcard-front"
+      style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "clamp(14px, 2.2dvh, 22px) 22px 10px" }}
+    >
+      {kind !== "pauta" ? (
+        <CollabIdentityHeader kind={kind} collab={collab} />
+      ) : (
+        <div style={{ width: "100%", paddingBottom: "clamp(11px, 1.7dvh, 15px)", borderBottom: "1px solid var(--ds-color-line)" }}>
+          <PautaEyebrow />
+        </div>
+      )}
+
+      <div className="d2c-flashcard-title-zone" style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 2.1dvh, 22px) 0 8px" }}>
+        <FlashcardTitle title={title} kind={kind} />
       </div>
-      <motion.div
-        className="d2c-map-anchor-grid"
-        initial="hidden"
-        animate="visible"
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.045, delayChildren: reduceMotion ? 0 : 0.08 } },
-        }}
-        style={{
-          display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          alignContent: "flex-start", gap: 7, overflow: "hidden",
-        }}
-      >
-        {anchors.map((anchor) => (
-          <motion.span
-            className="d2c-map-anchor-token"
-            key={`${anchor.kind}:${anchor.label}`}
-            variants={{
-              hidden: { opacity: 0, y: 5, scale: 0.97 },
-              visible: { opacity: 1, y: 0, scale: 1 },
-            }}
-            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 28 }}
-            title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
-            style={{
-              display: "grid", gridTemplateColumns: "21px minmax(0, 1fr)", alignItems: "center", gap: 7,
-              minWidth: 0, borderRadius: 12, padding: "7px 9px 7px 7px",
-              background: CS_NEUTRAL_HEX, color: CS_INK_HEX,
-              fontSize: 11.25, fontWeight: 650, lineHeight: 1.05,
-            }}
-          >
-            <span style={{
-              display: "inline-grid", placeItems: "center", width: 21, height: 21,
-              flexShrink: 0, borderRadius: 8, background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
-            }} aria-hidden="true">
-              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
-                <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <MapAnchorIcon kind={anchor.kind} />
-                </g>
-              </svg>
-            </span>
-            <span style={{ display: "block", minWidth: 0 }}>
-              <span style={{ display: "block", color: TEXT_SECONDARY_HEX, fontSize: 8.5, fontWeight: 800, letterSpacing: 0.25, textTransform: "uppercase", whiteSpace: "nowrap" }}>
-                {contentIdeaMapAnchorLabel(anchor.kind)}
-              </span>
-              <span className="d2c-map-anchor-value" style={{ minWidth: 0, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {anchor.label}
-              </span>
-            </span>
-          </motion.span>
-        ))}
-      </motion.div>
+
+      <FlipHint label={flipLabel} onFlip={onFlip} active={active} />
     </div>
   );
 }
 
-function StackCardBody({ item }: { item: CollabStackItem }) {
-  const { kind, pauta, collab } = item;
-  const reduceMotion = useReducedMotion();
-  const initials = (collab?.name || "?").trim().slice(0, 1).toUpperCase();
-  const title = cleanIdeaText(pauta.title);
+function BackSection({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    // Anatomia única: META (chips) → TÍTULO (herói) → ZONA (gancho ou pessoa),
-    // todos ANCORADOS no topo, colados como um bloco só (marginTop fixo entre
-    // eles, não "auto" — "auto" empurrava a ZONA até grudar no rodapé, abrindo
-    // um vão enorme quando o título era curto). O espaço sobrando cai sozinho
-    // DEPOIS da zona, antes do rodapé — lugar normal de respiro num card, em vez
-    // de um buraco no meio. Antes disso tudo era centralizado, e cada carta do
-    // baralho tinha um ritmo diferente conforme o tamanho do título.
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "24px 24px 16px" }}>
-      {/* O selo "collab" mantém o padrão visual entre os tipos de card — só
-          encurtado (era "collab pra essa pauta"), pra gastar menos altura. O
-          chip de TERRITÓRIO some no card de collab: a foto+nome+porquê já
-          contextualizam, e território brigava por espaço com o porquê (o
-          dado que decide de verdade). Pauta solo e mystery mantêm o território:
-          lá ele ainda é o único contexto narrativo disponível. */}
-      {kind !== "pauta" ? (
-        <CollabPill label={kind === "collab" ? "collab" : "collab escondida"} />
-      ) : <PautaEyebrow />}
-      <p
-        style={{
-          // Título domina o card (linguagem flashcard): grande, responsivo à
-          // largura E à altura (min(vw, dvh)) — em telas normais/altas o dvh
-          // não é o fator limitante e o título fica do mesmo tamanho grande de
-          // sempre; só em telas baixas (ex.: iPhone SE, 667px) o dvh entra e
-          // encolhe a fonte um pouco, sobrando espaço pro título não cortar
-          // no meio da palavra. Sem isso, a fonte só reagia à largura — duas
-          // telas da mesma largura mas alturas diferentes ficavam com o MESMO
-          // tamanho de fonte, mesmo a mais baixa tendo bem menos espaço vertical.
-          fontSize: kind === "pauta"
-            ? "clamp(26px, min(10vw, 4.6dvh), 40px)"
-            : "clamp(23px, min(8vw, 3.8dvh), 34px)",
-          // Bricolage (display creator-studio): peso menor que o 700 do sans
-          // porque a grotesca já é "cheia"; tracking de card (-.03em) — o da
-          // landing (-.05em) fecha demais abaixo de ~28px.
-          fontFamily: CS_FONT_DISPLAY,
-          fontWeight: 680, color: CS_INK_HEX, letterSpacing: CS_DISPLAY_TRACKING_CARD,
-          lineHeight: 1.08, margin: 0,
-          textAlign: "left",
-          overflowWrap: "normal",
-          wordBreak: "normal",
-          hyphens: "none",
-          display: "-webkit-box", WebkitLineClamp: kind === "pauta" ? 4 : 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-          // Flexbox trata min-height:auto como 0 pra filhos com overflow!=visible
-          // (é o caso, por causa do line-clamp) — sem isto, títulos longos em
-          // telas baixas eram ESPREMIDOS abaixo da própria altura de 4 linhas
-          // pelo flex, cortando no meio de uma linha (feio) em vez de aplicar a
-          // reticência limpa do line-clamp. flexShrink:0 protege a altura
-          // natural do título; se sobrar aperto, é a zona (gancho) que cede.
-          flexShrink: 0,
-        }}
-      >
+    <div className={className} style={{ minWidth: 0 }}>
+      <span style={{ display: "block", color: CS_BRAND_STRONG_HEX, fontSize: 9.5, fontWeight: 800, letterSpacing: 0.65, textTransform: "uppercase" }}>
+        {label}
+      </span>
+      <div style={{ marginTop: 4 }}>{children}</div>
+    </div>
+  );
+}
+
+function FlashcardBack({
+  item,
+  onFlip,
+  onOpenIdea,
+  active = true,
+}: {
+  item: CollabStackItem;
+  onFlip: () => void;
+  onOpenIdea?: () => void;
+  active?: boolean;
+}) {
+  const { kind, pauta, collab } = item;
+  const title = cleanIdeaText(pauta.title);
+  const firstName = collab?.name.trim().split(" ")[0] || "essa pessoa";
+  const reason = conciseCardText(
+    collab?.narrativeFitReason ?? pauta.opportunityBrief?.collabReason,
+    120,
+  );
+  const viewerContribution = conciseCardText(collab?.viewerContribution, 92)
+    ?? conciseCardText(`Sua experiência com ${pauta.territory}`, 92);
+  const partnerContribution = conciseCardText(collab?.partnerContribution, 92)
+    ?? reason;
+  const hook = conciseCardText(pauta.hook, 150);
+  const whyNow = conciseCardText(
+    pauta.opportunityBrief?.whyNow ?? pauta.resonanceNote ?? pauta.whyItFits,
+    115,
+  );
+  const meta = executionSummary(item);
+
+  return (
+    <div
+      data-testid="collab-flashcard-back"
+      style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", padding: "clamp(14px, 2.2dvh, 22px) 22px 14px" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <span style={{ color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
+          {kind === "collab" ? `Por que ${firstName}` : "Como gravar"}
+        </span>
+        <FlipHint label="Voltar para a ideia" onFlip={onFlip} active={active} />
+      </div>
+
+      <p className="d2c-flashcard-back-title" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: "2px 0 12px", fontFamily: CS_FONT_DISPLAY, color: CS_INK_HEX, fontSize: 17, fontWeight: 700, lineHeight: 1.15, letterSpacing: -0.35 }}>
         {title}
       </p>
 
       {kind === "collab" && collab ? (
-        // A pessoa continua sendo o prêmio visual da collab; o porquê e o
-        // roteiro ficam no detalhe. A frente mostra somente o encontro entre
-        // pessoa, ideia e as âncoras do mapa.
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
-            <div
-              style={{
-                // Responsivo à altura como o título — em telas baixas, título
-                // longo (3-4 linhas) + avatar + porquê não cabem todos no
-                // tamanho cheio de 72px; encolher um pouco o avatar (nunca
-                // menos que 56px) devolve o espaço que falta sem cortar texto.
-                // O ring duplo (paper + brand) "assenta" a foto no card.
-                width: "clamp(56px, 8dvh, 72px)", height: "clamp(56px, 8dvh, 72px)",
-                borderRadius: 9999, flexShrink: 0, overflow: "hidden", position: "relative",
-                background: CS_INK_HEX, color: "var(--ds-color-on-brand)", display: "grid", placeItems: "center",
-                fontSize: "clamp(18px, 2.8dvh, 24px)", fontWeight: 700,
-                boxShadow: `0 0 0 2px ${CS_PAPER_HEX}, 0 0 0 3.5px ${CS_BRAND_HEX}`,
-              }}
-            >
-              <StableCreatorAvatar
-                name={collab.name}
-                avatarUrl={collab.avatarUrl}
-                creatorId={collab.id}
-                mediaKitSlug={collab.mediaKitSlug}
-                fallbackText={initials}
-              />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 18, fontWeight: 700, color: CS_INK_HEX, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {collab.name}
-              </span>
-              {/* Handle + modo de gravação numa linha só — "como seria essa
-                  collab" (presencial/remoto) responde-se de relance, sem
-                  precisar virar o card (o selo completo continua no verso). */}
-              {collab.username || collab.collabMode ? (
-                <span style={{ display: "block", fontSize: 12.5, color: CS_MUTED, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {[collab.username ? `@${collab.username}` : null, collab.collabMode === "presencial" ? "Presencial" : collab.collabMode === "remoto" ? "Remoto" : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              ) : null}
-            </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "clamp(9px, 1.5dvh, 14px)" }}>
+          {reason ? (
+            <p className="d2c-flashcard-back-reason" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, color: TEXT_PRIMARY_HEX, fontSize: 14, fontWeight: 650, lineHeight: 1.35 }}>
+              {reason}
+            </p>
+          ) : null}
+          <div className="d2c-flashcard-contributions" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, paddingTop: 10, borderTop: "1px solid var(--ds-color-line)" }}>
+            <BackSection label="Você entra com" className="d2c-flashcard-contribution">
+              <p style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, color: TEXT_SECONDARY_HEX, fontSize: 12.5, fontWeight: 600, lineHeight: 1.34 }}>
+                {viewerContribution}
+              </p>
+            </BackSection>
+            <BackSection label={`${firstName} entra com`} className="d2c-flashcard-contribution">
+              <p style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, color: TEXT_SECONDARY_HEX, fontSize: 12.5, fontWeight: 600, lineHeight: 1.34 }}>
+                {partnerContribution}
+              </p>
+            </BackSection>
           </div>
-          <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
-        </>
-      ) : kind === "mystery" ? (
-        <>
-          <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
-          <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 18 }}>
-            <MysteryAvatar size={44} />
-            <div style={{ minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: TEXT_PRIMARY_HEX }}>
-                Um criador combina com essa pauta
-              </span>
-              <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>
-                Descubra quem no Pro →
-              </span>
-            </div>
-          </div>
-        </>
+        </div>
       ) : (
-        <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.7dvh, 16px)" }}>
+          {hook ? (
+            <BackSection label="Comece assim">
+              <p style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, color: CS_INK_HEX, fontSize: 15, fontWeight: 680, lineHeight: 1.35 }}>
+                “{hook}”
+              </p>
+            </BackSection>
+          ) : null}
+          {whyNow ? (
+            <BackSection label="Por que funciona">
+              <p className="d2c-flashcard-back-reason" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: 0, color: TEXT_SECONDARY_HEX, fontSize: 12.5, fontWeight: 600, lineHeight: 1.34 }}>
+                {whyNow}
+              </p>
+            </BackSection>
+          ) : null}
+        </div>
       )}
+
+      <div style={{ marginTop: "auto", paddingTop: 10 }}>
+        {meta ? (
+          <p style={{ margin: 0, color: CS_MUTED, fontSize: 11.5, fontWeight: 650, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {meta}
+          </p>
+        ) : null}
+        {onOpenIdea ? (
+          <button
+            type="button"
+            tabIndex={active ? 0 : -1}
+            aria-label="Abrir plano completo da ideia"
+            onPointerDownCapture={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenIdea();
+            }}
+            style={{ minHeight: 34, marginTop: 4, padding: 0, border: 0, background: "transparent", color: COLLAB_ACCENT, fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
+          >
+            Abrir plano completo <span aria-hidden="true">›</span>
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -495,6 +551,7 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
 
 export function DiagnosticoCollabStack({
   items,
+  isPro,
   shelfCount,
   clearedActions,
   onDecide,
@@ -512,6 +569,8 @@ export function DiagnosticoCollabStack({
   onUpgrade?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const [flipped, setFlipped] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
   // Total da "rodada" desta visita — pro ritual do "N de M" e o estado zerado.
   const roundTotalRef = useRef(items.length);
   if (items.length > roundTotalRef.current) roundTotalRef.current = items.length;
@@ -535,18 +594,13 @@ export function DiagnosticoCollabStack({
   const emptyDeck = items.length === 0;
   const triaged = roundTotalRef.current > 0;
 
-  // Flip do cartão didático: tocar o corpo vira o cartão (rotateY) e, no meio
-  // do giro, abre a tela de detalhe (o "verso"). O × de lá desvira de volta.
-  const flipY = useMotionValue(0);
-  const flippingRef = useRef(false);
-
   // y/scale são motion values (não props animate) — a saída em arco pra
   // mochila anima x+y+scale juntos, e motion value no style ignoraria a prop.
   const yMv = useMotionValue(0);
   const scaleMv = useMotionValue(1);
   const opacityMv = useMotionValue(1);
 
-  // Controles das animações ativas (x/y/scale/flip) — precisam ser PARADOS
+  // Controles das animações ativas (x/y/scale) — precisam ser PARADOS
   // explicitamente antes de qualquer `.set()` de reset. Sem isso: o commit()
   // dispara no onComplete da OPACIDADE (tween de duração fixa, 420ms), mas
   // x/y/scale são SPRINGS sem duração fixa — se a física ainda não convergiu
@@ -565,9 +619,8 @@ export function DiagnosticoCollabStack({
   useEffect(() => {
     stopActiveAnims();
     decidingRef.current = false;
-    flippingRef.current = false;
+    setFlipped(false);
     x.set(0);
-    flipY.set(0);
     opacityMv.set(1);
     if (reduceMotion) {
       yMv.set(0);
@@ -580,32 +633,15 @@ export function DiagnosticoCollabStack({
       animate(yMv, 0, { type: "spring", stiffness: 300, damping: 26 }),
       animate(scaleMv, 1, { type: "spring", stiffness: 300, damping: 26 }),
     );
-  }, [topIdentity, x, flipY, yMv, scaleMv, opacityMv, reduceMotion]);
+  }, [topIdentity, x, yMv, scaleMv, opacityMv, reduceMotion]);
 
-  const flipToDetail = (pautaId: string) => {
-    if (decidingRef.current || flippingRef.current) return;
-    if (reduceMotion) {
-      onOpenIdea?.(pautaId);
-      return;
-    }
-    flippingRef.current = true;
-    activeAnimsRef.current.push(
-      animate(flipY, 90, {
-        duration: 0.18,
-        ease: "easeIn",
-        onComplete: () => {
-          onOpenIdea?.(pautaId);
-          // O detalhe cobre a tela; desvira em silêncio pra quando o × fechar.
-          setTimeout(() => {
-            flipY.set(0);
-            flippingRef.current = false;
-          }, 350);
-        },
-      }),
-    );
+  const openDetail = (pautaId: string) => {
+    if (decidingRef.current) return;
+    onOpenIdea?.(pautaId);
   };
 
   const commit = (pautaId: string, direction: 1 | -1) => {
+    setCompletedCount((current) => current + 1);
     onDecide(pautaId, direction === 1 ? "interested" : "dismissed");
   };
 
@@ -657,26 +693,38 @@ export function DiagnosticoCollabStack({
 
   const pressButton = (direction: 1 | -1) => {
     if (!top || decidingRef.current) return;
-    // Free: coração no card misterioso é a porta do paywall.
-    if (direction === 1 && top.kind === "mystery") {
+    // A decisão positiva só sai de cena quando ela pode ser concluída. Antes,
+    // o Free animava o card para fora e só depois abria o paywall; como nenhum
+    // estado era persistido, o mesmo topo ficava invisível e travado ao voltar.
+    if (direction === 1 && (!isPro || top.kind === "mystery")) {
+      animate(x, 0, { type: "spring", stiffness: 300, damping: 26 });
       onUpgrade?.();
       return;
     }
     flyOut(top.pauta.id, direction);
   };
 
+  const toggleFace = () => {
+    if (!top || decidingRef.current) return;
+    if (top.kind === "mystery") {
+      onUpgrade?.();
+      return;
+    }
+    setFlipped((current) => !current);
+  };
+
   if (emptyDeck) {
     // Deck sem cartões = um único encerramento, sem card dentro de card.
     const shelfMsg = typeof shelfCount === "number" && shelfCount > 0
-      ? `${shelfCount} ${shelfCount === 1 ? "pauta guardada" : "pautas guardadas"} nesta rodada.`
-      : "A próxima rodada nasce do seu mapa.";
+      ? `${shelfCount} ${shelfCount === 1 ? "ideia salva" : "ideias salvas"} nesta rodada.`
+      : "As próximas ideias usarão os assuntos do seu Mapa.";
     return (
-      <div style={{ flex: "1 1 auto", minHeight: 0, maxHeight: CARD_MAX_HEIGHT, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "16px 8px 12px", textAlign: "center" }}>
+      <div style={{ flex: "1 1 auto", width: "100%", maxWidth: 520, minHeight: 0, maxHeight: CARD_MAX_HEIGHT, margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "16px 8px 12px", textAlign: "center" }}>
         <p style={{ fontSize: 10.5, fontWeight: 800, color: CS_BRAND_STRONG_HEX, margin: 0, letterSpacing: 1.15, textTransform: "uppercase" }}>
-          {triaged ? "Rodada concluída" : "Sem pautas ativas"}
+          {triaged ? "Rodada concluída" : "Sem ideias disponíveis"}
         </p>
         <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, lineHeight: 1.06, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: "8px 0 0", letterSpacing: -0.8 }}>
-          Pronto para novas pautas?
+          Quer ver novas ideias?
         </p>
         <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, lineHeight: 1.45, margin: "7px 0 0" }}>
           {shelfMsg}
@@ -690,46 +738,68 @@ export function DiagnosticoCollabStack({
 
   // Copy dos stamps/botões acompanha o tipo do card do topo — mesmo gesto,
   // stakes diferentes: salvar uma ideia ≠ topar gravar com uma pessoa.
-  const isCollabTop = top.kind !== "pauta";
+  const isCollabTop = top.kind === "collab";
+  const isMysteryTop = top.kind === "mystery";
   const topTitle = cleanIdeaText(top.pauta.title);
-  const positiveLabel = isCollabTop ? "quero fazer" : "quero gravar";
-  // Rejeitar é PERMANENTE (a pauta some de vez) — "não agora" prometia "depois"
-  // e seria mentira. "não é pra mim" é honesto pros dois tipos de card.
-  const negativeLabel = "não é pra mim";
+  const firstName = top.collab?.name.trim().split(" ")[0] || "essa pessoa";
+  const positiveLabel = isCollabTop ? `gravar com ${firstName}` : isMysteryTop ? "ver no Pro" : "salvar ideia";
+  const negativeLabel = isCollabTop ? "agora não" : "descartar ideia";
+  const progressCurrent = completedCount + 1;
+  const progressTotal = completedCount + items.length;
+  const cardBorder = isCollabTop
+    ? "1px solid color-mix(in srgb, var(--ds-color-brand) 28%, var(--ds-color-line))"
+    : "1px solid var(--ds-color-line)";
 
   return (
-    <div style={{ flex: "1 1 auto", minHeight: 0, maxHeight: CARD_MAX_HEIGHT, display: "flex", flexDirection: "column" }}>
-      {/* Sem eyebrow nem contador: o cartão domina (linguagem flashcard). O
-          progresso vive no baralho visível atrás e no estado "rodada triada".
-          flex:1 + minHeight:0 = preenche o espaço REAL que sobra entre stories
-          row e tab bar em telas BAIXAS (não um palpite em dvh, que ignorava a
-          altura real da tela e chegava a sobrepor a tab bar). maxHeight põe um
-          teto pra esse crescimento em telas ALTAS — sem ele, o card virava do
-          tamanho da tela inteira e sobrava um vão vazio dentro dele, entre o
-          conteúdo (ancorado no topo) e o rodapé. O pai (deck-wrapper, no feed)
-          centraliza o card com justifyContent quando ele fica menor que o
-          espaço disponível — a sobra vira margem AO REDOR, não vazio DENTRO.
-          perspective habilita o flip 3D do toque. */}
-      <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0, perspective: 1200 }}>
-        {/* Teasers extras (Como gravar / No roteiro) só entram quando a tela
-            tem altura pra eles — em telas baixas (iPhone SE, 667px) o card
-            fica com o essencial e nada é espremido ou cortado. */}
-        <style>{`
-          .d2c-tall-only{display:none}
-          .d2c-map-anchor-grid{max-height:100px}
-          .d2c-map-anchor-token{min-height:44px}
-          .d2c-map-anchor-value{display:block;white-space:nowrap}
-          @media (min-height:760px){
-            .d2c-tall-only{display:block}
-            .d2c-map-anchor-grid{max-height:118px}
-            .d2c-map-anchor-token{min-height:54px}
-            .d2c-map-anchor-value{display:-webkit-box;white-space:normal;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.15}
+    <div style={{ flex: "1 1 auto", width: "100%", maxWidth: 520, minHeight: 0, maxHeight: CARD_MAX_HEIGHT, margin: "0 auto", display: "flex", flexDirection: "column" }}>
+      <style jsx global>{`
+        @media (max-height: 610px) {
+          .d2c-flashcard-front {
+            padding-top: 12px !important;
+            padding-bottom: 8px !important;
           }
-        `}</style>
-        {/* Cards de trás — promovem com spring quando o topo sai. */}
+          .d2c-collab-identity {
+            gap: 12px !important;
+            padding-bottom: 9px !important;
+          }
+          .d2c-collab-identity-avatar {
+            width: 52px !important;
+            height: 52px !important;
+          }
+          .d2c-collab-identity-avatar > div {
+            width: 52px !important;
+            height: 52px !important;
+          }
+          .d2c-flashcard-title-zone {
+            padding-top: 8px !important;
+            padding-bottom: 4px !important;
+          }
+          .d2c-flashcard-back-title {
+            display: none !important;
+          }
+          .d2c-flashcard-back-reason,
+          .d2c-flashcard-contribution p {
+            -webkit-line-clamp: 1 !important;
+          }
+          .d2c-flashcard-contributions {
+            gap: 10px !important;
+            padding-top: 7px !important;
+          }
+        }
+      `}</style>
+      <div
+        aria-live="polite"
+        style={{ height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT_SECONDARY_HEX, fontSize: 11.5, fontWeight: 700, letterSpacing: 0.15 }}
+      >
+        {progressCurrent} de {progressTotal}
+      </div>
+
+      <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0 }}>
         {behind.map((item, i) => (
           <motion.div
             key={stackItemIdentity(item)}
+            data-stack-card-id={stackItemIdentity(item)}
+            data-stack-position={i + 1}
             aria-hidden="true"
             initial={false}
             animate={{
@@ -741,7 +811,10 @@ export function DiagnosticoCollabStack({
             transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 26 }}
             style={{
               position: "absolute",
-              inset: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: DECISION_ZONE_HEIGHT,
               borderRadius: 22,
               background: CARD_BG,
               border: "1px solid var(--ds-color-line)",
@@ -753,17 +826,16 @@ export function DiagnosticoCollabStack({
               flexDirection: "column",
             }}
           >
-            <StackCardBody item={item} />
+            <FlashcardFront item={item} onFlip={() => {}} active={false} />
           </motion.div>
         ))}
 
-        {/* Card do topo — arrastável. `key` remonta a cada topo novo; o `x` é
-            do pai, então botão e arrasto movem o MESMO card. Toque no corpo =
-            flip pro detalhe; os botões DENTRO do rodapé decidem. */}
         <motion.div
           key={topIdentity}
+          data-stack-card-id={topIdentity}
+          data-stack-position="0"
           role="group"
-          aria-label={isCollabTop ? `Collab pra pauta: ${topTitle}` : `Pauta: ${topTitle}`}
+          aria-label={`${isCollabTop ? "Parceria recomendada" : isMysteryTop ? "Sugestão em parceria" : "Ideia"}: ${topTitle}. ${flipped ? "Detalhes visíveis" : "Frente visível"}`}
           tabIndex={0}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
@@ -774,63 +846,94 @@ export function DiagnosticoCollabStack({
             scale: scaleMv,
             opacity: opacityMv,
             rotate: reduceMotion ? 0 : rotate,
-            rotateY: flipY,
             position: "absolute",
             inset: 0,
-            borderRadius: 22,
-            background: CARD_BG,
-            border: isCollabTop
-              ? "1px solid color-mix(in srgb, var(--ds-color-brand) 28%, var(--ds-color-line))"
-              : "1px solid var(--ds-color-line)",
-            boxShadow: STACK_CARD_SHADOW,
             cursor: "grab",
             touchAction: "pan-y",
             zIndex: 3,
             display: "flex",
             flexDirection: "column",
-            // Rede de segurança: em telas muito baixas, qualquer conteúdo que
-            // ainda assim precise de mais espaço do que o disponível é cortado
-            // pelas bordas arredondadas — nunca vaza pra fora do card.
-            overflow: "hidden",
           }}
           whileTap={{ cursor: "grabbing" }}
-          onTap={() => {
-            // onTap só dispara quando o gesto NÃO virou arrasto — toque = virar.
-            flipToDetail(top.pauta.id);
-          }}
+          onTap={toggleFace}
           onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
-            flipToDetail(top.pauta.id);
+            toggleFace();
           }}
           onDragEnd={(_, info) => {
             if (decidingRef.current) return;
             const power = info.offset.x + info.velocity.x * 0.15;
             if (info.offset.x > SWIPE_CONFIRM_PX || power > SWIPE_CONFIRM_VELOCITY) {
-              flyOut(top.pauta.id, 1);
+              pressButton(1);
             } else if (info.offset.x < -SWIPE_CONFIRM_PX || power < -SWIPE_CONFIRM_VELOCITY) {
-              flyOut(top.pauta.id, -1);
+              pressButton(-1);
             } else {
               // Abaixo do limiar — volta pro centro.
               animate(x, 0, { type: "spring", stiffness: 300, damping: 26 });
             }
           }}
         >
-          <FlipHint />
-          <DecisionStamp label={positiveLabel} side="left" opacity={wantOpacity} scale={wantScale} />
-          <DecisionStamp label={negativeLabel} side="right" opacity={skipOpacity} scale={skipScale} />
-          <StackCardBody item={top} />
+          <div style={{ position: "relative", height: `calc(100% - ${DECISION_ZONE_HEIGHT}px)`, minHeight: 0, perspective: 1100 }}>
+            <DecisionStamp label={positiveLabel} side="left" opacity={wantOpacity} scale={wantScale} />
+            <DecisionStamp label={negativeLabel} side="right" opacity={skipOpacity} scale={skipScale} />
 
-          {/* Rodapé de decisão — dentro do cartão. stopPropagation no pointer
-              impede o clique de iniciar drag ou contar como toque-de-virar. */}
-          {/* Botões maiores (56/62) e mais respiro vertical: num card de 560
-              o rodapé antigo (50/54, 22px de padding total) ficava mirrado e
-              o vão sobrava logo acima dele; o rodapé maior absorve parte da
-              altura extra e melhora o alvo de toque das duas decisões. */}
+            {reduceMotion ? (
+              <div style={{ position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG, border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden" }}>
+                {flipped ? (
+                  <FlashcardBack
+                    item={top}
+                    onFlip={toggleFace}
+                    onOpenIdea={onOpenIdea ? () => openDetail(top.pauta.id) : undefined}
+                  />
+                ) : (
+                  <FlashcardFront item={top} onFlip={toggleFace} />
+                )}
+              </div>
+            ) : (
+              <motion.div
+                initial={false}
+                animate={{ rotateY: flipped ? 180 : 0 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                style={{ position: "absolute", inset: 0, transformStyle: "preserve-3d" }}
+              >
+                <div
+                  aria-hidden={flipped}
+                  style={{
+                    position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG,
+                    border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden",
+                    backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
+                    pointerEvents: flipped ? "none" : "auto",
+                  }}
+                >
+                  <FlashcardFront item={top} onFlip={toggleFace} active={!flipped} />
+                </div>
+                <div
+                  aria-hidden={!flipped}
+                  style={{
+                    position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG,
+                    border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden",
+                    backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
+                    transform: "rotateY(180deg)", pointerEvents: flipped ? "auto" : "none",
+                  }}
+                >
+                  <FlashcardBack
+                    item={top}
+                    onFlip={toggleFace}
+                    onOpenIdea={onOpenIdea ? () => openDetail(top.pauta.id) : undefined}
+                    active={flipped}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </div>
+
           <div
             style={{
+              height: DECISION_ZONE_HEIGHT, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 48,
-              padding: "14px 0 16px", borderTop: "1px solid var(--ds-color-line)",
+              padding: "8px 0 2px",
             }}
             onPointerDownCapture={(e) => e.stopPropagation()}
           >
@@ -838,10 +941,10 @@ export function DiagnosticoCollabStack({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); pressButton(-1); }}
-                aria-label="Não é pra mim"
+                aria-label={isCollabTop ? "Agora não quero esta parceria" : "Descartar ideia"}
                 style={{
-                  width: 56, height: 56, borderRadius: 9999, background: "var(--ds-color-surface)",
-                  border: "1.5px solid var(--ds-color-line)", display: "grid", placeItems: "center",
+                  width: "clamp(50px, 6.6dvh, 56px)", height: "clamp(50px, 6.6dvh, 56px)", borderRadius: 9999, background: "var(--ds-color-surface)",
+                  border: "1.5px solid var(--ds-color-line)", display: "grid", placeItems: "center", boxShadow: "var(--ds-shadow-subtle)",
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -853,14 +956,14 @@ export function DiagnosticoCollabStack({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); pressButton(1); }}
-                aria-label={isCollabTop ? "Quero fazer essa collab" : "Quero gravar essa pauta"}
+                aria-label={isCollabTop ? `Quero gravar com ${firstName}` : isMysteryTop ? "Ver sugestão de parceria no Pro" : "Salvar ideia"}
                 style={{
-                  width: 62, height: 62, borderRadius: 9999, background: COLLAB_ACCENT,
+                  width: "clamp(54px, 7.3dvh, 62px)", height: "clamp(54px, 7.3dvh, 62px)", borderRadius: 9999, background: COLLAB_ACCENT,
                   border: "none", display: "grid", placeItems: "center", cursor: "pointer",
                   boxShadow: "none", fontFamily: "inherit",
                 }}
               >
-                <HeartIcon size={24} />
+                {isCollabTop ? <CheckIcon size={25} /> : isMysteryTop ? <LockIcon size={23} /> : <BookmarkIcon size={23} />}
               </button>
               <span style={{ fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
             </div>

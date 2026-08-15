@@ -78,6 +78,8 @@ export async function POST(request: Request) {
       recordingIdea: typeof body?.recordingIdea === "string" ? body.recordingIdea : null,
       collabBlueprint: sanitizeContentIdeaCollabBlueprint(body?.collabBlueprint),
       collabMode,
+      viewerContribution: typeof body?.viewerContribution === "string" ? body.viewerContribution : null,
+      partnerContribution: typeof body?.partnerContribution === "string" ? body.partnerContribution : null,
       decision,
     });
 
