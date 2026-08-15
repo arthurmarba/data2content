@@ -23,7 +23,6 @@ import {
   rememberContentIdeaLocalDecision,
 } from "@/app/dashboard/boards/videoUpload/contentIdeaLocalDecisions";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
-import type { PaywallContext } from "@/types/paywall";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 const FULL_MAP_ROUTE = `${CREATOR_PROFILE_ROUTE}?tab=collabs`;
@@ -380,21 +379,39 @@ export default function CollabsPinnedBoard({
   }, [isPro, loadAll, router]);
 
   const goFull = React.useCallback(() => router.push(FULL_MAP_ROUTE), [router]);
-  const handleUpgrade = React.useCallback((_ctx?: PaywallContext) => router.push(PRO_ROUTE), [router]);
-  return (
-    <Board
-      title="Collabs"
-      showTitleMarker={showTitleMarker}
-      titleMarkerVariant="chip"
-      variant={dedicatedView ? "workspace" : "card"}
-      showChevron={false}
-      showOptions={false}
-      hideTitleBar={dedicatedView}
-      contentClassName={`${dedicatedView ? "bg-[#fffaf7] p-5 lg:p-7" : "bg-white"} ${d2cFontVariables}`}
-      titleClassName="text-zinc-950"
-      isHighlighted={isHighlighted}
-    >
-      <div className={dedicatedView ? "grid min-h-full gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] xl:gap-9" : "h-full"}>
+  const handleUpgrade = React.useCallback(() => router.push(PRO_ROUTE), [router]);
+  const feed = (
+    <DiagnosticoCollabsFeed
+      pautas={pautas}
+      isPro={isPro}
+      whatsappLinked={false}
+      isGeneratingIdeas={generating}
+      ideaGenerationBlocker={isPro ? null : "premium_required"}
+      pautaCollabs={pautaCollabs}
+      bootstrapStatus={bootstrapStatus}
+      bootstrapError={bootstrapError}
+      onRetryBootstrap={loadAll}
+      collabDecisions={collabDecisions}
+      confirmedMatches={confirmedMatches}
+      pautaActionStates={pautaActionStates}
+      onRetryPautaAction={handleRetryPautaAction}
+      onOpenIdea={goFull}
+      onSavePauta={handleSavePauta}
+      onUnsavePauta={handleUnsavePauta}
+      onAcceptCollabPauta={handleAcceptCollabPauta}
+      onDismissPauta={handleDismissPauta}
+      onOpenMatch={goFull}
+      onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
+      onUpgrade={handleUpgrade}
+      onGenerate={handleGenerate}
+      onBackToPerfil={goFull}
+      showHeaderTitle={!dedicatedView}
+    />
+  );
+
+  if (dedicatedView) {
+    return (
+      <div className={`grid h-full min-h-0 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] ${d2cFontVariables}`}>
         {dedicatedView ? (
           <CollabsWorkspaceSummary
             bootstrapStatus={bootstrapStatus}
@@ -405,38 +422,27 @@ export default function CollabsPinnedBoard({
         ) : null}
         <section
           aria-label="Rodada de pautas e collabs"
-          className={dedicatedView
-            ? "min-h-[34rem] min-w-0 overflow-hidden rounded-[28px] border border-zinc-200/70 bg-white shadow-[0_18px_50px_rgba(24,24,27,0.055)]"
-            : "h-full"}
+          className="ds-notebook-section !mb-0 min-h-0 min-w-0 overflow-hidden !p-0"
         >
-          <DiagnosticoCollabsFeed
-            pautas={pautas}
-            isPro={isPro}
-            whatsappLinked={false}
-            isGeneratingIdeas={generating}
-            ideaGenerationBlocker={isPro ? null : "premium_required"}
-            pautaCollabs={pautaCollabs}
-            bootstrapStatus={bootstrapStatus}
-            bootstrapError={bootstrapError}
-            onRetryBootstrap={loadAll}
-            collabDecisions={collabDecisions}
-            confirmedMatches={confirmedMatches}
-            pautaActionStates={pautaActionStates}
-            onRetryPautaAction={handleRetryPautaAction}
-            onOpenIdea={goFull}
-            onSavePauta={handleSavePauta}
-            onUnsavePauta={handleUnsavePauta}
-            onAcceptCollabPauta={handleAcceptCollabPauta}
-            onDismissPauta={handleDismissPauta}
-            onOpenMatch={goFull}
-            onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
-            onUpgrade={handleUpgrade}
-            onGenerate={handleGenerate}
-            onBackToPerfil={goFull}
-            showHeaderTitle={!dedicatedView}
-          />
+          {feed}
         </section>
       </div>
+    );
+  }
+
+  return (
+    <Board
+      title="Collabs"
+      showTitleMarker={showTitleMarker}
+      titleMarkerVariant="chip"
+      variant="card"
+      showChevron={false}
+      showOptions={false}
+      contentClassName={`bg-white ${d2cFontVariables}`}
+      titleClassName="text-zinc-950"
+      isHighlighted={isHighlighted}
+    >
+      <div className="h-full">{feed}</div>
     </Board>
   );
 }
@@ -457,51 +463,43 @@ function CollabsWorkspaceSummary({
   const loading = bootstrapStatus === "idle" || bootstrapStatus === "loading";
 
   return (
-    <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start" aria-label="Resumo das collabs">
+    <aside className="ds-notebook-section !mb-0 hidden min-w-0 self-start lg:block" aria-label="Resumo das collabs">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]">
           <UsersRound className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700">Rodada atual</p>
-          <p className="mt-0.5 text-sm font-semibold text-zinc-950">
+          <p className="ds-notebook-label">Rodada atual</p>
+          <p className="mt-0.5 text-sm font-semibold text-[var(--ds-color-ink)]">
             {loading ? "Atualizando pautas" : `${activeCount} ${activeCount === 1 ? "pauta para avaliar" : "pautas para avaliar"}`}
           </p>
         </div>
       </div>
 
-      <dl className="mt-7 divide-y divide-zinc-200/70 border-y border-zinc-200/80">
+      <dl className="mt-6 divide-y divide-[var(--ds-color-line)] border-y border-[var(--ds-color-line)]">
         <CollabsStat icon={CircleDot} label="Pautas disponíveis" value={loading ? "—" : String(pautas.length)} />
         <CollabsStat icon={Bookmark} label="Salvas para gravar" value={loading ? "—" : String(savedCount)} />
         <CollabsStat icon={Sparkles} label="Afinidades sugeridas" value={loading ? "—" : String(suggestedMatches)} />
+        <CollabsStat icon={UsersRound} label="Collabs combinadas" value={loading ? "—" : String(confirmedMatches)} />
       </dl>
 
-      {confirmedMatches > 0 ? (
-        <div className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-900 ring-1 ring-emerald-100">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Conexões confirmadas</p>
-          <p className="mt-1 text-sm font-semibold">{confirmedMatches} {confirmedMatches === 1 ? "collab combinada" : "collabs combinadas"}</p>
-        </div>
-      ) : null}
-
-      <div className="mt-7">
-        <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-zinc-400">Como usar</p>
+      <div className="mt-6">
+        <p className="ds-notebook-label">Como usar</p>
         <ol className="mt-4 space-y-4">
           {[
             "Avalie a pauta recomendada.",
             "Salve o que merece virar conteúdo.",
             "Quando houver afinidade, convide o criador sugerido.",
           ].map((instruction, index) => (
-            <li key={instruction} className="flex gap-3 text-[13px] leading-5 text-zinc-600">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[10px] font-bold text-white">
-                {index + 1}
-              </span>
+            <li key={instruction} className="flex gap-3 text-[13px] leading-5 text-[var(--ds-color-text-secondary)]">
+              <span className="shrink-0 font-bold text-[var(--ds-color-brand-strong)]">{index + 1}.</span>
               <span>{instruction}</span>
             </li>
           ))}
         </ol>
       </div>
 
-      <p className="mt-7 text-[12px] leading-5 text-zinc-500">
+      <p className="ds-notebook-note mt-6">
         As sugestões usam os territórios e sinais confirmados no Seu Mapa.
       </p>
     </aside>
@@ -519,9 +517,9 @@ function CollabsStat({
 }) {
   return (
     <div className="flex min-h-14 items-center gap-3 py-3">
-      <Icon className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
-      <dt className="min-w-0 flex-1 text-[12px] text-zinc-600">{label}</dt>
-      <dd className="text-sm font-semibold tabular-nums text-zinc-950">{value}</dd>
+      <Icon className="h-4 w-4 shrink-0 text-[var(--ds-color-text-muted)]" aria-hidden="true" />
+      <dt className="min-w-0 flex-1 text-[12px] text-[var(--ds-color-text-secondary)]">{label}</dt>
+      <dd className="text-sm font-semibold tabular-nums text-[var(--ds-color-ink)]">{value}</dd>
     </div>
   );
 }

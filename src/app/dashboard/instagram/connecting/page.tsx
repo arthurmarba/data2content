@@ -14,6 +14,7 @@ import {
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
+import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 
 type NextTarget =
   | "calculator"
@@ -58,29 +59,29 @@ function StepRail({ steps }: { steps: StepDefinition[] }) {
       {steps.map((step, idx) => {
         const badgeClass =
           step.status === "complete"
-            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+            ? "bg-[var(--ds-color-success-soft)] text-[var(--ds-color-success)]"
             : step.status === "active"
-              ? "bg-blue-100 text-blue-700 border-blue-200"
+              ? "bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]"
               : step.status === "error"
-                ? "bg-amber-100 text-amber-700 border-amber-200"
-                : "bg-gray-100 text-gray-500 border-gray-200";
+                ? "bg-[var(--ds-color-warning-soft)] text-[var(--ds-color-warning)]"
+                : "bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-muted)]";
 
         const labelClass =
           step.status === "active"
-            ? "text-gray-900"
+            ? "text-[var(--ds-color-ink)]"
             : step.status === "complete"
-              ? "text-emerald-700"
+              ? "text-[var(--ds-color-success)]"
               : step.status === "error"
-                ? "text-amber-700"
-                : "text-gray-500";
+                ? "text-[var(--ds-color-warning)]"
+                : "text-[var(--ds-color-text-muted)]";
 
         return (
           <li
             key={step.label}
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 sm:p-3"
+            className="flex min-w-0 items-center gap-2 rounded-lg bg-[var(--ds-color-neutral)] px-3 py-2 sm:p-3"
           >
             <span
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${badgeClass}`}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold ${badgeClass}`}
               aria-hidden
             >
               {idx + 1}
@@ -659,10 +660,10 @@ export default function InstagramConnectingPage() {
             : 100;
   const phaseBadgeClass =
     phase === "error"
-      ? "border-amber-200 bg-amber-50 text-amber-700"
+      ? "ds-badge--warning"
       : phase === "finalizing" || phase === "success"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : "border-blue-200 bg-blue-50 text-blue-700";
+        ? "ds-badge--success"
+        : "";
   const metaSelectionPath = lastSelectionAttempt
     ? `Página "${lastSelectionAttempt.pageName || "Página selecionada"}" -> Business que contém essa Página -> Instagram "${lastSelectionAttempt.username ? `@${lastSelectionAttempt.username}` : lastSelectionAttempt.igAccountId}"`
     : `Página administrada -> Business que contém essa Página -> Instagram profissional vinculado`;
@@ -730,37 +731,35 @@ export default function InstagramConnectingPage() {
           : "Tente novamente. O retorno ao board será mantido.";
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10 pb-40 sm:pb-10">
-      <h1 className="text-2xl font-semibold text-gray-900 text-center">
-        Conectando Instagram…
-      </h1>
-      <section className="mt-4">
+    <ProfileSettingsPage title="Conectar Instagram" contentClassName="max-w-3xl">
+      <section className="ds-notebook-section ds-notebook-section--first">
+        <p className="ds-notebook-label mb-3">Etapas da conexão</p>
         <StepRail steps={steps} />
       </section>
-      <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm">
+      <section className="ds-notebook-section text-left">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <p className="ds-notebook-label">
             Etapa atual
           </p>
           <span
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${phaseBadgeClass}`}
+            className={`ds-badge ${phaseBadgeClass}`}
           >
             {phaseTitle}
           </span>
         </div>
         {phaseGuideText && (
-          <p className="mt-2 text-sm text-slate-700">{phaseGuideText}</p>
+          <p className="mt-2 text-sm text-[var(--ds-color-text-secondary)]">{phaseGuideText}</p>
         )}
         {!error && (
           <>
-            <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
+            <div className="mt-3 h-1.5 w-full rounded-full bg-[var(--ds-color-neutral)]">
               <div
-                className="h-2 rounded-full bg-blue-600 transition-all duration-300"
+                className="h-1.5 rounded-full bg-[var(--ds-color-brand)] transition-all duration-300"
                 style={{ width: `${phaseProgress}%` }}
                 aria-hidden
               />
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-[var(--ds-color-text-muted)]">
               Progresso estimado: {phaseProgress}%
             </p>
           </>
@@ -768,19 +767,19 @@ export default function InstagramConnectingPage() {
       </section>
       {!error && accountsToSelect.length === 0 ? (
         <section
-          className={`mt-4 rounded-lg border p-4 text-center ${
+          className={`ds-notebook-section text-center ${
             successNotice
-              ? "border-emerald-200 bg-emerald-50"
-              : "border-slate-200 bg-slate-50"
+              ? "!bg-[var(--ds-color-success-soft)]"
+              : ""
           }`}
         >
           <p
-            className={`text-sm font-medium ${successNotice ? "text-emerald-800" : "text-slate-800"}`}
+            className={`text-sm font-semibold ${successNotice ? "text-[var(--ds-color-success)]" : "text-[var(--ds-color-ink)]"}`}
           >
             {message}
           </p>
           <p
-            className={`mt-1 text-xs ${successNotice ? "text-emerald-700" : "text-slate-500"}`}
+            className={`mt-1 text-xs ${successNotice ? "text-[var(--ds-color-success)]" : "text-[var(--ds-color-text-muted)]"}`}
           >
             {successNotice
               ? "Redirecionando para sua próxima etapa…"
@@ -788,9 +787,9 @@ export default function InstagramConnectingPage() {
           </p>
         </section>
       ) : !error && accountsToSelect.length > 0 ? (
-        <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm">
-          <p className="text-sm font-medium text-slate-800 mb-1">{message}</p>
-          <p className="text-xs text-slate-500 mb-3">
+        <section className="ds-notebook-section text-left">
+          <p className="mb-1 text-sm font-semibold text-[var(--ds-color-ink)]">{message}</p>
+          <p className="mb-3 text-xs text-[var(--ds-color-text-muted)]">
             Dica: escolha a conta usada no dia a dia para gerar métricas
             corretas.
           </p>
@@ -801,27 +800,27 @@ export default function InstagramConnectingPage() {
                 type="button"
                 disabled={isFinalizingSelection}
                 onClick={() => finalizeSelectedAccount(acc)}
-                className="w-full rounded-md border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-50 disabled:opacity-60"
+                className="ds-notebook-action border-t border-[var(--ds-color-line)] px-2 first:border-t-0 disabled:opacity-60"
               >
-                <p className="font-medium text-slate-900">
+                <p className="font-semibold text-[var(--ds-color-ink)]">
                   {acc.username ? `@${acc.username}` : "Conta Instagram"}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[var(--ds-color-text-muted)]">
                   {acc.pageName || acc.igAccountId}
                 </p>
               </button>
             ))}
           </div>
-        </div>
+        </section>
       ) : (
-        <div className="mt-4 max-w-2xl mx-auto rounded-lg border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-sm">
-          <p className="text-base font-semibold">{errorTitle}</p>
-          <p className="mt-1 text-sm text-slate-600">{errorIntro}</p>
+        <section className="ds-notebook-section mx-auto max-w-2xl text-left">
+          <p className="font-display text-lg font-bold tracking-[-0.025em] text-[var(--ds-color-ink)]">{errorTitle}</p>
+          <p className="mt-1 text-sm text-[var(--ds-color-text-secondary)]">{errorIntro}</p>
           {displayErrorMessage && (
-            <p className="text-sm mt-2 text-slate-700">{displayErrorMessage}</p>
+            <p className="mt-2 text-sm text-[var(--ds-color-text-secondary)]">{displayErrorMessage}</p>
           )}
           {actionPlan && (
-            <div className="mt-4 border-l-2 border-amber-300 pl-3 text-sm text-slate-700">
+            <div className="ds-notebook-note mt-4 text-sm">
               <p className="font-medium">O que fazer agora</p>
               <ol className="mt-1 list-decimal space-y-1 pl-5">
                 {actionPlan.steps.map((step) => (
@@ -834,82 +833,82 @@ export default function InstagramConnectingPage() {
             <p className="text-sm mt-2">
               <a
                 href={faqLink.href}
-                className="underline font-medium text-blue-700 hover:text-blue-800"
+                className="font-semibold text-[var(--ds-color-brand-strong)] underline underline-offset-2"
               >
                 {faqLink.label}
               </a>
             </p>
           )}
           <div
-            className="fixed inset-x-0 z-30 flex gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:static sm:mt-3 sm:flex-wrap sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none"
+            className="fixed inset-x-0 z-30 flex gap-2 border-t border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]/95 p-3 backdrop-blur sm:static sm:mt-4 sm:grid sm:grid-cols-2 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
             style={{ bottom: "var(--cookie-consent-offset, 0px)" }}
           >
             <button
               onClick={() => router.replace(buildRetryUrl(nextTarget))}
               disabled={isFinalizingSelection}
-              className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 sm:flex-none"
+              className="ds-button ds-button--primary ds-button--block flex-1"
             >
               Tentar novamente
             </button>
             <button
               onClick={() => router.replace(buildNextUrl(nextTarget))}
               disabled={isFinalizingSelection}
-              className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 sm:flex-none"
+              className="ds-button ds-button--secondary ds-button--block flex-1"
             >
               {nextTarget === "post-creation" ? "Voltar ao board" : "Voltar"}
             </button>
           </div>
-          <details className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <details className="mt-4 rounded-lg bg-[var(--ds-color-neutral)] p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--ds-color-text-secondary)]">
               Diagnóstico rápido
             </summary>
             {resolvedErrorCode && (
-              <p className="mt-2 text-xs font-semibold text-slate-600">
+              <p className="mt-2 text-xs font-semibold text-[var(--ds-color-text-secondary)]">
                 Código: {resolvedErrorCode}
               </p>
             )}
             {technicalUnknownMessage && (
-              <p className="mt-2 text-xs text-slate-600">
+              <p className="mt-2 text-xs text-[var(--ds-color-text-muted)]">
                 Detalhe técnico: {technicalUnknownMessage}
               </p>
             )}
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm text-[var(--ds-color-text-secondary)]">
               O fluxo foi interrompido antes da confirmação completa de Página,
               Business e conta Instagram.
             </p>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-[var(--ds-color-text-muted)]">
               Próxima tentativa:{" "}
               <span className="font-semibold">{metaSelectionPath}</span>
             </p>
           </details>
-          <details className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <details className="mt-3 rounded-lg bg-[var(--ds-color-neutral)] p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--ds-color-text-secondary)]">
               Suporte técnico
             </summary>
-            <p className="mt-2 text-xs text-slate-600">
+            <p className="mt-2 text-xs text-[var(--ds-color-text-muted)]">
               Se precisar de suporte, copie o diagnóstico e envie junto com o
               print da tela da Meta.
             </p>
             <button
               onClick={copyDiagnostic}
               type="button"
-              className="mt-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="ds-button ds-button--quiet ds-button--small mt-2"
             >
               Copiar diagnóstico
             </button>
             {diagnosticCopyState === "copied" && (
-              <p className="mt-1 text-xs font-medium text-emerald-700">
+              <p className="mt-1 text-xs font-medium text-[var(--ds-color-success)]">
                 Diagnóstico copiado.
               </p>
             )}
             {diagnosticCopyState === "failed" && (
-              <p className="mt-1 text-xs font-medium text-slate-600">
+              <p className="mt-1 text-xs font-medium text-[var(--ds-color-text-muted)]">
                 Não foi possível copiar automaticamente.
               </p>
             )}
           </details>
-        </div>
+        </section>
       )}
-    </main>
+    </ProfileSettingsPage>
   );
 }

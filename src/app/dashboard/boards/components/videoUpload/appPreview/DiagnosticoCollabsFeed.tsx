@@ -32,23 +32,18 @@ import {
   TEXT_BODY_HEX,
   SAFE_TOP,
   CARD_RADIUS,
-  CS_BRAND_HEX,
   CS_INK_HEX,
   CS_LINE,
   CS_NEUTRAL_HEX,
-  CS_PAPER_HEX,
   CS_FONT_DISPLAY,
   CS_DISPLAY_TRACKING,
 } from "./diagnosticoTokens";
 
 const WA_GREEN = "#25D366";
 
-// Página branca (igual ao Perfil). Uma família de card só: BRANCO com sombra
-// de elevação — no deck (alto) e na mochila (compacto). O palco lavanda saiu:
-// com os botões dentro do card, a moldura virou card-dentro-de-card.
-const FEED_BG = "var(--ds-color-surface)";
-const FEED_CARD_SHADOW =
-  "0 1px 3px rgba(28,28,30,0.05), 0 8px 20px rgba(28,28,30,0.09), 0 0 0 0.5px rgba(28,28,30,0.04)";
+// Mesma relação do Perfil: canvas quente e conteúdo em superfície branca.
+const FEED_BG = "var(--ds-color-neutral)";
+const FEED_CARD_SHADOW = "var(--ds-shadow-raised)";
 
 export type PautaActionKind = "save" | "unsave" | "dismiss" | "collab-interest";
 export type PautaActionPhase = "pending" | "failed" | "confirmed";
@@ -131,7 +126,7 @@ function CollabGlyph({ size = 18, color = TEXT_PRIMARY_HEX }: { size?: number; c
   );
 }
 
-// Ícone redondo do header. Badge verde = novidade (matches); preto = acervo neutro.
+// Ação compacta do header, na mesma anatomia usada pelo Perfil.
 function HeaderIconButton({
   onClick,
   ariaLabel,
@@ -148,16 +143,16 @@ function HeaderIconButton({
   pulseKey?: number;
   children: React.ReactNode;
 }) {
-  const badgeBg = badgeTone === "match" ? "#22c55e" : CS_INK_HEX;
+  const badgeBg = badgeTone === "match" ? "var(--ds-color-success)" : CS_INK_HEX;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
+      className="ds-icon-button"
       style={{
-        position: "relative", width: 40, height: 40, borderRadius: 9999, flexShrink: 0,
-        display: "inline-grid", placeItems: "center", background: "transparent",
-        border: `1.5px solid ${CS_LINE}`, cursor: "pointer", fontFamily: "inherit",
+        position: "relative", width: 40, height: 40, flexShrink: 0,
+        display: "inline-grid", placeItems: "center", cursor: "pointer", fontFamily: "inherit",
       }}
     >
       {children}
@@ -168,7 +163,7 @@ function HeaderIconButton({
             position: "absolute", top: -5, right: -5, minWidth: 17, height: 17, padding: "0 4px",
             borderRadius: 999, background: badgeBg, color: "var(--ds-color-on-brand)", fontSize: 10, fontWeight: 700,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            border: "2px solid var(--ds-color-on-brand)",
+            border: "2px solid var(--ds-color-surface)",
             animation: pulseKey !== undefined ? "d2c-pocket-pop 0.4s ease" : undefined,
           }}
         >
@@ -295,7 +290,7 @@ function CollabSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="grid h-9 w-9 place-items-center rounded-full bg-zinc-100 text-zinc-500"
+            className="ds-icon-button ds-icon-button--ghost !h-9 !w-9"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -340,9 +335,9 @@ function CombinadasSheet({
           <div style={{ padding: "8px 4px 22px", textAlign: "center" }}>
             <span style={{
               display: "inline-grid", placeItems: "center", width: 52, height: 52,
-              borderRadius: 9999, background: "#f5f3ff", marginBottom: 12,
+              borderRadius: 12, background: "var(--ds-color-brand-soft)", marginBottom: 12,
             }} aria-hidden="true">
-              <CollabGlyph size={22} color="#7c3aed" />
+              <CollabGlyph size={22} color="var(--ds-color-brand-strong)" />
             </span>
             <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.3 }}>
               Nenhuma collab combinada ainda
@@ -354,14 +349,14 @@ function CombinadasSheet({
         )}
       </div>
       {/* Alerta de WhatsApp — "te aviso quando der match" mora junto dos matches. */}
-      <div style={{ borderTop: "1px solid var(--ds-color-neutral)", margin: "16px 0 0", padding: "13px 20px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ borderTop: `1px solid ${CS_LINE}`, margin: "16px 0 0", padding: "13px 20px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontSize: 12.5, color: TEXT_BODY_HEX, lineHeight: 1.4 }}>
           Te avisamos no WhatsApp quando uma collab der match.
         </span>
         {whatsappLinked ? (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-            borderRadius: 999, padding: "6px 11px", background: "#dcfce7", color: "#15803d",
+            borderRadius: 8, padding: "6px 11px", background: "var(--ds-color-success-soft)", color: "var(--ds-color-success)",
             fontSize: 11, fontWeight: 600,
           }}>
             <WhatsAppIcon color={WA_GREEN} />
@@ -373,7 +368,7 @@ function CombinadasSheet({
             onClick={() => (isPro ? onConnectWhatsApp?.() : onUpgrade?.("whatsapp"))}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-              borderRadius: 999, padding: "7px 13px", background: "transparent", color: TEXT_PRIMARY_HEX,
+              borderRadius: 8, padding: "7px 13px", background: "transparent", color: TEXT_PRIMARY_HEX,
               fontSize: 12, fontWeight: 600, border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
               cursor: "pointer", fontFamily: "inherit",
             }}
@@ -444,17 +439,17 @@ function StackSkeleton() {
       <span className="sr-only">Preparando suas collabs…</span>
       <style>{`@keyframes d2c-collab-pulse{0%,100%{opacity:.55}50%{opacity:.25}}`}</style>
       <div style={{ padding: "0 2px 10px" }}>
-        <div style={{ height: 11, width: 96, borderRadius: 6, background: "#ece9f6", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
+        <div style={{ height: 11, width: 96, borderRadius: 6, background: "var(--ds-color-line-strong)", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
       </div>
       <div style={{ position: "relative", height: 168 }}>
-        <div style={{ position: "absolute", inset: 0, transform: "rotate(-2.5deg) scale(0.955) translateY(9px)", borderRadius: 20, background: "#f6f2ee", animation: "d2c-collab-pulse 1.25s ease-in-out infinite" }} />
-        <div style={{ position: "absolute", inset: 0, borderRadius: 20, background: "var(--ds-color-surface)", boxShadow: FEED_CARD_SHADOW, padding: "16px 18px" }}>
-          <div style={{ height: 10, width: "38%", borderRadius: 6, background: "#ece9f6", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
-          <div style={{ height: 14, width: "82%", borderRadius: 6, background: "#ece9f6", margin: "10px 0 0", animation: "d2c-collab-pulse 1.2s ease-in-out infinite" }} />
-          <div style={{ height: 14, width: "60%", borderRadius: 6, background: "#f0eef7", margin: "6px 0 0", animation: "d2c-collab-pulse 1.3s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", inset: 0, transform: "rotate(-2.5deg) scale(0.955) translateY(9px)", borderRadius: 20, background: "var(--ds-color-surface)", border: `1px solid ${CS_LINE}`, animation: "d2c-collab-pulse 1.25s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: 20, background: "var(--ds-color-surface)", border: `1px solid ${CS_LINE}`, boxShadow: FEED_CARD_SHADOW, padding: "16px 18px" }}>
+          <div style={{ height: 10, width: "38%", borderRadius: 6, background: "var(--ds-color-line-strong)", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
+          <div style={{ height: 14, width: "82%", borderRadius: 6, background: "var(--ds-color-line)", margin: "10px 0 0", animation: "d2c-collab-pulse 1.2s ease-in-out infinite" }} />
+          <div style={{ height: 14, width: "60%", borderRadius: 6, background: "var(--ds-color-line)", margin: "6px 0 0", animation: "d2c-collab-pulse 1.3s ease-in-out infinite" }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 34 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9999, background: "#ece9f6", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
-            <div style={{ height: 10, width: "45%", borderRadius: 6, background: "#f0eef7", animation: "d2c-collab-pulse 1.25s ease-in-out infinite" }} />
+            <div style={{ width: 34, height: 34, borderRadius: 9999, background: "var(--ds-color-line-strong)", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
+            <div style={{ height: 10, width: "45%", borderRadius: 6, background: "var(--ds-color-line)", animation: "d2c-collab-pulse 1.25s ease-in-out infinite" }} />
           </div>
         </div>
       </div>
@@ -471,6 +466,7 @@ function CollabsLoadError({ message, onRetry }: { message?: string | null; onRet
         borderRadius: 22,
         padding: "28px 24px",
         background: "var(--ds-color-surface)",
+        border: `1px solid ${CS_LINE}`,
         boxShadow: FEED_CARD_SHADOW,
         display: "flex",
         flexDirection: "column",
@@ -483,7 +479,7 @@ function CollabsLoadError({ message, onRetry }: { message?: string | null; onRet
         aria-hidden="true"
         style={{
           width: 48, height: 48, borderRadius: 9999, display: "grid", placeItems: "center",
-          background: "#fff1f2", color: "#be123c", fontSize: 22, fontWeight: 800,
+          background: "var(--ds-color-danger-soft)", color: "var(--ds-color-danger)", fontSize: 22, fontWeight: 800,
         }}
       >
         !
@@ -498,10 +494,9 @@ function CollabsLoadError({ message, onRetry }: { message?: string | null; onRet
         <button
           type="button"
           onClick={onRetry}
+          className="ds-button ds-button--primary ds-button--small"
           style={{
-            marginTop: 18, border: "none", borderRadius: 999, padding: "11px 18px",
-            background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
-            fontFamily: "inherit", fontSize: 13, fontWeight: 750, cursor: "pointer",
+            marginTop: 18, fontFamily: "inherit", cursor: "pointer",
           }}
         >
           Tentar novamente
@@ -536,7 +531,7 @@ function ConfirmedMatchesRow({
   return (
     <div style={{ padding: framed ? "20px 16px 0" : 0 }}>
       {withHeading ? (
-        <span style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", color: "#059669", padding: "0 2px", marginBottom: 10 }}>
+        <span style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", color: "var(--ds-color-success)", padding: "0 2px", marginBottom: 10 }}>
           Combinadas
         </span>
       ) : null}
@@ -554,8 +549,8 @@ function ConfirmedMatchesRow({
               aria-label={pauta ? `Collab combinada com ${collab.name}: ${pautaTitle}` : `Collab combinada com ${collab.name}`}
               style={{
                 display: "flex", alignItems: "center", gap: 11, width: "100%",
-                borderRadius: 16, padding: "10px 14px 10px 10px", textAlign: "left",
-                background: "#f0fdf4", border: "1px solid #dcfce7",
+                borderRadius: 12, padding: "10px 14px 10px 10px", textAlign: "left",
+                background: "var(--ds-color-success-soft)", border: "1px solid color-mix(in srgb, var(--ds-color-success) 18%, transparent)",
                 cursor: onOpenMatch ? "pointer" : "default", fontFamily: "inherit",
               }}
             >
@@ -575,11 +570,11 @@ function ConfirmedMatchesRow({
                 </div>
                 <span style={{
                   position: "absolute", bottom: -2, right: -2, width: 16, height: 16,
-                  borderRadius: 9999, background: "#22c55e", border: "2px solid #f0fdf4",
+                  borderRadius: 9999, background: "var(--ds-color-success)", border: "2px solid var(--ds-color-success-soft)",
                   display: "grid", placeItems: "center",
                 }}>
                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M5 12l5 5 9-10" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M5 12l5 5 9-10" stroke="var(--ds-color-on-brand)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               </div>
@@ -588,12 +583,12 @@ function ConfirmedMatchesRow({
                   Você e {firstName} toparam
                 </span>
                 {pauta ? (
-                  <span style={{ display: "block", fontSize: 12, color: "#047857", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ display: "block", fontSize: 12, color: "var(--ds-color-success)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {pautaTitle}
                   </span>
                 ) : null}
               </div>
-              {onOpenMatch ? <span style={{ fontSize: 12.5, fontWeight: 600, color: "#059669", flexShrink: 0 }}>Ver ›</span> : null}
+              {onOpenMatch ? <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ds-color-success)", flexShrink: 0 }}>Ver ›</span> : null}
             </button>
           );
         })}
@@ -624,12 +619,12 @@ function AwaitingCollabRow({ collab, whatsappLinked }: { collab: NarrativeCollab
     <div style={{ marginTop: 10 }}>
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 5,
-        fontSize: 11, fontWeight: 700, color: "#7c3aed",
-        background: "#f5f3ff", borderRadius: 999, padding: "4px 10px",
+        fontSize: 11, fontWeight: 700, color: "var(--ds-color-warning)",
+        background: "var(--ds-color-warning-soft)", borderRadius: 8, padding: "4px 10px",
       }}>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="8.5" stroke="#7c3aed" strokeWidth="2.4" />
-          <path d="M12 8v4.2l2.8 1.6" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2.4" />
+          <path d="M12 8v4.2l2.8 1.6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
         </svg>
         Aguardando {firstName}
       </span>
@@ -672,8 +667,8 @@ function PautaActionRow({
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
         marginTop: 10, borderRadius: 12, padding: "8px 10px",
-        background: pending ? "var(--ds-color-neutral)" : warningTone ? "#fefce8" : "#fff1f2",
-        color: pending ? TEXT_SECONDARY_HEX : warningTone ? "#854d0e" : "#be123c",
+        background: pending ? "var(--ds-color-neutral)" : warningTone ? "var(--ds-color-warning-soft)" : "var(--ds-color-danger-soft)",
+        color: pending ? TEXT_SECONDARY_HEX : warningTone ? "var(--ds-color-warning)" : "var(--ds-color-danger)",
         fontSize: 11.5, fontWeight: 650,
       }}
     >
@@ -683,7 +678,7 @@ function PautaActionRow({
           type="button"
           onClick={(e) => { e.stopPropagation(); onRetry(); }}
           style={{
-            flexShrink: 0, border: "none", background: "transparent", color: warningTone ? "#854d0e" : "#be123c",
+            flexShrink: 0, border: "none", background: "transparent", color: warningTone ? "var(--ds-color-warning)" : "var(--ds-color-danger)",
             fontFamily: "inherit", fontSize: 11.5, fontWeight: 800, padding: 0, cursor: "pointer",
           }}
         >
@@ -720,7 +715,7 @@ function PautaCard({
   return (
     // Eco compacto do card do deck — mesma família (branco, chip de meta,
     // título, selo), sem os botões de decisão. A mochila guarda; o deck decide.
-    <div style={{ borderRadius: CARD_RADIUS, background: "var(--ds-color-surface)", boxShadow: FEED_CARD_SHADOW, overflow: "hidden" }}>
+    <div style={{ borderRadius: CARD_RADIUS, background: "var(--ds-color-surface)", border: `1px solid ${CS_LINE}`, boxShadow: FEED_CARD_SHADOW, overflow: "hidden" }}>
       <div style={{ padding: "14px 16px", position: "relative" }}>
         {/* Só remove de verdade quando a pauta é PURAMENTE salva — combinada
             ou aguardando ficam na lista mesmo se o "saved" virar false (é um
@@ -784,10 +779,10 @@ function GenerateButton({
     <button
       type="button"
       onClick={isPro ? onGenerate : () => onUpgrade?.("planning")}
+      className="ds-button ds-button--primary ds-button--small"
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        borderRadius: 999, padding: "10px 18px", background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
-        fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "inherit",
+        cursor: "pointer", fontFamily: "inherit",
       }}
     >
       {label}
@@ -823,8 +818,8 @@ function RoundBlockerNotice({
       role="alert"
       style={{
         borderRadius: 14, padding: "10px 12px", textAlign: "left",
-        background: warningTone ? "#fefce8" : "#fff1f2",
-        color: warningTone ? "#854d0e" : "#be123c",
+        background: warningTone ? "var(--ds-color-warning-soft)" : "var(--ds-color-danger-soft)",
+        color: warningTone ? "var(--ds-color-warning)" : "var(--ds-color-danger)",
         fontSize: 12.5, fontWeight: 650, lineHeight: 1.4,
       }}
     >
@@ -869,10 +864,10 @@ function RoundCompleteActions({
         type="button"
         disabled={isGeneratingIdeas}
         onClick={isPro ? onGenerate : () => onUpgrade?.("planning")}
+        className="ds-button ds-button--primary ds-button--block"
         style={{
           minHeight: 50, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9,
-          borderRadius: 999, padding: "11px 18px", background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
-          fontSize: 14, fontWeight: 700, border: "none", cursor: isGeneratingIdeas ? "wait" : "pointer", fontFamily: "inherit",
+          cursor: isGeneratingIdeas ? "wait" : "pointer", fontFamily: "inherit",
           opacity: isGeneratingIdeas ? 0.72 : 1,
         }}
       >
@@ -1086,11 +1081,11 @@ export function DiagnosticoCollabsFeed({
     // INTEIRA, sem relação com o espaço real disponível — o que sobrepunha a
     // tab bar e cortava o título em telas mais baixas (ex.: iPhone SE, 667px).
     <div
+      className="ds-notebook"
       aria-busy={bootstrapPending || undefined}
       style={{ background: FEED_BG, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
     >
-      {/* Header — o gradiente quente termina na cor do feed (sem emenda visível). */}
-      <div style={{ background: `linear-gradient(180deg, ${CS_PAPER_HEX} 0%, ${FEED_BG} 100%)`, paddingTop: SAFE_TOP, paddingBottom: 6 }}>
+      <div style={{ background: FEED_BG, paddingTop: showHeaderTitle ? SAFE_TOP : 0, paddingBottom: 6 }}>
         <FeedHeader
           savedCount={shelfPautas.length}
           matchCount={confirmedMatches?.length ?? 0}
@@ -1108,8 +1103,8 @@ export function DiagnosticoCollabsFeed({
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
               borderRadius: 14, padding: "10px 12px",
-              background: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "#fefce8" : "#fff1f2",
-              color: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "#854d0e" : "#be123c",
+              background: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "var(--ds-color-warning-soft)" : "var(--ds-color-danger-soft)",
+              color: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "var(--ds-color-warning)" : "var(--ds-color-danger)",
               fontSize: 12, fontWeight: 650,
             }}
           >
@@ -1120,7 +1115,7 @@ export function DiagnosticoCollabsFeed({
                 onClick={() => onRetryPautaAction(failedAction.id)}
                 style={{
                   flexShrink: 0, border: "none", background: "transparent",
-                  color: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "#854d0e" : "#be123c",
+                  color: failedAction.state.kind === "unsave" || failedAction.state.kind === "dismiss" ? "var(--ds-color-warning)" : "var(--ds-color-danger)",
                   fontFamily: "inherit", fontSize: 12, fontWeight: 800, padding: 0, cursor: "pointer",
                 }}
               >
@@ -1172,10 +1167,7 @@ export function DiagnosticoCollabsFeed({
           <button
             type="button"
             onClick={onBackToPerfil}
-            style={{
-              borderRadius: 999, padding: "11px 20px", background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
-              fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "inherit",
-            }}
+            className="ds-button ds-button--primary"
           >
             Ir para o Perfil
           </button>

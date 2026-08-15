@@ -18,16 +18,14 @@ import { CollabModeBadge } from "./CollabModeBadge";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import { color, font, shadow } from "@/design-system";
 
-const INK = color.ink;
-
 function SparkleIcon({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"
-        fill="#fff"
+        fill="currentColor"
       />
-      <path d="M19 15.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z" fill="#fff" opacity="0.75" />
+      <path d="M19 15.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z" fill="currentColor" opacity="0.75" />
     </svg>
   );
 }
@@ -57,7 +55,7 @@ function Avatar({
         position: "relative", background: color.ink, color: color.paper, display: "grid", placeItems: "center",
         fontSize: size * 0.36, fontWeight: 700,
         border: `3px solid ${ring}`,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+        boxShadow: shadow.raised,
       }}
     >
       <StableCreatorAvatar
@@ -123,21 +121,18 @@ export function DiagnosticoCollabMatchOverlay({
         transition={celebrate ? { type: "spring", stiffness: 260, damping: 22 } : { duration: 0.18 }}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "100%", maxWidth: 380, borderRadius: 28, background: INK,
+          width: "100%", maxWidth: 380, borderRadius: 24, background: color.surface,
           position: "relative", overflow: "hidden", textAlign: "center",
           padding: "40px 26px 26px",
+          border: `1px solid ${color.line}`,
           boxShadow: shadow.overlay,
         }}
       >
-        {/* Blobs de cor — quietos, sem gradiente berrante */}
-        <div aria-hidden="true" style={{ position: "absolute", top: -28, left: -24, width: 110, height: 110, borderRadius: 9999, background: color.brand, opacity: 0.34 }} />
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -36, right: -28, width: 140, height: 140, borderRadius: 9999, background: color.map, opacity: 0.24 }} />
-
         <div style={{ position: "relative" }}>
           {/* Avatares se encontrando */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
             <motion.div {...springIn(-80)} style={{ zIndex: 1, marginRight: -14 }}>
-              <Avatar name={viewerName} avatarUrl={viewerAvatarUrl} ring={color.map} />
+              <Avatar name={viewerName} avatarUrl={viewerAvatarUrl} ring={color.lineStrong} />
             </motion.div>
             <motion.div
               initial={celebrate ? { scale: 0, rotate: -30 } : { opacity: 0 }}
@@ -145,7 +140,7 @@ export function DiagnosticoCollabMatchOverlay({
               transition={celebrate ? { type: "spring", stiffness: 300, damping: 14, delay: 0.42 } : { duration: 0.18 }}
               style={{ zIndex: 2, position: "relative", top: -26 }}
             >
-              <SparkleIcon />
+              <span style={{ color: color.brand }}><SparkleIcon /></span>
             </motion.div>
             <motion.div {...springIn(80)} style={{ zIndex: 1, marginLeft: -14 }}>
               <Avatar
@@ -163,13 +158,13 @@ export function DiagnosticoCollabMatchOverlay({
             animate={{ opacity: 1, y: 0 }}
             transition={celebrate ? { delay: 0.5, duration: 0.3 } : { duration: 0.18 }}
           >
-            <p style={{ fontFamily: font.display, fontSize: 28, fontWeight: 700, color: color.paper, letterSpacing: "-0.04em", margin: "14px 0 0" }}>
+            <p style={{ fontFamily: font.display, fontSize: 28, fontWeight: 700, color: color.ink, letterSpacing: "-0.04em", margin: "14px 0 0" }}>
               É um match
             </p>
-            <p style={{ fontSize: 14, color: "var(--ds-color-line)", margin: "6px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 14, color: color.textSecondary, margin: "6px 0 0", lineHeight: 1.45 }}>
               Você e {firstName}, pela mesma pauta
             </p>
-            <p style={{ fontSize: 13, color: "var(--ds-color-text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 13, color: color.textMuted, fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.45 }}>
               &ldquo;{pautaTitle}&rdquo;
             </p>
 
@@ -178,20 +173,20 @@ export function DiagnosticoCollabMatchOverlay({
                 style={{
                   margin: "20px 0 6px",
                   padding: "12px 14px",
-                  borderRadius: 16,
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 12,
+                  background: color.neutral,
+                  border: `1px solid ${color.line}`,
                   textAlign: "left",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ds-color-text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: color.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Como gravar
                   </span>
                   {/* Peça compartilhada com a ficha — mesma copy nos dois lugares. */}
-                  {collab.collabMode ? <CollabModeBadge mode={collab.collabMode} surface="dark" /> : null}
+                  {collab.collabMode ? <CollabModeBadge mode={collab.collabMode} /> : null}
                 </div>
-                <p style={{ fontSize: 13, color: "var(--ds-color-line)", lineHeight: 1.45, margin: 0 }}>
+                <p style={{ fontSize: 13, color: color.textSecondary, lineHeight: 1.45, margin: 0 }}>
                   {collab.collabMode === "presencial" && "Vocês estão na mesma cidade — o caminho é "}
                   {collab.collabMode === "remoto" && "Vocês moram longe — o caminho é "}
                   {!collab.collabMode && "O caminho é "}
@@ -206,10 +201,10 @@ export function DiagnosticoCollabMatchOverlay({
                   href={instagramUrl}
                   target="_blank"
                   rel="noreferrer"
+                  className="ds-button ds-button--primary ds-button--block"
                   style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    width: "100%", padding: "13px 16px", borderRadius: 999,
-                    background: color.brand, color: "var(--ds-color-on-brand)", fontSize: 14, fontWeight: 700,
+                    width: "100%",
                     textDecoration: "none",
                   }}
                 >
@@ -219,22 +214,14 @@ export function DiagnosticoCollabMatchOverlay({
               <button
                 type="button"
                 onClick={() => onOpenIdea?.(pauta.id)}
-                style={{
-                  width: "100%", padding: "11px 16px", borderRadius: 999,
-                  background: "transparent", color: "var(--ds-color-line)", fontSize: 13, fontWeight: 600,
-                  border: "1px solid rgba(255,255,255,0.22)", cursor: "pointer", fontFamily: "inherit",
-                }}
+                className="ds-button ds-button--quiet ds-button--block"
               >
                 Ver a pauta completa
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                style={{
-                  width: "100%", padding: "8px", borderRadius: 999, background: "none",
-                  color: "var(--ds-color-text-secondary)", fontSize: 12.5, fontWeight: 600, border: "none",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
+                className="ds-button ds-button--ghost ds-button--block ds-button--small"
               >
                 Depois
               </button>

@@ -121,4 +121,30 @@ describe("DashboardShell mobile strategic profile routing", () => {
       }),
     ).toBe(false);
   });
+
+  it("trata o mapa completo como subpágina do Perfil no mobile", () => {
+    expect(shouldSuppressDashboardLegacyChrome("/dashboard/strategic-map")).toBe(true);
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: true,
+        pathname: "/dashboard/strategic-map",
+      }),
+    ).toBe(false);
+  });
+
+  it("trata Collabs como experiência própria do Perfil no mobile", () => {
+    expect(shouldSuppressDashboardLegacyChrome("/dashboard/collabs")).toBe(true);
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: true,
+        pathname: "/dashboard/collabs",
+      }),
+    ).toBe(false);
+  });
 });

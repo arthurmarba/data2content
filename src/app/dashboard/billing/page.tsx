@@ -1,10 +1,14 @@
 import BillingPanel from './BillingPanel';
+import { ProfileSettingsPage } from '@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage';
 
 export default function BillingPage() {
   return (
-    <div className="mx-auto max-w-2xl p-4">
+    <ProfileSettingsPage
+      title="Seu plano"
+      backHref="/dashboard/boards/mobile-strategic-profile"
+      backLabel="Voltar ao Perfil"
+    >
       <BillingPanel />
-    </div>
+    </ProfileSettingsPage>
   );
 }
-

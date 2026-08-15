@@ -14,28 +14,33 @@ describe('DeleteAccountSection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: false }),
+    }) as any;
   });
 
   it('shows blocked modal when plan active', async () => {
     mockUseSession.mockReturnValue({ data: { user: { planStatus: 'active', affiliateBalances: {} } } });
     render(<DeleteAccountSection />);
-    fireEvent.click(screen.getAllByText('Excluir conta')[1]!);
-    expect(await screen.findByText('Você precisa cancelar sua assinatura primeiro')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(await screen.findByRole('dialog', { name: 'Ação necessária' })).toBeInTheDocument();
+    expect(screen.getByText(/primeiro cancele sua assinatura/i)).toBeInTheDocument();
   });
 
   it('allows deletion when plan inactive after typing EXCLUIR', async () => {
     mockUseSession.mockReturnValue({ data: { user: { planStatus: 'inactive', affiliateBalances: {} } } });
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }) as any;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: false }) }) as any;
     render(<DeleteAccountSection />);
-    fireEvent.click(screen.getAllByText('Excluir conta')[1]!);
-    expect(await screen.findByText('Excluir conta — ação permanente')).toBeInTheDocument();
-    const input = screen.getByPlaceholderText('Digite EXCLUIR');
-    const button = screen.getByText('Excluir definitivamente') as HTMLButtonElement;
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(await screen.findByRole('dialog', { name: 'Tem certeza?' })).toBeInTheDocument();
+    const input = screen.getByPlaceholderText('Digite "EXCLUIR"');
+    const button = screen.getByText('Excluir permanentemente') as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     fireEvent.change(input, { target: { value: 'EXCLUIR' } });
     expect(button.disabled).toBe(false);
     fireEvent.click(button);
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/account/delete', { method: 'DELETE' }));
     await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
   });
 });

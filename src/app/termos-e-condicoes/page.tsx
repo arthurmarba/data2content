@@ -1,5 +1,6 @@
 import React from 'react';
 import Head from 'next/head'; // Para o título da página
+import { d2cFontVariables } from '@/app/fonts/d2cFonts';
 
 // Componente funcional para a página de Termos e Condições
 export default function TermsAndConditionsPage() {
@@ -9,15 +10,13 @@ export default function TermsAndConditionsPage() {
         <title>Termos e Condições - Data2Content</title>
         <meta name="description" content="Termos e Condições de Uso da plataforma Data2Content." />
       </Head>
-      <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto bg-white p-6 sm:p-8 md:p-10 shadow-xl rounded-lg">
-          <header className="mb-8 text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark mb-2">
+      <div className={`d2c-mobile-app ds-notebook min-h-screen bg-[var(--ds-color-neutral)] px-4 py-6 sm:px-6 sm:py-10 lg:px-8 ${d2cFontVariables}`}>
+        <article className="ds-legal-document ds-notebook-section mx-auto max-w-3xl p-6 sm:p-8 md:p-10">
+          <header className="mb-8 border-b border-[var(--ds-color-line)] pb-6">
+            <p className="ds-notebook-label mb-2">Data2Content</p>
+            <h1 className="mb-2 font-display text-3xl font-bold leading-none tracking-[-0.04em] text-[var(--ds-color-ink)] sm:text-4xl">
               Termos e Condições de Uso
             </h1>
-            <p className="text-sm text-gray-500">
-              Data2Content
-            </p>
           </header>
 
           <div className="prose prose-lg max-w-none text-gray-700">
@@ -155,7 +154,7 @@ export default function TermsAndConditionsPage() {
               Ao usar o Data2Content, você reconhece que leu, compreendeu e concorda integralmente com estes Termos de Uso.
             </p>
           </div>
-        </div>
+        </article>
       </div>
     </>
   );

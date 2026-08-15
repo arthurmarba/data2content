@@ -12,8 +12,7 @@ interface Props {
 }
 
 /**
- * Apple Health-style empty state inside a category detail view.
- * Unified treatment across the 7 detail views.
+ * Empty state canônico do app, composto apenas com tokens do design system.
  */
 export function DiagnosticoDetailEmptyState({
   iconBg = "bg-zinc-100",
@@ -24,7 +23,7 @@ export function DiagnosticoDetailEmptyState({
   onCta,
 }: Props) {
   return (
-    <div className="rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] px-6 py-10 flex flex-col items-center gap-3 text-center">
+    <div className="ds-surface ds-surface--raised flex flex-col items-center gap-3 px-6 py-10 text-center">
       <div className={`flex h-14 w-14 items-center justify-center rounded-full ${iconBg}`}>
         {iconSlot}
       </div>
@@ -33,7 +32,7 @@ export function DiagnosticoDetailEmptyState({
       {ctaLabel && onCta && (
         <button
           onClick={onCta}
-          className="mt-2 w-full max-w-xs rounded-full bg-zinc-950 py-3.5 text-[14px] font-semibold text-white"
+          className="ds-button ds-button--secondary ds-button--block mt-2 max-w-xs"
         >
           {ctaLabel}
         </button>

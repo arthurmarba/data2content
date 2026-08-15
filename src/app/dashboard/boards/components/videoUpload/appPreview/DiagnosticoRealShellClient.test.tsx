@@ -15,10 +15,23 @@ const mockResetReading = jest.fn();
 
 // Mutable so individual tests can override the instagramLinked param
 let mockInstagramLinked: string | null = null;
+let mockProfileAction: string | null = null;
 
 jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
-  useSearchParams: () => ({ get: (key: string) => (key === "instagramLinked" ? mockInstagramLinked : null) }),
+  useSearchParams: () => ({
+    get: (key: string) => {
+      if (key === "instagramLinked") return mockInstagramLinked;
+      if (key === "action") return mockProfileAction;
+      return null;
+    },
+    toString: () => {
+      const params = new URLSearchParams();
+      if (mockInstagramLinked) params.set("instagramLinked", mockInstagramLinked);
+      if (mockProfileAction) params.set("action", mockProfileAction);
+      return params.toString();
+    },
+  }),
 }));
 
 jest.mock("next-auth/react", () => ({
@@ -103,6 +116,7 @@ describe("DiagnosticoRealShellClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockInstagramLinked = null;
+    mockProfileAction = null;
     Object.defineProperty(window, "localStorage", {
       value: { getItem: jest.fn(() => null), setItem: jest.fn() },
       writable: true,
@@ -344,6 +358,32 @@ describe("DiagnosticoRealShellClient", () => {
     expect(mockAnalyzeFlowProps).toHaveBeenLastCalledWith(expect.objectContaining({
       completionSecondaryAction: "another_video",
     }));
+  });
+
+  it("abre a análise a partir da ação recebida pela página do mapa", async () => {
+    mockProfileAction = "analyze";
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({ accessState: "pro_instagram_connected" })}
+        surface="responsive"
+      />,
+    );
+
+    expect(await screen.findByTestId("analyze-flow")).toBeInTheDocument();
+    expect(mockRouterReplace).toHaveBeenCalledWith("/dashboard/profile", { scroll: false });
+  });
+
+  it("abre o Norte a partir da ação recebida pela página do mapa", async () => {
+    mockProfileAction = "north";
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture()}
+        surface="responsive"
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Para quem você cria?" })).toBeInTheDocument();
+    expect(mockRouterReplace).toHaveBeenCalledWith("/dashboard/profile", { scroll: false });
   });
 
   it("opens analyze flow for free_unused", () => {

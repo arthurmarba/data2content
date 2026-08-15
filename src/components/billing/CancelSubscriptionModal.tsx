@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -56,35 +57,44 @@ export default function CancelSubscriptionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="ds-scrim fixed inset-0 z-[320] flex items-end justify-center p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="cancel-subscription-title"
     >
       <div
         ref={ref}
-        className="dashboard-scrollbar w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="dashboard-scrollbar w-full max-w-md max-h-[92dvh] overflow-y-auto rounded-t-[var(--ds-radius-xl)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-5 text-[var(--ds-color-text)] shadow-[var(--ds-shadow-overlay)] sm:rounded-[var(--ds-radius-xl)] sm:p-6"
       >
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">
-          Cancelar renovação
-        </h2>
-        <p className="mb-6 text-sm text-gray-600">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="ds-notebook-label">Assinatura</p>
+            <h2 id="cancel-subscription-title" className="mt-1 font-display text-[1.5rem] font-bold tracking-[-0.035em] text-[var(--ds-color-ink)]">
+              Cancelar renovação
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="ds-icon-button ds-icon-button--ghost">
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+        <p className="mb-6 mt-3 text-sm leading-relaxed text-[var(--ds-color-text-secondary)]">
           Você continuará com acesso{date ? ` até ${date}` : ''}. Por favor,
           conte-nos o motivo do cancelamento para nos ajudar a melhorar.
         </p>
 
         <div className="mb-6 space-y-3">
-          <p className="text-sm font-medium text-gray-800">
+          <p className="text-sm font-semibold text-[var(--ds-color-ink)]">
             Selecione um ou mais motivos:
           </p>
-          <div className="space-y-2">
+          <div className="divide-y divide-[var(--ds-color-line)] border-y border-[var(--ds-color-line)]">
             {REASONS.map((reason) => (
               <label
                 key={reason}
-                className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer"
+                className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm text-[var(--ds-color-text-secondary)]"
               >
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="h-4 w-4 rounded border-[var(--ds-color-line-strong)] accent-[var(--ds-color-brand)] focus:ring-[var(--ds-color-brand)]"
                   checked={selectedReasons.includes(reason)}
                   onChange={() => toggleReason(reason)}
                 />
@@ -95,28 +105,31 @@ export default function CancelSubscriptionModal({
         </div>
 
         <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium text-gray-800">
+          <label className="mb-2 block text-sm font-semibold text-[var(--ds-color-ink)]" htmlFor="cancel-subscription-comment">
             Justificativa (obrigatório):
           </label>
           <textarea
-            className="w-full h-24 rounded-md border border-gray-300 p-3 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            id="cancel-subscription-comment"
+            className="ds-field h-24 resize-none text-sm"
             placeholder="Conte-nos um pouco mais sobre sua decisão..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="grid gap-2 pt-2 sm:grid-cols-2">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1"
+            className="ds-button ds-button--secondary ds-button--block"
           >
             Manter assinatura
           </button>
           <button
+            type="button"
             onClick={() => onConfirm({ reasons: selectedReasons, comment })}
             disabled={!isValid}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+            className="ds-button ds-button--danger ds-button--block"
           >
             Cancelar renovação
           </button>

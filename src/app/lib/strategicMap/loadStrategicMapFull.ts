@@ -38,6 +38,7 @@ export interface StrategicMapFull {
   hasReadings: boolean;
   hasPurpose: boolean;
   lastReadingAt: string | null;
+  updatedAt: string | null;
 }
 
 export async function loadStrategicMapFull(userId: string): Promise<StrategicMapFull | null> {
@@ -71,13 +72,28 @@ export async function loadStrategicMapFull(userId: string): Promise<StrategicMap
 
     const { default: MapaSeed } = await import("@/app/models/MapaSeed");
     const seedDoc = (await MapaSeed.findOne({ userId })
-      .select("mapa")
-      .lean()) as { mapa?: IMapaData } | null;
+      .select("mapa updatedAt instagramEnrichedAt videoEnrichedAt")
+      .lean()) as {
+        mapa?: IMapaData;
+        updatedAt?: Date | string | null;
+        instagramEnrichedAt?: Date | string | null;
+        videoEnrichedAt?: Date | string | null;
+      } | null;
 
     const readings = selectorResult.viewModel.readings.items as Array<{ createdAt?: string | null }>;
     const hasReadings = readings.length > 0;
     const lastReadingAt = readings[0]?.createdAt ?? null;
     const hasPurpose = Boolean(userDoc?.onboardingAnswers?.creatorPurpose);
+    const updatedAt = [
+      seedDoc?.updatedAt,
+      seedDoc?.instagramEnrichedAt,
+      seedDoc?.videoEnrichedAt,
+      lastReadingAt,
+    ]
+      .map((value) => value ? new Date(value) : null)
+      .filter((value): value is Date => Boolean(value && !Number.isNaN(value.getTime())))
+      .sort((a, b) => b.getTime() - a.getTime())[0]
+      ?.toISOString() ?? null;
 
     return {
       synthesis: mergedSynthesis,
@@ -93,6 +109,7 @@ export async function loadStrategicMapFull(userId: string): Promise<StrategicMap
       hasReadings,
       hasPurpose,
       lastReadingAt,
+      updatedAt,
     };
   } catch (err) {
     console.error("[strategicMap:loadFull] Erro silencioso:", err);

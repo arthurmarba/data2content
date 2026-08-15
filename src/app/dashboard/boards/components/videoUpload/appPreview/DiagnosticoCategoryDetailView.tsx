@@ -12,16 +12,17 @@ interface Props {
   children: ReactNode;
   /** Slot opcional no canto direito do header — ex: botão Comunidade na tela de Collabs. */
   actionSlot?: ReactNode;
+  /** Faz o detalhe continuar o caderno editorial do Perfil. */
+  presentation?: "default" | "notebook";
 }
 
 /** Full-screen overlay for category detail — mirrors ReadingDetailView pattern */
 export function DiagnosticoCategoryDetailView({
   title,
-  iconBg,
-  iconSlot,
   onClose,
   children,
   actionSlot,
+  presentation = "default",
 }: Props) {
   // Esc to close (a11y)
   useEffect(() => {
@@ -42,8 +43,13 @@ export function DiagnosticoCategoryDetailView({
     >
       <DiagnosticoNavHeader title={title} onBack={onClose} actionSlot={actionSlot} />
 
-      <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-10 pt-5">
-        <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3.5">{children}</div>
+      <div className={`flex-1 overflow-y-auto overscroll-contain ${presentation === "notebook" ? "bg-[var(--ds-color-neutral)]" : "px-3 pb-10 pt-5"}`}>
+        <div className={presentation === "notebook"
+          ? "ds-notebook-page ds-analysis-editorial !max-w-[32rem] !pb-10 !pt-5"
+          : "mx-auto flex w-full max-w-[430px] flex-col gap-3.5"}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

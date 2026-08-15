@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { ChevronRight, CreditCard, RefreshCcw, XCircle } from 'lucide-react';
 import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
 import CancelSubscriptionModal from '@/components/billing/CancelSubscriptionModal';
+import { openPaywallModal } from '@/utils/paywallModal';
 
 type PlanStatus =
   | 'active'
@@ -232,19 +234,31 @@ export default function BillingPanel() {
     }
   };
 
-  if (loading && !s && !error) return <div className="text-sm text-muted-foreground">Carregando informações do plano…</div>;
+  if (loading && !s && !error) {
+    return (
+      <section className="ds-notebook-section animate-pulse" aria-label="Carregando assinatura">
+        <div className="h-3 w-24 rounded bg-[var(--ds-color-neutral)]" />
+        <div className="mt-4 h-7 w-40 rounded bg-[var(--ds-color-neutral)]" />
+        <div className="mt-3 h-4 w-full max-w-sm rounded bg-[var(--ds-color-neutral)]" />
+        <div className="mt-6 h-11 w-full rounded-lg bg-[var(--ds-color-neutral)]" />
+      </section>
+    );
+  }
 
   if (error) {
     return (
-      <div className="space-y-4 rounded-2xl border p-4 md:p-6">
-        <div className="text-sm text-muted-foreground">{error}</div>
+      <section className="ds-notebook-section py-10 text-center">
+        <h2 className="font-display text-xl font-bold tracking-[-0.03em] text-[var(--ds-color-ink)]">Não foi possível abrir seu plano</h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--ds-color-text-muted)]">{error}</p>
         <button
+          type="button"
           onClick={fetchStatus}
-          className="inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted"
+          className="ds-button ds-button--secondary mt-5"
         >
+          <RefreshCcw className="h-4 w-4" aria-hidden="true" />
           Tentar novamente
         </button>
-      </div>
+      </section>
     );
   }
 
@@ -261,6 +275,25 @@ export default function BillingPanel() {
   const needsCheckout = ['pending', 'incomplete'].includes(status);
   const showSubscribeCta =
     status === 'inactive' || status === 'canceled' || status === 'expired' || status === 'incomplete_expired';
+  const statusTone = status === 'active'
+    ? 'ds-badge--success'
+    : status === 'past_due' || status === 'unpaid' || status === 'incomplete' || status === 'pending'
+      ? 'ds-badge--warning'
+      : status === 'non_renewing'
+        ? 'ds-badge--danger'
+        : 'ds-badge--neutral';
+  const statusLabel: Record<PlanStatus, string> = {
+    active: 'Ativo',
+    non_renewing: 'Cancelamento agendado',
+    past_due: 'Pagamento pendente',
+    unpaid: 'Pagamento pendente',
+    incomplete: 'Checkout pendente',
+    incomplete_expired: 'Checkout expirado',
+    pending: 'Ativação pendente',
+    canceled: 'Cancelado',
+    expired: 'Expirado',
+    inactive: 'Sem plano',
+  };
 
   let statusDescription: React.ReactNode = <>Status indisponível.</>;
   switch (status) {
@@ -296,47 +329,36 @@ export default function BillingPanel() {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border p-4 md:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="text-lg font-semibold">Seu plano</div>
-          <div className="text-sm text-muted-foreground">{statusDescription}</div>
+    <div className="space-y-3">
+      <section className="ds-notebook-section ds-notebook-section--first">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="ds-notebook-label">Assinatura</p>
+            <h2 className="mt-2 font-display text-[1.75rem] font-bold leading-none tracking-[-0.04em] text-[var(--ds-color-ink)]">
+              {status === 'inactive' || status === 'expired' || status === 'canceled' ? 'Plano Free' : 'Plano Pro'}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--ds-color-text-secondary)]">{statusDescription}</p>
           {typeof s.lastPaymentError === 'string' && s.lastPaymentError && (
-            <div className="mt-2 text-xs text-amber-600">
+              <p className="ds-status-panel ds-status-panel--warning mt-4 text-xs leading-relaxed">
               Último erro de pagamento: {s.lastPaymentError}
-            </div>
+              </p>
           )}
+          </div>
+          <span className={`ds-badge shrink-0 ${statusTone}`}>{statusLabel[status]}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {cancelable && (
+
+      {(needsCheckout || showSubscribeCta || canReactivate) && (
+          <div className="mt-6 space-y-2">
+          {canReactivate ? (
             <button
               type="button"
-              onClick={() => setShowCancelModal(true)}
-              disabled={doing === 'cancel'}
-              className="px-3 py-2 rounded-lg border hover:bg-muted"
+              onClick={reactivate}
+              disabled={doing === 'reactivate'}
+              className="ds-button ds-button--primary ds-button--block"
             >
-              {doing === 'cancel' ? 'Cancelando…' : 'Cancelar plano'}
+              {doing === 'reactivate' ? 'Reativando…' : 'Reativar assinatura'}
             </button>
-          )}
-          {canReactivate && (
-            <button type="button" onClick={reactivate} disabled={doing === 'reactivate'} className="px-3 py-2 rounded-lg border hover:bg-muted">
-              {doing === 'reactivate' ? 'Reativando…' : 'Reativar'}
-            </button>
-          )}
-          {showPortal && (
-            <button type="button" onClick={openPortal} disabled={doing === 'portal'} className="px-3 py-2 rounded-lg border hover:bg-muted">
-              {doing === 'portal'
-                ? 'Abrindo…'
-                : status === 'past_due' || status === 'unpaid'
-                  ? 'Atualizar pagamento'
-                  : 'Gerenciar pagamento'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {(needsCheckout || showSubscribeCta) && (
-        <div className="flex flex-col gap-2 text-sm">
+          ) : null}
           {needsCheckout && (
             <>
               {canResumeCheckout && (
@@ -344,27 +366,60 @@ export default function BillingPanel() {
                   type="button"
                   onClick={resumeCheckout}
                   disabled={doing === 'resume'}
-                  className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-60"
+                    className="ds-button ds-button--primary ds-button--block"
                 >
                   {doing === 'resume' ? 'Continuando…' : 'Continuar checkout'}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={abortPending}
-                disabled={doing === 'abort'}
-                className="inline-flex items-center px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-60"
-              >
-                {doing === 'abort' ? 'Abortando…' : 'Abortar tentativa'}
-              </button>
             </>
           )}
           {showSubscribeCta && (
-            <a href="/dashboard/billing/checkout" className="inline-flex items-center px-3 py-2 rounded-lg bg-black text-white hover:opacity-90">
+            <button
+              type="button"
+              onClick={() => openPaywallModal({
+                context: 'narrative_map',
+                source: 'billing_settings_subscribe',
+                returnTo: '/dashboard/boards/mobile-strategic-profile',
+              })}
+              className="ds-button ds-button--primary ds-button--block"
+            >
               {status === 'canceled' ? 'Assinar novamente' : 'Assinar agora'}
-            </a>
+            </button>
           )}
-        </div>
+          </div>
+      )}
+      </section>
+
+      {(showPortal || canReactivate || canResumeCheckout || cancelable) && (
+        <section className="ds-notebook-section !py-2">
+          <p className="ds-notebook-label px-1 pb-1 pt-2">Gerenciar plano</p>
+          {showPortal ? (
+            <BillingSettingsAction
+              label={doing === 'portal' ? 'Abrindo…' : status === 'past_due' || status === 'unpaid' ? 'Atualizar pagamento' : 'Gerenciar pagamento'}
+              icon={<CreditCard className="h-4 w-4" strokeWidth={1.9} />}
+              onClick={openPortal}
+              disabled={doing === 'portal'}
+            />
+          ) : null}
+          {canResumeCheckout ? (
+            <BillingSettingsAction
+              label={doing === 'abort' ? 'Abortando…' : 'Abortar tentativa pendente'}
+              icon={<XCircle className="h-4 w-4" strokeWidth={1.9} />}
+              onClick={abortPending}
+              disabled={doing === 'abort'}
+              danger
+            />
+          ) : null}
+          {cancelable ? (
+            <BillingSettingsAction
+              label={doing === 'cancel' ? 'Cancelando…' : 'Cancelar renovação'}
+              icon={<XCircle className="h-4 w-4" strokeWidth={1.9} />}
+              onClick={() => setShowCancelModal(true)}
+              disabled={doing === 'cancel'}
+              danger
+            />
+          ) : null}
+        </section>
       )}
 
       {s && (
@@ -379,5 +434,32 @@ export default function BillingPanel() {
         />
       )}
     </div>
+  );
+}
+
+function BillingSettingsAction({
+  label,
+  icon,
+  onClick,
+  disabled,
+  danger = false,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`ds-notebook-row disabled:opacity-50 ${danger ? 'text-[var(--ds-color-danger)]' : ''}`}
+    >
+      <span className={danger ? 'text-[var(--ds-color-danger)]' : 'text-[var(--ds-color-text-secondary)]'}>{icon}</span>
+      <span className="text-sm font-semibold">{label}</span>
+      <ChevronRight className="h-4 w-4 text-[var(--ds-color-text-muted)]" strokeWidth={1.8} aria-hidden="true" />
+    </button>
   );
 }

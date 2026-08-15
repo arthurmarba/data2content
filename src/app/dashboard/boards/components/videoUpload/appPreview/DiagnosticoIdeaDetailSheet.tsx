@@ -18,7 +18,6 @@ import {
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 import { CollabModeBadge } from "./CollabModeBadge";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
-import { color } from "@/design-system";
 
 interface Props {
   idea: ContentIdeaListItem;
@@ -128,7 +127,7 @@ export function DiagnosticoIdeaDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[270] flex items-end justify-center ds-scrim sm:items-center sm:p-4"
+      className="d2c-mobile-app ds-notebook fixed inset-0 z-[270] flex items-end justify-center ds-scrim sm:items-center sm:p-4"
       role="presentation"
       onClick={onClose}
     >
@@ -140,7 +139,7 @@ export function DiagnosticoIdeaDetailSheet({
         animate={{ opacity: 1, y: 0 }}
         exit={reduceMotion ? undefined : { opacity: 0, y: 20 }}
         transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="flex h-[100dvh] w-full max-w-[32rem] flex-col overflow-hidden bg-white text-zinc-950 shadow-2xl sm:h-auto sm:max-h-[min(94dvh,860px)] sm:rounded-[2rem]"
+        className="flex h-[100dvh] w-full max-w-[32rem] flex-col overflow-hidden border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] text-[var(--ds-color-text)] shadow-[var(--ds-shadow-overlay)] sm:h-auto sm:max-h-[min(94dvh,860px)] sm:rounded-[var(--ds-radius-xl)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div
@@ -154,8 +153,8 @@ export function DiagnosticoIdeaDetailSheet({
             data-scrolled={hasScrolled ? "true" : "false"}
             className={`sticky top-0 z-30 border-b px-5 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] transition-[background-color,border-color,box-shadow] duration-200 sm:px-7 sm:pt-2 ${
               hasScrolled
-                ? "border-zinc-200 bg-white/94 shadow-[0_8px_24px_rgba(24,24,27,0.07)] backdrop-blur-xl"
-                : "border-transparent bg-white"
+                ? "border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]/95 backdrop-blur-xl"
+                : "border-transparent bg-[var(--ds-color-surface)]"
             }`}
           >
             <div className="flex min-h-11 items-center justify-between gap-3">
@@ -166,7 +165,7 @@ export function DiagnosticoIdeaDetailSheet({
                 </div>
               ) : (
                 <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">
-                  <span className="text-violet-700">{idea.suggestedFormat}</span>
+                  <span className="text-[var(--ds-color-brand-strong)]">{idea.suggestedFormat}</span>
                   <span aria-hidden="true" className="text-zinc-300">/</span>
                   <span className="truncate">{idea.territory}</span>
                   {blueprint.estimatedDurationSeconds ? (
@@ -198,12 +197,12 @@ export function DiagnosticoIdeaDetailSheet({
 
             {mapAnchors.length > 0 ? (
               <div className="mt-4 border-t border-zinc-100 pt-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-violet-700">Do seu mapa</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Do seu mapa</p>
                 <div className="mt-2 grid grid-cols-2 gap-1.5">
                   {mapAnchors.map((anchor) => (
                     <span
                       key={`${anchor.kind}:${anchor.label}`}
-                      className="grid min-w-0 grid-cols-1 rounded-xl bg-zinc-100 px-2.5 py-2 text-zinc-800"
+                      className="grid min-w-0 grid-cols-1 rounded-lg bg-[var(--ds-color-neutral)] px-2.5 py-2 text-[var(--ds-color-ink)]"
                       title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
                     >
                       <span className="truncate text-[8px] font-bold uppercase tracking-[0.04em] text-zinc-500">{contentIdeaMapAnchorLabel(anchor.kind)}</span>
@@ -278,8 +277,8 @@ export function DiagnosticoIdeaDetailSheet({
             </div>
           </div>
         ) : awaitingOtherSide ? (
-          <div className="shrink-0 border-t border-violet-100 bg-violet-50 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-center sm:px-7">
-            <p className="text-[14px] font-semibold text-violet-800">
+          <div className="shrink-0 border-t border-[var(--ds-color-line)] bg-[var(--ds-color-warning-soft)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-center sm:px-7">
+            <p className="text-[14px] font-semibold text-[var(--ds-color-warning)]">
               Você topou — aguardando o outro lado
             </p>
           </div>
@@ -295,7 +294,7 @@ function PlanToggle({ active, compact = false, onClick, children }: { active: bo
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full font-semibold transition-colors ${compact ? "px-3 py-1.5 text-[12px]" : "px-4 py-2 text-[13px]"} ${active ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+      className={`rounded-lg font-semibold transition-colors ${compact ? "px-3 py-1.5 text-[12px]" : "px-4 py-2 text-[13px]"} ${active ? "bg-[var(--ds-color-surface)] text-[var(--ds-color-ink)]" : "text-[var(--ds-color-text-secondary)]"}`}
     >
       {children}
     </button>
@@ -311,7 +310,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
     <div>
       <section aria-labelledby="idea-opening-title">
         <div className="flex items-center justify-between gap-3">
-          <p id="idea-opening-title" className="text-[12px] font-bold uppercase tracking-[0.09em] text-violet-700">
+          <p id="idea-opening-title" className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">
             Comece assim
           </p>
           <CopyButton text={idea.hook} label="Copiar abertura" />
@@ -320,7 +319,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
           “{idea.hook}”
         </blockquote>
         {openingScene ? (
-          <div className="mt-4 border-l-2 border-violet-200 pl-4">
+          <div className="ds-notebook-note mt-4">
             <p className="text-[16px] font-semibold leading-[1.35] text-zinc-800">{openingScene.visual}</p>
             <SceneMeta shot={openingScene.shot} onScreenText={openingScene.onScreenText} durationSeconds={openingScene.durationSeconds} />
           </div>
@@ -350,7 +349,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
               transition={{ delay: reduceMotion ? 0 : index * 0.055, duration: 0.22 }}
               className="grid grid-cols-[2.75rem_1fr] gap-3 border-t border-zinc-100 py-5 first:border-t-0 first:pt-0"
             >
-              <span className="font-display text-[1.45rem] font-bold leading-none tracking-[-0.04em] text-violet-300">
+              <span className="font-display text-[1.45rem] font-bold leading-none tracking-[-0.04em] text-[var(--ds-color-line-strong)]">
                 {String(index + 2).padStart(2, "0")}
               </span>
               <div>
@@ -379,7 +378,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
           </summary>
           <div className="mt-4 space-y-4 text-[15px] leading-[1.5] text-zinc-600">
             {idea.whyItFits ? <p><strong className="text-zinc-800">No seu mapa: </strong>{idea.whyItFits}</p> : null}
-            {idea.resonanceNote ? <p><strong className="text-emerald-700">No que reconhecem em você: </strong>{idea.resonanceNote}</p> : null}
+            {idea.resonanceNote ? <p><strong className="text-[var(--ds-color-success)]">No que reconhecem em você: </strong>{idea.resonanceNote}</p> : null}
           </div>
         </details>
       ) : null}
@@ -425,7 +424,7 @@ function CollabPlan({
           />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-violet-700">Plano a dois</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Plano a dois</p>
           <h3 id="collab-plan-title" className="mt-0.5 truncate font-display text-[1.6rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
             Você + {collab.name.split(" ")[0]}
           </h3>
@@ -436,7 +435,7 @@ function CollabPlan({
         </div>
       </section>
 
-      <div className="mt-6 border-l-2 border-violet-200 pl-4">
+      <div className="ds-notebook-note mt-6">
         <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-zinc-400">Por que vocês</p>
         <p className="mt-1 text-[16px] font-semibold leading-[1.45] text-zinc-800">{collab.narrativeFitReason}</p>
         {collab.sharedSignal ? (
@@ -453,7 +452,7 @@ function CollabPlan({
 
       {blueprint ? (
         <section className="mt-8" aria-labelledby="collab-storyboard-title">
-          <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-violet-700">Como gravar essa collab</p>
+          <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Como gravar essa collab</p>
           <h4 id="collab-storyboard-title" className="mt-1 font-display text-[1.55rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
             Quem faz o quê
           </h4>
@@ -467,12 +466,12 @@ function CollabPlan({
                 transition={{ delay: reduceMotion ? 0 : index * 0.06, duration: 0.22 }}
                 className="grid grid-cols-[3rem_1fr] gap-3 border-t border-zinc-100 py-5 first:border-t-0 first:pt-0"
               >
-                <span className="font-display text-[1.45rem] font-bold leading-none tracking-[-0.04em] text-violet-300">
+                <span className="font-display text-[1.45rem] font-bold leading-none tracking-[-0.04em] text-[var(--ds-color-line-strong)]">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-violet-700">
+                    <span className="rounded-md bg-[var(--ds-color-brand-soft)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--ds-color-brand-strong)]">
                       {ownerLabel(scene.owner, collab.name)}
                     </span>
                     <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400">{BEAT_LABEL[scene.beat]}</span>
@@ -517,7 +516,7 @@ function Checklist({ title, items }: { title: string; items: string[] }) {
       <ul className="mt-3 divide-y divide-zinc-100 border-y border-zinc-100">
         {items.map((item, index) => (
           <li key={`${item}-${index}`} className="flex gap-3 py-3 text-[15px] leading-[1.45] text-zinc-700">
-            <span className="mt-0.5 text-violet-500">✓</span>
+            <span className="mt-0.5 text-[var(--ds-color-brand-strong)]">✓</span>
             <span>{item}</span>
           </li>
         ))}
@@ -531,17 +530,16 @@ function CollabContextTeaser({ onUpgrade }: { onUpgrade?: () => void }) {
     <button
       type="button"
       onClick={onUpgrade}
-      className="mt-8 flex w-full items-center gap-3 border-y border-violet-100 py-5 text-left"
+      className="mt-8 flex w-full items-center gap-3 border-y border-[var(--ds-color-line)] py-5 text-left"
     >
       <div
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-extrabold text-white"
-        style={{ background: `linear-gradient(135deg, ${color.brandSoft}, ${color.brand})` }}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[var(--ds-color-brand)] text-lg font-extrabold text-[var(--ds-color-on-brand)]"
       >
         ?
       </div>
       <div className="min-w-0 flex-1">
         <span className="block text-[15px] font-bold text-zinc-950">Um creator combina com essa ideia</span>
-        <span className="mt-0.5 block text-[13px] text-violet-700">Veja quem e receba o plano de gravação a dois →</span>
+        <span className="mt-0.5 block text-[13px] text-[var(--ds-color-brand-strong)]">Veja quem e receba o plano de gravação a dois →</span>
       </div>
     </button>
   );
@@ -563,7 +561,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="shrink-0 rounded-full bg-zinc-100 px-3 py-2 text-[12px] font-semibold text-zinc-600 transition-colors active:bg-zinc-200"
+      className="ds-button ds-button--quiet ds-button--small !min-h-0 shrink-0 !px-3 !py-2 text-[12px]"
       aria-label={label}
     >
       {copied ? "✓ Copiado" : label}

@@ -25,6 +25,8 @@ import { canonicalizeCategoryValues } from '@/app/lib/classification';
 import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
 import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 import { CREATOR_PROFILE_ROUTE } from '@/constants/routes';
+import { AppHeader } from '@/design-system';
+import { d2cFontVariables } from '@/app/fonts/d2cFonts';
 
 type Summary = any;
 type VideoListItem = any;
@@ -50,17 +52,15 @@ function MediaKitBoardShell({
   onCloseProfile?: () => void;
 }) {
   const dedicatedDesktopWidthClassName = 'lg:max-w-[720px]';
+  const profileReturnClassName = showProfileCloseButton
+    ? `d2c-mobile-app ds-notebook bg-[var(--ds-color-neutral)] ${d2cFontVariables}`
+    : "bg-[#f5f5f4]";
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full flex-col bg-[#f5f5f4] px-0 lg:px-6 lg:pb-6 lg:pt-5">
-      {mobileAppView && showProfileCloseButton ? (
-        <button
-          type="button"
-          aria-label="Fechar Mídia Kit e voltar ao Perfil"
-          onClick={onCloseProfile}
-          className="fixed right-4 top-[calc(env(safe-area-inset-top,0px)+0.875rem)] z-[120] flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-[0_8px_22px_rgba(15,23,42,0.12)] transition active:scale-95 lg:hidden"
-        >
-          <FaTimes className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
+    <div className={`mx-auto flex h-full min-h-0 w-full flex-col px-0 lg:px-6 lg:pb-6 ${showProfileCloseButton ? "lg:pt-0" : "lg:pt-5"} ${profileReturnClassName}`}>
+      {showProfileCloseButton ? (
+        <div className="mx-auto w-full max-w-[720px] border-b border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
+          <AppHeader title="Mídia Kit" onBack={onCloseProfile} className="h-[60px]" />
+        </div>
       ) : null}
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[720px] flex-col overflow-hidden">
         <Board
@@ -69,13 +69,13 @@ function MediaKitBoardShell({
           promoteHeaderOnMobile
           mobilePresentation={mobileAppView ? "flat" : "surface"}
           variant="card"
-          hideTitleBar={false}
+          hideTitleBar={showProfileCloseButton}
           showChevron={false}
           showOptions={false}
           className="mx-auto h-full"
           desktopWidthClassName={!mobileAppView ? dedicatedDesktopWidthClassName : ""}
           titleClassName="text-zinc-950"
-          contentClassName={mobileAppView ? "bg-transparent" : "bg-white"}
+          contentClassName={showProfileCloseButton || mobileAppView ? "bg-transparent" : "bg-white"}
           disableMobilePaddingTop={mobileAppView}
         >
           <div className={contentClassName}>{children}</div>
@@ -831,8 +831,7 @@ export default function MediaKitSelfServePage() {
   // Lógica do Modal de Pagamento
   const communityModalShownRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
-  const shouldUseProfileReturnChrome =
-    isBoardMobileViewport && sp.get("from") === "mobile-strategic-profile";
+  const shouldUseProfileReturnChrome = sp.get("from") === "mobile-strategic-profile";
   const handleCloseToProfile = useCallback(() => {
     router.replace(CREATOR_PROFILE_ROUTE);
   }, [router]);

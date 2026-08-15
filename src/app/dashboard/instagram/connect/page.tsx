@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, ArrowRight, ChevronDown, Instagram } from "lucide-react";
+import { ArrowRight, ChevronDown, Instagram } from "lucide-react";
 import {
   mapNextAuthErrorToReconnectCode,
   reconnectErrorMessageForCode,
@@ -12,6 +12,7 @@ import {
   startInstagramReconnect,
   type InstagramReconnectNextTarget,
 } from "@/app/lib/instagram/client/startInstagramReconnect";
+import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 type QuickItem = {
@@ -84,13 +85,6 @@ export default function InstagramPreConnectPage() {
     "Ler publicações públicas",
     "Identificar contas IG autorizadas",
   ];
-  const trialValueItems = isPostCreationFlow
-    ? [
-        "Análise do perfil",
-        "Pauta inicial",
-        "Sugestões de conteúdo",
-      ]
-    : [];
   const essentialChecklist = quickChecklist.filter((item) => item.essential);
 
   const oauthErrorCode = mapNextAuthErrorToReconnectCode(
@@ -300,36 +294,23 @@ export default function InstagramPreConnectPage() {
   }
 
   return (
-    <main
-      className="min-h-[100dvh] bg-[#F4F4F8]"
-      style={{ paddingTop: "env(safe-area-inset-top,0px)" }}
+    <ProfileSettingsPage
+      title="Conectar Instagram"
+      onBack={() => router.push(backTarget)}
+      backLabel={connectCopy.backLabel}
+      contentClassName="max-w-md"
     >
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#F4F4F8]/95 px-4 pb-3 pt-3 backdrop-blur-sm">
-        <button
-          type="button"
-          aria-label={connectCopy.backLabel}
-          onClick={() => router.push(backTarget)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-zinc-600 shadow-sm transition active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-        </button>
-        <span className="text-[15px] font-semibold text-zinc-700">{connectCopy.backLabel}</span>
-      </header>
-
-      <div className="mx-auto flex max-w-md flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-4">
-
-        {/* Card principal */}
-        <div className="rounded-[24px] bg-white px-6 py-7 shadow-[0_1px_4px_rgba(28,28,30,0.08)]">
+      <div className="space-y-3">
+        <section className="ds-notebook-section ds-notebook-section--first px-6 py-7">
           {/* Ícone */}
-          <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] shadow-[0_4px_14px_rgba(221,42,123,0.35)]">
-            <Instagram className="h-7 w-7 text-white" strokeWidth={1.8} />
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]">
+            <Instagram className="h-7 w-7" strokeWidth={1.8} />
           </div>
 
           {/* Título + subtítulo */}
-          <h1 className="mt-5 text-[22px] font-bold tracking-tight text-zinc-950">
+          <h2 className="mt-5 font-display text-[1.75rem] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--ds-color-ink)]">
             {connectCopy.title}
-          </h1>
+          </h2>
           <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
             {connectCopy.subtitle}
           </p>
@@ -337,8 +318,8 @@ export default function InstagramPreConnectPage() {
           {/* Trust signals */}
           <div className="mt-5 space-y-2">
             {["Somente leitura", "Não publicamos nada"].map((item) => (
-              <p key={item} className="flex items-center gap-2 text-[13px] text-zinc-500">
-                <span className="font-semibold text-emerald-500">✓</span>
+              <p key={item} className="flex items-center gap-2 text-[13px] text-[var(--ds-color-text-secondary)]">
+                <span className="font-semibold text-[var(--ds-color-success)]">✓</span>
                 {item}
               </p>
             ))}
@@ -347,7 +328,7 @@ export default function InstagramPreConnectPage() {
           {/* Erro */}
           {displayError && (
             <div
-              className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+              className="ds-status-panel ds-status-panel--warning mt-5 text-sm"
               aria-live="polite"
             >
               <p className="font-semibold">Não conseguimos abrir a autorização.</p>
@@ -357,39 +338,40 @@ export default function InstagramPreConnectPage() {
 
           {/* CTA — dentro do card */}
           <button
+            type="button"
             onClick={startConnect}
             disabled={loading || status === "loading"}
-            className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-6 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            className="ds-button ds-button--primary ds-button--block mt-6"
           >
             {loading ? loadingLabel : connectCopy.cta}
             {!loading && <ArrowRight className="h-4 w-4" strokeWidth={2} />}
           </button>
-        </div>
+        </section>
 
         {/* Requisitos e permissões — colapsado, separado */}
-        <details className="group rounded-[20px] bg-white shadow-[0_1px_4px_rgba(28,28,30,0.06)]">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-[14px] font-semibold text-zinc-700 marker:hidden">
+        <details className="ds-notebook-section group !p-0">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 py-4 text-[14px] font-semibold text-[var(--ds-color-ink)] marker:hidden">
             Requisitos e permissões
             <ChevronDown
               className="h-4 w-4 text-zinc-400 transition group-open:rotate-180"
               strokeWidth={2}
             />
           </summary>
-          <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+          <div className="border-t border-[var(--ds-color-line)] px-5 pb-5 pt-4">
+            <p className="ds-notebook-label">
               Para sua conta aparecer
             </p>
             <ul className="mt-3 space-y-3">
               {essentialChecklist.map((item) => (
                 <li key={item.title}>
-                  <p className="text-[13px] font-medium text-zinc-800">{item.title}</p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500">
+                  <p className="text-[13px] font-semibold text-[var(--ds-color-ink)]">{item.title}</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--ds-color-text-muted)]">
                     {item.description}
                   </p>
                   {item.faqHref && (
                     <a
                       href={item.faqHref}
-                      className="mt-1 inline-block text-[12px] font-semibold text-brand-primary underline underline-offset-2"
+                      className="mt-1 inline-block text-[12px] font-semibold text-[var(--ds-color-brand-strong)] underline underline-offset-2"
                     >
                       Ver passo a passo
                     </a>
@@ -398,14 +380,14 @@ export default function InstagramPreConnectPage() {
               ))}
             </ul>
 
-            <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+            <p className="ds-notebook-label mt-5">
               Permissões de leitura
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {permissionsRequested.map((permission) => (
                 <span
                   key={permission}
-                  className="rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-600"
+                  className="ds-notebook-tag"
                 >
                   {permission}
                 </span>
@@ -414,13 +396,13 @@ export default function InstagramPreConnectPage() {
 
             <a
               href="/dashboard/instagram/faq"
-              className="mt-4 inline-block text-[12px] font-semibold text-brand-primary underline underline-offset-2"
+              className="mt-4 inline-block text-[12px] font-semibold text-[var(--ds-color-brand-strong)] underline underline-offset-2"
             >
               Abrir FAQ do Instagram
             </a>
           </div>
         </details>
       </div>
-    </main>
+    </ProfileSettingsPage>
   );
 }

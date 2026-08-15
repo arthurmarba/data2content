@@ -70,15 +70,9 @@ function stackItemIdentity(item: CollabStackItem | null) {
 
 // Acento do prêmio (collab) = brand creator-studio; tintas derivadas do rosa.
 const COLLAB_ACCENT = CS_BRAND_HEX;
-const COLLAB_TINT_BG = "#ffeef3";     // fundo de pill/ícone (rosa quase-branco)
-// O card senta DIRETO na página (sem palco) — a elevação é a sombra dele.
+const COLLAB_TINT_BG = "var(--ds-color-brand-soft)";
 const CARD_BG = "var(--ds-color-surface)";
-const STACK_CARD_SHADOW =
-  "0 2px 6px rgba(28,28,30,0.06), 0 16px 36px rgba(28,28,30,0.12), 0 0 0 0.5px rgba(28,28,30,0.04)";
-// O prêmio "brilha" em vez de ser emoldurado: elevação COLORIDA, sem borda —
-// borda sólida no branco lia como card-dentro-de-card.
-const COLLAB_CARD_SHADOW =
-  "0 2px 8px rgba(250,22,91,0.10), 0 18px 40px rgba(250,22,91,0.20), 0 0 0 0.5px rgba(250,22,91,0.12)";
+const STACK_CARD_SHADOW = "var(--ds-shadow-raised)";
 /** Deslocamento (px) a partir do qual soltar o card confirma a decisão. */
 const SWIPE_CONFIRM_PX = 96;
 const SWIPE_CONFIRM_VELOCITY = 600;
@@ -106,7 +100,7 @@ function XIcon({ size = 20, color = "var(--ds-color-text-muted)" }: { size?: num
   );
 }
 
-function HeartIcon({ size = 20, color = "#fff" }: { size?: number; color?: string }) {
+function HeartIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
@@ -114,7 +108,7 @@ function HeartIcon({ size = 20, color = "#fff" }: { size?: number; color?: strin
         stroke={color}
         strokeWidth="2"
         strokeLinejoin="round"
-        fill={color === "#fff" ? "none" : color}
+        fill="none"
       />
     </svg>
   );
@@ -126,7 +120,7 @@ export function MysteryAvatar({ size = 38 }: { size?: number }) {
     <div
       style={{
         width: size, height: size, borderRadius: 9999, flexShrink: 0, position: "relative",
-        overflow: "hidden", background: "linear-gradient(135deg, #ffe4ec 0%, #ffd1de 100%)",
+        overflow: "hidden", background: "var(--ds-color-brand-soft)",
         display: "grid", placeItems: "center",
       }}
     >
@@ -138,7 +132,6 @@ export function MysteryAvatar({ size = 38 }: { size?: number }) {
         style={{
           position: "absolute", inset: 0, display: "grid", placeItems: "center",
           fontSize: size * 0.42, fontWeight: 800, color: "var(--ds-color-on-brand)",
-          textShadow: "0 1px 2px rgba(216,13,72,0.45)",
         }}
       >
         ?
@@ -181,9 +174,9 @@ function DecisionStamp({
         letterSpacing: 0.4,
         textTransform: "uppercase",
         background: positive ? COLLAB_ACCENT : "var(--ds-color-neutral)",
-        color: positive ? "#fff" : TEXT_SECONDARY_HEX,
+        color: positive ? "var(--ds-color-on-brand)" : TEXT_SECONDARY_HEX,
         border: positive ? "none" : "1.5px solid var(--ds-color-line)",
-        boxShadow: positive ? "0 4px 12px rgba(250,22,91,0.32)" : "none",
+        boxShadow: "none",
       }}
     >
       {label}
@@ -259,7 +252,7 @@ export function MetaChip({ label, tone = "violet" }: { label: string; tone?: "vi
   // "violet" é o tom default histórico — hoje renderiza o neutro creator-studio.
   const palette = tone === "violet"
     ? { bg: CS_NEUTRAL_HEX, color: CS_INK_HEX }
-    : { bg: "#fff1e6", color: "#b45309" };
+    : { bg: "var(--ds-color-warning-soft)", color: "var(--ds-color-warning)" };
   return (
     <span style={{
       display: "inline-block", maxWidth: "100%", fontSize: 11, fontWeight: 600,
@@ -294,7 +287,7 @@ function MapAnchorBand({ pauta, reduceMotion }: { pauta: ContentIdeaListItem; re
   if (anchors.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid rgba(28,28,30,0.08)" }}>
+    <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid var(--ds-color-line)" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
         <span style={{
           color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
@@ -343,7 +336,7 @@ function MapAnchorBand({ pauta, reduceMotion }: { pauta: ContentIdeaListItem; re
           >
             <span style={{
               display: "inline-grid", placeItems: "center", width: 21, height: 21,
-              flexShrink: 0, borderRadius: 999, background: "rgba(250,22,91,0.10)", color: CS_BRAND_STRONG_HEX,
+              flexShrink: 0, borderRadius: 8, background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
             }} aria-hidden="true">
               <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
                 <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -502,7 +495,6 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
 
 export function DiagnosticoCollabStack({
   items,
-  isPro,
   shelfCount,
   clearedActions,
   onDecide,
@@ -752,7 +744,8 @@ export function DiagnosticoCollabStack({
               inset: 0,
               borderRadius: 22,
               background: CARD_BG,
-              boxShadow: "0 4px 14px rgba(28,28,30,0.06), 0 0 0 0.5px rgba(28,28,30,0.04)",
+              border: "1px solid var(--ds-color-line)",
+              boxShadow: STACK_CARD_SHADOW,
               zIndex: 2 - i,
               overflow: "hidden",
               pointerEvents: "none",
@@ -786,8 +779,10 @@ export function DiagnosticoCollabStack({
             inset: 0,
             borderRadius: 22,
             background: CARD_BG,
-            // O prêmio brilha (elevação roxa difusa) — sem borda/moldura.
-            boxShadow: isCollabTop ? COLLAB_CARD_SHADOW : STACK_CARD_SHADOW,
+            border: isCollabTop
+              ? "1px solid color-mix(in srgb, var(--ds-color-brand) 28%, var(--ds-color-line))"
+              : "1px solid var(--ds-color-line)",
+            boxShadow: STACK_CARD_SHADOW,
             cursor: "grab",
             touchAction: "pan-y",
             zIndex: 3,
@@ -835,7 +830,7 @@ export function DiagnosticoCollabStack({
           <div
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 48,
-              padding: "14px 0 16px", borderTop: "0.5px solid rgba(28,28,30,0.06)",
+              padding: "14px 0 16px", borderTop: "1px solid var(--ds-color-line)",
             }}
             onPointerDownCapture={(e) => e.stopPropagation()}
           >
@@ -862,7 +857,7 @@ export function DiagnosticoCollabStack({
                 style={{
                   width: 62, height: 62, borderRadius: 9999, background: COLLAB_ACCENT,
                   border: "none", display: "grid", placeItems: "center", cursor: "pointer",
-                  boxShadow: "0 6px 18px rgba(250,22,91,0.32)", fontFamily: "inherit",
+                  boxShadow: "none", fontFamily: "inherit",
                 }}
               >
                 <HeartIcon size={24} />

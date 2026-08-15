@@ -10,9 +10,7 @@ import type {
 import type { LandingCreatorHighlight } from "@/types/landing";
 import { DiagnosticoCategoryDetailView } from "./DiagnosticoCategoryDetailView";
 import { DiagnosticoDetailEmptyState } from "./DiagnosticoDetailEmptyState";
-import { DiagnosticoCardShell, DiagCardHeader } from "./DiagnosticoCardShell";
 import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
-import { CARD_P } from "./diagnosticoTokens";
 import { StableCreatorAvatar } from "./StableCreatorAvatar";
 
 /** Botão no canto direito do header — abre a tela de Comunidade, onde o paywall protege o grupo. */
@@ -21,9 +19,9 @@ function CommunityHeaderButton({ onClick }: { onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--ds-color-ink)] px-4 text-[12px] font-bold text-white transition-transform duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/60"
+      className="ds-button ds-button--secondary ds-button--small !min-h-9"
     >
-      Entrar no Grupo
+      Comunidade
     </button>
   );
 }
@@ -59,7 +57,6 @@ const EMPTY_DIRECTORY: DiagnosticoCreatorDirectoryState = {
 };
 
 export function DiagnosticoCollabsDetailView({
-  synthesis: s,
   instagramConnected = false,
   suggestionsState = EMPTY_SUGGESTIONS,
   creatorDirectory = EMPTY_DIRECTORY,
@@ -90,6 +87,7 @@ export function DiagnosticoCollabsDetailView({
       iconSlot={meta.icon}
       onClose={onClose}
       actionSlot={<CommunityHeaderButton onClick={onOpenCommunity} />}
+      presentation="notebook"
     >
       {isUpgradeRequired ? (
         <UpgradeRequiredCard onUpgrade={onUpgrade} />
@@ -113,18 +111,13 @@ export function DiagnosticoCollabsDetailView({
 
 function UpgradeRequiredCard({ onUpgrade }: { onUpgrade?: () => void }) {
   return (
-    <DiagnosticoCardShell>
-      <div className="flex flex-col gap-4 p-6">
-        <DiagCardHeader
-          iconBg="bg-teal-600"
-          iconSlot={<CollabIcon />}
-          category="Indicadas pra você"
-          catColor="text-teal-700"
-        />
+    <section className="ds-notebook-section">
+      <div className="flex flex-col gap-4">
+        <span className="ds-notebook-label">Indicadas para você</span>
         <div>
-          <p className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
+          <h2 className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
             Seu mapa tem criadores compatíveis
-          </p>
+          </h2>
           <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
             Com Pro, a D2C sugere criadores cuja narrativa complementa a sua — a partir do seu mapa confirmado, sem depender de métricas.
           </p>
@@ -133,13 +126,13 @@ function UpgradeRequiredCard({ onUpgrade }: { onUpgrade?: () => void }) {
           <button
             type="button"
             onClick={onUpgrade}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-zinc-950 py-3 text-[14px] font-semibold text-white active:bg-zinc-800"
+            className="ds-button ds-button--primary ds-button--block mt-2"
           >
             Ver criadores compatíveis
           </button>
         )}
       </div>
-    </DiagnosticoCardShell>
+    </section>
   );
 }
 
@@ -147,18 +140,13 @@ function UpgradeRequiredCard({ onUpgrade }: { onUpgrade?: () => void }) {
 
 function InstagramRequiredCard({ onConnectInstagram }: { onConnectInstagram?: () => void }) {
   return (
-    <DiagnosticoCardShell>
-      <div className="flex flex-col gap-4 p-6">
-        <DiagCardHeader
-          iconBg="bg-teal-600"
-          iconSlot={<CollabIcon />}
-          category="Indicadas pra você"
-          catColor="text-teal-700"
-        />
+    <section className="ds-notebook-section">
+      <div className="flex flex-col gap-4">
+        <span className="ds-notebook-label">Indicadas para você</span>
         <div>
-          <p className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
+          <h2 className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
             Conecte o Instagram para ver matches
-          </p>
+          </h2>
           <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
             A D2C cruza sua narrativa com performance real antes de sugerir criadores para collab.
           </p>
@@ -167,13 +155,13 @@ function InstagramRequiredCard({ onConnectInstagram }: { onConnectInstagram?: ()
           <button
             type="button"
             onClick={onConnectInstagram}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-teal-500 bg-white py-3 text-[14px] font-semibold text-teal-700 active:bg-teal-50"
+            className="ds-button ds-button--primary ds-button--block mt-2"
           >
             Conectar Instagram
           </button>
         )}
       </div>
-    </DiagnosticoCardShell>
+    </section>
   );
 }
 
@@ -192,14 +180,9 @@ function SuggestedCollabsSection({
 }) {
   if (state.status === "loading" || state.status === "idle") {
     return (
-      <DiagnosticoCardShell>
-        <div className={CARD_P}>
-          <DiagCardHeader
-            iconBg="bg-teal-600"
-            iconSlot={<CollabIcon />}
-            category="Indicadas pra você"
-            catColor="text-teal-700"
-          />
+      <section className="ds-notebook-section">
+        <div>
+          <span className="ds-notebook-label">Indicadas para você</span>
           <div className="mt-4 flex flex-col gap-4">
             {Array.from({ length: 3 }).map((_, index) => (
               <div key={index} className="flex animate-pulse items-center gap-3">
@@ -212,15 +195,15 @@ function SuggestedCollabsSection({
             ))}
           </div>
         </div>
-      </DiagnosticoCardShell>
+      </section>
     );
   }
 
   if (state.status === "error") {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-teal-50"
-        iconSlot={<CollabIcon stroke="#0d9488" size={24} />}
+        iconBg="bg-[var(--ds-color-brand-soft)]"
+        iconSlot={<CollabIcon stroke="var(--ds-color-brand-strong)" size={24} />}
         title="Não consegui carregar os matches"
         description={state.error || "As collabs dependem da leitura do Instagram. Tente novamente."}
         ctaLabel={onNewReading ? "Analisar vídeo" : undefined}
@@ -232,8 +215,8 @@ function SuggestedCollabsSection({
   if (!state.items.length) {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-teal-50"
-        iconSlot={<CollabIcon stroke="#0d9488" size={24} />}
+        iconBg="bg-[var(--ds-color-brand-soft)]"
+        iconSlot={<CollabIcon stroke="var(--ds-color-brand-strong)" size={24} />}
         title="Collabs aparecem com mais leituras"
         description="A D2C identifica criadores com narrativa compatível depois de detectar consistência no seu conteúdo — geralmente a partir da 3ª análise."
         ctaLabel="Analisar vídeo"
@@ -242,7 +225,14 @@ function SuggestedCollabsSection({
     );
   }
 
-  return <SuggestedCollabsCarousel items={state.items} initialIndex={initialIndex} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />;
+  return (
+    <section className="ds-notebook-section">
+      <span className="ds-notebook-label">Indicadas para você</span>
+      <div className="mt-3">
+        <SuggestedCollabsCarousel items={state.items} initialIndex={initialIndex} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
+      </div>
+    </section>
+  );
 }
 
 /* ── Hero carousel — Netflix featured banner style ───────────────────── */
@@ -347,7 +337,7 @@ function CollabCreatorSlide({
 
       {/* Badge top-left + contador top-right */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
-        <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/90 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--ds-color-brand)] px-2.5 py-1 text-[11px] font-bold text-[var(--ds-color-on-brand)]">
           ✦ Match narrativo
         </span>
         {total > 1 && (
@@ -441,7 +431,8 @@ export function CreatorDirectorySection({
 }) {
   if (directory.status === "loading" || directory.status === "idle") {
     return (
-      <section className="flex flex-col gap-4 mt-5">
+      <section className="ds-notebook-section flex flex-col gap-4">
+        <span className="ds-notebook-label">Comunidade D2C</span>
         <div className="-mx-5 overflow-hidden">
           <div className="flex gap-2.5 px-5">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -455,19 +446,17 @@ export function CreatorDirectorySection({
 
   if (directory.status === "error" || directory.creators.length === 0) {
     return (
-      <section className="mt-5">
-        <DiagnosticoDetailEmptyState
-          iconBg="bg-zinc-100"
-          iconSlot={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="9" cy="8" r="3" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" />
-              <path d="M3 21v-1a6 6 0 0 1 6-6" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          }
-          title="Comunidade indisponível"
-          description={directory.error || "Não foi possível carregar os criadores agora."}
-        />
-      </section>
+      <DiagnosticoDetailEmptyState
+        iconBg="bg-zinc-100"
+        iconSlot={
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="9" cy="8" r="3" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" />
+            <path d="M3 21v-1a6 6 0 0 1 6-6" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        }
+        title="Comunidade indisponível"
+        description={directory.error || "Não foi possível carregar os criadores agora."}
+      />
     );
   }
 
@@ -478,7 +467,8 @@ export function CreatorDirectorySection({
   const groups = groupCreatorsByNiche(unmatched);
 
   return (
-    <section className="flex flex-col gap-7 mt-6">
+    <section className="ds-notebook-section !mb-0 flex flex-col gap-7">
+      <span className="ds-notebook-label">Comunidade D2C</span>
       {groups.map(([niche, creators]) => (
         <DirectoryGroup key={niche} niche={niche} creators={creators} matchedSlugs={matchedSlugs} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
       ))}
@@ -584,11 +574,11 @@ function DirectoryCreatorCard({
         )}
       </div>
 
-      {/* Badge de match — anel + chip teal */}
+      {/* Badge de match — usa o acento canônico do Perfil. */}
       {isMatched && (
         <>
-          <div className="absolute inset-0 rounded-2xl ring-2 ring-teal-400 ring-inset pointer-events-none" />
-          <span className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full bg-teal-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[var(--ds-color-brand)] ring-inset" />
+          <span className="absolute right-1.5 top-1.5 flex items-center justify-center rounded-md bg-[var(--ds-color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--ds-color-on-brand)]">
             ✦
           </span>
         </>

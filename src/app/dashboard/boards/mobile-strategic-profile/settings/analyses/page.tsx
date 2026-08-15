@@ -4,9 +4,9 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { ArrowUpRight, ScanSearch } from "lucide-react";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 import { listCreatorVideoNarrativeDiagnosesForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import type { VideoNarrativeEngagementPotentialVerdict } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
-import { AnalysisSettingsHeader } from "./AnalysisSettingsHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +39,8 @@ export default async function ContentAnalysisHistoryPage() {
   const analyses = readings.filter((reading) => reading.analysisVersion === "v2" || Boolean(reading.contentPotentialScan));
 
   return (
-    <main className="min-h-dvh bg-white text-zinc-950">
-      <AnalysisSettingsHeader title="Últimas análises" backHref={PROFILE_HREF} />
-      <div className="mx-auto max-w-2xl px-5 pb-16 pt-8">
+    <ProfileSettingsPage title="Últimas análises" backHref={PROFILE_HREF}>
+      <section className="ds-notebook-section ds-notebook-section--first">
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Seu arquivo</p>
         <h2 className="mt-2 max-w-[15ch] font-display text-[2rem] font-bold leading-[0.98] tracking-[-0.055em]">
           Conteúdos que você já analisou.
@@ -49,22 +48,23 @@ export default async function ContentAnalysisHistoryPage() {
         <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500">
           Guardamos o relatório e uma capa leve. O vídeo enviado é apagado após a análise.
         </p>
+      </section>
 
-        {analyses.length === 0 ? (
-          <section className="mt-12 py-10 text-center">
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-zinc-100 text-zinc-600">
+      {analyses.length === 0 ? (
+          <section className="ds-notebook-section py-10 text-center">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-zinc-100 text-zinc-600">
               <ScanSearch className="h-5 w-5" strokeWidth={1.7} />
             </span>
             <h3 className="mt-4 font-display text-lg font-bold tracking-[-0.03em]">Nenhuma análise por aqui</h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
               Use o botão + no Perfil para analisar seu primeiro conteúdo.
             </p>
-            <Link href={PROFILE_HREF} className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-zinc-950 px-5 text-sm font-bold text-white">
+            <Link href={PROFILE_HREF} className="ds-button ds-button--secondary mt-5">
               Voltar ao Perfil
             </Link>
           </section>
         ) : (
-          <div className="mt-9 space-y-3">
+          <section className="ds-notebook-section overflow-hidden !p-0" aria-label="Arquivo de análises">
             {analyses.map((reading) => {
               const scan = reading.contentPotentialScan;
               const fallbackVerdict: VideoNarrativeEngagementPotentialVerdict = scan?.band === "strong"
@@ -80,9 +80,9 @@ export default async function ContentAnalysisHistoryPage() {
                 <Link
                   key={reading.diagnosisId}
                   href={detailHref}
-                  className="group grid min-h-[104px] grid-cols-[78px_1fr_auto] items-center gap-4 rounded-2xl bg-zinc-50 p-3 transition active:scale-[0.995] hover:bg-zinc-100"
+                  className="group grid min-h-[104px] grid-cols-[78px_1fr_auto] items-center gap-4 border-t border-[var(--ds-color-line)] p-3 transition-colors first:border-t-0 hover:bg-[var(--ds-color-neutral)] active:bg-[var(--ds-color-neutral)]"
                 >
-                  <div className="relative h-20 w-[78px] overflow-hidden rounded-xl bg-zinc-200">
+                  <div className="relative h-20 w-[78px] overflow-hidden rounded-lg bg-[var(--ds-color-neutral)]">
                     {reading.thumbnailStatus === "available" ? (
                       <Image
                         src={`/api/dashboard/mobile-strategic-profile/analyses/${encodeURIComponent(reading.diagnosisId)}/thumbnail`}
@@ -103,13 +103,12 @@ export default async function ContentAnalysisHistoryPage() {
                       {scan?.engagementPotential?.summary ?? reading.videoReading.rememberedAs}
                     </p>
                   </div>
-                  <ArrowUpRight className="h-4 w-4 text-zinc-300 transition group-hover:text-zinc-600" strokeWidth={1.8} />
+                  <ArrowUpRight className="h-4 w-4 text-[var(--ds-color-text-muted)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={1.8} />
                 </Link>
               );
             })}
-          </div>
+          </section>
         )}
-      </div>
-    </main>
+    </ProfileSettingsPage>
   );
 }

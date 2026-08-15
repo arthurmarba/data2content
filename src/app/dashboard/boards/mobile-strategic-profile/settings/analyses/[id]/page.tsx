@@ -2,9 +2,9 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { ContentAnalysisReport } from "@/app/dashboard/boards/components/videoUpload/appPreview/ContentAnalysisReport";
+import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 import { buildAnalysisConfirmationDataFromReading } from "@/app/dashboard/boards/components/videoUpload/appPreview/mobileStrategicProfileAnalysisConfirmationClient";
 import { getCreatorVideoNarrativeDiagnosisForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
-import { AnalysisSettingsHeader } from "../AnalysisSettingsHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +32,8 @@ export default async function ContentAnalysisDetailPage({ params }: Props) {
 
   const data = buildAnalysisConfirmationDataFromReading(reading);
   return (
-    <main className="min-h-dvh bg-white text-zinc-950">
-      <AnalysisSettingsHeader title="Análise de conteúdo" backHref={HISTORY_HREF} />
-      <div className="mx-auto max-w-2xl px-5 pb-16 pt-5">
+    <ProfileSettingsPage title="Análise de conteúdo" backHref={HISTORY_HREF}>
+      <section className="ds-notebook-section ds-notebook-section--first overflow-hidden">
         <ContentAnalysisReport
           data={data}
           thumbnailSrc={reading.thumbnailStatus === "available"
@@ -42,7 +41,7 @@ export default async function ContentAnalysisDetailPage({ params }: Props) {
             : null}
           analyzedAt={formatDate(reading.analyzedAt ?? reading.createdAt)}
         />
-      </div>
-    </main>
+      </section>
+    </ProfileSettingsPage>
   );
 }

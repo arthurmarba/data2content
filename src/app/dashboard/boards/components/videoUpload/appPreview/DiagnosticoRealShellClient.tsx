@@ -240,6 +240,7 @@ export function DiagnosticoRealShellClient({
   const searchParams = useSearchParams();
   const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : MOBILE_PROFILE_ROUTE;
   const requestedTab = searchParams.get("tab");
+  const handledProfileActionRef = useRef<string | null>(null);
   const tabScrollContainerRef = useRef<HTMLDivElement>(null);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   // Aba ativa da tab bar mobile (Perfil/Collabs). "+" não é aba — abre o upload.
@@ -767,7 +768,7 @@ export function DiagnosticoRealShellClient({
     if (slug) {
       setMediaKitSheetSlug(slug);
     } else {
-      router.push(MOBILE_MEDIA_KIT_ROUTE);
+      router.push(`${MOBILE_MEDIA_KIT_ROUTE}?from=mobile-strategic-profile`);
     }
   }, [hasProAccess, data.instagramConnected, data.userInfo.mediaKitSlug, profileRoute, router, surface]);
 
@@ -1909,6 +1910,21 @@ export function DiagnosticoRealShellClient({
     });
     router.push(MOBILE_STRATEGIC_MAP_ROUTE);
   }, [data.accessState, data.instagramConnected, hasProAccess, router]);
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if ((action !== "analyze" && action !== "north") || handledProfileActionRef.current === action) return;
+
+    handledProfileActionRef.current = action;
+    if (action === "analyze") handleNewReading();
+    if (action === "north") handleOpenNorte();
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("action");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${profileRoute}?${nextQuery}` : profileRoute, { scroll: false });
+  }, [handleNewReading, handleOpenNorte, profileRoute, router, searchParams]);
+
   const handleConnectWhatsApp = useCallback(() => setWhatsAppSheetOpen(true), []);
   const handleGeneratePautasForTerritory = useCallback((territoryLabel: string) => {
     // Ponte leitura → criação: semeia a geração pelo território e leva o

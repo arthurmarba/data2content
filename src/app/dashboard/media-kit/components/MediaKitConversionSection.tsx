@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
   Instagram, 
-  Sparkles, 
   CheckCircle2, 
   UserPlus,
   Rocket
@@ -125,54 +124,33 @@ export default function MediaKitConversionSection() {
   const activeContent = content[currentState];
 
   return (
-    <div className="absolute inset-0 z-50 overflow-hidden rounded-[2.5rem] bg-white/10 backdrop-blur-[6px]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-7 top-6">
-          <div className="mx-auto max-w-[348px] px-2 opacity-70 blur-[5px]">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-24 w-24 rounded-full border border-white/80 bg-zinc-200/90 shadow-[0_16px_30px_rgba(24,24,27,0.05)]" />
-              <div className="mt-5 h-6 w-36 rounded-full bg-zinc-200/85" />
-              <div className="mt-2 h-3 w-20 rounded-full bg-zinc-100/90" />
-              <div className="mt-5 h-12 w-full rounded-[1.6rem] border border-white/85 bg-white/72 shadow-[0_10px_24px_rgba(24,24,27,0.04)]" />
-              <div className="mt-6 grid w-full grid-cols-2 gap-3">
-                <div className="h-24 rounded-[1.35rem] border border-white/85 bg-white/75 shadow-[0_10px_24px_rgba(24,24,27,0.04)]" />
-                <div className="h-24 rounded-[1.35rem] border border-white/85 bg-white/75 shadow-[0_10px_24px_rgba(24,24,27,0.04)]" />
-              </div>
-              <div className="mt-6 grid w-full grid-cols-3 gap-3">
-                <div className="h-18 rounded-[1.1rem] border border-white/80 bg-white/72" />
-                <div className="h-18 rounded-[1.1rem] border border-white/80 bg-white/72" />
-                <div className="h-18 rounded-[1.1rem] border border-white/80 bg-white/72" />
-              </div>
-            </div>
-          </div>
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.02))]" />
-        </div>
-      </div>
-
-      <div className="sticky top-12 md:top-20 mx-auto flex w-full max-w-xl flex-col items-center px-6 pt-10 md:pt-16 text-center">
-        <div className="mb-10 flex w-full max-w-xs items-center justify-between gap-2">
+    <div className="absolute inset-0 z-50 overflow-y-auto bg-[var(--ds-color-neutral)]">
+      <div className="mx-auto w-full max-w-xl px-4 pb-10 pt-4 sm:px-5 sm:pt-6">
+        <section className="ds-notebook-section ds-notebook-section--first">
+          <p className="ds-notebook-label">Preparar Mídia Kit</p>
+          <div className="mt-4 flex w-full items-start justify-between gap-2" aria-label="Etapas do Mídia Kit">
           {steps.map((step, idx) => (
             <React.Fragment key={step.id}>
               <div className="flex flex-col items-center gap-1.5">
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-300 ${
                     step.completed
-                      ? "bg-emerald-500 text-white"
+                        ? "bg-[var(--ds-color-success-soft)] text-[var(--ds-color-success)]"
                       : step.active
-                        ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200"
-                        : "bg-zinc-100 text-zinc-400"
+                          ? "bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]"
+                          : "bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-muted)]"
                   }`}
                 >
                   {step.completed ? <CheckCircle2 className="h-5 w-5" /> : <step.icon className="h-5 w-5" />}
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${step.active ? "text-zinc-900" : "text-zinc-400"}`}>
+                  <span className={`text-[10px] font-semibold ${step.active ? "text-[var(--ds-color-ink)]" : "text-[var(--ds-color-text-muted)]"}`}>
                   {step.label}
                 </span>
               </div>
-              {idx < steps.length - 1 && <div className="mb-4 h-px flex-1 bg-zinc-200/50" />}
+                {idx < steps.length - 1 && <div className="mt-[1.1rem] h-px flex-1 bg-[var(--ds-color-line)]" />}
             </React.Fragment>
           ))}
-        </div>
+          </div>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -180,31 +158,30 @@ export default function MediaKitConversionSection() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
-            className="-mt-2 rounded-3xl border border-white/80 bg-white/80 p-8 shadow-2xl backdrop-blur-xl"
+              className="mt-8 border-t border-[var(--ds-color-line)] pt-7"
           >
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-brand-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary ring-1 ring-inset ring-brand-primary/10">
-              <Sparkles className="h-3.5 w-3.5" />
+              <p className="ds-notebook-label mb-3 text-[var(--ds-color-brand-strong)]">
               {activeContent.badge}
-            </div>
+              </p>
 
-            <h2 className="text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl">
+              <h2 className="max-w-[18ch] font-display text-[1.8rem] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--ds-color-ink)] sm:text-[2rem]">
               {activeContent.title}
             </h2>
-            <p className="mx-auto mt-4 max-w-[300px] text-[15px] leading-relaxed text-zinc-500">
+              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[var(--ds-color-text-secondary)]">
               {activeContent.description}
             </p>
 
             <button
+                type="button"
               onClick={handleAction}
-              className="group relative mt-8 inline-flex items-center justify-center gap-2 overflow-hidden rounded-full bg-zinc-950 px-10 py-4 text-sm font-bold text-white transition-all hover:bg-black hover:shadow-2xl active:scale-95"
+                className="ds-button ds-button--primary ds-button--block group mt-8"
             >
-              <span className="relative z-10">{activeContent.cta}</span>
-              <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              <div className="absolute inset-0 -z-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+                <span>{activeContent.cta}</span>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
-
           </motion.div>
         </AnimatePresence>
+        </section>
       </div>
     </div>
   );

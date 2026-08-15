@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -17,6 +16,7 @@ import ChangePlanCard from "@/app/dashboard/billing/ChangePlanCard";
 import CancelSubscriptionModal from "@/components/billing/CancelSubscriptionModal";
 import SkeletonRow from "@/components/ui/SkeletonRow";
 import toast from "react-hot-toast";
+import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,11 +55,11 @@ function fmtDate(d: Date | null): string {
 function ChangePlanSheet({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-zinc-950/35 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
+      className="ds-scrim fixed inset-0 z-[320] flex items-end justify-center px-0 pb-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <section
-        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.18)] animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet max-h-[90dvh] animate-in overflow-y-auto slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -67,15 +67,15 @@ function ChangePlanSheet({ onClose }: { onClose: () => void }) {
       >
         {/* drag handle */}
         <div className="mb-2 flex justify-center pt-3" aria-hidden="true">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
         <div className="flex items-center justify-between px-5 pb-3 pt-1">
-          <p className="text-[16px] font-bold tracking-tight text-zinc-900">Mudar de plano</p>
+          <p className="font-display text-[1.2rem] font-bold tracking-[-0.03em] text-[var(--ds-color-ink)]">Mudar de plano</p>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200"
+            className="ds-icon-button ds-icon-button--ghost"
           >
             ✕
           </button>
@@ -108,20 +108,21 @@ function BillingActionRow({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`flex w-full items-center gap-3 rounded-[20px] bg-white px-5 py-4 text-left
-        shadow-[0_1px_4px_rgba(28,28,30,0.08)] transition active:scale-[0.98]
-        disabled:opacity-60 ${destructive ? "text-rose-600" : "text-zinc-800"}`}
+      className={`ds-notebook-row disabled:opacity-60 ${destructive ? "text-[var(--ds-color-danger)]" : ""}`}
     >
       <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl
-          ${destructive ? "bg-rose-50" : "bg-zinc-100"}`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+          destructive
+            ? "bg-[var(--ds-color-danger-soft)] text-[var(--ds-color-danger)]"
+            : "bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-secondary)]"
+        }`}
       >
         {icon}
       </span>
       <span className="flex-1 text-[14px] font-semibold">
         {loading ? "Aguarde..." : label}
       </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" strokeWidth={2} />
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ds-color-text-muted)]" strokeWidth={2} />
     </button>
   );
 }
@@ -216,18 +217,18 @@ export function BillingMobileShell() {
 
   // ── Plan badge ────────────────────────────────────────────────────────────
   const planBadge = isPro
-    ? { label: "Pro", bg: "bg-emerald-50", text: "text-emerald-800" }
-    : { label: "Free", bg: "bg-amber-50", text: "text-amber-800" };
+    ? { label: "Pro", className: "ds-badge--success" }
+    : { label: "Free", className: "ds-badge--neutral" };
 
   // ── Status chip ───────────────────────────────────────────────────────────
   const statusChip = (() => {
-    if (isActive && !showReactivate) return { label: "Ativo", bg: "bg-emerald-50", text: "text-emerald-700" };
-    if (isTrialing)                  return { label: "Plano Pro ativo", bg: "bg-blue-50", text: "text-blue-700" };
-    if (showReactivate)              return { label: "Cancelamento agendado", bg: "bg-rose-50", text: "text-rose-700" };
-    if (isPastDue || isUnpaid)       return { label: "Pagamento pendente", bg: "bg-red-50", text: "text-red-700" };
-    if (isPending)                   return { label: "Checkout pendente", bg: "bg-red-50", text: "text-red-700" };
-    if (isCanceled)                  return { label: "Cancelado", bg: "bg-zinc-100", text: "text-zinc-500" };
-    return                                  { label: "Sem plano", bg: "bg-zinc-100", text: "text-zinc-500" };
+    if (isActive && !showReactivate) return { label: "Ativo", className: "ds-badge--success" };
+    if (isTrialing)                  return { label: "Plano Pro ativo", className: "ds-badge--success" };
+    if (showReactivate)              return { label: "Cancelamento agendado", className: "ds-badge--danger" };
+    if (isPastDue || isUnpaid)       return { label: "Pagamento pendente", className: "ds-badge--warning" };
+    if (isPending)                   return { label: "Checkout pendente", className: "ds-badge--warning" };
+    if (isCanceled)                  return { label: "Cancelado", className: "ds-badge--neutral" };
+    return                                  { label: "Sem plano", className: "ds-badge--neutral" };
   })();
 
   // ── Calm status subtitle (1 fact per state) ───────────────────────────────
@@ -332,69 +333,54 @@ export function BillingMobileShell() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div
-      className="min-h-screen bg-[#F4F4F8]"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    <ProfileSettingsPage
+      title="Seu plano"
+      onBack={() => router.back()}
+      backLabel="Voltar ao Perfil"
+      contentClassName="max-w-2xl"
+      action={
+        !isLoading ? (
+          <span className={`ds-badge ${planBadge.className}`}>{planBadge.label}</span>
+        ) : null
+      }
     >
-      {/* ── Sticky header ── */}
-      <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#F4F4F8]/95 px-4 pb-3 pt-3 backdrop-blur-sm">
-        <button
-          type="button"
-          aria-label="Voltar"
-          onClick={() => router.back()}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-zinc-600 shadow-sm transition active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-        </button>
-        <h1 className="flex-1 text-[17px] font-bold tracking-tight text-zinc-900">
-          Seu plano
-        </h1>
-        {!isLoading && (
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${planBadge.bg} ${planBadge.text}`}
-          >
-            {planBadge.label}
-          </span>
-        )}
-      </header>
+      <div className="space-y-3">
 
-      {/* ── Content ── */}
-      <div className="space-y-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+2.5rem)] pt-2">
-
-        {/* Status card */}
-        <div className="rounded-[20px] bg-white p-5 shadow-[0_1px_4px_rgba(28,28,30,0.08)]">
+        <section className="ds-notebook-section ds-notebook-section--first">
           {isLoading ? (
             <SkeletonRow />
           ) : error ? (
-            <p className="text-[13px] text-zinc-400">Erro ao carregar assinatura.</p>
+            <div className="ds-status-panel ds-status-panel--danger" role="status">
+              <p className="text-[13px] font-medium">Erro ao carregar assinatura.</p>
+            </div>
           ) : (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-zinc-900">
+                  <p className="ds-section-label">Assinatura</p>
+                  <h2 className="mt-2 font-display text-[1.35rem] font-bold tracking-[-0.035em] text-[var(--ds-color-ink)]">
                     {subscription?.planName ? `Plano ${subscription.planName}` : "Plano"}
-                  </p>
+                  </h2>
                   {statusSubtitle && (
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">
+                    <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-[var(--ds-color-text-secondary)]">
                       {statusSubtitle}
                     </p>
                   )}
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusChip.bg} ${statusChip.text}`}
-                >
+                <span className={`ds-badge shrink-0 ${statusChip.className}`}>
                   {statusChip.label}
                 </span>
               </div>
 
               {subscription?.paymentMethodLast4 && (
-                <p className="mt-3 text-[12px] text-zinc-400">
-                  Cartão **** {subscription.paymentMethodLast4}
-                </p>
+                <div className="mt-4 flex items-center gap-2 border-t border-[var(--ds-color-line)] pt-4 text-[12px] text-[var(--ds-color-text-muted)]">
+                  <CreditCard className="h-4 w-4" aria-hidden="true" />
+                  <span>Cartão final {subscription.paymentMethodLast4}</span>
+                </div>
               )}
             </>
           )}
-        </div>
+        </section>
 
         {/* ── Actions (1 primary per state) ── */}
         {!isLoading && !error && (
@@ -405,7 +391,7 @@ export function BillingMobileShell() {
                 <button
                   type="button"
                   onClick={() => openPaywallModal({ context: "narrative_map", source: "billing_settings_cta" })}
-                  className="flex min-h-[52px] w-full items-center justify-center rounded-[20px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-3 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.98]"
+                  className="ds-button ds-button--primary w-full"
                 >
                   {isCanceled ? "Ativar Pro novamente →" : "Ativar plano Pro →"}
                 </button>
@@ -415,11 +401,11 @@ export function BillingMobileShell() {
             {/* Cancelamento agendado — reativar */}
             {showReactivate && (
               <button
-                type="button"
-                onClick={reactivate}
-                disabled={reactivating}
-                className="flex min-h-[52px] w-full items-center justify-center rounded-[20px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-3 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
-              >
+                  type="button"
+                  onClick={reactivate}
+                  disabled={reactivating}
+                  className="ds-button ds-button--primary w-full disabled:opacity-60"
+                >
                 {reactivating ? "Reativando..." : "Reativar assinatura"}
               </button>
             )}
@@ -427,18 +413,19 @@ export function BillingMobileShell() {
             {/* Checkout pendente — concluir */}
             {canResumeCheckout && (
               <button
-                type="button"
-                onClick={resumeCheckout}
-                disabled={resuming}
-                className="flex min-h-[52px] w-full items-center justify-center rounded-[20px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-4 py-3 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
-              >
+                  type="button"
+                  onClick={resumeCheckout}
+                  disabled={resuming}
+                  className="ds-button ds-button--primary w-full disabled:opacity-60"
+                >
                 {resuming ? "Continuando..." : "Concluir checkout →"}
               </button>
             )}
 
             {/* Ações secundárias — portal, mudar plano, cancelar */}
             {(showPortal || canChangePlan || canAbortCheckout || canCancel) && (
-              <div className="space-y-2">
+              <section className="ds-notebook-section !py-2">
+                <p className="ds-section-label px-1 pb-2 pt-2">Gerenciar plano</p>
                 {showPortal && (
                   <BillingActionRow
                     label={portalLabel}
@@ -472,35 +459,35 @@ export function BillingMobileShell() {
                     destructive
                   />
                 )}
-              </div>
+              </section>
             )}
           </>
         )}
 
         {/* ── Encerrar conta (colapsável) ── */}
-        <div className="overflow-hidden rounded-[20px] bg-white shadow-[0_1px_4px_rgba(28,28,30,0.08)]">
+        <section className="ds-notebook-section overflow-hidden !p-0">
           <button
             type="button"
             onClick={() => setShowAccount((v) => !v)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
+            className="flex min-h-14 w-full items-center justify-between px-5 py-4 text-left"
             aria-expanded={showAccount}
           >
-            <span className="text-[14px] font-semibold text-zinc-500">Encerrar conta</span>
+            <span className="text-[14px] font-semibold text-[var(--ds-color-text-secondary)]">Encerrar conta</span>
             {showAccount ? (
-              <ChevronUp className="h-4 w-4 text-zinc-300" strokeWidth={2} />
+              <ChevronUp className="h-4 w-4 text-[var(--ds-color-text-muted)]" strokeWidth={2} />
             ) : (
-              <ChevronDown className="h-4 w-4 text-zinc-300" strokeWidth={2} />
+              <ChevronDown className="h-4 w-4 text-[var(--ds-color-text-muted)]" strokeWidth={2} />
             )}
           </button>
           {showAccount && (
-            <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
+            <div className="border-t border-[var(--ds-color-line)] px-5 pb-5 pt-4">
               <DeleteAccountSection
                 hideHeading
                 onManageSubscription={() => setShowChangePlan(true)}
               />
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       {/* ── Bottom sheet — mudar de plano ── */}
@@ -516,6 +503,6 @@ export function BillingMobileShell() {
         }}
         currentPeriodEnd={subscription?.currentPeriodEnd}
       />
-    </div>
+    </ProfileSettingsPage>
   );
 }

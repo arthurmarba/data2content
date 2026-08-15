@@ -3,6 +3,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import OnboardingSurveyStepper from "@/app/landing/components/OnboardingSurveyStepper";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 
 type SurveyModalProps = {
   open: boolean;
@@ -25,30 +26,35 @@ export default function SurveyModal({ open, onClose, onSaved }: SurveyModalProps
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-900/75 py-6 px-4 backdrop-blur-sm"
+      className={`d2c-mobile-app ds-notebook ds-scrim fixed inset-0 z-[300] flex items-end justify-center overflow-y-auto sm:items-center sm:px-4 sm:py-6 ${d2cFontVariables}`}
       role="dialog"
       aria-modal="true"
       aria-label="Pesquisa de personalização"
       onClick={onClose}
     >
       <div
-        className="relative z-[210] mx-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white text-base shadow-[0_24px_80px_rgba(15,23,42,0.2)] max-h-[90vh]"
+        className="relative z-[310] mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top,0px)-0.75rem)] w-full max-w-5xl flex-col overflow-hidden rounded-t-[var(--ds-radius-xl)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] text-base shadow-[var(--ds-shadow-overlay)] sm:max-h-[90dvh] sm:rounded-[var(--ds-radius-xl)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-end border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-3 border-b border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]/95 px-4 backdrop-blur">
+          <div className="min-w-0 flex-1">
+            <p className="ds-notebook-label">Configurações do Perfil</p>
+            <h2 className="font-display text-[1.2rem] font-bold tracking-[-0.03em] text-[var(--ds-color-ink)]">Completar meu perfil</h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            className="ds-icon-button ds-icon-button--ghost"
             aria-label="Fechar pesquisa"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
 
-        <div className="dashboard-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-8">
+        <div className="ds-profile-survey dashboard-scrollbar flex-1 overflow-y-auto bg-[var(--ds-color-neutral)] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 sm:px-8 sm:pt-6">
           <OnboardingSurveyStepper
             metrics={null}
+            presentation="profile"
             onSaved={() => {
               onSaved?.();
               onClose();

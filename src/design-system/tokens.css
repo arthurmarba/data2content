@@ -438,6 +438,82 @@
 
 .ds-notebook .ds-icon-button:active { background: var(--ds-color-neutral); }
 
+/* Pesquisa extensa reaberta por Configurações: conserva o formulário e sua
+   semântica, mas remove a camada "landing/glass" dentro do app. */
+.ds-profile-survey [data-presentation="profile"] [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] .border-brand-glass,
+.ds-profile-survey [data-presentation="profile"] [class*="border-brand-soft"] {
+  border-color: var(--ds-color-line) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] .text-brand-dark {
+  color: var(--ds-color-ink) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] .text-brand-text-secondary {
+  color: var(--ds-color-text-muted) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] .text-brand-primary {
+  color: var(--ds-color-brand-strong) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] :where(input, textarea) {
+  border-color: var(--ds-color-line-strong) !important;
+  border-radius: 0.5rem !important;
+  background: var(--ds-color-surface) !important;
+  color: var(--ds-color-ink) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] :where(button[role="radio"], button[role="checkbox"]) {
+  border-color: var(--ds-color-line) !important;
+  border-radius: 0.5rem !important;
+  background: var(--ds-color-surface) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] :where(button[role="radio"], button[role="checkbox"])[aria-checked="true"] {
+  border-color: color-mix(in srgb, var(--ds-color-brand) 35%, var(--ds-color-line)) !important;
+  background: var(--ds-color-brand-soft) !important;
+  color: var(--ds-color-brand-strong) !important;
+}
+
+.ds-profile-survey [data-presentation="profile"] [class*="rounded-3xl"] {
+  border-radius: var(--ds-radius-md) !important;
+}
+
+/* Documentos legais são destinos externos do menu de conta. A densidade de
+   leitura é própria, mas tipografia, tinta, linhas e links continuam no Perfil. */
+.ds-legal-document :where(.prose) {
+  color: var(--ds-color-text-secondary) !important;
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+.ds-legal-document :where(h2, h3) {
+  border-color: var(--ds-color-line) !important;
+  color: var(--ds-color-ink) !important;
+  font-family: var(--ds-font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em;
+}
+
+.ds-legal-document :where(p, li, td, th) {
+  color: var(--ds-color-text-secondary) !important;
+}
+
+.ds-legal-document :where(a) {
+  color: var(--ds-color-brand-strong) !important;
+  text-decoration-color: color-mix(in srgb, var(--ds-color-brand) 45%, transparent);
+  text-underline-offset: 0.16em;
+}
+
+.ds-legal-document :where(table, th, td) {
+  border-color: var(--ds-color-line) !important;
+}
+
 .ds-chip {
   display: inline-flex;
   min-height: 2rem;

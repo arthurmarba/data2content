@@ -2,6 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
+import { d2cFontVariables } from '@/app/fonts/d2cFonts';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -10,10 +11,10 @@ export default function PrivacyPolicyPage() {
         <title>Política de Privacidade - Data2Content</title>
         <meta name="description" content="Política de Privacidade do Data2Content, detalhando como coletamos, usamos e protegemos seus dados." />
       </Head>
-      <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto bg-white p-8 sm:p-10 md:p-12 shadow-lg rounded-2xl">
-          <header className="mb-10 text-center">
-            <Link href="/" className="inline-flex items-center gap-2 mb-4 font-bold text-3xl text-brand-dark">
+      <div className={`d2c-mobile-app ds-notebook min-h-screen bg-[var(--ds-color-neutral)] px-4 py-6 sm:px-6 sm:py-10 lg:px-8 ${d2cFontVariables}`}>
+        <article className="ds-legal-document ds-notebook-section mx-auto max-w-3xl p-6 sm:p-8 md:p-10">
+          <header className="mb-10 border-b border-[var(--ds-color-line)] pb-6">
+            <Link href="/" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-[var(--ds-color-ink)]">
               <span className="relative inline-block h-8 w-8 overflow-hidden align-middle">
                 <Image
                   src="/images/Colorido-Simbolo.png"
@@ -25,10 +26,10 @@ export default function PrivacyPolicyPage() {
               </span>
               <span>Data2Content</span>
             </Link>
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-brand-dark tracking-tight">
+            <h1 className="font-display text-3xl font-bold leading-none tracking-[-0.04em] text-[var(--ds-color-ink)] sm:text-4xl">
               Política de Privacidade
             </h1>
-            <p className="mt-4 text-md text-gray-500">
+            <p className="mt-4 text-sm text-[var(--ds-color-text-muted)]">
               <strong>Última Atualização:</strong> 21 de julho de 2026
             </p>
           </header>
@@ -311,7 +312,7 @@ export default function PrivacyPolicyPage() {
             </p>
 
           </div>
-        </div>
+        </article>
       </div>
     </>
   );

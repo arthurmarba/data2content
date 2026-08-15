@@ -24,11 +24,15 @@ const MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE = "/dashboard/boards/mobile-strateg
 const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/dashboard", "/dashboard/home"]);
 const WEEKLY_MEETING_ROUTE = "/reuniao";
 const RECORDED_MEETINGS_ROUTE = "/reunioes-gravadas";
+const STRATEGIC_MAP_ROUTE = "/dashboard/strategic-map";
+const COLLABS_ROUTE = "/dashboard/collabs";
 // Destinos próprios acessados a partir do Perfil. Eles têm navegação de volta
 // no conteúdo e não devem herdar tab bar ou widget de ativação do dashboard.
 const LEGACY_CHROME_FREE_ROUTES = new Set([
   WEEKLY_MEETING_ROUTE,
   RECORDED_MEETINGS_ROUTE,
+  STRATEGIC_MAP_ROUTE,
+  COLLABS_ROUTE,
 ]);
 
 export function shouldSuppressDashboardLegacyChrome(pathname?: string | null) {

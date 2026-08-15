@@ -12,6 +12,8 @@ type SurveyErrors = Partial<Record<keyof CreatorProfileExtended, string>>;
 type OnboardingSurveyStepperProps = {
   metrics?: LandingCommunityMetrics | null;
   onSaved?: () => void;
+  /** Mantém o formulário, mas usa a hierarquia compacta do app quando aberto pelas configurações. */
+  presentation?: "landing" | "profile";
 };
 
 const LOCAL_STORAGE_KEY = "d2c_creator_profile_extended";
@@ -619,7 +621,7 @@ function AnswerSummary({ data }: { data: CreatorProfileExtended }) {
   );
 }
 
-export default function OnboardingSurveyStepper({ metrics, onSaved }: OnboardingSurveyStepperProps) {
+export default function OnboardingSurveyStepper({ metrics, onSaved, presentation = "landing" }: OnboardingSurveyStepperProps) {
   const { profile, setProfile, persist, hasHydrated } = useLocalSurveyState();
   const { profile: remoteProfile, isLoading: isLoadingRemote, mutate } = useCreatorProfileExtended();
   const [currentStep, setCurrentStep] = React.useState<SurveyStepId>("about");
@@ -1144,7 +1146,7 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
 
   if (!hasHydrated) {
     return (
-      <div className="mt-10 w-full max-w-5xl rounded-3xl border border-brand-glass bg-white/70 p-6 text-brand-text-secondary shadow-glass-md">
+      <div className={presentation === "profile" ? "ds-notebook-section w-full max-w-5xl text-[var(--ds-color-text-secondary)]" : "mt-10 w-full max-w-5xl rounded-3xl border border-brand-glass bg-white/70 p-6 text-brand-text-secondary shadow-glass-md"}>
         Carregando sua experiência personalizada...
       </div>
     );
@@ -1152,15 +1154,17 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
 
   if (isLoadingRemote && !remoteProfile) {
     return (
-      <div className="mt-10 w-full max-w-5xl rounded-3xl border border-brand-glass bg-white/70 p-6 text-brand-text-secondary shadow-glass-md">
+      <div className={presentation === "profile" ? "ds-notebook-section w-full max-w-5xl text-[var(--ds-color-text-secondary)]" : "mt-10 w-full max-w-5xl rounded-3xl border border-brand-glass bg-white/70 p-6 text-brand-text-secondary shadow-glass-md"}>
         Buscando seu perfil para personalizar o onboarding...
       </div>
     );
   }
 
   return (
-    <div id="etapa-5-pesquisa" className="mt-10 w-full max-w-5xl space-y-8">
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-primary">Etapa 5 · Pesquisa</p>
+    <div id="etapa-5-pesquisa" data-presentation={presentation} className={`${presentation === "profile" ? "mt-0" : "mt-10"} w-full max-w-5xl space-y-8`}>
+      <p className={presentation === "profile" ? "ds-notebook-label" : "text-sm font-semibold uppercase tracking-[0.18em] text-brand-primary"}>
+        {presentation === "profile" ? "Perfil estratégico" : "Etapa 5 · Pesquisa"}
+      </p>
       <MetricsContextBar metrics={metrics} />
 
       <div className="space-y-3">
@@ -1179,11 +1183,11 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
         </div>
       </div>
 
-      <div className="mt-12 space-y-16 rounded-3xl border border-brand-glass bg-white/90 px-3 py-4 shadow-glass-md sm:space-y-18 sm:px-7 sm:py-8">
+      <div className={presentation === "profile" ? "ds-notebook-section mt-6 space-y-16 px-4 py-5 sm:space-y-18 sm:px-7 sm:py-8" : "mt-12 space-y-16 rounded-3xl border border-brand-glass bg-white/90 px-3 py-4 shadow-glass-md sm:space-y-18 sm:px-7 sm:py-8"}>
         {renderStep()}
       </div>
 
-      <div className="mt-12 flex flex-col gap-5 border-t border-brand-glass pt-7 sm:flex-row sm:items-center sm:justify-between">
+      <div className={`${presentation === "profile" ? "border-[var(--ds-color-line)]" : "border-brand-glass"} mt-12 flex flex-col gap-5 border-t pt-7 sm:flex-row sm:items-center sm:justify-between`}>
         <button
           type="button"
           onClick={skipSurvey}

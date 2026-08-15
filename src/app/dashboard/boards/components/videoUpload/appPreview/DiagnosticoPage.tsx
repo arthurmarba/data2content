@@ -304,6 +304,8 @@ function EditableMapaChips({
   section,
   onMutate,
   suggestions = [],
+  addLabel = "item",
+  inputPlaceholder = "Novo item",
 }: {
   items: string[];
   chipBg?: string;
@@ -312,6 +314,9 @@ function EditableMapaChips({
   onMutate: (section: string, op: "add" | "remove", value: string) => void;
   /** Quick-add suggestions — render as outline chips for items not yet present. */
   suggestions?: string[];
+  /** Nome humano usado no controle de adição e na acessibilidade. */
+  addLabel?: string;
+  inputPlaceholder?: string;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -377,7 +382,7 @@ function EditableMapaChips({
                 if (e.key === "Enter") submitAdd();
                 if (e.key === "Escape") { setDraft(""); setAdding(false); }
               }}
-              placeholder="novo item"
+              placeholder={inputPlaceholder}
               style={{
                 fontSize: 13, fontWeight: 500, padding: "5px 10px",
                 borderRadius: 999, border: `1.5px solid ${chipBg}`,
@@ -412,7 +417,7 @@ function EditableMapaChips({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            aria-label="Adicionar item"
+            aria-label={`Adicionar ${addLabel}`}
             style={{
               display: "inline-flex", alignItems: "center", gap: 4,
               borderRadius: 999, padding: "5px 12px",
@@ -489,7 +494,7 @@ function classifyLifeAsset(label: string): LifeAssetGroup {
 
 const ASSET_GROUP_META: { key: LifeAssetGroup; label: string }[] = [
   { key: "cenario", label: "Cenários" },
-  { key: "objeto", label: "Objetos de cena" },
+  { key: "objeto", label: "Elementos visuais" },
   { key: "vida", label: "Sua vida real" },
 ];
 
@@ -579,11 +584,15 @@ function AssetAddControl({
   onMutate,
   group,
   disabled = false,
+  addLabel,
+  inputPlaceholder,
 }: {
   onMutate: (section: string, op: "add" | "remove" | "set", value: string, group?: LifeAssetGroup) => void;
   /** Grupo da seção onde este controle vive — gravado como override no add. */
   group: LifeAssetGroup;
   disabled?: boolean;
+  addLabel: string;
+  inputPlaceholder: string;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -612,7 +621,7 @@ function AssetAddControl({
           if (e.key === "Enter") submit();
           if (e.key === "Escape") { setDraft(""); setAdding(false); }
         }}
-        placeholder="novo asset"
+        placeholder={inputPlaceholder}
         style={{
           fontSize: 13, fontWeight: 500, padding: "5px 10px",
           borderRadius: 999, border: `1.5px solid ${ASSET_CHIP_BG}`,
@@ -647,7 +656,7 @@ function AssetAddControl({
     <button
       type="button"
       onClick={() => setAdding(true)}
-      aria-label="Adicionar asset"
+      aria-label={`Adicionar ${addLabel}`}
       style={{
         display: "inline-flex", alignItems: "center", gap: 4,
         borderRadius: 999, padding: "5px 12px",
@@ -684,13 +693,23 @@ function MapaAssetsGrouped({
 }) {
   const groups = groupLifeAssets(items, assetGroups);
   const visible = ASSET_GROUP_META.filter((g) => groups[g.key].length > 0);
+  const addCopy: Record<LifeAssetGroup, { label: string; placeholder: string }> = {
+    cenario: { label: "cenário", placeholder: "Novo cenário" },
+    objeto: { label: "elemento visual", placeholder: "Novo elemento" },
+    vida: { label: "sinal da sua vida", placeholder: "Nova referência" },
+  };
 
   if (visible.length === 0) {
     return (
       <MapaSection labelColor="var(--ds-color-brand-strong)" label="Sua vida real" icon={<LifeAssetGroupIcon group="vida" />}>
         {editable && onMutate ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
-            <AssetAddControl onMutate={onMutate} group="vida" />
+            <AssetAddControl
+              onMutate={onMutate}
+              group="vida"
+              addLabel={addCopy.vida.label}
+              inputPlaceholder={addCopy.vida.placeholder}
+            />
           </div>
         ) : (
           <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
@@ -706,7 +725,7 @@ function MapaAssetsGrouped({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
             {groups[g.key].map((chip) =>
               editable && onMutate ? (
-                <RemovableAssetChip key={chip} chip={chip} onRemove={() => onMutate("assets", "remove", chip)} />
+                <RemovableAssetChip key={chip} chip={chip} onRemove={() => onMutate("assets", "remove", chip, g.key)} />
               ) : (
                 <span
                   key={chip}
@@ -723,7 +742,12 @@ function MapaAssetsGrouped({
             {/* Add em CADA seção — o item entra no pool flat gravando o grupo desta
                 seção como override, então fica aqui em vez de ser reclassificado. */}
             {editable && onMutate && items.length < 24 && (
-              <AssetAddControl onMutate={onMutate} group={g.key} />
+              <AssetAddControl
+                onMutate={onMutate}
+                group={g.key}
+                addLabel={addCopy[g.key].label}
+                inputPlaceholder={addCopy[g.key].placeholder}
+              />
             )}
           </div>
         </MapaSection>
@@ -1026,6 +1050,105 @@ const FORMATO_SUGGESTIONS = [
   "Tutorial", "Bastidores", "Live",
 ];
 
+function EditableNarrativeField({
+  value,
+  onSet,
+}: {
+  value: string;
+  onSet: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const cancel = () => {
+    setDraft(value);
+    setEditing(false);
+  };
+
+  const save = () => {
+    const next = draft.trim();
+    if (!next || next === value) {
+      cancel();
+      return;
+    }
+    onSet(next.slice(0, 200));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{ marginTop: 20, marginBottom: 16 }}>
+        <label
+          htmlFor="strategic-map-narrative"
+          style={{ display: "block", marginBottom: 7, fontSize: 10, fontWeight: 750, letterSpacing: 0.8, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}
+        >
+          Narrativa central
+        </label>
+        <textarea
+          ref={inputRef}
+          id="strategic-map-narrative"
+          value={draft}
+          maxLength={200}
+          rows={3}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") cancel();
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") save();
+          }}
+          style={{
+            width: "100%", resize: "vertical", borderRadius: 16,
+            border: "1px solid var(--ds-color-line-strong)", background: "var(--ds-color-surface)",
+            padding: "12px 14px", color: TEXT_PRIMARY_HEX, fontFamily: CS_FONT_DISPLAY,
+            fontSize: 18, fontWeight: 650, lineHeight: 1.3, letterSpacing: -0.3, outline: "none",
+          }}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9 }}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!draft.trim()}
+            style={{ border: "none", borderRadius: 999, background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)", padding: "8px 14px", fontFamily: "inherit", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            Salvar narrativa
+          </button>
+          <button
+            type="button"
+            onClick={cancel}
+            style={{ border: "none", background: "transparent", color: TEXT_SECONDARY_HEX, padding: "8px 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 650, cursor: "pointer" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 20, marginBottom: 16 }}>
+      <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.12, letterSpacing: -0.7 }}>
+        {value}
+      </p>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label="Editar narrativa central"
+        style={{ border: "none", background: "transparent", color: CS_BRAND_STRONG_HEX, marginTop: 9, padding: 0, fontFamily: "inherit", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+      >
+        Editar narrativa
+      </button>
+    </div>
+  );
+}
+
 // ─── MapaCard ─────────────────────────────────────────────────────────────────
 
 export function MapaCard({
@@ -1053,6 +1176,9 @@ export function MapaCard({
   onOpenNorte,
   noShell = false,
   headerTitle = "Seu Mapa",
+  headerActionLabel = "Aprimorar",
+  headerActionCompactLabel,
+  saveStatus = "idle",
 }: {
   synthesis: DiagnosticoPageData["synthesis"];
   leadingNarrative: ReturnType<typeof resolveDiagnosticoLeadingNarrativeSignal>;
@@ -1087,6 +1213,12 @@ export function MapaCard({
   noShell?: boolean;
   /** Título interno do editor; a página dedicada usa um rótulo operacional. */
   headerTitle?: string;
+  /** Texto da ação que enriquece o mapa; a página completa usa copy operacional. */
+  headerActionLabel?: string;
+  /** Versão curta do CTA em telas estreitas, mantendo o aria-label completo. */
+  headerActionCompactLabel?: string;
+  /** Feedback calmo da persistência das edições manuais. */
+  saveStatus?: "idle" | "saving" | "saved" | "error";
 }) {
   // ── Confirmation priority: narrative → tone → territories ──
   // Meta-label patterns generated by the AI that should never surface to the creator.
@@ -1337,23 +1469,54 @@ export function MapaCard({
       }
       title={headerTitle}
       subtitle={null}
-      action={showHeaderUploadCta ? (
-        <button
-          type="button"
-          onClick={onNewReading}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            minHeight: 40, borderRadius: 999, padding: "7px 13px",
-            background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
-            fontSize: 12, fontWeight: 720,
-            border: "1px solid rgba(250,22,91,0.2)",
-            cursor: "pointer", fontFamily: "inherit",
-            boxShadow: "none",
-          }}
-        >
-          {uploadIcon}
-          Aprimorar
-        </button>
+      action={(showHeaderUploadCta || saveStatus !== "idle") ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+          {saveStatus !== "idle" ? (
+            <span
+              aria-live="polite"
+              style={{
+                fontSize: 11,
+                fontWeight: 650,
+                whiteSpace: "nowrap",
+                color: saveStatus === "error"
+                  ? "var(--ds-color-error)"
+                  : saveStatus === "saved"
+                    ? "var(--ds-color-success)"
+                    : TEXT_SECONDARY_HEX,
+              }}
+            >
+              {saveStatus === "saving"
+                ? "Salvando…"
+                : saveStatus === "saved"
+                  ? "Salvo"
+                  : "Não foi possível salvar"}
+            </span>
+          ) : null}
+          {showHeaderUploadCta ? (
+            <button
+              type="button"
+              onClick={onNewReading}
+              aria-label={headerActionLabel}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                minHeight: 40, borderRadius: 999, padding: "7px 13px",
+                background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
+                fontSize: 12, fontWeight: 720,
+                border: "1px solid rgba(250,22,91,0.2)",
+                cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "none",
+              }}
+            >
+              {uploadIcon}
+              {headerActionCompactLabel ? (
+                <>
+                  <span className="sm:hidden">{headerActionCompactLabel}</span>
+                  <span className="hidden sm:inline">{headerActionLabel}</span>
+                </>
+              ) : headerActionLabel}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     />
   );
@@ -1413,6 +1576,21 @@ export function MapaCard({
 
   // Empty — no readings yet
   if (!hasAnything && !hasReadings) {
+    if (!hasPurpose && onOpenNorte) {
+      return (
+        <div style={noShell ? { ...cardShell, padding: "0" } : { ...cardShell, padding: "22px 22px 20px" }}>
+          {MapaHeader}
+          <p style={{ fontSize: 18, fontWeight: 650, color: TEXT_BODY_HEX, margin: 0, lineHeight: 1.35 }}>
+            Comece pelo seu Norte.
+          </p>
+          <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, margin: "7px 0 2px", lineHeight: 1.55 }}>
+            Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no primeiro rascunho do seu mapa.
+          </p>
+          {PurposePrompt}
+        </div>
+      );
+    }
+
     return (
       <div style={noShell ? { ...cardShell, padding: "0" } : { ...cardShell, padding: "22px 22px 20px" }}>
         {MapaHeader}
@@ -1465,10 +1643,19 @@ export function MapaCard({
       {PurposePrompt}
       {/* ── Narrativa — primeira seção do mapa, sem borda lateral ── */}
       {narrativaLabel ? (
-        <div style={{ marginTop: 20, marginBottom: 16 }}>
-          <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.12, letterSpacing: -0.7 }}>
-            {narrativaLabel}
-          </p>
+        <div>
+          {mapaSeed && onMapSeedMutate ? (
+            <EditableNarrativeField
+              value={narrativaLabel}
+              onSet={(value) => onMapSeedMutate("narrativa_central", "set", value)}
+            />
+          ) : (
+            <div style={{ marginTop: 20, marginBottom: 16 }}>
+              <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.12, letterSpacing: -0.7 }}>
+                {narrativaLabel}
+              </p>
+            </div>
+          )}
           {recentlyResolved["narrative"] ? (
             renderConfirmedFlash(recentlyResolved["narrative"])
           ) : activePending === "narrative" ? (
@@ -1515,6 +1702,8 @@ export function MapaCard({
             items={mapaSeed.territorios.length > 0 ? mapaSeed.territorios : filteredTerritories.map((t) => t.label)}
             section="territorios"
             onMutate={onMapSeedMutate}
+            addLabel="assunto"
+            inputPlaceholder="Novo assunto"
           />
         ) : filteredTerritories.length > 0 ? (
           <MapaChips
@@ -1539,10 +1728,10 @@ export function MapaCard({
       </MapaSection>
 
       {/* ── Temas — situações concretas do MapaSeed (editável) ───────────── */}
-      {(mapaSeed && onMapSeedMutate && (mapaSeed.temas.length > 0 || true)) && (
+      {mapaSeed && onMapSeedMutate && (
         <MapaSection
           labelColor="var(--ds-color-brand-strong)"
-          label="Situações reais"
+          label="Situações que viram conteúdo"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <rect x="2" y="2" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
@@ -1554,10 +1743,12 @@ export function MapaCard({
             items={mapaSeed.temas}
             section="temas"
             onMutate={onMapSeedMutate}
+            addLabel="situação"
+            inputPlaceholder="Nova situação"
           />
           {mapaSeed.temas.length === 0 && (
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "0 0 2px", fontStyle: "italic" }}>
-              Adicione situações concretas que viram pauta.
+              Adicione situações que podem virar conteúdo.
             </p>
           )}
         </MapaSection>
