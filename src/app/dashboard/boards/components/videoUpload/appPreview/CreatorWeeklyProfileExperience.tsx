@@ -2,19 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BriefcaseBusiness, Calculator } from "lucide-react";
-import Link from "next/link";
-import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
-import { CREATOR_PROFILE_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
+import {
+  buildPatternHighlights,
+  buildWeekHeadline,
+  formatPatternIndex,
+  type PatternHighlight,
+} from "@/app/lib/creatorWeeklyReport/patternHighlights";
 import type {
-  CreatorWeeklyReportDetailId,
   CreatorWeeklyReportPayload,
   CreatorWeeklyReportVideo,
 } from "@/app/lib/creatorWeeklyReport/types";
 import type { PaywallContext } from "@/types/paywall";
 import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
-import { CreatorWeeklyReportDetail } from "./CreatorWeeklyReportDetail";
+import { ProfilePatternGrid } from "./ProfilePatternGrid";
+import { ProfileMeetingsCard } from "./ProfileMeetingsCard";
+import { ProfileNextStepField, resolveNextStepFieldState } from "./ProfileNextStepField";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 
 function firstName(value: string | null | undefined) {
@@ -30,24 +35,11 @@ function formatMetric(value: number | null) {
   return new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
-function formatIndex(value: number | null) {
-  if (value === null) return null;
-  return `${value.toFixed(1).replace(".", ",")}× acima do seu normal`;
-}
-
-function formatMeetingDate(meeting: WeeklyMeetingProfileData) {
-  const date = new Date(meeting.startAt);
-  if (Number.isNaN(date.getTime())) return "Toda quinta, 19h";
-  const label = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
+/**
+ * Uma régua só na tela inteira: o vídeo da semana dizia "× acima do seu normal"
+ * e os cards de padrão, "× o seu normal". Duas frases para a mesma conta.
+ */
+const formatIndex = formatPatternIndex;
 
 function GearIcon() {
   return (
@@ -141,81 +133,6 @@ function UtilityPanel({
   );
 }
 
-function ActivationCard({
-  accessState,
-  hasStarterMap,
-  telemetryRoute,
-  onUpgrade,
-  onDefineNorth,
-}: {
-  accessState: DiagnosticoPageData["accessState"];
-  hasStarterMap: boolean;
-  telemetryRoute: string;
-  onUpgrade: (context?: PaywallContext) => void;
-  onDefineNorth: () => void;
-}) {
-  // Administradores compartilham o mesmo entitlement do Pro, mesmo quando o
-  // rótulo de cobrança ainda é "Free". Sem esta equivalência, a tela oferecia
-  // assinatura a quem já tinha acesso e o CTA correto de Instagram desaparecia.
-  const proAccess = accessState === "pro_needs_instagram"
-    || accessState === "pro_instagram_connected"
-    || accessState === "pro_quota_reached"
-    || accessState === "admin";
-  const paymentPending = accessState === "payment_pending";
-  const paymentAction = accessState === "payment_action_needed";
-  const billingAttention = paymentPending || paymentAction;
-
-  if (billingAttention) {
-    return (
-      <section id="pro-activation" className="ds-notebook-section">
-        <span className="ds-notebook-label">Assinatura</span>
-        <h2 className="mt-3 text-[1.5rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">
-          {paymentPending ? "Falta concluir o pagamento." : "Seu pagamento precisa ser atualizado."}
-        </h2>
-        <p className="ds-body mt-3">Seu mapa continua seguro. Resolva a cobrança para liberar novamente relatório, Collabs e ferramentas Pro.</p>
-        <button type="button" className="ds-button ds-button--primary mt-5" onClick={() => onUpgrade("narrative_map")}>
-          {paymentPending ? "Continuar pagamento" : "Atualizar pagamento"}
-        </button>
-      </section>
-    );
-  }
-
-  if (!proAccess && !hasStarterMap) {
-    return (
-      <section className="ds-notebook-section">
-        <span className="ds-notebook-label">Primeiro passo</span>
-        <h2 className="mt-3 text-[1.5rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">Defina seu Norte para começar o mapa.</h2>
-        <p className="ds-body mt-3">Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.</p>
-        <button type="button" className="ds-button ds-button--primary mt-5" onClick={onDefineNorth}>Definir meu Norte</button>
-      </section>
-    );
-  }
-
-  if (proAccess) return null;
-
-  return (
-    <section id="pro-activation" className="ds-notebook-section">
-      <span className="ds-notebook-label">Seu mapa começou</span>
-      <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
-        Seu mapa tomou forma. Agora ele pode evoluir com você.
-      </h2>
-      <p className="ds-body mt-3">
-        No Pro, a D2C cruza seu Norte, seus conteúdos e o Instagram para transformar o mapa em relatório, pautas e direção prática toda semana.
-      </p>
-      <button type="button" className="ds-button ds-button--primary mt-4" onClick={() => {
-        trackMobileNarrativeEvent("mobile_starter_map_upgrade_clicked", {
-          route: telemetryRoute,
-          accessState,
-          isPro: false,
-          actionType: "weekly_profile_map",
-        });
-        onUpgrade("narrative_map");
-      }}>Assinar o Pro</button>
-      <p className="ds-caption mt-3">Você pode continuar explorando seu mapa gratuitamente.</p>
-    </section>
-  );
-}
-
 function CreatorMap({
   userName,
   userImageUrl,
@@ -292,7 +209,7 @@ function CreatorMap({
         </div>
         <p className="ds-caption mt-3">
           {hasVideoEvidence
-            ? "O ✓ indica um assunto que também apareceu nos vídeos lidos."
+            ? "O ✓ marca os assuntos que também apareceram nos seus vídeos."
             : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
         </p>
         <button type="button" className="ds-notebook-action mt-2" onClick={onOpenFullMap}>
@@ -326,11 +243,11 @@ function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; i
         ) : null}
         <h2 className="mt-2 text-[1.125rem] font-bold leading-[1.18] text-[var(--ds-color-ink)]">{video.description}</h2>
         <div className="mt-5 grid grid-cols-3 pt-1">
-          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.views)}</b><span className="ds-caption">views</span></div>
-          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.saved)}</b><span className="ds-caption">salvos</span></div>
-          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.shares)}</b><span className="ds-caption">envios</span></div>
+          {/* As palavras do próprio Instagram: é lá que a pessoa confere. */}
+          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.views)}</b><span className="ds-caption">visualizações</span></div>
+          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.saved)}</b><span className="ds-caption">salvamentos</span></div>
+          <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.shares)}</b><span className="ds-caption">compartilhamentos</span></div>
         </div>
-        {video.openingLine ? <p className="mt-4 border-l-2 border-[var(--ds-color-line-strong)] pl-3 text-[13px] italic leading-[1.45] text-[var(--ds-color-text-secondary)]">“{video.openingLine}”</p> : null}
       </div>
     </div>
   );
@@ -343,18 +260,18 @@ function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; i
 function ReportOverview({
   report,
   isDemo,
-  isPro,
-  showInstagramAction,
-  onOpenDetail,
-  onConnectInstagram,
+  onExpandPattern,
+  onUpgrade,
 }: {
   report: CreatorWeeklyReportPayload;
   isDemo: boolean;
-  isPro: boolean;
-  showInstagramAction: boolean;
-  onOpenDetail: (id: CreatorWeeklyReportDetailId) => void;
-  onConnectInstagram: () => void;
+  onExpandPattern: (highlight: PatternHighlight) => void;
+  onUpgrade: (context?: PaywallContext) => void;
 }) {
+  const highlights = buildPatternHighlights(report);
+  // A manchete elege, entre dez respostas de peso visual igual, a que importa
+  // nesta semana. Sem nada promovido, a leitura do relatório assume o lugar.
+  const headline = buildWeekHeadline(highlights) ?? report.overview.summary;
   return (
     <section
       id="weekly-report"
@@ -362,73 +279,63 @@ function ReportOverview({
       aria-describedby={isDemo ? "weekly-report-demo-notice" : undefined}
       className="ds-notebook-section"
     >
-      <div className="flex items-center gap-2">
-        <span className="ds-notebook-label">Seu relatório</span>
-        {isDemo ? <span className="ds-badge ds-badge--neutral">Dados de exemplo</span> : null}
-      </div>
-      <h2 id="weekly-report-title" className="mt-2 text-[1.75rem] font-bold leading-none tracking-[-0.025em] text-[var(--ds-color-ink)]">A semana por dentro</h2>
+      {/* Sem rótulo administrativo em cima da manchete: "Seu relatório" e "A
+          semana por dentro" anunciavam a seção duas vezes — e o cartão de
+          identidade, logo acima, já diz de que semana se trata. A leitura da
+          semana é a única linha daqui que alguém contaria para outra pessoa,
+          então é ela que ocupa o lugar de destaque. */}
+      {isDemo ? (
+        <div className="mb-3">
+          <span className="ds-badge ds-badge--neutral">Dados de exemplo</span>
+        </div>
+      ) : null}
 
       {isDemo ? (
         <div role="note" className="ds-notebook-note mt-4">
           <p id="weekly-report-demo-notice" className="m-0">
             <strong className="text-[var(--ds-color-ink)]">Você está vendo dados de exemplo.</strong>{" "}
-            Eles mostram como o relatório será organizado. Conecte o Instagram para ver os resultados do seu perfil e deixá-lo disponível para análises individuais nas reuniões semanais.
+            Eles mostram como o relatório será organizado. Com o Instagram conectado, os padrões abaixo passam a ser os do seu perfil.
           </p>
-          {showInstagramAction ? (
-            <div className="mt-3">
-              <button
-                type="button"
-                className={`ds-button ${isPro ? "ds-button--primary" : "ds-button--quiet"} ds-button--small`}
-                onClick={onConnectInstagram}
-              >
-                Conectar Instagram
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
-      {/* "90 dias" colado no título contradizia a seção, que fala da semana.
-          Como linha de apoio ele explica a régua em vez de confundir. */}
-      <p className={`ds-body ${isDemo ? "mt-5" : "mt-3"}`}>{report.overview.summary}</p>
-      <p className="ds-caption mt-2">Tudo comparado com a sua mediana dos últimos 90 dias.</p>
+      <h2
+        id="weekly-report-title"
+        className={`text-[1.375rem] font-bold leading-[1.15] tracking-[-0.02em] text-[var(--ds-color-ink)] ${isDemo ? "mt-1" : ""}`}
+      >
+        {headline}
+      </h2>
 
-      <div className="mt-5 grid grid-cols-3 py-2">
-        {report.overview.numbers.map((number) => (
-          <div key={number.label} className="border-r border-[var(--ds-color-line)] px-2 text-center first:pl-0 last:border-r-0 last:pr-0">
-            <b className="block text-[1.25rem] leading-none text-[var(--ds-color-ink)]">{number.value}</b>
-            <span className="mt-1 block text-[11px] leading-[1.25] text-[var(--ds-color-text-muted)]">{number.label}</span>
-          </div>
-        ))}
-      </div>
+      {/* Os números da semana em uma linha: contexto, não manchete. Em três
+          colunas centralizadas eles competiam de igual para igual com os do
+          vídeo, logo abaixo — e o vídeo é que merece o peso. */}
+      {report.overview.numbers.length > 0 ? (
+        <p className="ds-caption mt-2">
+          {report.overview.numbers.map((number) => `${number.value} ${number.label}`).join(" · ")}
+        </p>
+      ) : null}
 
       {report.weeklyVideo ? <div className="mt-6"><WeeklyVideoCard video={report.weeklyVideo} isDemo={isDemo} /></div> : (
         <div className="mt-6 py-3">
           <span className="ds-eyebrow">Vídeo da semana</span>
-          <h3 className="mt-2 text-[1.25rem] font-bold text-[var(--ds-color-ink)]">Nenhum post na semana encerrada.</h3>
-          <p className="ds-body mt-2">Os rankings de 90 dias continuam disponíveis abaixo.</p>
+          <h3 className="mt-2 text-[1.25rem] font-bold text-[var(--ds-color-ink)]">Você não postou na semana passada.</h3>
+          <p className="ds-body mt-2">O que já funcionou nos últimos 90 dias continua aqui embaixo.</p>
         </div>
       )}
 
-      <div className="ds-notebook-divided mt-6">
-        {report.details.map((detail) => (
-          <button
-            key={detail.id}
-            type="button"
-            onClick={() => onOpenDetail(detail.id)}
-            className="grid min-h-[5rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-1 py-3 text-left active:bg-[var(--ds-color-neutral)]"
-          >
-            <span className="min-w-0">
-              <span className="block text-[14px] font-bold text-[var(--ds-color-ink)]">{detail.title}</span>
-              <span className="mt-1 block text-[12px] leading-[1.4] text-[var(--ds-color-text-muted)]">{detail.summary}</span>
-            </span>
-            <span className="text-[var(--ds-color-text-muted)]"><ChevronIcon /></span>
-          </button>
-        ))}
-      </div>
+      <ProfilePatternGrid
+        highlights={highlights}
+        details={report.details}
+        locked={isDemo}
+        onExpand={onExpandPattern}
+        onLockedClick={() => onUpgrade("narrative_map")}
+      />
+
+      {/* A régua explicada uma vez só. Cada card já carrega o próprio "× o seu
+          normal" e o tamanho da amostra; repetir no topo era a terceira vez. */}
       <p className="ds-caption mt-3">
         {isDemo ? "Dados de exemplo · " : null}
-        {report.coverage.postsWithScene} de {report.coverage.posts90d} posts têm leitura visual. Rankings sem cobertura ficam honestamente vazios.
+        Tudo comparado com o que você costuma fazer nos últimos 90 dias · {report.coverage.postsWithScene} de {report.coverage.posts90d} posts já analisados. Quando ainda faltam vídeos analisados, o card diz isso em vez de chutar.
       </p>
     </section>
   );
@@ -447,70 +354,6 @@ function BrandMatchCard({
       <h2 className="mt-3 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">{match.brandName}</h2>
       {match.rationale ? <p className="ds-body mt-2">{match.rationale}</p> : null}
       {match.disclaimer ? <p className="ds-caption mt-3">{match.disclaimer}</p> : null}
-    </section>
-  );
-}
-
-function MeetingCard({
-  meeting,
-  isPro,
-  whatsappGroupLinkOpened,
-  onUpgrade,
-  onOpenWhatsAppGroup,
-}: {
-  meeting: WeeklyMeetingProfileData | null;
-  isPro: boolean;
-  whatsappGroupLinkOpened: boolean;
-  onUpgrade: (context?: PaywallContext) => void;
-  onOpenWhatsAppGroup: () => void;
-}) {
-  const cancelled = meeting?.status === "cancelled";
-  return (
-    <section id="community-d2c" className="ds-notebook-section">
-      <span className="ds-notebook-label">Comunidade D2C no WhatsApp</span>
-      <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">
-        Networking e comunicação diária
-      </h2>
-      <p className="ds-body mt-2">
-        É por lá que criadores trocam experiências e recebem os avisos das reuniões semanais. Nas reuniões, a D2C analisa perfis e relatórios individualmente.
-      </p>
-      <p className="ds-caption mt-2">
-        {cancelled ? "A próxima edição foi cancelada." : meeting ? `Próxima reunião · ${formatMeetingDate(meeting)}` : "Reuniões · toda quinta, às 19h"}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {isPro ? (
-          <a
-            href={COMMUNITY_PRO_JOIN_ROUTE}
-            target="_blank"
-            rel="noreferrer"
-            className="ds-button ds-button--primary ds-button--small no-underline"
-            onClick={onOpenWhatsAppGroup}
-          >
-            {whatsappGroupLinkOpened ? "Abrir Comunidade D2C" : "Entrar na Comunidade D2C"}
-          </a>
-        ) : (
-          <button type="button" className="ds-button ds-button--quiet ds-button--small" onClick={() => onUpgrade("community")}>
-            Entrar no WhatsApp
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function RecordedMeetingsCard() {
-  return (
-    <section id="recorded-meetings" className="ds-notebook-section">
-      <span className="ds-notebook-label">Reuniões gravadas</span>
-      <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">
-        Assista às reuniões anteriores
-      </h2>
-      <p className="ds-body mt-2">
-        Explore o catálogo. Assinantes podem reproduzir todos os encontros.
-      </p>
-      <Link href={RECORDED_MEETINGS_ROUTE} className="ds-button ds-button--quiet ds-button--small mt-4 no-underline">
-        Ver gravações
-      </Link>
     </section>
   );
 }
@@ -544,7 +387,6 @@ export function CreatorWeeklyProfileExperience({
   surface?: "mobile" | "responsive";
 }) {
   const [liveReport, setLiveReport] = useState<CreatorWeeklyReportPayload | null>(data.creatorWeeklyReport ?? null);
-  const [detailId, setDetailId] = useState<CreatorWeeklyReportDetailId | null>(null);
   const viewedRef = useRef(false);
   const isAdmin = data.accessState === "admin";
   const isPro = data.userInfo.plan === "Pro"
@@ -559,13 +401,6 @@ export function CreatorWeeklyProfileExperience({
   const reportIsDemo = !hasReportAccess;
   const report = reportIsDemo ? CREATOR_WEEKLY_REPORT_DEMO : liveReport;
   const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : "/dashboard/boards/mobile-strategic-profile";
-
-  useEffect(() => {
-    const container = document.querySelector<HTMLElement>("[data-mobile-profile-scroll-container='true']");
-    if (!container) return;
-    if (typeof container.scrollTo === "function") container.scrollTo({ top: 0, behavior: "auto" });
-    else container.scrollTop = 0;
-  }, [detailId]);
 
   useEffect(() => {
     if (viewedRef.current) return;
@@ -634,17 +469,25 @@ export function CreatorWeeklyProfileExperience({
     if (fromMap.length > 0) return fromMap.slice(0, 8);
     return data.synthesis.narrativeTerritories.map((territory) => territory.label).filter(Boolean).slice(0, 8);
   }, [data.mapaSeed?.territorios, data.synthesis.narrativeTerritories]);
-  const activeDetail = detailId ? report?.details.find((detail) => detail.id === detailId) ?? null : null;
-  const handleOpenDetail = (id: CreatorWeeklyReportDetailId) => {
+  const handleExpandPattern = (highlight: PatternHighlight) => {
     trackMobileNarrativeEvent("mobile_weekly_report_detail_opened", {
       route: profileRoute,
       accessState: data.accessState,
       isPro,
       instagramConnected: data.instagramConnected,
-      actionType: id,
+      actionType: highlight.id,
     });
-    setDetailId(id);
   };
+
+  // O campo de próximo passo cuida só da saúde da conta: plano e conexão de dados.
+  // Comunidade e reuniões são lugares permanentes e vivem no card de reuniões.
+  const nextStepState = resolveNextStepFieldState({
+    accessState: data.accessState,
+    hasActivePro,
+    hasStarterMap,
+    instagramConnectionState:
+      data.instagramConnectionState ?? (data.instagramConnected ? "connected" : "disconnected"),
+  });
 
   const handleOpenWhatsAppGroup = () => {
     setWhatsappGroupLinkOpened(true);
@@ -656,17 +499,6 @@ export function CreatorWeeklyProfileExperience({
       actionType: whatsappGroupLinkOpened ? "community_reopen" : "community_join",
     });
   };
-
-  if (activeDetail) {
-    return (
-      <CreatorWeeklyReportDetail
-        detail={activeDetail}
-        isDemo={reportIsDemo}
-        onBack={() => setDetailId(null)}
-        surface={surface}
-      />
-    );
-  }
 
   return (
     <main className={`ds-notebook-page ds-analysis-editorial ${surface === "responsive" ? "ds-notebook-page--responsive" : ""}`}>
@@ -687,53 +519,63 @@ export function CreatorWeeklyProfileExperience({
             onOpenAccountMenu={onOpenAccountMenu}
             starterMapJustCreated={starterMapJustCreated}
           />
+          {nextStepState === "connected" ? (
+            <ProfileNextStepField
+              state="connected"
+              lastReadAt={liveReport?.sourceMetricsUpdatedAt ?? liveReport?.generatedAt ?? null}
+              onUpgrade={onUpgrade}
+              onConnectInstagram={onConnectInstagram}
+              onDefineNorth={onOpenNorte}
+            />
+          ) : null}
         </div>
 
-        <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--community" : ""}>
-          <MeetingCard
-            meeting={weeklyMeeting}
-            isPro={hasActivePro}
-            whatsappGroupLinkOpened={whatsappGroupLinkOpened}
-            onUpgrade={onUpgrade}
-            onOpenWhatsAppGroup={handleOpenWhatsAppGroup}
-          />
-        </div>
-
-        <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--recordings" : ""}>
-          <RecordedMeetingsCard />
-        </div>
-
-        <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--activation" : ""}>
-          <ActivationCard
-            accessState={data.accessState}
-            hasStarterMap={hasStarterMap}
-            telemetryRoute={profileRoute}
-            onUpgrade={onUpgrade}
-            onDefineNorth={onOpenNorte}
-          />
-        </div>
+        {/* Saúde da conta: pede o plano, pede o Instagram, confirma — e volta a
+            pedir se a conexão cair. Quando está tudo certo, o campo não ocupa
+            espaço próprio: vira a linha discreta logo abaixo da narrativa. */}
+        {nextStepState === "connected" ? null : (
+          <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--activation" : ""}>
+            <ProfileNextStepField
+              state={nextStepState}
+              onUpgrade={onUpgrade}
+              onConnectInstagram={onConnectInstagram}
+              onDefineNorth={onOpenNorte}
+            />
+          </div>
+        )}
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--report" : ""}>
           {report ? (
             <ReportOverview
               report={report}
               isDemo={reportIsDemo}
-              isPro={hasActivePro}
-              showInstagramAction={!billingAttention}
-              onOpenDetail={handleOpenDetail}
-              onConnectInstagram={onConnectInstagram}
+              onExpandPattern={handleExpandPattern}
+              onUpgrade={onUpgrade}
             />
           ) : (
             <section id="weekly-report" className="ds-notebook-section" role="status" aria-live="polite">
               <span className="ds-notebook-label">Seu relatório</span>
-              <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">Seus dados já estão chegando ao Perfil.</h2>
-              <p className="ds-body mt-2">Esta seção se atualiza automaticamente depois da primeira sincronização.</p>
+              <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">Seus posts estão chegando.</h2>
+              <p className="ds-body mt-2">Assim que os primeiros forem lidos, isto aqui se atualiza sozinho.</p>
             </section>
           )}
         </div>
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--brand" : ""}>
           {hasReportAccess && liveReport ? <BrandMatchCard match={data.brandMatches[0] ?? null} /> : null}
+        </div>
+
+        {/* Reuniões: o único assunto desta tela que se repete toda semana, e por
+            isso o único com lugar fixo. Aparece igual para quem ainda não assina —
+            o convite entra no play, não antes. */}
+        <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--community" : ""}>
+          <ProfileMeetingsCard
+            meeting={weeklyMeeting}
+            isPro={hasActivePro}
+            whatsappGroupLinkOpened={whatsappGroupLinkOpened}
+            onUpgrade={onUpgrade}
+            onOpenWhatsAppGroup={handleOpenWhatsAppGroup}
+          />
         </div>
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--tools lg:hidden" : ""}>

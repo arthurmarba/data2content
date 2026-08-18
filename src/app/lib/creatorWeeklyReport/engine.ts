@@ -1,4 +1,6 @@
 import {
+  canonicalAestheticById,
+  canonicalAssetRoleById,
   canonicalFramingById,
   canonicalPlaceById,
   canonicalToneById,
@@ -261,11 +263,16 @@ function buildWeeklyVideo(
   };
 }
 
+/**
+ * Uma frase de dica, não de relatório. "Natureza chegou a 7,5× do seu normal"
+ * descreve a tabela; "Natureza rendeu 7,5× o seu normal" conta o que aconteceu —
+ * e usa a mesma régua que aparece em todo o resto da tela.
+ */
 function detailSummary(groups: CreatorWeeklyReportRankGroup[], fallback: string): string {
   const best = groups.flatMap((group) => group.items).find((item) => item.index !== null);
   if (!best) return fallback;
-  const index = best.index ? `${best.index.toFixed(1).replace(".", ",")}×` : "acima do normal";
-  return `${best.label} chegou a ${index} do seu normal.`;
+  if (!best.index) return `${best.label} rendeu acima do seu normal.`;
+  return `${best.label} rendeu ${best.index.toFixed(1).replace(".", ",")}× o seu normal.`;
 }
 
 export function buildCreatorWeeklyReport(params: {
@@ -291,7 +298,7 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "weekday",
       title: "Ranking dos dias",
-      subtitle: "Comparado com o seu normal dos últimos 90 dias.",
+      subtitle: "Contra o que você costuma fazer nos últimos 90 dias.",
       metrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -303,7 +310,7 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "time-slot",
       title: "Ranking dos horários",
-      subtitle: "Faixas de quatro horas no fuso de São Paulo.",
+      subtitle: "Faixas de quatro horas, no horário de Brasília.",
       metrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -318,7 +325,7 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "place",
       title: "Onde você grava",
-      subtitle: "Cenários identificados nos seus vídeos.",
+      subtitle: "Onde você gravou.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -331,7 +338,7 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "tone",
       title: "Seu jeito de falar",
-      subtitle: "Tons que mais se repetem em cena.",
+      subtitle: "Como você fala nos vídeos.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -341,12 +348,47 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "framing",
       title: "Como a câmera te mostra",
-      subtitle: "Enquadramentos usados nos últimos 90 dias.",
+      subtitle: "Como a câmera te mostra.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
       extract: (metric) => stringList(metric.sceneElements?.framingIds)
         .map((id) => ({ id, label: canonicalFramingById(id)?.label ?? id })),
+    }),
+    // Objeto em cena é decisão de gravação tanto quanto o cenário: a caneca, o
+    // carrinho, a prancheta. A leitura já identificava e ninguém via.
+    buildRankGroup({
+      id: "objects",
+      title: "Objetos em cena",
+      subtitle: "O que aparece junto com você nos vídeos.",
+      metrics: sceneMetrics,
+      weekStartsAt: params.week.startsAt,
+      baseline,
+      minimumPosts: 2,
+      extract: (metric) => stringList(metric.sceneElements?.objects)
+        .map((label) => ({ id: label.toLocaleLowerCase("pt-BR"), label })),
+    }),
+    // Elenco pelo PAPEL, nunca pelo nome da pessoa — "parceiro em cena", não o
+    // nome de quem aparece (Regra 3 do registro canônico).
+    buildRankGroup({
+      id: "cast",
+      title: "Quem aparece com você",
+      subtitle: "Papéis identificados em cena, nunca nomes.",
+      metrics: sceneMetrics,
+      weekStartsAt: params.week.startsAt,
+      baseline,
+      extract: (metric) => stringList(metric.sceneElements?.assetRoleIds)
+        .map((id) => ({ id, label: canonicalAssetRoleById(id)?.label ?? id })),
+    }),
+    buildRankGroup({
+      id: "aesthetics",
+      title: "Clima da imagem",
+      subtitle: "Traços visuais recorrentes: luz, textura, acabamento.",
+      metrics: sceneMetrics,
+      weekStartsAt: params.week.startsAt,
+      baseline,
+      extract: (metric) => stringList(metric.sceneElements?.aestheticIds)
+        .map((id) => ({ id, label: canonicalAestheticById(id)?.label ?? id })),
     }),
   ].filter((group) => group.items.length > 0);
 
@@ -354,7 +396,7 @@ export function buildCreatorWeeklyReport(params: {
     buildRankGroup({
       id: "subjects-repeated",
       title: "Assuntos que você repetiu",
-      subtitle: "Temas específicos que apareceram em mais de um vídeo.",
+      subtitle: "Temas que você repetiu em mais de um vídeo.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -365,7 +407,7 @@ export function buildCreatorWeeklyReport(params: {
     buildTextExtremesGroup({
       id: "subjects-best",
       title: "Assuntos mais fortes",
-      subtitle: "O tema exato de cada vídeo que mais rendeu.",
+      subtitle: "O tema exato dos vídeos que mais renderam.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -377,7 +419,7 @@ export function buildCreatorWeeklyReport(params: {
     buildTextExtremesGroup({
       id: "openings-best",
       title: "Aberturas mais fortes",
-      subtitle: "As primeiras frases dos vídeos que mais renderam.",
+      subtitle: "Como começaram os vídeos que mais renderam.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -386,7 +428,7 @@ export function buildCreatorWeeklyReport(params: {
     buildTextExtremesGroup({
       id: "openings-weak",
       title: "Aberturas que renderam menos",
-      subtitle: "Use como contraste, não como regra definitiva.",
+      subtitle: "Serve de contraste, não de regra.",
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
@@ -396,49 +438,49 @@ export function buildCreatorWeeklyReport(params: {
   ].filter((group) => group.items.length > 0);
 
   const scenePercent = metrics.length > 0 ? Math.round((sceneMetrics.length / metrics.length) * 100) : 0;
-  const coverageLabel = `${sceneMetrics.length} de ${metrics.length} posts com leitura visual`;
+  const coverageLabel = `${sceneMetrics.length} de ${metrics.length} posts já analisados`;
   const details: CreatorWeeklyReportDetail[] = [
     {
       id: "timing",
       title: "Dia e horário",
-      subtitle: "Quando seus posts rendem acima ou abaixo do seu próprio normal.",
-      summary: detailSummary(timingGroups, "Ainda não há posts suficientes para comparar dias e horários."),
+      subtitle: "Quando seus posts rendem mais — e quando rendem menos.",
+      summary: detailSummary(timingGroups, "Ainda faltam posts para comparar dias e horários."),
       interpretation: weekMetrics.length > 0
-        ? `Você publicou ${weekMetrics.length} ${weekMetrics.length === 1 ? "vez" : "vezes"} na semana encerrada.`
-        : "Você não publicou na semana encerrada; o ranking continua usando os últimos 90 dias.",
+        ? `Você postou ${weekMetrics.length} ${weekMetrics.length === 1 ? "vez" : "vezes"} nesta semana. O ranking olha os últimos 90 dias.`
+        : "Você não postou nesta semana. O ranking continua com os últimos 90 dias.",
       coverageLabel: `${metrics.length} posts nos últimos 90 dias`,
       groups: timingGroups.filter((group) => group.items.length > 0),
     },
     {
       id: "scene",
-      title: "Cena, tom e câmera",
-      subtitle: "Onde gravar, como falar e como se enquadrar.",
-      summary: detailSummary(sceneGroups, "A leitura visual ainda não tem cobertura suficiente."),
+      title: "Cena, elenco e câmera",
+      subtitle: "Onde gravar, com o quê, com quem, como se enquadrar e como falar.",
+      summary: detailSummary(sceneGroups, "Seus vídeos ainda não foram analisados o bastante para comparar cena."),
       interpretation: sceneGroups.length > 0
-        ? "Compare resultado e amostra antes de transformar um achado em regra."
-        : "Esta seção aparece assim que os vídeos publicados recebem leitura visual.",
+        ? "Olhe o resultado e quantos posts tem atrás dele. Um acerto só vale um teste, não uma regra."
+        : "Isto aparece assim que seus vídeos publicados forem analisados.",
       coverageLabel,
       groups: sceneGroups,
     },
     {
       id: "subjects",
       title: "Assuntos",
-      subtitle: "O que você fala e quais temas a audiência mais compartilha.",
-      summary: detailSummary(subjectGroups, "Ainda não há assuntos classificados o bastante para comparar."),
+      subtitle: "Os temas que a sua audiência mais compartilha.",
+      summary: detailSummary(subjectGroups, "Ainda faltam vídeos analisados para comparar assuntos."),
       interpretation: subjectGroups.length > 0
-        ? "Assuntos específicos mostram melhor a demanda do que categorias genéricas."
-        : "Os assuntos entram aqui depois da leitura visual dos vídeos.",
+        ? "Repare no assunto exato, não na categoria: \u201cmaternidade sem idealização\u201d rende diferente de \u201cmaternidade\u201d."
+        : "Os assuntos entram aqui depois que seus vídeos forem analisados.",
       coverageLabel,
       groups: subjectGroups,
     },
     {
       id: "openings",
       title: "Frases de abertura",
-      subtitle: "As primeiras frases que mais e menos renderam.",
-      summary: detailSummary(openingGroups, "Ainda não há aberturas classificadas para comparar."),
+      subtitle: "Como você começa os vídeos que mais renderam.",
+      summary: detailSummary(openingGroups, "Ainda faltam aberturas identificadas para comparar."),
       interpretation: openingGroups.length > 0
-        ? "Uma frase é um indício; procure construções que se repetem entre as melhores."
-        : "As frases entram aqui quando a abertura falada ou escrita é identificada.",
+        ? "Não copie a frase: repita o jeito de começar que aparece nas melhores."
+        : "As aberturas entram aqui quando a primeira frase for identificada.",
       coverageLabel,
       groups: openingGroups,
     },
@@ -476,10 +518,10 @@ export function buildCreatorWeeklyReport(params: {
     },
     overview: {
       summary: weekMetrics.length === 0
-        ? "Você não publicou na semana encerrada. Seus padrões de 90 dias continuam disponíveis."
+        ? "Você não postou nesta semana. O que já funcionou nos últimos 90 dias continua valendo para a próxima gravação."
         : weekMetrics.length === 1
-          ? "Você publicou um conteúdo na semana. Veja o que ele confirma — e o que ainda é só indício."
-          : `Você publicou ${weekMetrics.length} conteúdos na semana. O relatório compara cada padrão com o seu próprio normal.`,
+          ? "Você postou uma vez nesta semana. Um post dá pista, não padrão — compare com o que já está firme aqui embaixo."
+          : `Você postou ${weekMetrics.length} vezes nesta semana. Veja o que cada escolha rendeu contra o seu próprio normal.`,
       numbers: [
         { value: String(weekMetrics.length), label: weekMetrics.length === 1 ? "post" : "posts" },
         { value: formatCompactNumber(weeklySaved), label: "salvamentos" },

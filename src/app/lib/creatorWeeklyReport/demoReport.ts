@@ -78,13 +78,13 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
       interpretation: "Nesta semana houve quatro posts na melhor faixa, mas nenhum no melhor dia.",
       coverageLabel: "84 posts nos últimos 90 dias",
       groups: [
-        group("weekday", "Ranking dos dias", "Resultado contra a mediana da conta.", [
+        group("weekday", "Ranking dos dias", "Contra o que você costuma fazer.", [
           ["thu", "Quinta", 14, 2.5, "tendencia"],
           ["mon", "Segunda", 15, 1.5, "tendencia"],
           ["sun", "Domingo", 11, 0.4, "tendencia"],
           ["wed", "Quarta", 14, 0.3, "tendencia", 2],
         ]),
-        group("time", "Ranking dos horários", "Faixas de quatro horas.", [
+        group("time-slot", "Ranking dos horários", "Faixas de quatro horas.", [
           ["4-8", "Das 4h às 8h", 7, 3.2, "sinal", 4],
           ["20-24", "Das 20h às 24h", 8, 1.5, "tendencia"],
           ["8-12", "Das 8h às 12h", 31, 0.8, "tendencia"],
@@ -94,11 +94,11 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
     },
     {
       id: "scene",
-      title: "Cena, tom e câmera",
-      subtitle: "Onde gravar, como falar e como se enquadrar.",
+      title: "Cena, elenco e câmera",
+      subtitle: "Onde gravar, com o quê, com quem, como se enquadrar e como falar.",
       summary: "Sala com fala direta é o padrão mais repetível.",
-      interpretation: "Natureza aparece no topo com um único post; trate como indício, não como regra.",
-      coverageLabel: "71 de 84 posts com leitura visual",
+      interpretation: "Natureza aparece no topo com um post só. Vale um segundo teste antes de virar regra.",
+      coverageLabel: "71 de 84 posts já analisados",
       groups: [
         group("place", "Onde você grava", "Cenários identificados nos vídeos.", [
           ["nature", "Natureza", 1, 7.5, "indicio"],
@@ -116,6 +116,21 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
           ["fixed", "Câmera fixa", 17, 1.2, "tendencia"],
           ["wide", "Plano aberto", 8, 0.6, "tendencia"],
         ]),
+        group("objects", "Objetos em cena", "O que aparece junto com você.", [
+          ["mug", "Caneca de café", 9, 2.2, "tendencia", 2],
+          ["stroller", "Carrinho de bebê", 4, 1.6, "sinal"],
+          ["laptop", "Notebook", 6, 0.7, "sinal"],
+        ]),
+        group("cast", "Quem aparece com você", "Papéis identificados em cena.", [
+          ["partner", "Parceiro em cena", 5, 2.8, "sinal", 1],
+          ["child", "Filho em cena", 12, 1.8, "tendencia", 3],
+          ["alone", "Só você", 41, 0.9, "tendencia"],
+        ]),
+        group("aesthetics", "Clima da imagem", "Traços visuais recorrentes.", [
+          ["natural", "Luz natural", 33, 1.7, "tendencia", 4],
+          ["homemade", "Caseiro", 22, 1.3, "tendencia"],
+          ["polished", "Produzido", 7, 0.5, "sinal"],
+        ]),
       ],
     },
     {
@@ -124,9 +139,9 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
       subtitle: "Os temas específicos que a audiência mais compartilha.",
       summary: "Maternidade sem idealização rendeu 3,6× do normal.",
       interpretation: "O melhor tema combina experiência vivida com uma conclusão que serve para outra mãe.",
-      coverageLabel: "71 de 84 posts com leitura visual",
+      coverageLabel: "71 de 84 posts já analisados",
       groups: [
-        group("subjects", "Assuntos mais fortes", "Tema exato de cada vídeo.", [
+        group("subjects-best", "Assuntos mais fortes", "Tema exato de cada vídeo.", [
           ["mother", "Maternidade sem idealização", 8, 3.6, "tendencia", 2],
           ["faith", "Fé nas decisões difíceis", 5, 2.1, "sinal", 1],
           ["care", "Cuidado possível na rotina", 6, 1.7, "sinal"],
@@ -139,15 +154,15 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
       title: "Frases de abertura",
       subtitle: "As primeiras frases que mais e menos renderam.",
       summary: "Começar pelo conflito pessoal supera começar por uma explicação.",
-      interpretation: "Cada frase isolada é um indício; o padrão confiável é a estrutura em comum.",
+      interpretation: "Uma frase sozinha não prova nada. O que se repete entre as melhores é o jeito de começar.",
       coverageLabel: "63 aberturas identificadas",
       groups: [
-        group("best", "Aberturas mais fortes", "Texto falado ou escrito no início.", [
+        group("openings-best", "Aberturas mais fortes", "Texto falado ou escrito no início.", [
           ["a", "Eu achei que precisava dar conta de tudo sozinha.", 1, 5.2, "indicio"],
           ["b", "Ninguém me contou isso quando eu virei mãe.", 1, 4.1, "indicio"],
           ["c", "Hoje eu fiz diferente — e foi por isso.", 1, 3.3, "indicio"],
         ]),
-        group("weak", "Aberturas que renderam menos", "Use como contraste.", [
+        group("openings-weak", "Aberturas que renderam menos", "Use como contraste.", [
           ["d", "Três dicas para melhorar sua rotina.", 1, 0.6, "indicio"],
           ["e", "Vim mostrar um pouco do meu dia.", 1, 0.4, "indicio"],
         ]),

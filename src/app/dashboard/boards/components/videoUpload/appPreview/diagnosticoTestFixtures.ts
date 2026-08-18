@@ -89,6 +89,7 @@ export function buildDiagnosticoPageDataFixture(
       nextStep: "Confirme sua narrativa central para liberar suas próximas pautas.",
     },
     instagramConnected: false,
+    instagramConnectionState: "disconnected",
     userInfo: {
       name: "Ana Criadora",
       handle: "anacriadora",

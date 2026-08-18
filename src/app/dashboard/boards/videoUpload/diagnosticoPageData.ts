@@ -130,6 +130,13 @@ export interface DiagnosticoPageData {
   accessState: NarrativeMapAccessState;
   readingQuota: NarrativeMapReadingQuotaSnapshot | null;
   instagramConnected: boolean;
+  /**
+   * Saúde da conexão com o Instagram, não só o booleano de ligado/desligado.
+   * "expired" é o estado que o Perfil precisa mostrar como alerta: a conta segue
+   * marcada como conectada, mas o token venceu (ou a sincronização falhou) e o
+   * relatório para de atualizar em silêncio.
+   */
+  instagramConnectionState: "connected" | "expired" | "disconnected";
   userInfo: DiagnosticoUserInfo;
   /** Brand matches derived from synthesis via brandNarrativeMatcher — empty array when no meaningful signal yet */
   brandMatches: BrandNarrativeMatchResult[];

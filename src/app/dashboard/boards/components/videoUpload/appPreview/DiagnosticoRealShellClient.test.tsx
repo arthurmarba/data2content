@@ -138,8 +138,9 @@ describe("DiagnosticoRealShellClient", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Ana Criadora" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Entrar na Comunidade D2C" })).toBeInTheDocument();
+    // Sem Norte declarado, o primeiro passo é a narrativa — não a oferta nem a conexão.
+    expect(screen.getByRole("button", { name: "Definir meu Norte" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar na comunidade" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analisar conteúdo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collabs" })).toBeInTheDocument();
     expect(mockDiagnosticoPageRender).not.toHaveBeenCalled();
@@ -186,6 +187,17 @@ describe("DiagnosticoRealShellClient", () => {
           accessState: "admin",
           creatorWeeklyProfileExperienceEnabled: true,
           instagramConnected: false,
+          mapaSeed: {
+            narrativa_central: "Humor com identificação",
+            territorios: ["Rotina"],
+            temas: [],
+            narrativas_adjacentes: [],
+            assets: [],
+            tom: "",
+            formatos: [],
+            maturidade: "seed",
+            fonte: ["onboarding_declarativo"],
+          },
           userInfo: { ...base.userInfo, plan: "Free" },
         })}
         onAnalyzeAction={null}
@@ -231,7 +243,7 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Assinar o Pro" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ativar o Pro" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(
       expect.objectContaining({
         returnTo: "/dashboard/boards/mobile-strategic-profile",
@@ -256,7 +268,7 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Assinar o Pro" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ativar o Pro" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(
       expect.objectContaining({
         returnTo: "/dashboard/boards/mobile-strategic-profile",
@@ -290,13 +302,15 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Conectar Instagram" }));
+    // O convite fala do que o Pro entrega — e, como antes, assinar pelo mapa não
+    // impõe a conexão com o Instagram na volta do checkout.
+    fireEvent.click(screen.getByRole("button", { name: "Ativar o Pro" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(expect.objectContaining({
-      context: "instagram_report",
-      postCheckoutIntent: "connect_instagram",
+      context: "narrative_map",
+      postCheckoutIntent: undefined,
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Entrar no WhatsApp" }));
+    fireEvent.click(screen.getByRole("button", { name: "Entrar na comunidade" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(expect.objectContaining({
       context: "community",
       postCheckoutIntent: "join_community",

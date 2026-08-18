@@ -248,13 +248,18 @@
 
   .ds-profile-layout {
     display: grid;
+    /* As duas linhas do topo da coluna direita são dimensionadas pelo próprio
+       conteúdo (auto) e a terceira absorve a sobra (1fr): assim o card de
+       reuniões encosta no de próximo passo em vez de flutuar no meio da coluna —
+       e sobe para o topo quando não há pendência nenhuma para mostrar. */
     grid-template-areas:
       "map map"
-      "report community"
-      "report recordings"
       "report activation"
-      "brand activation"
+      "report community"
+      "report ."
+      "brand ."
       "footer footer";
+    grid-template-rows: auto auto auto 1fr auto auto;
     grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
     align-items: start;
     gap: 0.75rem;
@@ -268,7 +273,6 @@
   }
   .ds-profile-area--activation { grid-area: activation; }
   .ds-profile-area--community { grid-area: community; }
-  .ds-profile-area--recordings { grid-area: recordings; }
   .ds-profile-area--report { grid-area: report; }
   .ds-profile-area--brand { grid-area: brand; }
   .ds-profile-area--tools { grid-area: tools; }

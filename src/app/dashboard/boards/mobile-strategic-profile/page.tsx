@@ -15,6 +15,7 @@ import { getMapConfirmationsSnapshot } from "../videoUpload/mapConfirmationsServ
 import { buildStreamBSignalsSummary } from "../videoUpload/streamBNarrativeSignalsService";
 import { buildBrandMatchesFromConfirmedMap } from "../videoUpload/brandMatchingMobileService";
 import { resolveMapEvolutionStatus } from "../videoUpload/mapEvolutionStatusResolver";
+import { resolveInstagramConnectionState } from "../videoUpload/instagramConnectionState";
 import { listContentIdeasForUser } from "../videoUpload/contentIdeasReadService";
 import { evaluateContentIdeasReadiness } from "../videoUpload/contentIdeasReadinessGate";
 import { getMapaSeedReadinessSource } from "../videoUpload/mapaSeedReadinessSource";
@@ -162,7 +163,7 @@ export async function renderCreatorProfilePage({
           await connectToDatabase();
           const { default: UserModelImport } = await import("@/app/models/User");
           const userDoc = await UserModelImport.findById(userId)
-            .select("planStatus role cancelAtPeriodEnd mediaKitSlug isInstagramConnected instagramAccountId instagramAccessToken instagramUsername image name email lastMapVisitAt isNewUserForOnboarding onboardingCompletedAt onboardingAnswers weeklyMapSummary whatsappPhone whatsappVerified whatsappGroupLinkOpenedAt")
+            .select("planStatus role cancelAtPeriodEnd mediaKitSlug isInstagramConnected instagramAccountId instagramAccessToken instagramAccessTokenExpiresAt instagramSyncErrorMsg instagramUsername image name email lastMapVisitAt isNewUserForOnboarding onboardingCompletedAt onboardingAnswers weeklyMapSummary whatsappPhone whatsappVerified whatsappGroupLinkOpenedAt")
             .lean();
           if (userDoc) {
             mediaKitSlug = (userDoc as any).mediaKitSlug ?? null;
@@ -180,6 +181,8 @@ export async function renderCreatorProfilePage({
                 (userDoc as any).isInstagramConnected ?? sessionUser?.isInstagramConnected,
               instagramAccountId: (userDoc as any).instagramAccountId ?? sessionUser?.instagramAccountId,
               instagramAccessToken: (userDoc as any).instagramAccessToken ?? null,
+              instagramAccessTokenExpiresAt: (userDoc as any).instagramAccessTokenExpiresAt ?? null,
+              instagramSyncErrorMsg: (userDoc as any).instagramSyncErrorMsg ?? null,
               instagramUsername: (userDoc as any).instagramUsername ?? sessionUser?.instagramUsername,
               lastMapVisitAt: (userDoc as any).lastMapVisitAt ?? null,
               isNewUserForOnboarding: (userDoc as any).isNewUserForOnboarding ?? sessionUser?.isNewUserForOnboarding,
@@ -420,6 +423,7 @@ export async function renderCreatorProfilePage({
           accessState,
           readingQuota: initialReadingQuota,
           instagramConnected: isInstagramConnected,
+          instagramConnectionState: resolveInstagramConnectionState(effectiveUserForAccess),
           brandMatches,
           brandMapConfirmed,
           mapConfirmations,

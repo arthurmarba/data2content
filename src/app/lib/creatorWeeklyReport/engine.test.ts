@@ -8,6 +8,11 @@ function metric(params: {
   views?: number;
   subject?: string;
   opening?: string;
+  place?: string;
+  objects?: string[];
+  cast?: string[];
+  framing?: string[];
+  aesthetics?: string[];
 }) {
   return {
     instagramMediaId: params.date,
@@ -24,7 +29,11 @@ function metric(params: {
           subjects: [params.subject],
           openingLine: params.opening ?? null,
           toneIds: [],
-          framingIds: [],
+          placeId: params.place ?? null,
+          objects: params.objects ?? [],
+          assetRoleIds: params.cast ?? [],
+          framingIds: params.framing ?? [],
+          aestheticIds: params.aesthetics ?? [],
         }
       : null,
   };
@@ -63,5 +72,40 @@ describe("buildCreatorWeeklyReport", () => {
     expect(report.coverage.postsWithScene).toBe(0);
     expect(report.details.find((detail) => detail.id === "scene")?.groups).toEqual([]);
     expect(report.details.find((detail) => detail.id === "openings")?.groups).toEqual([]);
+  });
+
+  it("ranqueia objeto de cena, elenco, enquadramento e clima — não só cenário e tom", () => {
+    const report = buildCreatorWeeklyReport({
+      week,
+      generatedAt: new Date("2026-08-10T12:00:00Z"),
+      metrics: [
+        metric({
+          date: "2026-08-04T09:00:00Z",
+          shares: 30,
+          subject: "Rotina real",
+          objects: ["Caneca de café"],
+          cast: ["parceiro_em_cena"],
+          framing: ["close"],
+          aesthetics: ["luz_natural"],
+        }),
+        metric({
+          date: "2026-08-05T09:00:00Z",
+          shares: 20,
+          subject: "Rotina real",
+          objects: ["Caneca de café"],
+          cast: ["parceiro_em_cena"],
+          framing: ["close"],
+          aesthetics: ["luz_natural"],
+        }),
+        metric({ date: "2026-08-06T09:00:00Z", shares: 2, subject: "Autocuidado" }),
+      ],
+    });
+
+    const scene = report.details.find((detail) => detail.id === "scene");
+    const groupIds = scene?.groups.map((group) => group.id) ?? [];
+    expect(groupIds).toEqual(expect.arrayContaining(["objects", "cast", "framing", "aesthetics"]));
+    expect(scene?.groups.find((group) => group.id === "objects")?.items[0]?.label).toBe("Caneca de café");
+    // Elenco pelo papel canônico, nunca pelo nome de quem aparece.
+    expect(scene?.groups.find((group) => group.id === "cast")?.items[0]?.label).not.toBe("parceiro_em_cena");
   });
 });
