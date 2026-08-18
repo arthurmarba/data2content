@@ -36,9 +36,12 @@ export interface CreatorWeeklyReportMetricInput {
     subjects?: unknown;
     subjectIds?: unknown;
     objects?: unknown;
+    /** Papéis em cena ("parceiro_em_cena"), nunca nomes — ver IMetricSceneElements. */
+    assetRoleIds?: unknown;
     placeId?: unknown;
     toneIds?: unknown;
     framingIds?: unknown;
+    aestheticIds?: unknown;
     openingLine?: unknown;
     version?: unknown;
   } | null;
