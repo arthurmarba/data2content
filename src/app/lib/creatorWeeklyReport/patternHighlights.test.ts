@@ -193,3 +193,36 @@ describe("agrupamento e destaque", () => {
   });
 });
 
+describe("resposta longa vinda da leitura real", () => {
+  it("não deixa um assunto comprido virar manchete", () => {
+    const report = clone();
+    const subjects = report.details.find((detail) => detail.id === "subjects")!;
+    subjects.groups = subjects.groups.map((group) => ({
+      ...group,
+      items: group.items.map((item, index) =>
+        index === 0
+          ? { ...item, label: "nova lei para postar filhos · conteúdo comercial com crianças", index: 9 }
+          : item,
+      ),
+    }));
+    const headline = buildWeekHeadline(buildPatternHighlights(report));
+    // Cai para o próximo padrão que cabe em uma manchete, em vez de virar parágrafo.
+    expect(headline).toBe("O que rendeu mais foi gravar em natureza.");
+  });
+
+  it("sem nenhuma resposta curta, devolve null e a seção usa a leitura", () => {
+    const report = clone();
+    report.details = report.details.map((detail) => ({
+      ...detail,
+      groups: detail.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item) => ({
+          ...item,
+          label: "um rótulo absurdamente comprido que jamais caberia numa manchete de tela",
+        })),
+      })),
+    }));
+    expect(buildWeekHeadline(buildPatternHighlights(report))).toBeNull();
+  });
+});
+

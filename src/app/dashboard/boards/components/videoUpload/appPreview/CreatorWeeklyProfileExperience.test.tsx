@@ -377,3 +377,33 @@ describe("inspiração no território", () => {
   });
 });
 
+describe("assuntos do mapa sem confirmação em vídeo", () => {
+  it("não promete um ✓ que não está na tela", () => {
+    const report = JSON.parse(JSON.stringify(CREATOR_WEEKLY_REPORT_DEMO));
+    report.overview.observedSubjects = ["Culinária"];
+    const data = buildDiagnosticoPageDataFixture({
+      accessState: "pro_instagram_connected",
+      instagramConnected: true,
+      instagramConnectionState: "connected",
+      creatorWeeklyReport: report,
+      mapaSeed: {
+        narrativa_central: "Uma mãe que encontra força na rotina",
+        territorios: ["Maternidade", "Fé"],
+        temas: [],
+        narrativas_adjacentes: [],
+        assets: [],
+        tom: "",
+        formatos: [],
+        maturidade: "seed",
+        fonte: ["onboarding_declarativo"],
+      },
+      userInfo: { name: "Ana Criadora", handle: "anacriadora", imageUrl: null, plan: "Pro" },
+    });
+
+    render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
+
+    expect(screen.queryByText(/O ✓ marca os assuntos/)).not.toBeInTheDocument();
+    expect(screen.getByText(/nenhum deles falou desses assuntos ainda/)).toBeInTheDocument();
+  });
+});
+

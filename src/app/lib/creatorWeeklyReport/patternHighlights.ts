@@ -299,9 +299,22 @@ const HEADLINE_TEMPLATES: Record<string, (value: string) => string> = {
  * A manchete da semana: a descoberta mais forte, dita como quem dá uma dica.
  * Sem nada promovido, devolve null e a seção usa a leitura do relatório.
  */
+/**
+ * Teto de manchete. Uma resposta pode chegar longa da leitura real (um assunto
+ * como "conteúdo comercial com crianças" já tem 31 caracteres); acima disso a
+ * frase deixa de ser manchete e vira parágrafo, e a seção usa a leitura do
+ * relatório no lugar.
+ */
+const HEADLINE_MAX_VALUE = 42;
+
 export function buildWeekHeadline(highlights: PatternHighlight[]): string | null {
   const strongest = highlights
-    .filter((highlight) => highlight.kind === "answer" && highlight.index !== null)
+    .filter(
+      (highlight) =>
+        highlight.kind === "answer" &&
+        highlight.index !== null &&
+        highlight.value.length <= HEADLINE_MAX_VALUE,
+    )
     .sort((a, b) => (b.index ?? 0) - (a.index ?? 0))[0];
 
   if (!strongest) return null;

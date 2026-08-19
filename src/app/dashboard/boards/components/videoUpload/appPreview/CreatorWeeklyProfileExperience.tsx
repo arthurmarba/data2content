@@ -148,6 +148,14 @@ function CreatorMap({
   toolsSlot?: ReactNode;
 }) {
   const observedNormalized = observedSubjects.map(normalizeForMatch);
+  const isObserved = (territory: string) => {
+    const normalized = normalizeForMatch(territory);
+    return observedNormalized.some((subject) => subject.includes(normalized) || normalized.includes(subject));
+  };
+  // A legenda do ✓ só faz sentido se algum ✓ existir na tela. Havendo vídeos
+  // analisados mas nenhum assunto batendo, ela prometia uma marca que não está
+  // em lugar nenhum.
+  const hasCheckedSubject = territories.some(isObserved);
   return (
     // Identidade sem casca de cartão: o retrato e o nome abrem a página, e o
     // mapa vem logo abaixo sob o próprio cabeçalho de seção.
@@ -188,8 +196,7 @@ function CreatorMap({
 
         <div className="mt-4 flex flex-wrap gap-1.5">
           {territories.length > 0 ? territories.map((territory) => {
-            const normalized = normalizeForMatch(territory);
-            const observed = observedNormalized.some((subject) => subject.includes(normalized) || normalized.includes(subject));
+            const observed = isObserved(territory);
             return (
               <span
                 key={territory}
@@ -206,9 +213,11 @@ function CreatorMap({
         </div>
 
         <p className="ds-caption mt-3">
-          {hasVideoEvidence
+          {hasCheckedSubject
             ? "O ✓ marca os assuntos que também apareceram nos seus vídeos."
-            : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
+            : hasVideoEvidence
+              ? "Seus vídeos já foram analisados, mas nenhum deles falou desses assuntos ainda."
+              : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
         </p>
 
         <button type="button" className="mt-4 flex w-full items-center justify-between text-[13px] font-semibold text-[var(--ds-color-ink)]" onClick={onOpenFullMap}>

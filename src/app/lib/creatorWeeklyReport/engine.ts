@@ -414,7 +414,11 @@ export function buildCreatorWeeklyReport(params: {
       metrics: sceneMetrics,
       weekStartsAt: params.week.startsAt,
       baseline,
-      extract: (metric) => stringList(metric.sceneElements?.subjects).join(" · ") || null,
+      // Um assunto por vídeo, não todos concatenados. Um post real costuma sair
+      // da leitura com três ("nova lei para postar filhos", "conteúdo comercial
+      // com crianças", "monetização de perfil infantil"); juntá-los produzia um
+      // rótulo de quatro linhas, que virava manchete no Perfil.
+      extract: (metric) => stringList(metric.sceneElements?.subjects)[0] ?? null,
     }),
   ].filter((group) => group.items.length > 0);
 

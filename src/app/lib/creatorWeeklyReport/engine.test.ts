@@ -108,4 +108,38 @@ describe("buildCreatorWeeklyReport", () => {
     // Elenco pelo papel canônico, nunca pelo nome de quem aparece.
     expect(scene?.groups.find((group) => group.id === "cast")?.items[0]?.label).not.toBe("parceiro_em_cena");
   });
+
+  it("usa um assunto por vídeo, não todos concatenados", () => {
+    const report = buildCreatorWeeklyReport({
+      week,
+      generatedAt: new Date("2026-08-10T12:00:00Z"),
+      metrics: [
+        {
+          instagramMediaId: "a",
+          postDate: new Date("2026-08-04T09:00:00Z"),
+          updatedAt: new Date("2026-08-10T10:00:00Z"),
+          stats: { shares: 30, saved: 60, views: 3000 },
+          sceneElements: {
+            version: "v1",
+            subjects: [
+              "nova lei para postar filhos",
+              "conteúdo comercial com crianças",
+              "monetização de perfil infantil",
+            ],
+            openingLine: null,
+            toneIds: [],
+            framingIds: [],
+          },
+        },
+        metric({ date: "2026-08-05T09:00:00Z", shares: 2, subject: "Outro tema" }),
+      ],
+    });
+
+    const best = report.details
+      .find((detail) => detail.id === "subjects")
+      ?.groups.find((group) => group.id === "subjects-best")
+      ?.items[0];
+    expect(best?.label).toBe("nova lei para postar filhos");
+    expect(best?.label).not.toContain("·");
+  });
 });
