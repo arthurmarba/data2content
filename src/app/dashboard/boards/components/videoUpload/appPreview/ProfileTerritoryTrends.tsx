@@ -74,7 +74,7 @@ export function ProfileTerritoryTrends({
         title={`Inspiração em ${territory.toLocaleLowerCase("pt-BR")}`}
       />
 
-      <div className="mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[15px]">
+      <div className="mt-4 rounded-[18px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
         <button type="button" onClick={() => openPost(lead)} className="flex w-full gap-3 text-left">
           <Cover url={lead.coverUrl} className="h-[112px] w-[82px] shrink-0 rounded-[10px]" />
           <span className="min-w-0 flex-1">

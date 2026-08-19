@@ -15,9 +15,9 @@
 
 const SPACING = {
   /** Assunto de primeiro nível: mapa, relatório, inspiração, reuniões. */
-  section: "mt-[26px]",
+  section: "mt-[40px]",
   /** Divisão interna de um assunto: os grupos de padrões, o vídeo da semana. */
-  group: "mt-[22px]",
+  group: "mt-[34px]",
   /** Abre a página — o respiro vem do padding do container. */
   first: "mt-0",
 } as const;

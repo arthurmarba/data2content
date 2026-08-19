@@ -83,7 +83,7 @@ const KICKER: Record<Exclude<NextStepFieldState, "connected" | "none">, string> 
  */
 function FieldCard({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-3 rounded-[var(--ds-radius-md)] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px]">
+    <div className="mt-4 rounded-[18px] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-6">
       {children}
     </div>
   );

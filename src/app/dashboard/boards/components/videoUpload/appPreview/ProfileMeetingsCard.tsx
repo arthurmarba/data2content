@@ -125,7 +125,7 @@ export function ProfileMeetingsCard({
     <>
       <section id="community-d2c">
         <ProfileSectionHeader title="Reuniões da comunidade" />
-        <div className="mt-3 rounded-[var(--ds-radius-md)] bg-[var(--ds-color-neutral)] p-[18px]">
+        <div className="mt-4 rounded-[18px] bg-[var(--ds-color-neutral)] p-6">
         <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--ds-color-ink)]">
           {cancelled ? "A próxima edição foi cancelada." : "Sua semana entra na pauta do grupo."}
         </h2>

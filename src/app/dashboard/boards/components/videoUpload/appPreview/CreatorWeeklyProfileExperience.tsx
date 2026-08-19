@@ -95,13 +95,13 @@ function UtilityPanel({
     },
   ];
   return (
-    <section className="grid grid-cols-2 gap-2" aria-label="Ferramentas">
+    <section className="grid grid-cols-2 gap-2.5" aria-label="Ferramentas">
       {rows.map((row) => (
         <button
           key={row.id}
           type="button"
           onClick={row.action}
-          className="rounded-[14px] border border-[var(--ds-color-line)] bg-[var(--ds-color-neutral)] p-[13px_14px] text-left"
+          className="rounded-[14px] border border-[var(--ds-color-line)] bg-[var(--ds-color-neutral)] px-[14px] py-[13px] text-left"
         >
           <span className="flex items-center justify-between gap-1.5">
             <span className="text-[14px] font-semibold leading-[1.2] text-[var(--ds-color-ink)]">{row.title}</span>
@@ -167,21 +167,21 @@ function CreatorMap({
       <div className="ds-profile-identity flex items-center gap-3">
         <ProfileAvatar name={userName} imageUrl={userImageUrl} />
         <div className="min-w-0 flex-1">
-          <h1 className="ds-profile-title truncate text-[20px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+          <h1 className="ds-profile-title truncate text-[23px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ds-color-ink)]">
             {userName || "Seu perfil"}
           </h1>
-          <p className="mt-0.5 truncate text-[12px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</p>
+          <p className="mt-1 truncate text-[12.5px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</p>
         </div>
         <button type="button" className="ds-icon-button shrink-0" aria-label="Configurações da conta" onClick={onOpenAccountMenu}>
           <GearIcon />
         </button>
       </div>
 
-      {toolsSlot ? <div className="mt-3.5">{toolsSlot}</div> : null}
+      {toolsSlot ? <div className="mt-5">{toolsSlot}</div> : null}
 
       <ProfileSectionHeader title="Seu mapa" />
 
-      <div className="ds-profile-map-body mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
+      <div className="ds-profile-map-body mt-4 rounded-[18px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-6">
         {/* Vazio nunca ocupa o nível de título: promover a ausência de conteúdo
             faz o maior texto da tela ser justamente o que não existe ainda. */}
         {narrativeIsPlaceholder ? (
@@ -189,7 +189,7 @@ function CreatorMap({
             {narrative}
           </p>
         ) : (
-          <blockquote id="creator-map-title" className="text-[22px] font-semibold leading-[1.22] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+          <blockquote id="creator-map-title" className="text-[23px] font-semibold leading-[1.24] tracking-[-0.03em] text-[var(--ds-color-ink)]">
             “{narrative}”
           </blockquote>
         )}
@@ -220,7 +220,7 @@ function CreatorMap({
               : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
         </p>
 
-        <button type="button" className="mt-4 flex w-full items-center justify-between text-[13px] font-semibold text-[var(--ds-color-ink)]" onClick={onOpenFullMap}>
+        <button type="button" className="mt-[18px] flex w-full items-center justify-between text-[13px] font-semibold text-[var(--ds-color-ink)]" onClick={onOpenFullMap}>
           <span>Ver mapa completo</span>
           <span aria-hidden="true">→</span>
         </button>
@@ -351,7 +351,7 @@ function BrandMatchCard({
   return (
     <section>
       <ProfileSectionHeader title="Marca que combina com você" />
-      <div className="mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
+      <div className="mt-4 rounded-[18px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-6">
         <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--ds-color-ink)]">{match.brandName}</h2>
         {match.rationale ? (
           <p className="mt-2 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">{match.rationale}</p>

@@ -96,7 +96,7 @@ function PatternCard({
       type="button"
       onClick={onToggle}
       aria-expanded={locked ? undefined : expanded}
-      className={`rounded-[var(--ds-radius-md)] p-[15px] text-left ${wide ? "col-span-2" : ""} ${
+      className={`rounded-[18px] p-[18px] text-left ${wide ? "col-span-2" : ""} ${
         surface === "paper"
           ? "border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]"
           : "bg-[var(--ds-color-neutral)]"
@@ -114,15 +114,15 @@ function PatternCard({
       </span>
 
       <span
-        className={`mt-2 block tracking-[-0.03em] text-[var(--ds-color-ink)] ${
-          isAnswer ? "text-[22px] font-semibold leading-[1.12]" : "text-[15px] font-semibold leading-[1.3]"
+        className={`mt-3 block tracking-[-0.03em] text-[var(--ds-color-ink)] ${
+          isAnswer ? "text-[24px] font-semibold leading-[1.14]" : "text-[15px] font-semibold leading-[1.3]"
         }`}
       >
         {highlight.value}
       </span>
 
       {isAnswer ? (
-        <span className="mt-2 flex items-baseline gap-[7px]">
+        <span className="mt-3 flex items-baseline gap-2">
           <b className="text-[14px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ds-color-ink)]">
             {indexLabel}
           </b>
@@ -135,7 +135,7 @@ function PatternCard({
       {expanded && group ? <RankList group={group} surface={surface} /> : null}
 
       <span
-        className={`mt-3 flex items-center justify-between text-[11.5px] font-semibold ${
+        className={`mt-4 flex items-center justify-between text-[12px] font-semibold ${
           locked ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-secondary)]"
         }`}
       >
@@ -177,7 +177,7 @@ function PatternGroup({
   return (
     <section aria-labelledby={`pattern-group-${surface}`}>
       <ProfileSectionHeader id={`pattern-group-${surface}`} title={title} level="group" />
-      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+      <div className="mt-3.5 grid grid-cols-2 gap-3.5">
         {ordered.map((highlight) => {
           const locked = lockedIds.has(highlight.id);
           const wide = !isNarrow(highlight) || highlight.id === oddOneOut;
@@ -219,6 +219,9 @@ export function ProfilePatternGrid({
   onLockedClick: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Dez cards de uma vez viram muro. Os três primeiros de "antes de gravar" são
+  // os que decidem a próxima gravação — o resto fica a um toque de distância.
+  const [showAll, setShowAll] = useState(false);
 
   if (highlights.length === 0) return null;
 
@@ -230,6 +233,10 @@ export function ProfilePatternGrid({
   const grid = highlights.filter((highlight) => highlight.id !== hero?.id);
   const before = grid.filter((highlight) => patternGroupOf(highlight) === "before");
   const during = grid.filter((highlight) => patternGroupOf(highlight) === "during");
+  const FIRST_BATCH = 3;
+  const beforeShown = before.slice(0, FIRST_BATCH);
+  const beforeRest = before.slice(FIRST_BATCH);
+  const hiddenCount = beforeRest.length + during.length;
 
   // O primeiro card de "antes de gravar" fica aberto para quem não assina: a
   // pessoa prova o produto num card real antes de encontrar o convite.
@@ -257,12 +264,12 @@ export function ProfilePatternGrid({
     <>
       <h2
         id="weekly-report-title"
-        className="text-[24px] font-bold leading-[1.14] tracking-[-0.035em] text-[var(--ds-color-ink)]"
+        className="text-[27px] font-bold leading-[1.14] tracking-[-0.035em] text-[var(--ds-color-ink)]"
       >
         {headline}
       </h2>
       {weekNumbers ? (
-        <p className="mt-2.5 text-[13px] font-medium leading-[1.4] text-[var(--ds-color-text-secondary)]">
+        <p className="mt-2.5 text-[13.5px] font-medium leading-[1.4] text-[var(--ds-color-text-secondary)]">
           {weekNumbers}
         </p>
       ) : null}
@@ -276,12 +283,12 @@ export function ProfilePatternGrid({
           type="button"
           onClick={() => handleCardClick(hero, lockedIds.has(hero.id))}
           aria-expanded={lockedIds.has(hero.id) ? undefined : expandedId === hero.id}
-          className="mt-3 w-full rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px] text-left"
+          className="mt-4 w-full rounded-[18px] border border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-6 text-left"
         >
           {/* A descoberta da semana e o padrão mais legível dividem o mesmo bloco:
               a manchete diz o quê, a abertura mostra em palavras do próprio vídeo. */}
           {headlineBlock}
-          <span className="mt-5 flex items-center justify-between gap-2">
+          <span className="mt-[26px] flex items-center justify-between gap-2">
             <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
               {hero.label}
             </span>
@@ -322,25 +329,59 @@ export function ProfilePatternGrid({
 
       <PatternGroup
         title="Antes de gravar"
-        highlights={before}
+        highlights={beforeShown}
         surface="paper"
         expandedId={expandedId}
         lockedIds={lockedIds}
         groupFor={groupFor}
         onCardClick={handleCardClick}
       />
-      <PatternGroup
-        title="Na hora de gravar"
-        highlights={during}
-        surface="neutral"
-        expandedId={expandedId}
-        lockedIds={lockedIds}
-        groupFor={groupFor}
-        onCardClick={handleCardClick}
-      />
+
+      {showAll ? (
+        <>
+          {beforeRest.length > 0 ? (
+            <div className="mt-3.5 grid grid-cols-2 gap-3.5">
+              {beforeRest.map((highlight) => (
+                <PatternCard
+                  key={highlight.id}
+                  highlight={highlight}
+                  group={groupFor(highlight)}
+                  surface="paper"
+                  expanded={expandedId === highlight.id}
+                  locked={lockedIds.has(highlight.id)}
+                  wide={highlight.kind !== "answer" || highlight.value.length > WIDE_VALUE_LENGTH}
+                  onToggle={() => handleCardClick(highlight, lockedIds.has(highlight.id))}
+                />
+              ))}
+            </div>
+          ) : null}
+          <PatternGroup
+            title="Na hora de gravar"
+            highlights={during}
+            surface="neutral"
+            expandedId={expandedId}
+            lockedIds={lockedIds}
+            groupFor={groupFor}
+            onCardClick={handleCardClick}
+          />
+        </>
+      ) : null}
+
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll((value) => !value)}
+          aria-expanded={showAll}
+          className="mt-6 w-full rounded-[14px] border border-[var(--ds-color-line-strong)] p-[15px] text-[14px] font-semibold text-[var(--ds-color-ink)]"
+        >
+          {showAll
+            ? `Esconder os outros ${hiddenCount} padrões`
+            : `Ver os outros ${hiddenCount} padrões`}
+        </button>
+      ) : null}
 
       {nextStep ? (
-        <div className="mt-[18px] rounded-[var(--ds-radius-md)] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px]">
+        <div className="mt-[34px] rounded-[18px] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-6">
           <span className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--ds-color-text-muted)]">
             Seu próximo passo
           </span>

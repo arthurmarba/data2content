@@ -130,16 +130,18 @@ describe("CreatorWeeklyProfileExperience", () => {
     render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
 
     // A resposta está na capa, sem precisar tocar.
-    // Cada dimensão da leitura tem a própria resposta na capa.
+    // Os três primeiros — os que decidem a próxima gravação — abrem a grade.
     expect(screen.getByText("Quinta")).toBeInTheDocument();
     expect(screen.getByText("Das 4h às 8h")).toBeInTheDocument();
+    expect(screen.getByText("Natureza")).toBeInTheDocument();
+    // O resto fica a um toque, para dez cards não virarem muro.
+    expect(screen.queryByText("Plano próximo")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver os outros 6 padrões" }));
     expect(screen.getByText("Plano próximo")).toBeInTheDocument();
     expect(screen.getByText("Caneca de café")).toBeInTheDocument();
     expect(screen.getByText("Parceiro em cena")).toBeInTheDocument();
     expect(screen.getByText("Luz natural")).toBeInTheDocument();
     expect(screen.getByText("Direto e acolhedor")).toBeInTheDocument();
-    // O melhor resultado sobe mesmo vindo de um post só — com a etiqueta de teste.
-    expect(screen.getByText("Natureza")).toBeInTheDocument();
     expect(screen.getByText("7,5×")).toBeInTheDocument();
     expect(screen.getAllByText("1 post · vale testar").length).toBeGreaterThan(0);
     expect(screen.getByText("Maternidade sem idealização")).toBeInTheDocument();

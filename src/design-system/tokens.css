@@ -190,13 +190,14 @@
   --ds-color-line-strong: #d6cec2;
   --ds-shadow-raised: none;
   --ds-shadow-floating: none;
-  /* A página é mais escura que o cartão de propósito: cartão só existe se tiver
-     sobre o que repousar. Branco sobre quase-branco é o pior dos dois mundos. */
-  background: #f1ebe1;
+  /* Página branca. O bege existia para o cartão ter sobre o que repousar; com o
+     conteúdo repousando direto no canvas, ele virava chão sujo — e ficava do
+     mesmo tom das superfícies de apoio. Quem separa agora é o contorno. */
+  background: #ffffff;
 }
 
 .d2c-mobile-app.ds-notebook {
-  background: #f1ebe1;
+  background: #ffffff;
 }
 
 /* A fonte de display já cobre h1/h2/h3 via `.d2c-mobile-app`; a narrativa do
