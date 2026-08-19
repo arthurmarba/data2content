@@ -47,9 +47,33 @@ const COVER_LABELS: Record<string, string> = {
   aesthetics: "Clima",
   "subjects-best": "Assunto",
   subjects: "Assunto",
-  "subjects-repeated": "Assunto que você repete",
+  "subjects-repeated": "Recorrente",
   "openings-best": "Gancho",
   best: "Gancho",
+};
+
+/**
+ * O que dizer quando nada rendeu acima do normal — na palavra daquele ranking.
+ *
+ * Antes o card caía para o resumo do DETALHE, que é compartilhado por seis
+ * rankings: o card de tom exibia "Estabelecimento rendeu 2,5× o seu normal",
+ * falando de cenário. Frase emprestada de outra dimensão é pior que ausência.
+ */
+const EMPTY_SENTENCE: Record<string, string> = {
+  weekday: "Nenhum dia rendeu acima do seu normal ainda.",
+  "time-slot": "Nenhum horário rendeu acima do seu normal ainda.",
+  time: "Nenhum horário rendeu acima do seu normal ainda.",
+  place: "Nenhum cenário rendeu acima do seu normal ainda.",
+  objects: "Nenhum objeto em cena rendeu acima do seu normal ainda.",
+  cast: "Ninguém em cena rendeu acima do seu normal ainda.",
+  framing: "Nenhum enquadramento rendeu acima do seu normal ainda.",
+  tone: "Nenhum tom rendeu acima do seu normal ainda.",
+  aesthetics: "Nenhum clima de imagem rendeu acima do seu normal ainda.",
+  "subjects-best": "Nenhum assunto rendeu acima do seu normal ainda.",
+  subjects: "Nenhum assunto rendeu acima do seu normal ainda.",
+  "subjects-repeated": "Nenhum assunto repetido rendeu acima do seu normal ainda.",
+  "openings-best": "Nenhum gancho rendeu acima do seu normal ainda.",
+  best: "Nenhum gancho rendeu acima do seu normal ainda.",
 };
 
 /**
@@ -186,15 +210,19 @@ function highlightFor(
     };
   }
 
-  // Nada rendeu acima da mediana neste ranking: a leitura do detalhe fala do
-  // padrão, e é mais honesta do que promover uma linha que não se sustenta.
-  const summary = detail.summary?.trim();
+  // Nada rendeu acima da mediana NESTE ranking. O card diz isso com a palavra da
+  // própria dimensão e mostra quantos posts já foram lidos — a leitura do detalhe
+  // fala dos seis rankings de cena ao mesmo tempo e não serve de resposta aqui.
+  const analysed = group.items.reduce((total, item) => total + (item.nPosts ?? 0), 0);
   return {
     ...base,
-    kind: summary ? "reading" : "empty",
-    value: summary || "Ainda faltam vídeos analisados para apontar um padrão.",
+    kind: group.items.length > 0 ? "reading" : "empty",
+    value:
+      group.items.length > 0
+        ? EMPTY_SENTENCE[group.id] ?? "Nada rendeu acima do seu normal ainda."
+        : "Ainda faltam vídeos analisados para apontar um padrão.",
     index: null,
-    support: summary ? detail.coverageLabel || null : null,
+    support: analysed > 0 ? `${postsLabel(analysed)} lidos` : detail.coverageLabel || null,
     evidence: null,
   };
 }

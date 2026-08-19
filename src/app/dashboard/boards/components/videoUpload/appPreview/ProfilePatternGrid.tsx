@@ -32,6 +32,21 @@ import { ProfileSectionHeader } from "./ProfileSectionHeader";
 /** Valor curto cabe em meia largura; frase ocupa a linha inteira. */
 const WIDE_VALUE_LENGTH = 16;
 
+/**
+ * Cor em um número só por tela: o maior resultado da semana.
+ *
+ * Pintar de verde tudo que passa de um corte não funciona — os padrões
+ * promovidos já passaram da mediana por definição, então em quase toda semana
+ * TODOS ficariam verdes, e verde em tudo é verde em nada. Um só faz o olho
+ * pousar onde a decisão está.
+ *
+ * O rosa da marca fica reservado para AÇÃO (botões, "Abrir com o Pro"). Número
+ * não é ação; se ele também for rosa, o olho deixa de saber onde tocar.
+ */
+function resultColorClass(isTop: boolean) {
+  return isTop ? "text-[var(--ds-color-success)]" : "text-[var(--ds-color-ink)]";
+}
+
 function formatRankValue(index: number | null) {
   if (index === null || !Number.isFinite(index)) return "—";
   return `${index.toFixed(1).replace(".", ",")}×`;
@@ -77,6 +92,7 @@ function PatternCard({
   expanded,
   locked,
   wide,
+  isTop,
   onToggle,
 }: {
   highlight: PatternHighlight;
@@ -85,11 +101,17 @@ function PatternCard({
   expanded: boolean;
   locked: boolean;
   wide: boolean;
+  /** O maior resultado da semana — o único número colorido da tela. */
+  isTop: boolean;
   onToggle: () => void;
 }) {
   const indexLabel = formatRankValue(highlight.index);
   const isAnswer = highlight.kind === "answer";
   const support = compactSupport(highlight.support);
+  // Um resultado de um ou dois posts é aposta, não regra. O contorno tracejado já
+  // significa "espera confirmação" no resto da tela — aqui ele faz o 17,0× de um
+  // post ler como hipótese antes de alguém chegar na legenda.
+  const unproven = isAnswer && highlight.evidence === "indicio";
 
   return (
     <button
@@ -98,8 +120,8 @@ function PatternCard({
       aria-expanded={locked ? undefined : expanded}
       className={`rounded-[18px] p-[18px] text-left ${wide ? "col-span-2" : ""} ${
         surface === "paper"
-          ? "border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]"
-          : "bg-[var(--ds-color-neutral)]"
+          ? `bg-[var(--ds-color-surface)] ${unproven ? "border border-dashed border-[var(--ds-color-line-strong)]" : "border border-[var(--ds-color-line)]"}`
+          : `bg-[var(--ds-color-neutral)] ${unproven ? "border border-dashed border-[var(--ds-color-line-strong)]" : ""}`
       }`}
     >
       <span className="flex items-center justify-between gap-2">
@@ -109,6 +131,12 @@ function PatternCard({
         {locked ? (
           <span className="rounded-full border border-dashed border-[var(--ds-color-line-strong)] px-2 py-[3px] text-[10px] font-semibold text-[var(--ds-color-text-secondary)]">
             Pro
+          </span>
+        ) : isAnswer ? (
+          // A seta mora na linha do rótulo: sozinha num rodapé, ela deixava um
+          // vão embaixo dos cards de valor curto.
+          <span aria-hidden="true" className="text-[14px] text-[var(--ds-color-text-muted)]">
+            {expanded ? "⌃" : "›"}
           </span>
         ) : null}
       </span>
@@ -123,25 +151,30 @@ function PatternCard({
 
       {isAnswer ? (
         <span className="mt-3 flex items-baseline gap-2">
-          <b className="text-[14px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ds-color-ink)]">
+          {/* O multiplicador é o "e daí?" da resposta: sobe de 14 para 20px e vira
+              par visual dela, em vez de nota de rodapé. */}
+          <b className={`text-[20px] font-bold leading-none tracking-[-0.03em] tabular-nums ${resultColorClass(isTop)}`}>
             {indexLabel}
           </b>
           {support ? (
-            <span className="text-[11px] leading-[1.3] text-[var(--ds-color-text-muted)]">{support}</span>
+            <span className="text-[11.5px] leading-[1.3] text-[var(--ds-color-text-muted)]">{support}</span>
           ) : null}
         </span>
+      ) : support ? (
+        <span className="mt-3 block text-[11.5px] leading-[1.3] text-[var(--ds-color-text-muted)]">{support}</span>
       ) : null}
 
       {expanded && group ? <RankList group={group} surface={surface} /> : null}
 
-      <span
-        className={`mt-4 flex items-center justify-between text-[12px] font-semibold ${
-          locked ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-secondary)]"
-        }`}
-      >
-        <span>{locked ? "Abrir com o Pro" : expanded ? "Fechar" : "Ver ranking"}</span>
-        <span aria-hidden="true">{locked ? "›" : expanded ? "⌃" : "›"}</span>
-      </span>
+      {/* O rodapé só existe quando há palavra a dizer: no card bloqueado, onde o
+          convite é a informação nova. Nos demais, o card inteiro é o botão e a
+          seta já está lá em cima — repetir "Ver ranking" dez vezes era ruído. */}
+      {locked ? (
+        <span className="mt-4 flex items-center justify-between text-[12px] font-semibold text-[var(--ds-color-brand-strong)]">
+          <span>Abrir com o Pro</span>
+          <span aria-hidden="true" className="text-[14px]">›</span>
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -152,6 +185,7 @@ function PatternGroup({
   surface,
   expandedId,
   lockedIds,
+  topId,
   groupFor,
   onCardClick,
 }: {
@@ -160,6 +194,7 @@ function PatternGroup({
   surface: "paper" | "neutral";
   expandedId: string | null;
   lockedIds: Set<string>;
+  topId: string | null;
   groupFor: (highlight: PatternHighlight) => CreatorWeeklyReportRankGroup | null;
   onCardClick: (highlight: PatternHighlight, locked: boolean) => void;
 }) {
@@ -190,6 +225,7 @@ function PatternGroup({
               expanded={expandedId === highlight.id}
               locked={locked}
               wide={wide}
+              isTop={highlight.id === topId}
               onToggle={() => onCardClick(highlight, locked)}
             />
           );
@@ -228,6 +264,12 @@ export function ProfilePatternGrid({
   const detailById = new Map(details.map((detail) => [detail.id, detail]));
   const groupFor = (highlight: PatternHighlight) =>
     detailById.get(highlight.detailId)?.groups.find((group) => group.id === highlight.groupId) ?? null;
+
+  // O maior resultado da semana entre todos os padrões — inclusive o do destaque.
+  const topId =
+    [...highlights]
+      .filter((highlight) => highlight.kind === "answer" && highlight.index !== null)
+      .sort((a, b) => (b.index ?? 0) - (a.index ?? 0))[0]?.id ?? null;
 
   const hero = pickHeroHighlight(highlights);
   const grid = highlights.filter((highlight) => highlight.id !== hero?.id);
@@ -302,7 +344,7 @@ export function ProfilePatternGrid({
             “{hero.value}”
           </span>
           <span className="mt-2.5 flex items-baseline gap-2">
-            <b className="text-[26px] font-bold leading-none tracking-[-0.04em] tabular-nums text-[var(--ds-color-ink)]">
+            <b className={`text-[26px] font-bold leading-none tracking-[-0.04em] tabular-nums ${resultColorClass(hero.id === topId)}`}>
               {formatRankValue(hero.index)}
             </b>
             {compactSupport(hero.support) ? (
@@ -333,6 +375,7 @@ export function ProfilePatternGrid({
         surface="paper"
         expandedId={expandedId}
         lockedIds={lockedIds}
+        topId={topId}
         groupFor={groupFor}
         onCardClick={handleCardClick}
       />
@@ -350,6 +393,7 @@ export function ProfilePatternGrid({
                   expanded={expandedId === highlight.id}
                   locked={lockedIds.has(highlight.id)}
                   wide={highlight.kind !== "answer" || highlight.value.length > WIDE_VALUE_LENGTH}
+                  isTop={highlight.id === topId}
                   onToggle={() => handleCardClick(highlight, lockedIds.has(highlight.id))}
                 />
               ))}
@@ -361,6 +405,7 @@ export function ProfilePatternGrid({
             surface="neutral"
             expandedId={expandedId}
             lockedIds={lockedIds}
+            topId={topId}
             groupFor={groupFor}
             onCardClick={handleCardClick}
           />

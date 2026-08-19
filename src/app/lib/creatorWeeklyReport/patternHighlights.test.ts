@@ -70,7 +70,7 @@ describe("buildPatternHighlights", () => {
     expect(byGroup(highlights, "tone")?.value).toBe("Direto e acolhedor");
   });
 
-  it("cai para a leitura do relatório quando nada rendeu acima da mediana", () => {
+  it("diz com a palavra da própria dimensão quando nada rendeu acima da mediana", () => {
     const report = clone();
     const scene = report.details.find((detail) => detail.id === "scene")!;
     scene.groups = scene.groups.map((group) =>
@@ -81,21 +81,20 @@ describe("buildPatternHighlights", () => {
     const place = byGroup(buildPatternHighlights(report), "place");
     expect(place?.kind).toBe("reading");
     expect(place?.index).toBeNull();
-    expect(place?.value).toContain("Sala com fala direta");
+    // Nunca a frase do detalhe, que fala dos seis rankings de cena ao mesmo tempo.
+    expect(place?.value).toBe("Nenhum cenário rendeu acima do seu normal ainda.");
+    expect(place?.support).toMatch(/posts em 90 dias lidos/);
   });
 
-  it("assume estado vazio quando não há ranking nem leitura", () => {
+  it("assume estado vazio quando o ranking está sem itens", () => {
     const report = clone();
-    const scene = report.details.find((detail) => detail.id === "scene")!;
-    scene.summary = "";
-    scene.groups = scene.groups.map((group) =>
-      group.id === "place"
-        ? { ...group, items: group.items.map((item) => ({ ...item, index: 0.4 })) }
-        : group,
+    const timing = report.details.find((detail) => detail.id === "timing")!;
+    timing.groups = timing.groups.map((group) =>
+      group.id === "weekday" ? { ...group, items: [{ id: "x", label: "Quinta", nPosts: 0, index: null, evidence: "indicio" as const, weeklyOccurrences: 0 }] } : group,
     );
-    const place = byGroup(buildPatternHighlights(report), "place");
-    expect(place?.kind).toBe("empty");
-    expect(place?.value).toContain("Ainda faltam vídeos analisados");
+    const weekday = byGroup(buildPatternHighlights(report), "weekday");
+    expect(weekday?.kind).toBe("reading");
+    expect(weekday?.value).toBe("Nenhum dia rendeu acima do seu normal ainda.");
   });
 
   it("ignora rankings vazios em vez de criar card sem conteúdo", () => {

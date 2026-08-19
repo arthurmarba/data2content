@@ -411,3 +411,52 @@ describe("assuntos do mapa sem confirmação em vídeo", () => {
   });
 });
 
+describe("hierarquia e cor dos padrões", () => {
+  function renderPro() {
+    const data = buildDiagnosticoPageDataFixture({
+      accessState: "pro_instagram_connected",
+      instagramConnected: true,
+      instagramConnectionState: "connected",
+      creatorWeeklyReport: CREATOR_WEEKLY_REPORT_DEMO,
+      mapaSeed: {
+        narrativa_central: "Uma mãe que encontra força na rotina",
+        territorios: ["Maternidade"],
+        temas: [],
+        narrativas_adjacentes: [],
+        assets: [],
+        tom: "",
+        formatos: [],
+        maturidade: "seed",
+        fonte: ["onboarding_declarativo"],
+      },
+      userInfo: { name: "Ana Criadora", handle: "anacriadora", imageUrl: null, plan: "Pro" },
+    });
+    return render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
+  }
+
+  it("colore um número só — o maior da semana — e nunca de rosa", () => {
+    renderPro();
+    // Todos os padrões promovidos já passaram da mediana: colorir por corte
+    // deixaria a tela inteira verde. Um só faz o olho pousar na decisão.
+    const maior = screen.getByText("7,5×");
+    expect(maior.className).toContain("ds-color-success");
+    expect(maior.className).not.toContain("brand");
+    expect(screen.getByText("2,5×").className).toContain("ds-color-ink");
+    expect(screen.getByText("3,2×").className).toContain("ds-color-ink");
+  });
+
+  it("dá contorno tracejado ao resultado que ainda é de um post só", () => {
+    renderPro();
+    const aposta = screen.getByRole("button", { name: /^Onde/ });
+    expect(aposta.className).toContain("border-dashed");
+    const firme = screen.getByRole("button", { name: /^Dia/ });
+    expect(firme.className).not.toContain("border-dashed");
+  });
+
+  it("não repete 'Ver ranking' em cada card — o card já é o botão", () => {
+    renderPro();
+    // Só o bloco de destaque mantém a palavra; os cards ficam com a seta.
+    expect(screen.getAllByText("Ver ranking")).toHaveLength(1);
+  });
+});
+
