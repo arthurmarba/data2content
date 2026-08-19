@@ -4,6 +4,8 @@ import {
   buildPatternHighlights,
   buildWeekHeadline,
   formatPatternIndex,
+  patternGroupOf,
+  pickHeroHighlight,
   type PatternHighlight,
 } from "./patternHighlights";
 import type { CreatorWeeklyReportPayload } from "./types";
@@ -33,8 +35,8 @@ describe("buildPatternHighlights", () => {
     ]);
     const labels = highlights.map((highlight) => highlight.label);
     expect(labels).toContain("Enquadramento");
-    expect(labels).toContain("Objeto em cena");
-    expect(labels).toContain("Quem aparece");
+    expect(labels).toContain("Objeto");
+    expect(labels).toContain("Elenco");
   });
 
   it("mantém as aberturas fracas fora da capa, só dentro do ranking", () => {
@@ -162,6 +164,32 @@ describe("buildWeekHeadline", () => {
       })),
     }));
     expect(buildWeekHeadline(buildPatternHighlights(report))).toBeNull();
+  });
+});
+
+describe("agrupamento e destaque", () => {
+  it("separa o que se decide antes de gravar do que acontece na hora", () => {
+    const highlights = buildPatternHighlights(clone());
+    const before = highlights.filter((h) => patternGroupOf(h) === "before").map((h) => h.groupId);
+    const during = highlights.filter((h) => patternGroupOf(h) === "during").map((h) => h.groupId);
+    expect(before).toEqual(["weekday", "time-slot", "place", "objects", "cast"]);
+    expect(during).toEqual(["framing", "tone", "aesthetics", "subjects-best", "openings-best"]);
+  });
+
+  it("promove a abertura a bloco de destaque, porque é uma frase inteira", () => {
+    const hero = pickHeroHighlight(buildPatternHighlights(clone()));
+    expect(hero?.groupId).toBe("openings-best");
+    expect(hero?.value).toBe("Eu achei que precisava dar conta de tudo sozinha.");
+  });
+
+  it("sem abertura promovida, não há destaque e ela volta para a grade", () => {
+    const report = clone();
+    const openings = report.details.find((detail) => detail.id === "openings")!;
+    openings.groups = openings.groups.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({ ...item, index: 0.5 })),
+    }));
+    expect(pickHeroHighlight(buildPatternHighlights(report))).toBeNull();
   });
 });
 

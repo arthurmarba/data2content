@@ -32,10 +32,23 @@ const callbacks = {
   onConnectInstagram: jest.fn(),
 };
 
-function mockRecordingsFetch(meetings: unknown[] = [LATEST_RECORDING]) {
-  global.fetch = jest.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({ ok: true, meetings }),
+const TREND_POST = {
+  id: "post-1",
+  description: "Contou que terceirizou o jantar e ninguém morreu",
+  creatorName: "Juliana Dias",
+  coverUrl: null,
+  postLink: "https://instagram.com/p/x",
+  views: 1200000,
+  interactions: 48000,
+};
+
+function mockRecordingsFetch(meetings: unknown[] = [LATEST_RECORDING], trends: unknown[] = [TREND_POST]) {
+  global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("territory-trends")) {
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, posts: trends }) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ ok: true, meetings }) });
   }) as unknown as typeof fetch;
 }
 
@@ -127,21 +140,30 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(screen.getByText("Direto e acolhedor")).toBeInTheDocument();
     // O melhor resultado sobe mesmo vindo de um post só — com a etiqueta de teste.
     expect(screen.getByText("Natureza")).toBeInTheDocument();
-    expect(screen.getByText("7,5× o seu normal")).toBeInTheDocument();
+    expect(screen.getByText("7,5×")).toBeInTheDocument();
+    expect(screen.getAllByText("1 post · vale testar").length).toBeGreaterThan(0);
     expect(screen.getByText("Maternidade sem idealização")).toBeInTheDocument();
     expect(screen.getByText(/Vale testar: poste quinta, das 4h às 8h/)).toBeInTheDocument();
 
     // O toque expande no lugar, mostrando só o ranking daquele card.
-    const cover = screen.getByRole("button", { name: /Melhor dia/ });
+    // Os padrões são agrupados pelo momento da gravação — antes e durante.
+    expect(screen.getByText("Antes de gravar")).toBeInTheDocument();
+    expect(screen.getByText("Na hora de gravar")).toBeInTheDocument();
+    // A abertura, que é uma frase inteira, ocupa o bloco de destaque com a manchete.
+    expect(screen.getByRole("heading", { name: "O que rendeu mais foi gravar em natureza." })).toBeInTheDocument();
+    expect(screen.getByText(/Eu achei que precisava dar conta de tudo sozinha/)).toBeInTheDocument();
+
+    const cover = screen.getByRole("button", { name: /^Dia/ });
     expect(cover).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(cover);
     expect(cover).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Ranking dos dias")).toBeInTheDocument();
-    expect(screen.queryByText("Ranking dos horários")).not.toBeInTheDocument();
+    // O ranking daquele card abre no lugar; o dos outros não vem junto.
+    expect(within(cover).getByText("Segunda")).toBeInTheDocument();
+    expect(screen.queryByText("Das 20h às 24h")).not.toBeInTheDocument();
     expect(screen.getByText("Ana Criadora")).toBeInTheDocument();
 
     fireEvent.click(cover);
-    expect(screen.queryByText("Ranking dos dias")).not.toBeInTheDocument();
+    expect(within(cover).queryByText("Segunda")).not.toBeInTheDocument();
 
     // Conexão saudável vira confirmação discreta, não card.
     expect(screen.getByText(/Instagram conectado/)).toBeInTheDocument();
@@ -168,17 +190,21 @@ describe("CreatorWeeklyProfileExperience", () => {
 
     render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
 
-    const firstCover = screen.getByRole("button", { name: /Melhor dia/ });
+    // O primeiro card de "antes de gravar" fica aberto: a pessoa prova o produto
+    // num card real antes de encontrar o convite.
+    const firstCover = screen.getByRole("button", { name: /^Dia/ });
     expect(within(firstCover).getByText("Quinta")).toBeInTheDocument();
     expect(within(firstCover).queryByText("Pro")).not.toBeInTheDocument();
 
-    const lockedCover = screen.getByRole("button", { name: /Onde gravar/ });
+    const lockedCover = screen.getByRole("button", { name: /^Onde/ });
     expect(within(lockedCover).getByText("Pro")).toBeInTheDocument();
+    // O valor não é borrado: o relatório todo é exemplo, e o que se compra é
+    // abrir o ranking com os próprios posts.
+    expect(within(lockedCover).getByText("Natureza")).toBeInTheDocument();
+    expect(within(lockedCover).getByText("Abrir com o Pro")).toBeInTheDocument();
     fireEvent.click(lockedCover);
     expect(callbacks.onUpgrade).toHaveBeenCalledWith("narrative_map");
-    expect(screen.queryByText("Ranking dos dias")).not.toBeInTheDocument();
-    // A frase de movimento não é entregue de graça com dados de exemplo.
-    expect(screen.queryByText(/Vale testar:|Na próxima:/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Segunda")).not.toBeInTheDocument();
     expect(screen.getByText("Ana Criadora")).toBeInTheDocument();
   });
 
@@ -262,17 +288,18 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(screen.getByRole("heading", { name: data.userInfo.name ?? "Seu perfil" })).toBeInTheDocument();
     expect(container.querySelector("main")).toHaveClass("ds-notebook-page--responsive");
     expect(container.querySelector(".ds-profile-layout")).toBeInTheDocument();
-    expect(container.querySelector(".ds-profile-area--map")?.firstElementChild).toHaveClass(
-      "ds-notebook-section",
-      "ds-notebook-section--first",
-    );
+    // A identidade abre a página sem casca de cartão.
+    expect(container.querySelector(".ds-profile-area--map #creator-weekly-map")).toBeInTheDocument();
+    expect(container.querySelector(".ds-profile-area--map .ds-notebook-section")).toBeNull();
     await waitFor(() =>
       expect(container.querySelector(".ds-profile-area--community")).toContainElement(
         screen.getByText(LATEST_RECORDING.title),
       ),
     );
     expect(container.querySelector(".ds-profile-area--recordings")).toBeNull();
-    expect(container.querySelector(".ds-profile-area--tools")).toHaveClass("lg:hidden");
+    // Ferramentas subiram para junto da identidade; não há mais área própria.
+    expect(container.querySelector(".ds-profile-area--tools")).toBeNull();
+    expect(screen.getByRole("button", { name: /Mídia Kit/ })).toBeInTheDocument();
   });
 
   it("nunca usa a demonstração para trocar o nome da criadora", () => {
@@ -301,3 +328,52 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(screen.queryByText(/Débora Broch/i)).not.toBeInTheDocument();
   });
 });
+
+describe("inspiração no território", () => {
+  it("mostra o que mais rendeu no assunto do criador, dizendo entre quem", async () => {
+    const data = buildDiagnosticoPageDataFixture({
+      accessState: "pro_instagram_connected",
+      instagramConnected: true,
+      instagramConnectionState: "connected",
+      creatorWeeklyReport: CREATOR_WEEKLY_REPORT_DEMO,
+      mapaSeed: {
+        narrativa_central: "Uma mãe que encontra força na rotina",
+        territorios: ["Maternidade"],
+        temas: [],
+        narrativas_adjacentes: [],
+        assets: [],
+        tom: "",
+        formatos: [],
+        maturidade: "seed",
+        fonte: ["onboarding_declarativo"],
+      },
+      userInfo: { name: "Ana Criadora", handle: "anacriadora", imageUrl: null, plan: "Pro" },
+    });
+
+    render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
+
+    await waitFor(() => expect(screen.getByText(TREND_POST.description)).toBeInTheDocument());
+    expect(screen.getByText("Inspiração em maternidade")).toBeInTheDocument();
+    expect(screen.getByText("1,2 mi")).toBeInTheDocument();
+    // A origem do número fica escrita: "mais vistos" sem dizer entre quem sugere
+    // um universo que não é o nosso.
+    expect(screen.getByText(/Entre criadores da D2C que falam do mesmo assunto/)).toBeInTheDocument();
+  });
+
+  it("não inventa seção quando o território não tem conteúdo", async () => {
+    mockRecordingsFetch([LATEST_RECORDING], []);
+    const data = buildDiagnosticoPageDataFixture({
+      accessState: "pro_instagram_connected",
+      instagramConnected: true,
+      instagramConnectionState: "connected",
+      creatorWeeklyReport: CREATOR_WEEKLY_REPORT_DEMO,
+      userInfo: { name: "Ana Criadora", handle: "anacriadora", imageUrl: null, plan: "Pro" },
+    });
+
+    render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
+
+    await waitFor(() => expect(screen.getByText(LATEST_RECORDING.title)).toBeInTheDocument());
+    expect(screen.queryByText(/Inspiração em/)).not.toBeInTheDocument();
+  });
+});
+

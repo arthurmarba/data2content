@@ -179,7 +179,10 @@
   --ds-color-ink: #17140f;
   --ds-color-paper: #ffffff;
   --ds-color-surface: #ffffff;
-  --ds-color-neutral: #efe9e0;
+  /* Superfície de apoio: os cards preenchidos ("na hora de gravar", ferramentas,
+     reuniões) repousam sobre o branco da página. #efe9e0 era chão, não apoio —
+     com a página branca ele pesava como uma segunda casca. */
+  --ds-color-neutral: #f7f4f0;
   --ds-color-text: #17140f;
   --ds-color-text-secondary: #423b33;
   --ds-color-text-muted: #6b6157; /* 5.9:1 no branco — o #787774 anterior ficava em 4.5 */
@@ -257,9 +260,10 @@
       "report activation"
       "report community"
       "report ."
+      "trends ."
       "brand ."
       "footer footer";
-    grid-template-rows: auto auto auto 1fr auto auto;
+    grid-template-rows: auto auto auto 1fr auto auto auto;
     grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
     align-items: start;
     gap: 0.75rem;
@@ -274,8 +278,8 @@
   .ds-profile-area--activation { grid-area: activation; }
   .ds-profile-area--community { grid-area: community; }
   .ds-profile-area--report { grid-area: report; }
+  .ds-profile-area--trends { grid-area: trends; }
   .ds-profile-area--brand { grid-area: brand; }
-  .ds-profile-area--tools { grid-area: tools; }
   .ds-profile-area--footer { grid-area: footer; }
 }
 

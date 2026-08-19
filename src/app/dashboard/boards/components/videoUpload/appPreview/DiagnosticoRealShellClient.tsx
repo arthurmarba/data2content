@@ -2026,7 +2026,10 @@ export function DiagnosticoRealShellClient({
           : "fixed inset-0"
       } ${d2cFontVariables}`}
       style={{
-        background: "var(--ds-color-neutral)",
+        // Página branca, como no design: com o relatório fora de qualquer casca,
+        // um chão bege deixava o conteúdo solto parecendo inacabado. Quem separa
+        // agora é o contorno dos cards e a superfície de apoio (#f7f4f0).
+        background: "var(--ds-color-paper)",
       }}
     >
       <div

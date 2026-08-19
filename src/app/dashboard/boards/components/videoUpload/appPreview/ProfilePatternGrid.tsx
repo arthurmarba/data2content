@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import {
   buildNextStepLine,
-  formatPatternIndex,
+  patternGroupOf,
+  pickHeroHighlight,
   type PatternHighlight,
 } from "@/app/lib/creatorWeeklyReport/patternHighlights";
 import type {
@@ -12,130 +13,207 @@ import type {
   CreatorWeeklyReportRankGroup,
 } from "@/app/lib/creatorWeeklyReport/types";
 
-import { PatternRankGroups } from "./PatternRankGroups";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 /**
  * Os padrões da semana com a RESPOSTA na capa.
  *
- * Antes eles viviam em quatro linhas cinzas ("Dia e horário ›") no fim de um
- * bloco de texto: quem rolava lendo nunca tocava e saía sem saber que existia
- * resposta ali. Aqui a resposta é a capa, e o toque serve para se aprofundar —
- * abrindo o ranking no próprio lugar, sem trocar de tela, para que dois padrões
- * possam ser comparados sem perder o fio.
+ * Sem casca-pai: os cards repousam direto no canvas da página, o que devolve
+ * ~40px de largura no celular e permite a resposta em 22px. A grade tem span
+ * variável porque as respostas daqui são frases de tamanho desigual ("Quinta"
+ * ao lado de "Maternidade sem idealização").
+ *
+ * O agrupamento — "antes de gravar" / "na hora de gravar" — é a distinção
+ * visual entre os cards, e vem reforçada pela superfície: o primeiro grupo é
+ * branco com contorno, o segundo é preenchido em neutro. Sem ícone, sem cor
+ * por categoria, sem emoji.
  */
 
-function ChevronIcon({ open }: { open: boolean }) {
+/** Valor curto cabe em meia largura; frase ocupa a linha inteira. */
+const WIDE_VALUE_LENGTH = 16;
+
+function formatRankValue(index: number | null) {
+  if (index === null || !Number.isFinite(index)) return "—";
+  return `${index.toFixed(1).replace(".", ",")}×`;
+}
+
+/** "7 posts em 90 dias · vale testar" → "7 posts · vale testar" na capa. */
+function compactSupport(support: string | null) {
+  return support ? support.replace(" em 90 dias", "") : null;
+}
+
+function RankList({
+  group,
+  surface,
+}: {
+  group: CreatorWeeklyReportRankGroup;
+  surface: "paper" | "neutral";
+}) {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className={`transition-transform duration-200 ${open ? "-rotate-180" : ""}`}
+    <div
+      className={`mt-3 overflow-hidden rounded-[var(--ds-radius-sm)] px-3 py-2 ${
+        surface === "paper" ? "bg-[var(--ds-color-neutral)]" : "bg-[var(--ds-color-surface)]"
+      }`}
     >
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+      {group.items.map((item) => (
+        <div
+          key={item.id}
+          className="flex items-baseline justify-between gap-3 py-1 text-[12.5px] leading-[1.3]"
+        >
+          <span className="min-w-0 flex-1 text-[var(--ds-color-ink)]">{item.label}</span>
+          <span className="tabular-nums text-[var(--ds-color-text-secondary)]">
+            {formatRankValue(item.index)}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function PatternCard({
   highlight,
-  detail,
   group,
+  surface,
   expanded,
   locked,
-  fillRow,
+  wide,
   onToggle,
 }: {
   highlight: PatternHighlight;
-  detail: CreatorWeeklyReportDetail | null;
   group: CreatorWeeklyReportRankGroup | null;
+  surface: "paper" | "neutral";
   expanded: boolean;
   locked: boolean;
-  /** Ímpar sobrando na grade de duas colunas: ocupa a linha em vez de deixar buraco. */
-  fillRow: boolean;
+  wide: boolean;
   onToggle: () => void;
 }) {
-  const indexLabel = formatPatternIndex(highlight.index);
+  const indexLabel = formatRankValue(highlight.index);
   const isAnswer = highlight.kind === "answer";
-  // Uma coluna no celular: as respostas daqui são frases ("Maternidade sem
-  // idealização", uma abertura inteira), não números de três caracteres — em meia
-  // largura de 375px elas quebram em quatro linhas e a manchete deixa de ler como
-  // manchete. A partir de tablet, onde a linha comporta, a grade abre em duas.
-  // A abertura e a leitura de fallback ocupam a linha inteira em qualquer largura.
-  const wide = expanded || fillRow || !isAnswer || highlight.detailId === "openings";
+  const support = compactSupport(highlight.support);
 
   return (
-    <div
-      className={`rounded-[var(--ds-radius-md)] border bg-[var(--ds-color-paper)] transition-colors ${
-        wide ? "sm:col-span-2" : ""
-      } ${expanded ? "border-[var(--ds-color-line-strong)]" : "border-[var(--ds-color-line)]"}`}
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={locked ? undefined : expanded}
+      className={`rounded-[var(--ds-radius-md)] p-[15px] text-left ${wide ? "col-span-2" : ""} ${
+        surface === "paper"
+          ? "border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]"
+          : "bg-[var(--ds-color-neutral)]"
+      }`}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-start gap-2 rounded-[var(--ds-radius-md)] p-3.5 text-left"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="text-[11.5px] font-semibold text-[var(--ds-color-text-muted)]">{highlight.label}</span>
-            {locked ? <span className="ds-notebook-tag !py-0 text-[10px] font-semibold">Pro</span> : null}
-          </span>
-          <span
-            className={`mt-1 block ${
-              isAnswer
-                ? "text-[15px] font-bold leading-[1.2] tracking-[-0.01em] text-[var(--ds-color-ink)]"
-                : "text-[13px] font-semibold leading-[1.35] text-[var(--ds-color-text-secondary)]"
-            } ${locked ? "select-none blur-[5px]" : ""}`}
-          >
-            {highlight.value}
-          </span>
-          {/* O número fica visível mesmo bloqueado: saber que algo rendeu 7,5× sem
-              saber o quê é o convite honesto — um borrão sozinho não diz nada. */}
-          {indexLabel ? (
-            <span className="mt-1 block text-[11.5px] font-semibold text-[var(--ds-color-success)]">{indexLabel}</span>
-          ) : null}
-          {!locked && !indexLabel && highlight.support ? (
-            <span className="mt-1 block text-[11.5px] text-[var(--ds-color-text-muted)]">{highlight.support}</span>
-          ) : null}
-          {!locked && indexLabel && highlight.support ? (
-            <span className="mt-0.5 block text-[11px] text-[var(--ds-color-text-muted)]">{highlight.support}</span>
-          ) : null}
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
+          {highlight.label}
         </span>
-        <span className="mt-0.5 shrink-0 text-[var(--ds-color-text-muted)]">
-          <ChevronIcon open={expanded} />
-        </span>
-      </button>
+        {locked ? (
+          <span className="rounded-full border border-dashed border-[var(--ds-color-line-strong)] px-2 py-[3px] text-[10px] font-semibold text-[var(--ds-color-text-secondary)]">
+            Pro
+          </span>
+        ) : null}
+      </span>
 
-      {expanded && group ? (
-        <div className="border-t border-[var(--ds-color-line)] px-3.5 pb-4 pt-3">
-          {/* Só o ranking DESTE card. A leitura do detalhe entra junto porque é o
-              contexto que impede o número de ser lido como regra. */}
-          {detail?.interpretation ? (
-            <p className="mb-3 text-[13px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
-              {detail.interpretation}
-            </p>
+      <span
+        className={`mt-2 block tracking-[-0.03em] text-[var(--ds-color-ink)] ${
+          isAnswer ? "text-[22px] font-semibold leading-[1.12]" : "text-[15px] font-semibold leading-[1.3]"
+        }`}
+      >
+        {highlight.value}
+      </span>
+
+      {isAnswer ? (
+        <span className="mt-2 flex items-baseline gap-[7px]">
+          <b className="text-[14px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ds-color-ink)]">
+            {indexLabel}
+          </b>
+          {support ? (
+            <span className="text-[11px] leading-[1.3] text-[var(--ds-color-text-muted)]">{support}</span>
           ) : null}
-          <PatternRankGroups groups={[group]} idPrefix={`pattern-${highlight.id}`} />
-          {detail?.coverageLabel ? <p className="ds-caption mt-2">{detail.coverageLabel}</p> : null}
-        </div>
+        </span>
       ) : null}
-    </div>
+
+      {expanded && group ? <RankList group={group} surface={surface} /> : null}
+
+      <span
+        className={`mt-3 flex items-center justify-between text-[11.5px] font-semibold ${
+          locked ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-secondary)]"
+        }`}
+      >
+        <span>{locked ? "Abrir com o Pro" : expanded ? "Fechar" : "Ver ranking"}</span>
+        <span aria-hidden="true">{locked ? "›" : expanded ? "⌃" : "›"}</span>
+      </span>
+    </button>
+  );
+}
+
+function PatternGroup({
+  title,
+  highlights,
+  surface,
+  expandedId,
+  lockedIds,
+  groupFor,
+  onCardClick,
+}: {
+  title: string;
+  highlights: PatternHighlight[];
+  surface: "paper" | "neutral";
+  expandedId: string | null;
+  lockedIds: Set<string>;
+  groupFor: (highlight: PatternHighlight) => CreatorWeeklyReportRankGroup | null;
+  onCardClick: (highlight: PatternHighlight, locked: boolean) => void;
+}) {
+  if (highlights.length === 0) return null;
+
+  // Os de meia largura vêm primeiro para fecharem pares: intercalados com os de
+  // linha inteira, cada um deles deixaria metade de uma linha vazia. E quando
+  // sobra um ímpar, ele ocupa a linha em vez de terminar a grade com um buraco.
+  const isNarrow = (highlight: PatternHighlight) =>
+    highlight.kind === "answer" && highlight.value.length <= WIDE_VALUE_LENGTH;
+  const ordered = [...highlights.filter(isNarrow), ...highlights.filter((h) => !isNarrow(h))];
+  const narrow = ordered.filter(isNarrow);
+  const oddOneOut = narrow.length % 2 === 1 ? narrow[narrow.length - 1]?.id ?? null : null;
+
+  return (
+    <section aria-labelledby={`pattern-group-${surface}`}>
+      <ProfileSectionHeader id={`pattern-group-${surface}`} title={title} className="mt-[22px]" />
+      <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+        {ordered.map((highlight) => {
+          const locked = lockedIds.has(highlight.id);
+          const wide = !isNarrow(highlight) || highlight.id === oddOneOut;
+          return (
+            <PatternCard
+              key={highlight.id}
+              highlight={highlight}
+              group={groupFor(highlight)}
+              surface={surface}
+              expanded={expandedId === highlight.id}
+              locked={locked}
+              wide={wide}
+              onToggle={() => onCardClick(highlight, locked)}
+            />
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
 export function ProfilePatternGrid({
   highlights,
   details,
+  headline,
+  weekNumbers,
   locked,
   onExpand,
   onLockedClick,
 }: {
   highlights: PatternHighlight[];
   details: CreatorWeeklyReportDetail[];
-  /** Quem não assina vê o primeiro padrão aberto e os demais borrados. */
+  /** A descoberta da semana abre o bloco de destaque, junto do padrão mais legível. */
+  headline: string;
+  weekNumbers: string | null;
+  /** Quem não assina lê o relatório de exemplo, mas só abre o ranking do primeiro. */
   locked: boolean;
   onExpand: (highlight: PatternHighlight) => void;
   onLockedClick: () => void;
@@ -147,60 +225,130 @@ export function ProfilePatternGrid({
   const detailById = new Map(details.map((detail) => [detail.id, detail]));
   const groupFor = (highlight: PatternHighlight) =>
     detailById.get(highlight.detailId)?.groups.find((group) => group.id === highlight.groupId) ?? null;
-  const nextStep = locked ? null : buildNextStepLine(highlights);
+
+  const hero = pickHeroHighlight(highlights);
+  const grid = highlights.filter((highlight) => highlight.id !== hero?.id);
+  const before = grid.filter((highlight) => patternGroupOf(highlight) === "before");
+  const during = grid.filter((highlight) => patternGroupOf(highlight) === "during");
+
+  // O primeiro card de "antes de gravar" fica aberto para quem não assina: a
+  // pessoa prova o produto num card real antes de encontrar o convite.
+  const freeId = before[0]?.id ?? null;
+  const lockedIds = new Set(
+    locked ? highlights.filter((highlight) => highlight.id !== freeId).map((highlight) => highlight.id) : [],
+  );
+
+  const handleCardClick = (highlight: PatternHighlight, isLocked: boolean) => {
+    if (isLocked) {
+      onLockedClick();
+      return;
+    }
+    if (expandedId === highlight.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(highlight.id);
+    onExpand(highlight);
+  };
+
+  const nextStep = buildNextStepLine(highlights);
+
+  const headlineBlock = (
+    <>
+      <h2
+        id="weekly-report-title"
+        className="text-[24px] font-bold leading-[1.14] tracking-[-0.035em] text-[var(--ds-color-ink)]"
+      >
+        {headline}
+      </h2>
+      {weekNumbers ? (
+        <p className="mt-2.5 text-[13px] font-medium leading-[1.4] text-[var(--ds-color-text-secondary)]">
+          {weekNumbers}
+        </p>
+      ) : null}
+    </>
+  );
 
   return (
-    <div className="mt-5">
-      <span className="ds-notebook-label">O que a semana mostrou</span>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {(() => {
-          // Quantos cards cabem em meia largura — o último deles ocupa a linha
-          // inteira quando o total é ímpar, para a grade não terminar com um vazio.
-          const halfIds = highlights
-            .filter((item) => item.kind === "answer" && item.detailId !== "openings")
-            .map((item) => item.id);
-          const oddOneOut = halfIds.length % 2 === 1 ? halfIds[halfIds.length - 1] : null;
-          return highlights.map((highlight, position) => {
-          // O primeiro card fica aberto de verdade para quem não assina: a pessoa
-          // prova um pedaço e entende o que está comprando, em vez de encarar um
-          // cadeado sobre uma tela vazia.
-          const cardLocked = locked && position > 0;
-          const expanded = expandedId === highlight.id;
-          return (
-            <PatternCard
-              key={highlight.id}
-              highlight={highlight}
-              detail={detailById.get(highlight.detailId) ?? null}
-              group={groupFor(highlight)}
-              expanded={expanded}
-              locked={cardLocked}
-              fillRow={highlight.id === oddOneOut}
-              onToggle={() => {
-                if (cardLocked) {
-                  onLockedClick();
-                  return;
-                }
-                if (expanded) {
-                  setExpandedId(null);
-                  return;
-                }
-                setExpandedId(highlight.id);
-                onExpand(highlight);
-              }}
-            />
-          );
-          });
-        })()}
-      </div>
+    <>
+      {hero ? (
+        <button
+          type="button"
+          onClick={() => handleCardClick(hero, lockedIds.has(hero.id))}
+          aria-expanded={lockedIds.has(hero.id) ? undefined : expandedId === hero.id}
+          className="mt-3 w-full rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px] text-left"
+        >
+          {/* A descoberta da semana e o padrão mais legível dividem o mesmo bloco:
+              a manchete diz o quê, a abertura mostra em palavras do próprio vídeo. */}
+          {headlineBlock}
+          <span className="mt-5 flex items-center justify-between gap-2">
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
+              {hero.label}
+            </span>
+            {lockedIds.has(hero.id) ? (
+              <span className="rounded-full border border-dashed border-[var(--ds-color-line-strong)] px-2 py-[3px] text-[10px] font-semibold text-[var(--ds-color-text-secondary)]">
+                Pro
+              </span>
+            ) : null}
+          </span>
+          <span className="mt-2.5 block text-[21px] font-semibold leading-[1.25] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+            “{hero.value}”
+          </span>
+          <span className="mt-2.5 flex items-baseline gap-2">
+            <b className="text-[26px] font-bold leading-none tracking-[-0.04em] tabular-nums text-[var(--ds-color-ink)]">
+              {formatRankValue(hero.index)}
+            </b>
+            {compactSupport(hero.support) ? (
+              <span className="text-[11.5px] text-[var(--ds-color-text-muted)]">{compactSupport(hero.support)}</span>
+            ) : null}
+          </span>
+          {expandedId === hero.id && groupFor(hero) ? (
+            <RankList group={groupFor(hero)!} surface="paper" />
+          ) : null}
+          <span
+            className={`mt-3.5 flex items-center justify-between text-[12.5px] font-semibold ${
+              lockedIds.has(hero.id) ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-secondary)]"
+            }`}
+          >
+            <span>
+              {lockedIds.has(hero.id) ? "Abrir o ranking com o Pro" : expandedId === hero.id ? "Fechar" : "Ver ranking"}
+            </span>
+            <span aria-hidden="true">{expandedId === hero.id && !lockedIds.has(hero.id) ? "⌃" : "›"}</span>
+          </span>
+        </button>
+      ) : null}
+
+      {hero ? null : <div className="mt-3">{headlineBlock}</div>}
+
+      <PatternGroup
+        title="Antes de gravar"
+        highlights={before}
+        surface="paper"
+        expandedId={expandedId}
+        lockedIds={lockedIds}
+        groupFor={groupFor}
+        onCardClick={handleCardClick}
+      />
+      <PatternGroup
+        title="Na hora de gravar"
+        highlights={during}
+        surface="neutral"
+        expandedId={expandedId}
+        lockedIds={lockedIds}
+        groupFor={groupFor}
+        onCardClick={handleCardClick}
+      />
 
       {nextStep ? (
-        <div className="mt-3 rounded-[var(--ds-radius-md)] bg-[var(--ds-color-brand-soft)] px-4 py-3">
-          <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-[var(--ds-color-brand-strong)]">
+        <div className="mt-[18px] rounded-[var(--ds-radius-md)] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px]">
+          <span className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--ds-color-text-muted)]">
             Seu próximo passo
           </span>
-          <p className="mt-1 text-[13.5px] leading-[1.4] text-[var(--ds-color-ink)]">{nextStep}</p>
+          <p className="mt-2.5 text-[18px] font-semibold leading-[1.3] tracking-[-0.02em] text-[var(--ds-color-ink)]">
+            {nextStep}
+          </p>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

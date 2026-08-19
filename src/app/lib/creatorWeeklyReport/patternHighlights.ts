@@ -36,21 +36,47 @@ import type {
  * (`time-slot`, `subjects-best`) e o das fixtures antigas (`time`, `subjects`).
  */
 const COVER_LABELS: Record<string, string> = {
-  weekday: "Melhor dia",
-  "time-slot": "Melhor horário",
-  time: "Melhor horário",
-  place: "Onde gravar",
-  objects: "Objeto em cena",
-  cast: "Quem aparece",
+  weekday: "Dia",
+  "time-slot": "Horário",
+  time: "Horário",
+  place: "Onde",
+  objects: "Objeto",
+  cast: "Elenco",
   framing: "Enquadramento",
-  tone: "Tom que rende",
-  aesthetics: "Clima da imagem",
-  "subjects-best": "Assunto que rende",
-  subjects: "Assunto que rende",
+  tone: "Tom",
+  aesthetics: "Clima",
+  "subjects-best": "Assunto",
+  subjects: "Assunto",
   "subjects-repeated": "Assunto que você repete",
-  "openings-best": "Abertura que segura",
-  best: "Abertura que segura",
+  "openings-best": "Gancho",
+  best: "Gancho",
 };
+
+/**
+ * Os dois momentos da gravação. O agrupamento é a distinção visual entre os
+ * cards — o que se decide ANTES de ligar a câmera e o que acontece NA hora —
+ * e substitui ícone ou cor por categoria.
+ */
+const BEFORE_RECORDING = new Set(["weekday", "time-slot", "time", "place", "objects", "cast"]);
+
+export type PatternGroupId = "before" | "during";
+
+export function patternGroupOf(highlight: PatternHighlight): PatternGroupId {
+  return BEFORE_RECORDING.has(highlight.groupId) ? "before" : "during";
+}
+
+/**
+ * O gancho é a única resposta que é uma frase inteira — a primeira frase do vídeo,
+ * dita pela própria criadora. Ocupa o bloco de destaque do relatório em vez de
+ * disputar meia largura na grade. Só assume o posto quando tem resposta de
+ * verdade; sem isso, volta para a grade como card de linha inteira.
+ */
+export function pickHeroHighlight(highlights: PatternHighlight[]): PatternHighlight | null {
+  const opening = highlights.find(
+    (highlight) => (highlight.groupId === "openings-best" || highlight.groupId === "best") && highlight.kind === "answer",
+  );
+  return opening ?? null;
+}
 
 /**
  * Ordem de leitura: primeiro o que decide a próxima gravação (quando, onde, com o
