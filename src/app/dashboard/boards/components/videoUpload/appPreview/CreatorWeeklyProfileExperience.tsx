@@ -403,6 +403,7 @@ export function CreatorWeeklyProfileExperience({
   const hasReportAccess = hasActivePro && data.instagramConnected;
   const [whatsappGroupLinkOpened, setWhatsappGroupLinkOpened] = useState(data.userInfo.whatsappGroupLinkOpened === true);
   const [territoryTrends, setTerritoryTrends] = useState<TerritoryTrendPost[]>([]);
+  const [trendsLabel, setTrendsLabel] = useState<string | null>(null);
   const reportIsDemo = !hasReportAccess;
   const report = reportIsDemo ? CREATOR_WEEKLY_REPORT_DEMO : liveReport;
   const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : "/dashboard/boards/mobile-strategic-profile";
@@ -494,30 +495,33 @@ export function CreatorWeeklyProfileExperience({
       data.instagramConnectionState ?? (data.instagramConnected ? "connected" : "disconnected"),
   });
 
-  // Inspiração no assunto: o que rendeu no território do criador entre os
-  // criadores da D2C. Busca só depois que o mapa já tem território — sem
-  // território não há assunto para procurar.
-  const leadTerritory = territories[0] ?? null;
+  // Inspiração no assunto: o que rendeu entre os criadores da D2C que publicam
+  // sobre a mesma coisa. Quem decide "a mesma coisa" é o servidor — primeiro pela
+  // gaveta em que os posts DESTE criador já caem, e só depois pelos territórios
+  // do mapa, que nem sempre têm gaveta correspondente.
+  const territoriesKey = territories.join("|");
   useEffect(() => {
-    if (!leadTerritory) {
-      setTerritoryTrends([]);
-      return;
-    }
     const controller = new AbortController();
+    const query = territoriesKey
+      .split("|")
+      .filter(Boolean)
+      .map((territory) => `territory=${encodeURIComponent(territory)}`)
+      .join("&");
     void fetch(
-      `/api/dashboard/mobile-strategic-profile/territory-trends?territory=${encodeURIComponent(leadTerritory)}`,
+      `/api/dashboard/mobile-strategic-profile/territory-trends${query ? `?${query}` : ""}`,
       { cache: "no-store", signal: controller.signal },
     )
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) return;
         setTerritoryTrends(Array.isArray(payload.posts) ? payload.posts : []);
+        setTrendsLabel(typeof payload.label === "string" ? payload.label : null);
       })
       .catch(() => {
         /* silencioso: a seção some, o resto do Perfil segue */
       });
     return () => controller.abort();
-  }, [leadTerritory]);
+  }, [territoriesKey]);
 
   const handleOpenWhatsAppGroup = () => {
     setWhatsappGroupLinkOpened(true);
@@ -601,9 +605,12 @@ export function CreatorWeeklyProfileExperience({
           )}
         </div>
 
-        {leadTerritory && territoryTrends.length > 0 ? (
+        {territoryTrends.length > 0 ? (
           <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--trends" : ""}>
-            <ProfileTerritoryTrends territory={leadTerritory} posts={territoryTrends} />
+            <ProfileTerritoryTrends
+              territory={trendsLabel ?? territories[0] ?? "seu assunto"}
+              posts={territoryTrends}
+            />
           </div>
         ) : null}
 

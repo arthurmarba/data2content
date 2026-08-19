@@ -46,7 +46,7 @@ function mockRecordingsFetch(meetings: unknown[] = [LATEST_RECORDING], trends: u
   global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("territory-trends")) {
-      return Promise.resolve({ ok: true, json: async () => ({ ok: true, posts: trends }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, posts: trends, label: "Parentalidade" }) });
     }
     return Promise.resolve({ ok: true, json: async () => ({ ok: true, meetings }) });
   }) as unknown as typeof fetch;
@@ -355,7 +355,9 @@ describe("inspiração no território", () => {
     render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
 
     await waitFor(() => expect(screen.getByText(TREND_POST.description)).toBeInTheDocument());
-    expect(screen.getByText("Inspiração em maternidade")).toBeInTheDocument();
+    // O nome da seção é a gaveta em que os posts do criador caem, medida pelo
+    // servidor — não o território escrito no mapa, que nem sempre tem gaveta.
+    expect(screen.getByText("Inspiração em parentalidade")).toBeInTheDocument();
     expect(screen.getByText("1,2 mi")).toBeInTheDocument();
     // A origem do número fica escrita: "mais vistos" sem dizer entre quem sugere
     // um universo que não é o nosso.
