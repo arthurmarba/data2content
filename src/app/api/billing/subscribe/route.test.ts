@@ -20,6 +20,7 @@ jest.mock("@/app/lib/stripe", () => ({
     checkout: { sessions: { create: jest.fn() } },
     promotionCodes: { list: jest.fn() },
     coupons: { retrieve: jest.fn() },
+    prices: { retrieve: jest.fn() },
     invoices: { retrieve: jest.fn(), list: jest.fn() },
   },
 }));
@@ -80,6 +81,7 @@ beforeEach(() => {
   mockPersistStaleStripeBillingPatch.mockResolvedValue(undefined);
   (stripe as any).invoices.list.mockResolvedValue({ data: [] });
   mockSyncTaxIdToStripe.mockResolvedValue(true);
+  (stripe as any).prices.retrieve.mockResolvedValue({ unit_amount: 9700, currency: "brl" });
   delete process.env.D2C_VIP_MAX_REDEMPTIONS;
   delete process.env.D2C_VIP_EXPIRES_AT;
   process.env.STRIPE_PRICE_MONTHLY_BRL = "price_monthly_brl";
@@ -153,13 +155,13 @@ describe("POST /api/billing/subscribe", () => {
         success_url: "http://localhost/billing/success?session_id={CHECKOUT_SESSION_ID}",
         payment_method_collection: "always",
         discounts: [{ promotion_code: "promo_d2cvip" }],
-        subscription_data: {
+        subscription_data: expect.objectContaining({
           metadata: expect.objectContaining({
             userId: "vip-monthly",
             plan: "monthly",
             promotionCode: "D2CVIP",
           }),
-        },
+        }),
       }),
       expect.any(Object),
     );
@@ -472,6 +474,42 @@ describe("POST /api/billing/subscribe", () => {
     const params = stripe.checkout.sessions.create.mock.calls[0][0];
     expect(params.tax_id_collection).toEqual({ enabled: true, required: "if_supported" });
     expect(params.customer_update).toEqual({ name: "auto", address: "auto" });
+  });
+
+  it("tells the customer on the Stripe screen when the first charge lands", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-msg", email: "u-msg@test.com" } });
+    mockFindById.mockResolvedValue({ _id: "u-msg", planStatus: "inactive", stripeCustomerId: "cus_123", save: jest.fn() });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    (stripe as any).prices.retrieve.mockResolvedValue({ unit_amount: 9700, currency: "brl" });
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_msg", url: "https://checkout.stripe.com/msg" });
+
+    await POST(createRequest({ plan: "monthly", currency: "BRL", promotionCode: "d2cVIP" }));
+
+    const params = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(params.custom_text.submit.message).toContain("Hoje você não paga nada");
+    expect(params.custom_text.submit.message).toContain("97,00");
+    expect(params.subscription_data.description).toContain("Primeiro mês gratuito");
+  });
+
+  it("still explains the timing when the price cannot be read", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-nop", email: "u-nop@test.com" } });
+    mockFindById.mockResolvedValue({ _id: "u-nop", planStatus: "inactive", stripeCustomerId: "cus_123", save: jest.fn() });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    (stripe as any).prices.retrieve.mockRejectedValue(new Error("stripe fora do ar"));
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_nop", url: "https://checkout.stripe.com/nop" });
+
+    await POST(createRequest({ plan: "monthly", currency: "BRL", promotionCode: "d2cVIP" }));
+
+    const message = stripe.checkout.sessions.create.mock.calls[0][0].custom_text.submit.message;
+    expect(message).toContain("Hoje você não paga nada");
+    expect(message).not.toContain("undefined");
+    expect(message).not.toContain("null");
   });
 
   it("blocks when DB says active", async () => {

@@ -11,7 +11,7 @@ describe("resolveVipCampaignLimits", () => {
       resolveVipCampaignLimits({
         D2C_VIP_MAX_REDEMPTIONS: "100",
         D2C_VIP_EXPIRES_AT: "2026-12-31T23:59:59Z",
-      } as NodeJS.ProcessEnv),
+      } as unknown as NodeJS.ProcessEnv),
     ).toEqual({
       maxRedemptions: 100,
       expiresAt: new Date("2026-12-31T23:59:59Z"),
@@ -23,13 +23,13 @@ describe("resolveVipCampaignLimits", () => {
       resolveVipCampaignLimits({
         D2C_VIP_MAX_REDEMPTIONS: "abacaxi",
         D2C_VIP_EXPIRES_AT: "nunca",
-      } as NodeJS.ProcessEnv),
+      } as unknown as NodeJS.ProcessEnv),
     ).toEqual(NO_LIMITS);
   });
 
   it("ignores a non-positive cap, which would close the campaign by accident", () => {
     expect(
-      resolveVipCampaignLimits({ D2C_VIP_MAX_REDEMPTIONS: "0" } as NodeJS.ProcessEnv),
+      resolveVipCampaignLimits({ D2C_VIP_MAX_REDEMPTIONS: "0" } as unknown as NodeJS.ProcessEnv),
     ).toEqual(NO_LIMITS);
   });
 });

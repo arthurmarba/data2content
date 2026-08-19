@@ -25,6 +25,7 @@ import {
   vipCampaignMessage,
 } from "@/app/lib/billing/d2cVipCampaign";
 import { TAX_ID_INVALID_MESSAGE, parseTaxId } from "@/app/lib/billing/taxId";
+import { formatChargeDate, resolveFirstChargeDate } from "@/app/lib/billing/firstCharge";
 import { syncTaxIdToStripe } from "@/app/lib/billing/syncTaxIdToStripe";
 
 export const runtime = "nodejs";
@@ -789,6 +790,22 @@ export async function POST(req: NextRequest) {
     // Para o d2cVIP usamos Checkout hospedado e forçamos a coleta do cartão,
     // garantindo a cobrança automática do segundo mês em diante.
     if (isD2cVipPromotionCode(promotionCode)) {
+      const firstChargeLabel = formatChargeDate(resolveFirstChargeDate());
+      // Lido do Stripe, não fixo no código: o preço já foi reajustado antes e
+      // uma mensagem prometendo o valor errado é pior que nenhuma mensagem.
+      const monthlyPriceLabel = await (async () => {
+        try {
+          const price = await stripe.prices.retrieve(priceId);
+          const amount = price.unit_amount;
+          if (typeof amount !== "number") return null;
+          return new Intl.NumberFormat(currency === "USD" ? "en-US" : "pt-BR", {
+            style: "currency",
+            currency: (price.currency ?? currency).toUpperCase(),
+          }).format(amount / 100);
+        } catch {
+          return null;
+        }
+      })();
       const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
       const successUrl = resolveHostedCheckoutSuccessUrl(body.successUrl, { appBaseUrl });
       const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
@@ -804,7 +821,21 @@ export async function POST(req: NextRequest) {
           line_items: [{ price: priceId, quantity: 1 }],
           payment_method_collection: "always",
           discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
-          subscription_data: { metadata },
+          subscription_data: {
+            metadata,
+            // Aparece no resumo do pedido, ao lado do preço cheio.
+            description: `Primeiro mês gratuito. A primeira cobrança será em ${firstChargeLabel}.`,
+          },
+          // O Stripe já mostra "R$ 0,00 hoje", mas o preço cheio aparece no
+          // subtotal e é lido como cobrança. Esta linha, logo acima do botão,
+          // não deixa dúvida sobre quando o dinheiro sai.
+          custom_text: {
+            submit: {
+              message: monthlyPriceLabel
+                ? `Hoje você não paga nada. A primeira cobrança de ${monthlyPriceLabel} será em ${firstChargeLabel}, e você pode cancelar antes disso.`
+                : `Hoje você não paga nada. A primeira cobrança será em ${firstChargeLabel}, e você pode cancelar antes disso.`,
+            },
+          },
           // Só pede se ainda não temos: quem já informou não digita de novo.
           ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
           success_url: successUrl,

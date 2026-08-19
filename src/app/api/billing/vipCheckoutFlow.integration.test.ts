@@ -95,9 +95,9 @@ function buildUser() {
     name: "Ana",
     planStatus: "inactive",
     stripeCustomerId: "cus_vip",
-    stripeSubscriptionId: null,
-    pendingCheckoutSessionId: null,
-    pendingCheckoutExpiresAt: null,
+    stripeSubscriptionId: null as string | null,
+    pendingCheckoutSessionId: null as string | null,
+    pendingCheckoutExpiresAt: null as Date | null,
     commissionLog: [],
     save: jest.fn(async function save(this: any) { return this; }),
   };

@@ -537,9 +537,21 @@ export default function BillingSubscribeModal({
     [prices, currency],
   );
 
+  /**
+   * O cupom digitado vale mesmo sem clicar em "Aplicar".
+   *
+   * Antes, `couponApplied` só virava true pelo botão: quem digitava d2cVIP e ia
+   * direto no CTA tinha o cupom descartado em silêncio e caía no Stripe com a
+   * cobrança cheia. O botão continua ali como confirmação visual, mas não é
+   * mais o que decide se o desconto existe.
+   */
+  const typedCouponIsVip = isD2cVipPromotionCode(couponCode);
+  const couponIsEffective =
+    (couponApplied || typedCouponIsVip) && period === "monthly";
+
   const resolvedPrimaryCtaLabel =
     sessionStatus === "authenticated"
-      ? couponApplied && period === "monthly" ? "Começar meu mês grátis" : primaryCtaLabel
+      ? couponIsEffective ? "Começar meu mês grátis" : primaryCtaLabel
       : "Continuar com Google";
 
   const handleApplyCoupon = useCallback(() => {
@@ -604,7 +616,7 @@ export default function BillingSubscribeModal({
         successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: resolveCheckoutCancelUrl(),
         source: "modal",
-        ...(couponApplied || isD2cVipPromotionCode(searchParams?.get(PAYWALL_COUPON_PARAM))
+        ...(couponIsEffective || isD2cVipPromotionCode(searchParams?.get(PAYWALL_COUPON_PARAM))
           ? { promotionCode: D2C_VIP_DISPLAY_CODE }
           : {}),
       };
@@ -659,7 +671,7 @@ export default function BillingSubscribeModal({
   }, [
     closeModal,
     currency,
-    couponApplied,
+    couponIsEffective,
     effectiveContext,
     hasPremiumAccess,
     needsCheckout,
@@ -989,7 +1001,7 @@ export default function BillingSubscribeModal({
               </button>
 
               <p className="mt-3 text-center text-[11px] text-zinc-400">
-                {couponApplied && period === "monthly"
+                {couponIsEffective
                   ? freeMonthNotice
                   : "Pagamento seguro. Cancele quando quiser."}
               </p>
