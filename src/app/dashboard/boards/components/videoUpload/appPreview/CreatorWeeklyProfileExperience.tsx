@@ -171,7 +171,7 @@ function CreatorMap({
 
       {toolsSlot ? <div className="mt-3.5">{toolsSlot}</div> : null}
 
-      <ProfileSectionHeader title="Seu mapa" className="mt-[26px]" />
+      <ProfileSectionHeader title="Seu mapa" />
 
       <div className="ds-profile-map-body mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
         {/* Vazio nunca ocupa o nível de título: promover a ausência de conteúdo
@@ -285,10 +285,7 @@ function ReportOverview({
     >
       {/* Cabeçalho de seção em vez de casca de cartão: o fio separa o assunto
           sem cobrar padding, e a tag da direita diz o estado do relatório. */}
-      <ProfileSectionHeader
-        title="Relatório da semana"
-        tag={isDemo ? "Dados de exemplo" : null}
-      />
+      <ProfileSectionHeader title="Relatório da semana" tag={isDemo ? "Dados de exemplo" : null} />
 
       {isDemo ? (
         <div role="note" className="ds-notebook-note mt-3">
@@ -313,14 +310,14 @@ function ReportOverview({
           depois dos padrões, porque ele ilustra o que os padrões explicam. */}
       {report.weeklyVideo ? (
         <>
-          <ProfileSectionHeader title="Vídeo da semana" className="mt-[22px]" />
+          <ProfileSectionHeader title="Vídeo da semana" level="group" />
           <div className="mt-3">
             <WeeklyVideoCard video={report.weeklyVideo} isDemo={isDemo} />
           </div>
         </>
       ) : (
-        <div className="mt-[22px]">
-          <ProfileSectionHeader title="Vídeo da semana" />
+        <div>
+          <ProfileSectionHeader title="Vídeo da semana" level="group" />
           <h3 className="mt-3 text-[1.25rem] font-bold text-[var(--ds-color-ink)]">Você não postou na semana passada.</h3>
           <p className="ds-body mt-2">O que já funcionou nos últimos 90 dias continua aqui embaixo.</p>
         </div>
@@ -343,11 +340,15 @@ function BrandMatchCard({
   if (!match) return null;
 
   return (
-    <section className="ds-notebook-section">
-      <span className="ds-eyebrow">Marca que combina com você</span>
-      <h2 className="mt-3 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">{match.brandName}</h2>
-      {match.rationale ? <p className="ds-body mt-2">{match.rationale}</p> : null}
-      {match.disclaimer ? <p className="ds-caption mt-3">{match.disclaimer}</p> : null}
+    <section>
+      <ProfileSectionHeader title="Marca que combina com você" />
+      <div className="mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
+        <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--ds-color-ink)]">{match.brandName}</h2>
+        {match.rationale ? (
+          <p className="mt-2 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">{match.rationale}</p>
+        ) : null}
+        {match.disclaimer ? <p className="ds-caption mt-3">{match.disclaimer}</p> : null}
+      </div>
     </section>
   );
 }

@@ -176,7 +176,7 @@ function PatternGroup({
 
   return (
     <section aria-labelledby={`pattern-group-${surface}`}>
-      <ProfileSectionHeader id={`pattern-group-${surface}`} title={title} className="mt-[22px]" />
+      <ProfileSectionHeader id={`pattern-group-${surface}`} title={title} level="group" />
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         {ordered.map((highlight) => {
           const locked = lockedIds.has(highlight.id);

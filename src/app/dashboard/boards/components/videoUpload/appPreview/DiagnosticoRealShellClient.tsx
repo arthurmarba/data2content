@@ -2039,14 +2039,12 @@ export function DiagnosticoRealShellClient({
           surface === "responsive" ? "lg:pb-8" : ""
         }`}
         style={{
-          // Fundo branco explícito: essa faixa reservada (tab bar + respiro)
-          // hoje mostra branco só porque o
-          // gradiente acima já resolveu pra #ffffff bem antes de chegar aqui.
-          // Isso é uma dependência implícita e frágil: se algum dia o
-          // gradiente mudar (parar mais peachy, por mais tempo), essa faixa
-          // reaparece com a cor errada, sem nenhum aviso. Fundo explícito
-          // remove essa dependência — a faixa é sempre branca, ponto.
-          background: "var(--ds-color-neutral)",
+          // O chão da tela inteira sai daqui — é este container que rola, e é a
+          // cor dele que aparece atrás de tudo, inclusive na faixa reservada da
+          // barra de abas. Precisa ser o papel (branco): com o neutral, o chão
+          // ficava do mesmo tom das superfícies de apoio (ferramentas, "na hora
+          // de gravar", reuniões) e os cards deixavam de ler como cards.
+          background: "var(--ds-color-paper)",
         }}
       >
         {activeTab === "collabs" ? (

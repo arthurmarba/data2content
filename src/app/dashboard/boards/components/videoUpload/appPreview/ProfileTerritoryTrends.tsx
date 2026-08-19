@@ -72,7 +72,6 @@ export function ProfileTerritoryTrends({
       <ProfileSectionHeader
         id="territory-trends-title"
         title={`Inspiração em ${territory.toLocaleLowerCase("pt-BR")}`}
-        className="mt-[26px]"
       />
 
       <div className="mt-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[15px]">

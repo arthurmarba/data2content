@@ -13,6 +13,7 @@ import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 import type { PaywallContext } from "@/types/paywall";
 
 import RecordedMeetingPlayerDialog from "@/app/dashboard/recorded-meetings/RecordedMeetingPlayerDialog";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
 
 /**
@@ -122,17 +123,18 @@ export function ProfileMeetingsCard({
 
   return (
     <>
-      <section id="community-d2c" className="ds-notebook-section">
-        <span className="ds-notebook-label">Reuniões da comunidade</span>
-        <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
+      <section id="community-d2c">
+        <ProfileSectionHeader title="Reuniões da comunidade" />
+        <div className="mt-3 rounded-[var(--ds-radius-md)] bg-[var(--ds-color-neutral)] p-[18px]">
+        <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--ds-color-ink)]">
           {cancelled ? "A próxima edição foi cancelada." : "Sua semana entra na pauta do grupo."}
         </h2>
-        <p className="ds-caption mt-2">
+        <p className="ds-caption mt-1.5">
           {cancelled ? "Avisamos no grupo quando a próxima for marcada." : `${formatNextMeeting(meeting)} · ao vivo, no WhatsApp`}
         </p>
 
         {latest ? (
-          <div className="ds-notebook-media mt-4 overflow-hidden">
+          <div className="ds-notebook-media mt-4 overflow-hidden bg-[var(--ds-color-surface)]">
             <button
               type="button"
               onClick={() => void handlePlay()}
@@ -181,6 +183,7 @@ export function ProfileMeetingsCard({
           <Link href={RECORDED_MEETINGS_ROUTE} className="ds-button ds-button--quiet ds-button--small no-underline">
             Ver todas
           </Link>
+        </div>
         </div>
       </section>
 

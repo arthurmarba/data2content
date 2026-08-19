@@ -2,7 +2,10 @@
 
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import type { InstagramConnectionState } from "@/app/dashboard/boards/videoUpload/instagramConnectionState";
+import type { ReactNode } from "react";
 import type { PaywallContext } from "@/types/paywall";
+
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 /**
  * O campo de próximo passo — um onboarding que roda dentro do produto.
@@ -65,6 +68,27 @@ function formatLastRead(value: string | null | undefined) {
   return `lido em ${day.format(date)}`;
 }
 
+/** O assunto do campo muda com o estado — e é ele que nomeia a seção. */
+const KICKER: Record<Exclude<NextStepFieldState, "connected" | "none">, string> = {
+  define_north: "Seu mapa",
+  billing: "Assinatura",
+  subscribe: "Pro",
+  connect_instagram: "Conexão",
+  reconnect_instagram: "Conexão",
+};
+
+/**
+ * Card do campo condicional: contorno tracejado, porque o que está aqui é
+ * pendência — algo que espera uma ação, não um dado já confirmado.
+ */
+function FieldCard({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-3 rounded-[var(--ds-radius-md)] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[18px]">
+      {children}
+    </div>
+  );
+}
+
 function CheckIcon() {
   return (
     <span
@@ -95,17 +119,19 @@ export function ProfileNextStepField({
   // Sem narrativa, a oferta do Pro não teria em que se apoiar: o Norte vem antes.
   if (state === "define_north") {
     return (
-      <section className="ds-notebook-section">
-        <span className="ds-notebook-label">Primeiro passo</span>
-        <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
-          Defina seu Norte para começar o mapa.
-        </h2>
-        <p className="ds-body mt-2">
-          Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.
-        </p>
-        <button type="button" className="ds-button ds-button--primary mt-4" onClick={onDefineNorth}>
-          Definir meu Norte
-        </button>
+      <section>
+        <ProfileSectionHeader title={KICKER.define_north} />
+        <FieldCard>
+          <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+            Defina seu Norte para começar o mapa.
+          </h2>
+          <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
+            Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.
+          </p>
+          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onDefineNorth}>
+            Definir meu Norte
+          </button>
+        </FieldCard>
       </section>
     );
   }
@@ -124,51 +150,57 @@ export function ProfileNextStepField({
 
   if (state === "billing") {
     return (
-      <section id="pro-activation" className="ds-notebook-section">
-        <span className="ds-notebook-label">Assinatura</span>
-        <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
-          Seu pagamento precisa ser atualizado.
-        </h2>
-        <p className="ds-body mt-2">
-          Seu mapa continua seguro. O que para enquanto isso é o relatório da semana.
-        </p>
-        <button type="button" className="ds-button ds-button--primary mt-4" onClick={() => onUpgrade("narrative_map")}>
-          Atualizar pagamento
-        </button>
+      <section id="pro-activation">
+        <ProfileSectionHeader title={KICKER.billing} />
+        <FieldCard>
+          <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+            Seu pagamento precisa ser atualizado.
+          </h2>
+          <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
+            Seu mapa continua seguro. O que para enquanto isso é o relatório da semana.
+          </p>
+          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
+            Atualizar pagamento
+          </button>
+        </FieldCard>
       </section>
     );
   }
 
   if (state === "subscribe") {
     return (
-      <section id="pro-activation" className="ds-notebook-section">
-        <span className="ds-notebook-label">Seu próximo passo</span>
-        <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">Ative o Pro</h2>
-        <p className="ds-body mt-2">
-          Seu mapa vira relatório, pautas e collabs toda semana. Por enquanto, o que aparece aqui embaixo é um exemplo.
-        </p>
-        <button type="button" className="ds-button ds-button--primary mt-4" onClick={() => onUpgrade("narrative_map")}>
-          Ativar o Pro
-        </button>
+      <section id="pro-activation">
+        <ProfileSectionHeader title={KICKER.subscribe} />
+        <FieldCard>
+          <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">Ative o Pro</h2>
+          <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
+            Seu mapa vira relatório, pautas e collabs toda semana. Por enquanto, o que aparece aqui embaixo é um exemplo.
+          </p>
+          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
+            Ativar o Pro
+          </button>
+        </FieldCard>
       </section>
     );
   }
 
   const reconnecting = state === "reconnect_instagram";
   return (
-    <section id="pro-activation" className="ds-notebook-section">
-      <span className="ds-notebook-label">Seu próximo passo</span>
-      <h2 className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
-        {reconnecting ? "Seu relatório parou de atualizar." : "Conecte seu Instagram."}
-      </h2>
-      <p className="ds-body mt-2">
-        {reconnecting
-          ? "A conexão com o Instagram caiu, o que acontece de tempos em tempos. Enquanto você não reconectar, o relatório fica parado nos posts que já entraram."
-          : "É assim que o relatório aqui embaixo passa a mostrar os seus posts, e não um exemplo."}
-      </p>
-      <button type="button" className="ds-button ds-button--primary mt-4" onClick={onConnectInstagram}>
-        {reconnecting ? "Reconectar Instagram" : "Conectar Instagram"}
-      </button>
+    <section id="pro-activation">
+      <ProfileSectionHeader title={KICKER.connect_instagram} />
+      <FieldCard>
+        <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+          {reconnecting ? "Seu relatório parou de atualizar." : "Conecte seu Instagram."}
+        </h2>
+        <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
+          {reconnecting
+            ? "A conexão com o Instagram caiu, o que acontece de tempos em tempos. Enquanto você não reconectar, o relatório fica parado nos posts que já entraram."
+            : "É assim que o relatório aqui embaixo passa a mostrar os seus posts, e não um exemplo."}
+        </p>
+        <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onConnectInstagram}>
+          {reconnecting ? "Reconectar Instagram" : "Conectar Instagram"}
+        </button>
+      </FieldCard>
     </section>
   );
 }
