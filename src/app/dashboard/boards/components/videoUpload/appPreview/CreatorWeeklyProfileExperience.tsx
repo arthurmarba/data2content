@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
 import {
   buildPatternHighlights,
-  buildWeekHeadline,
   formatPatternIndex,
   type PatternHighlight,
 } from "@/app/lib/creatorWeeklyReport/patternHighlights";
@@ -15,8 +14,14 @@ import type {
   CreatorWeeklyReportVideo,
 } from "@/app/lib/creatorWeeklyReport/types";
 import type { PaywallContext } from "@/types/paywall";
+import type { PatternContext } from "@/app/lib/creatorWeeklyReport/patternContextTypes";
 import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
-import { ProfilePatternGrid } from "./ProfilePatternGrid";
+import type { IMapaData } from "@/app/models/MapaSeed";
+import { ProfileIdentityCard, ProfileToolCards } from "./ProfileIdentityCard";
+import { ProfileNarrativeView } from "./ProfileNarrativeView";
+import { ProfileProSheet } from "./ProfileProSheet";
+import { ProfilePatternSections } from "./ProfilePatternSections";
+import { ProfilePatternDetailSheet } from "./ProfilePatternDetailSheet";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
 import { ProfileTerritoryTrends, type TerritoryTrendPost } from "./ProfileTerritoryTrends";
 import { ProfileMeetingsCard } from "./ProfileMeetingsCard";
@@ -25,10 +30,6 @@ import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mo
 
 function firstName(value: string | null | undefined) {
   return value?.trim().split(/\s+/)[0] || "Criadora";
-}
-
-function normalizeForMatch(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 }
 
 function formatMetric(value: number | null) {
@@ -51,186 +52,6 @@ function GearIcon() {
   );
 }
 
-function ProfileAvatar({ name, imageUrl }: { name: string | null; imageUrl: string | null }) {
-  const [failed, setFailed] = useState(false);
-  const initial = firstName(name).charAt(0).toUpperCase();
-  return (
-    // 72px: retrato, não chip de conta. Sem foto o círculo é bege com a letra
-    // escura — um disco preto de 72px pesaria mais do que a letra comunica.
-    <div className="ds-profile-avatar grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--ds-color-neutral)] text-[24px] font-extrabold text-[var(--ds-color-ink)]">
-      {imageUrl && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
-      ) : initial}
-    </div>
-  );
-}
-
-function UtilityPanel({
-  isPro,
-  calculatorPrice,
-  onOpenMediaKit,
-  onOpenCalculator,
-}: {
-  isPro: boolean;
-  calculatorPrice: string | null;
-  onOpenMediaKit: () => void;
-  onOpenCalculator: () => void;
-}) {
-  // Duas portas de trabalho logo abaixo do nome: o Mídia Kit e o preço da publi
-  // são o que o criador abre quando uma marca chama, e chamar acontece a
-  // qualquer hora — não é assunto de rodapé.
-  const rows = [
-    {
-      id: "media-kit",
-      title: "Mídia Kit",
-      subtitle: "Sua página para marcas",
-      action: onOpenMediaKit,
-    },
-    {
-      id: "calculator",
-      title: "Quanto vale sua publi",
-      subtitle: isPro && calculatorPrice ? `Último cálculo · ${calculatorPrice}` : "Calcule seu preço justo",
-      action: onOpenCalculator,
-    },
-  ];
-  return (
-    <section className="grid grid-cols-2 gap-2.5" aria-label="Ferramentas">
-      {rows.map((row) => (
-        <button
-          key={row.id}
-          type="button"
-          onClick={row.action}
-          className="rounded-[14px] border border-[var(--ds-color-line)] bg-[var(--ds-color-neutral)] px-[14px] py-[13px] text-left"
-        >
-          <span className="flex items-center justify-between gap-1.5">
-            <span className="text-[14px] font-semibold leading-[1.2] text-[var(--ds-color-ink)]">{row.title}</span>
-            <span aria-hidden="true" className="text-[14px] font-semibold text-[var(--ds-color-text-muted)]">›</span>
-          </span>
-          <span className="mt-1 block text-[11.5px] leading-[1.25] text-[var(--ds-color-text-muted)]">
-            {row.subtitle}
-          </span>
-        </button>
-      ))}
-    </section>
-  );
-}
-
-function CreatorMap({
-  userName,
-  userImageUrl,
-  headerSubtitle,
-  narrative,
-  narrativeIsPlaceholder,
-  territories,
-  observedSubjects,
-  hasVideoEvidence,
-  onOpenFullMap,
-  onOpenAccountMenu,
-  starterMapJustCreated,
-  statusLine,
-  toolsSlot,
-}: {
-  userName: string | null;
-  userImageUrl: string | null;
-  headerSubtitle: string;
-  narrative: string;
-  narrativeIsPlaceholder: boolean;
-  territories: string[];
-  observedSubjects: string[];
-  hasVideoEvidence: boolean;
-  onOpenFullMap: () => void;
-  onOpenAccountMenu: () => void;
-  starterMapJustCreated: boolean;
-  /** "✓ Instagram conectado · lido hoje às 11h" — confirmação, não card. */
-  statusLine?: ReactNode;
-  /** Mídia Kit e calculadora, entre o nome e o mapa. */
-  toolsSlot?: ReactNode;
-}) {
-  const observedNormalized = observedSubjects.map(normalizeForMatch);
-  const isObserved = (territory: string) => {
-    const normalized = normalizeForMatch(territory);
-    return observedNormalized.some((subject) => subject.includes(normalized) || normalized.includes(subject));
-  };
-  // A legenda do ✓ só faz sentido se algum ✓ existir na tela. Havendo vídeos
-  // analisados mas nenhum assunto batendo, ela prometia uma marca que não está
-  // em lugar nenhum.
-  const hasCheckedSubject = territories.some(isObserved);
-  return (
-    // Identidade sem casca de cartão: o retrato e o nome abrem a página, e o
-    // mapa vem logo abaixo sob o próprio cabeçalho de seção.
-    <section
-      id="creator-weekly-map"
-      className={`transition-shadow duration-700 ${starterMapJustCreated ? "rounded-[var(--ds-radius-md)] ring-2 ring-[var(--ds-color-brand)] ring-offset-4 ring-offset-[var(--ds-color-paper)]" : ""}`}
-      aria-labelledby="creator-map-title"
-    >
-      <div className="ds-profile-identity flex items-center gap-3">
-        <ProfileAvatar name={userName} imageUrl={userImageUrl} />
-        <div className="min-w-0 flex-1">
-          <h1 className="ds-profile-title truncate text-[23px] font-bold leading-[1.15] tracking-[-0.03em] text-[var(--ds-color-ink)]">
-            {userName || "Seu perfil"}
-          </h1>
-          <p className="mt-1 truncate text-[12.5px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</p>
-        </div>
-        <button type="button" className="ds-icon-button shrink-0" aria-label="Configurações da conta" onClick={onOpenAccountMenu}>
-          <GearIcon />
-        </button>
-      </div>
-
-      {toolsSlot ? <div className="mt-5">{toolsSlot}</div> : null}
-
-      <ProfileSectionHeader title="Seu mapa" />
-
-      <div className="ds-profile-map-body mt-4 rounded-[18px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-6">
-        {/* Vazio nunca ocupa o nível de título: promover a ausência de conteúdo
-            faz o maior texto da tela ser justamente o que não existe ainda. */}
-        {narrativeIsPlaceholder ? (
-          <p id="creator-map-title" className="text-[15px] leading-[1.5] text-[var(--ds-color-text-muted)]">
-            {narrative}
-          </p>
-        ) : (
-          <blockquote id="creator-map-title" className="text-[23px] font-semibold leading-[1.24] tracking-[-0.03em] text-[var(--ds-color-ink)]">
-            “{narrative}”
-          </blockquote>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {territories.length > 0 ? territories.map((territory) => {
-            const observed = isObserved(territory);
-            return (
-              <span
-                key={territory}
-                className={`rounded-full border px-[11px] py-[5px] text-[12.5px] font-medium ${
-                  observed
-                    ? "border-[var(--ds-color-line-strong)] text-[var(--ds-color-ink)]"
-                    : "border-[var(--ds-color-line)] text-[var(--ds-color-text-muted)]"
-                }`}
-              >
-                {observed ? "✓ " : ""}{territory}
-              </span>
-            );
-          }) : <span className="ds-caption">Adicione os assuntos que fazem parte da sua história.</span>}
-        </div>
-
-        <p className="ds-caption mt-3">
-          {hasCheckedSubject
-            ? "O ✓ marca os assuntos que também apareceram nos seus vídeos."
-            : hasVideoEvidence
-              ? "Seus vídeos já foram analisados, mas nenhum deles falou desses assuntos ainda."
-              : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
-        </p>
-
-        <button type="button" className="mt-[18px] flex w-full items-center justify-between text-[13px] font-semibold text-[var(--ds-color-ink)]" onClick={onOpenFullMap}>
-          <span>Ver mapa completo</span>
-          <span aria-hidden="true">→</span>
-        </button>
-
-        {statusLine}
-      </div>
-    </section>
-  );
-}
-
 function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; isDemo: boolean }) {
   const body = (
     <div className="ds-notebook-media">
@@ -243,13 +64,12 @@ function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; i
         </div>
       ) : null}
       <div className="p-5">
-        <div className="flex items-center gap-2">
-          <span className="ds-notebook-label">Vídeo da semana</span>
-          {isDemo ? <span className="ds-badge ds-badge--neutral">Dados de exemplo</span> : null}
-        </div>
+        {/* Sem repetir "Vídeo da semana": o cabeçalho da seção logo acima já
+            nomeou o assunto, e o rótulo interno virava eco. */}
+        {isDemo ? <span className="ds-badge ds-badge--neutral">Dados de exemplo</span> : null}
         {/* O veredito vem antes da manchete: é o que a pessoa veio saber. */}
         {formatIndex(video.performanceIndex) ? (
-          <p className="mt-2 text-[1.625rem] font-extrabold leading-none tracking-[-0.02em] text-[var(--ds-color-success)]">{formatIndex(video.performanceIndex)}</p>
+          <p className={`${isDemo ? "mt-2" : ""} text-[1.625rem] font-extrabold leading-none tracking-[-0.02em] text-[var(--ds-color-success)]`}>{formatIndex(video.performanceIndex)}</p>
         ) : null}
         <h2 className="mt-2 text-[1.25rem] font-bold leading-[1.18] text-[var(--ds-color-ink)]">{video.description}</h2>
         <div className="mt-5 grid grid-cols-3 pt-1">
@@ -270,21 +90,27 @@ function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; i
 function ReportOverview({
   report,
   isDemo,
+  context,
+  reportTag,
+  territoryExample,
   onExpandPattern,
-  onUpgrade,
+  onLockedPattern,
 }: {
   report: CreatorWeeklyReportPayload;
   isDemo: boolean;
+  /** Série das últimas semanas e ranking do território. Chega depois da tela. */
+  context: PatternContext | null;
+  /** O estado da leitura: "Exemplo", "Pausado", "Parado em 10 de agosto". */
+  reportTag: string | null;
+  territoryExample: TerritoryTrendPost | null;
   onExpandPattern: (highlight: PatternHighlight) => void;
-  onUpgrade: (context?: PaywallContext) => void;
+  /** Toque num card bloqueado: abre o convite do Pro no contexto do padrão. */
+  onLockedPattern: () => void;
 }) {
+  const [openPattern, setOpenPattern] = useState<PatternHighlight | null>(null);
   const highlights = buildPatternHighlights(report);
-  // A manchete elege, entre dez respostas de peso visual igual, a que importa
-  // nesta semana. Sem nada promovido, a leitura do relatório assume o lugar.
-  const headline = buildWeekHeadline(highlights) ?? report.overview.summary;
-  const weekNumbers = report.overview.numbers.length > 0
-    ? report.overview.numbers.map((number) => `${number.value} ${number.label}`).join(" · ")
-    : null;
+  const detailOf = (highlight: PatternHighlight) =>
+    report.details.find((detail) => detail.id === highlight.detailId) ?? null;
 
   return (
     <div
@@ -292,31 +118,31 @@ function ReportOverview({
       aria-describedby={isDemo ? "weekly-report-demo-notice" : undefined}
       className="flex flex-col"
     >
-      {/* Cabeçalho de seção em vez de casca de cartão: o fio separa o assunto
-          sem cobrar padding, e a tag da direita diz o estado do relatório. */}
-      <ProfileSectionHeader title="Relatório da semana" tag={isDemo ? "Dados de exemplo" : null} />
-
       {isDemo ? (
         <div role="note" className="ds-notebook-note mt-3">
           <p id="weekly-report-demo-notice" className="m-0">
             <strong className="text-[var(--ds-color-ink)]">Você está vendo dados de exemplo.</strong>{" "}
-            Eles mostram como o relatório será organizado. Com o Instagram conectado, os padrões abaixo passam a ser os do seu perfil.
+            Eles mostram como a leitura será organizada. Com o Instagram conectado, os padrões abaixo passam a ser os do seu perfil.
           </p>
         </div>
       ) : null}
 
-      <ProfilePatternGrid
+      {/* Os padrões separados pela força da evidência: o que já é regra, o que
+          ainda é aposta e o que a leitura olhou sem achar nada. */}
+      <ProfilePatternSections
         highlights={highlights}
-        details={report.details}
-        headline={headline}
-        weekNumbers={weekNumbers}
+        context={context}
         locked={isDemo}
-        onExpand={onExpandPattern}
-        onLockedClick={() => onUpgrade("narrative_map")}
+        reportTag={reportTag}
+        onOpenPattern={(highlight) => {
+          setOpenPattern(highlight);
+          onExpandPattern(highlight);
+        }}
+        onLockedClick={onLockedPattern}
       />
 
-      {/* O vídeo da semana é dado real e continua na tela — em seção própria,
-          depois dos padrões, porque ele ilustra o que os padrões explicam. */}
+      {/* O vídeo da semana é dado real e continua na tela — depois dos padrões,
+          porque ele ilustra o que os padrões explicam. */}
       {report.weeklyVideo ? (
         <>
           <ProfileSectionHeader title="Vídeo da semana" level="group" />
@@ -332,11 +158,13 @@ function ReportOverview({
         </div>
       )}
 
-      {/* A régua explicada uma vez só. */}
-      <p className="ds-caption mt-3 px-0.5">
-        {isDemo ? "Dados de exemplo · " : null}
-        Tudo comparado com o que você costuma fazer nos últimos 90 dias · {report.coverage.postsWithScene} de {report.coverage.posts90d} posts já analisados. Quando ainda faltam vídeos analisados, o card diz isso em vez de chutar.
-      </p>
+      <ProfilePatternDetailSheet
+        highlight={openPattern}
+        detail={openPattern ? detailOf(openPattern) : null}
+        context={context}
+        territoryExample={territoryExample}
+        onClose={() => setOpenPattern(null)}
+      />
     </div>
   );
 }
@@ -404,6 +232,10 @@ export function CreatorWeeklyProfileExperience({
   const [whatsappGroupLinkOpened, setWhatsappGroupLinkOpened] = useState(data.userInfo.whatsappGroupLinkOpened === true);
   const [territoryTrends, setTerritoryTrends] = useState<TerritoryTrendPost[]>([]);
   const [trendsLabel, setTrendsLabel] = useState<string | null>(null);
+  const [patternContext, setPatternContext] = useState<PatternContext | null>(null);
+  const [narrativeOpen, setNarrativeOpen] = useState(false);
+  const [proSheetOpen, setProSheetOpen] = useState(false);
+  const [mapa, setMapa] = useState<IMapaData | null>((data.mapaSeed as IMapaData | null) ?? null);
   const reportIsDemo = !hasReportAccess;
   const report = reportIsDemo ? CREATOR_WEEKLY_REPORT_DEMO : liveReport;
   const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : "/dashboard/boards/mobile-strategic-profile";
@@ -421,6 +253,7 @@ export function CreatorWeeklyProfileExperience({
   }, [data.accessState, data.instagramConnected, hasReportAccess, isPro, liveReport?.status, profileRoute]);
 
   useEffect(() => setLiveReport(data.creatorWeeklyReport ?? null), [data.creatorWeeklyReport]);
+  useEffect(() => setMapa((data.mapaSeed as IMapaData | null) ?? null), [data.mapaSeed]);
   useEffect(() => setWhatsappGroupLinkOpened(data.userInfo.whatsappGroupLinkOpened === true), [data.userInfo.whatsappGroupLinkOpened]);
 
   useEffect(() => {
@@ -459,22 +292,30 @@ export function CreatorWeeklyProfileExperience({
     };
   }, [data.accessState, data.instagramConnected, hasReportAccess, isPro, liveReport?.coverage.posts90d, profileRoute]);
 
-  const declaredNarrative = data.mapaSeed?.narrativa_central?.trim()
+  const declaredNarrative = mapa?.narrativa_central?.trim()
     || data.synthesis.mainNarrative?.label?.trim()
     || "";
-  const narrativeIsPlaceholder = declaredNarrative.length === 0;
-  const narrative = narrativeIsPlaceholder
-    ? "Sua história ainda está ganhando forma. Responda o Seu Norte para escrevê-la."
-    : declaredNarrative;
   const hasStarterMap = Boolean(
-    data.mapaSeed?.narrativa_central?.trim()
-    || data.onboardingAnswers?.creatorPurpose?.trim(),
+    mapa?.narrativa_central?.trim() || data.onboardingAnswers?.creatorPurpose?.trim(),
   );
+  // Sem mapa declarado, o que existe é uma narrativa INFERIDA da síntese dos
+  // vídeos — e exibi-la entre aspas, como se fosse a frase da pessoa, faria a
+  // tela dizer que o trabalho já está feito. Nesse estado o card pede a resposta.
+  const narrativeIsPlaceholder = !hasStarterMap || declaredNarrative.length === 0;
+  const narrative = narrativeIsPlaceholder ? "" : declaredNarrative;
   const territories = useMemo(() => {
-    const fromMap = data.mapaSeed?.territorios?.filter(Boolean) ?? [];
+    const fromMap = mapa?.territorios?.filter(Boolean) ?? [];
     if (fromMap.length > 0) return fromMap.slice(0, 8);
     return data.synthesis.narrativeTerritories.map((territory) => territory.label).filter(Boolean).slice(0, 8);
-  }, [data.mapaSeed?.territorios, data.synthesis.narrativeTerritories]);
+  }, [mapa?.territorios, data.synthesis.narrativeTerritories]);
+
+  // Os chips embaixo da narrativa são os assuntos que a LEITURA reconheceu nos
+  // posts — não os territórios declarados. Era isso que o ✓ tentava dizer
+  // marcando alguns chips e deixando outros sem marca: uma lista com dois
+  // significados dentro. Havendo leitura, ela manda; sem leitura ainda, os
+  // territórios do mapa entram como o que a pessoa declarou.
+  const observedSubjects = hasReportAccess ? liveReport?.overview.observedSubjects ?? [] : [];
+  const identitySubjects = (observedSubjects.length > 0 ? observedSubjects : territories).slice(0, 6);
   const handleExpandPattern = (highlight: PatternHighlight) => {
     trackMobileNarrativeEvent("mobile_weekly_report_detail_opened", {
       route: profileRoute,
@@ -487,13 +328,48 @@ export function CreatorWeeklyProfileExperience({
 
   // O campo de próximo passo cuida só da saúde da conta: plano e conexão de dados.
   // Comunidade e reuniões são lugares permanentes e vivem no card de reuniões.
+  const instagramConnectionState =
+    data.instagramConnectionState ?? (data.instagramConnected ? "connected" : "disconnected");
   const nextStepState = resolveNextStepFieldState({
     accessState: data.accessState,
     hasActivePro,
     hasStarterMap,
-    instagramConnectionState:
-      data.instagramConnectionState ?? (data.instagramConnected ? "connected" : "disconnected"),
+    instagramConnectionState,
   });
+
+  // A NARRATIVA É INDEPENDENTE DE TUDO. Ela mora no card de identidade e aparece
+  // sempre que falta — não é uma etapa de onboarding que trava as outras.
+  //
+  // Por isso o campo de ativação não para de pedir o resto enquanto ela não vem:
+  // ele resolve o estado como se o mapa já existisse e mostra a pendência
+  // SEGUINTE (assinar, conectar), ou some quando não há nenhuma. Sem isso, quem
+  // pulou a narrativa nunca era convidado a assinar nem a conectar o Instagram,
+  // e quem já tinha os dois perdia a linha de confirmação por causa de um campo
+  // que não tem nada a ver com a saúde da conta.
+  const activationState =
+    nextStepState === "define_north"
+      ? resolveNextStepFieldState({
+          accessState: data.accessState,
+          hasActivePro,
+          hasStarterMap: true,
+          instagramConnectionState,
+        })
+      : nextStepState;
+
+  const mediaKitNote = data.userInfo.handle ? `@${data.userInfo.handle.replace(/^@/, "")}` : "sua página para marcas";
+
+  /**
+   * A etiqueta do estado da leitura, no canto do primeiro cabeçalho de padrões.
+   * "Exemplo" quando os dados não são dele; "Pausado" e "Parado em…" quando são
+   * dele mas pararam de atualizar — e essas três coisas não são a mesma.
+   */
+  const reportTag = reportIsDemo
+    ? "Exemplo"
+    : billingAttention
+      ? "Pausado"
+      : instagramConnectionState === "expired"
+        ? "Leitura parada"
+        : null;
 
   // Inspiração no assunto: o que rendeu entre os criadores da D2C que publicam
   // sobre a mesma coisa. Quem decide "a mesma coisa" é o servidor — primeiro pela
@@ -523,6 +399,42 @@ export function CreatorWeeklyProfileExperience({
     return () => controller.abort();
   }, [territoriesKey]);
 
+  // A série de 4 semanas e o ranking do território chegam DEPOIS da tela: são
+  // enriquecimento de cards que já estão desenhados. Falhar aqui não muda nada
+  // do que está escrito — some a barrinha e some a coluna de comparação.
+  useEffect(() => {
+    if (!hasReportAccess) return;
+    const controller = new AbortController();
+    void fetch("/api/dashboard/mobile-strategic-profile/pattern-context", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok || !payload.context) return;
+        setPatternContext(payload.context as PatternContext);
+      })
+      .catch(() => {
+        /* silencioso: os cards continuam corretos sem série e sem território */
+      });
+    return () => controller.abort();
+  }, [hasReportAccess]);
+
+  // "Ver narrativa completa" abre a narrativa AQUI, sobre o Perfil, em vez de
+  // trocar de rota: quem entra para conferir uma camada volta com um toque, e
+  // não perde a posição de rolagem na leitura da semana. `onOpenFullMap` segue
+  // sendo o sinal de "a pessoa pediu a narrativa completa" — quem escuta decide
+  // o que fazer com isso (hoje, telemetria).
+  const handleOpenNarrative = () => {
+    setProSheetOpen(false);
+    if (narrativeIsPlaceholder || !mapa) {
+      onOpenNorte();
+      return;
+    }
+    setNarrativeOpen(true);
+    onOpenFullMap();
+  };
+
   const handleOpenWhatsAppGroup = () => {
     setWhatsappGroupLinkOpened(true);
     trackMobileNarrativeEvent("mobile_whatsapp_group_link_opened", {
@@ -537,22 +449,42 @@ export function CreatorWeeklyProfileExperience({
   return (
     <main className={`ds-notebook-page ds-analysis-editorial ${surface === "responsive" ? "ds-notebook-page--responsive" : ""}`}>
       <div className={surface === "responsive" ? "ds-profile-layout" : ""}>
-        {/* Identidade sempre primeiro: em qualquer estado ela abre o app e vê
-            o próprio perfil antes de qualquer cobrança ou relatório. */}
+        {/* Barra de marca e card de identidade vivem no MESMO wrapper porque no
+            desktop o pai é um grid de áreas nomeadas: um filho solto, sem área,
+            seria auto-posicionado numa linha implícita e desmontaria a coluna.
+            No mobile o wrapper não faz nada — é só um div. */}
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--map" : ""}>
-          <CreatorMap
+        {/* O topo do app: a marca à esquerda, a conta à direita. A identidade
+            da PESSOA desceu para o card logo abaixo — aqui em cima o que se
+            reconhece é onde ela está, não quem ela é. */}
+        <header className="flex items-center justify-between gap-3">
+          <span className="text-[20px] font-bold leading-none tracking-[-0.045em] text-[var(--ds-color-ink)]" data-ds-display="true">
+            data2content
+          </span>
+          <button type="button" className="ds-icon-button shrink-0" aria-label="Configurações da conta" onClick={onOpenAccountMenu}>
+            <GearIcon />
+          </button>
+        </header>
+
+        {/* Identidade, ferramentas e pendência dividem a mesma grade: os três
+            respondem "onde eu estou e o que falta", e separados por seção viravam
+            três assuntos onde há um. */}
+        {/* No desktop a identidade acompanha a largura da COLUNA da leitura, não
+            a da página inteira: esticada para 1216px, a narrativa terminava no
+            meio do card e o "Ver narrativa completa" ficava órfão a meio metro
+            do texto que ele completa. */}
+        <div className={`mt-5 grid grid-cols-2 gap-3 ${surface === "responsive" ? "lg:max-w-[53.25rem]" : ""}`}>
+          <ProfileIdentityCard
             userName={data.userInfo.name}
             userImageUrl={data.userInfo.imageUrl}
             headerSubtitle={hasReportAccess && liveReport ? `Semana de ${liveReport.period.rangeLabel}` : `Olá, ${firstName(data.userInfo.name)}`}
             narrative={narrative}
             narrativeIsPlaceholder={narrativeIsPlaceholder}
-            territories={territories}
-            observedSubjects={hasReportAccess ? liveReport?.overview.observedSubjects ?? [] : []}
-            hasVideoEvidence={hasReportAccess && (liveReport?.coverage.postsWithScene ?? 0) > 0}
-            onOpenFullMap={onOpenFullMap}
-            onOpenAccountMenu={onOpenAccountMenu}
+            subjects={identitySubjects}
+            onOpenFullMap={handleOpenNarrative}
+            onDefineNarrative={onOpenNorte}
             starterMapJustCreated={starterMapJustCreated}
-            statusLine={nextStepState === "connected" ? (
+            statusLine={activationState === "connected" ? (
               <ProfileNextStepField
                 state="connected"
                 lastReadAt={liveReport?.sourceMetricsUpdatedAt ?? liveReport?.generatedAt ?? null}
@@ -561,26 +493,31 @@ export function CreatorWeeklyProfileExperience({
                 onDefineNorth={onOpenNorte}
               />
             ) : null}
-            toolsSlot={
-              /* Entre o nome e o mapa: quando uma marca chama, é aqui que a
-                 pessoa vai — e marca chama a qualquer hora. */
-              <UtilityPanel
-                isPro={hasActivePro}
-                calculatorPrice={calculatorPrice}
-                onOpenMediaKit={onOpenMediaKit}
-                onOpenCalculator={onOpenCalculator}
-              />
-            }
           />
+
+          <ProfileToolCards
+            isPro={hasActivePro}
+            calculatorPrice={calculatorPrice}
+            mediaKitReady={Boolean(data.userInfo.mediaKitSlug)}
+            mediaKitNote={mediaKitNote}
+            onOpenMediaKit={onOpenMediaKit}
+            onOpenCalculator={onOpenCalculator}
+          />
+        </div>
         </div>
 
         {/* Saúde da conta: pede o plano, pede o Instagram, confirma — e volta a
             pedir se a conexão cair. Quando está tudo certo, o campo não ocupa
-            espaço próprio: vira a linha discreta logo abaixo da narrativa. */}
-        {nextStepState === "connected" ? null : (
+            espaço próprio: vira a linha discreta logo abaixo da narrativa.
+
+            O pedido de narrativa não repete aqui: ele já é o corpo do card de
+            identidade, e dois botões para a mesma ação na mesma tela leem como
+            duas ações diferentes. Suprimido ele, o campo mostra a pendência
+            SEGUINTE — que é o que a pessoa encontraria depois de responder. */}
+        {activationState === "connected" || activationState === "none" ? null : (
           <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--activation" : ""}>
             <ProfileNextStepField
-              state={nextStepState}
+              state={activationState}
               onUpgrade={onUpgrade}
               onConnectInstagram={onConnectInstagram}
               onDefineNorth={onOpenNorte}
@@ -593,14 +530,27 @@ export function CreatorWeeklyProfileExperience({
             <ReportOverview
               report={report}
               isDemo={reportIsDemo}
+              context={patternContext}
+              reportTag={reportTag}
+              territoryExample={territoryTrends[0] ?? null}
               onExpandPattern={handleExpandPattern}
-              onUpgrade={onUpgrade}
+              onLockedPattern={() => setProSheetOpen(true)}
             />
           ) : (
-            <section id="weekly-report" className="ds-notebook-section" role="status" aria-live="polite">
-              <span className="ds-notebook-label">Seu relatório</span>
-              <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">Seus posts estão chegando.</h2>
-              <p className="ds-body mt-2">Assim que os primeiros forem lidos, isto aqui se atualiza sozinho.</p>
+            /* Primeiro acesso: a leitura ainda não fechou uma semana. O vazio
+               fala da própria espera, com o prazo dito — "se atualiza sozinho"
+               não responde a pergunta que a pessoa tem, que é QUANDO. */
+            <section id="weekly-report" role="status" aria-live="polite">
+              <ProfileSectionHeader title="Sua primeira leitura" />
+              <div className="mt-4 rounded-[16px] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-5">
+                <h2 className="text-[20px] font-semibold leading-[1.26] tracking-[-0.025em] text-[var(--ds-color-ink)]">
+                  Ainda lendo seus posts.
+                </h2>
+                <p className="mt-2.5 text-[13px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
+                  A leitura precisa de alguns vídeos para comparar. Na segunda que vem chega sua primeira leitura, com
+                  os padrões que os seus posts mostrarem.
+                </p>
+              </div>
             </section>
           )}
         </div>
@@ -631,10 +581,67 @@ export function CreatorWeeklyProfileExperience({
           />
         </div>
 
-        <p className={`${surface === "responsive" ? "ds-profile-area ds-profile-area--footer" : ""} pb-2 pt-6 text-center text-[11px] leading-[1.45] text-[var(--ds-color-text-muted)]`}>
-          Segunda o relatório chega. Quinta a gente conversa sobre ele.
-        </p>
+        {/* O rodapé é onde a régua é explicada uma vez só — e onde a tela diz de
+            onde vem o que está acima. Três linhas, da mais específica para a mais
+            geral: o aviso de exemplo, a cobertura da leitura, o ritmo da semana. */}
+        <div
+          className={`${surface === "responsive" ? "ds-profile-area ds-profile-area--footer" : ""} mt-[34px] flex flex-col gap-2 border-t border-dashed border-[var(--ds-color-line-strong)] pb-2 pt-[18px]`}
+        >
+          {/* O aviso de exemplo é explicação, não segunda oferta: o botão de
+              ativar já está no campo acima, e repeti-lo aqui daria duas portas
+              para a mesma ação — que se lê como duas ações diferentes. */}
+          {reportIsDemo ? (
+            <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)]">
+              O que aparece acima é um exemplo. Com o Pro e o Instagram conectado, a leitura passa a ser dos seus
+              posts.
+            </p>
+          ) : null}
+          {report ? (
+            <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)]">
+              Tudo comparado com os seus últimos 90 dias · {report.coverage.postsWithScene} de{" "}
+              {report.coverage.posts90d} posts lidos.
+              {patternContext && patternContext.weeks > 1
+                ? ` As barrinhas mostram as últimas ${patternContext.weeks} semanas.`
+                : ""}
+            </p>
+          ) : null}
+          <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)] opacity-80">
+            Segunda a leitura chega. Quinta a gente conversa sobre ela.
+          </p>
+        </div>
       </div>
+
+      {/* A narrativa por inteiro, sobre o Perfil. */}
+      {narrativeOpen ? (
+        <ProfileNarrativeView
+          mapa={mapa}
+          narrative={narrative}
+          observedSubjects={observedSubjects}
+          coverageLine={
+            hasReportAccess && liveReport
+              ? `Atualizada a partir de ${liveReport.coverage.postsWithScene} de ${liveReport.coverage.posts90d} posts lidos nos últimos 90 dias.`
+              : null
+          }
+          onClose={() => setNarrativeOpen(false)}
+          onMapaChange={setMapa}
+        />
+      ) : null}
+
+      {/* O convite do Pro, provocado por um padrão bloqueado. */}
+      <ProfileProSheet
+        open={proSheetOpen}
+        narrativeActionLabel={
+          narrativeIsPlaceholder || !mapa
+            ? "Definir minha narrativa primeiro"
+            : "Ver minha narrativa primeiro"
+        }
+        onUpgrade={() => {
+          setProSheetOpen(false);
+          onUpgrade("narrative_map");
+        }}
+        onOpenNarrative={handleOpenNarrative}
+        onClose={() => setProSheetOpen(false)}
+      />
     </main>
   );
 }

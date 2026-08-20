@@ -46,6 +46,11 @@ import {
   WeeklyMeetingProfileCard,
   type WeeklyMeetingProfileData,
 } from "./WeeklyMeetingProfileCard";
+import {
+  applyMapSeedMutation,
+  persistMapSeedMutation,
+  type MapSeedSection,
+} from "@/app/dashboard/boards/videoUpload/mapSeedMutationClient";
 
 const DiagnosticoDeferredProfileSections = dynamic(
   () => import("./DiagnosticoDeferredProfileSections")
@@ -2995,43 +3000,11 @@ export const DiagnosticoPage = memo(function DiagnosticoPage({
     value: string,
     group?: LifeAssetGroup,
   ) {
-    // Optimistic: update local state immediately
-    setMapaSeedLocal((prev) => {
-      if (!prev) return prev;
-      const clone = { ...prev } as Record<string, unknown>;
-      if (op === "set") {
-        // Scalar sections (tom, narrativa_central) — replace the value outright.
-        clone[section] = value.slice(0, 200);
-        return clone as unknown as IMapaData;
-      }
-      const arr = Array.isArray(clone[section]) ? [...(clone[section] as string[])] : [];
-      if (op === "add") {
-        if (!arr.some((v) => v.toLowerCase() === value.toLowerCase())) arr.push(value);
-        clone[section] = arr;
-      } else {
-        clone[section] = arr.filter((v) => v.toLowerCase().trim() !== value.toLowerCase().trim());
-      }
-      // Espelha o override de grupo no estado local (mesma regra do servidor) para
-      // o asset cair na seção certa imediatamente, sem esperar o refresh.
-      if (section === "assets") {
-        const key = value.toLowerCase().trim();
-        const groups = (Array.isArray(clone.assetGroups) ? clone.assetGroups : []) as AssetGroupOverride[];
-        const without = groups.filter((g) => g.label.toLowerCase().trim() !== key);
-        clone.assetGroups =
-          op === "add" && group ? [...without, { label: value, group }] : without;
-      }
-      return clone as unknown as IMapaData;
-    });
-
-    try {
-      await fetch("/api/dashboard/mobile-strategic-profile/map-seed", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section, op, value, ...(group ? { group } : {}) }),
-      });
-    } catch {
-      // non-fatal — optimistic state is already applied; refresh will reconcile
-    }
+    // Otimista na hora, servidor reconcilia no refresh. A regra em si mora em
+    // mapSeedMutationClient — a tela de narrativa do Perfil edita as mesmas
+    // seções e as duas precisam concordar sobre o que "adicionar" significa.
+    setMapaSeedLocal((prev) => applyMapSeedMutation(prev, section as MapSeedSection, op, value, group));
+    await persistMapSeedMutation(section as MapSeedSection, op, value, group);
   }
 
   const hasReadings = readings.length > 0;

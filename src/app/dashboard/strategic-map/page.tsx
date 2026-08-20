@@ -8,8 +8,14 @@ import DesktopWorkspaceHeader from "@/app/dashboard/components/DesktopWorkspaceH
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 /**
- * Workspace desktop do "Seu Mapa". A visualização dedicada usa a largura útil
- * do produto e mantém o board compacto somente no dashboard.
+ * Workspace desktop da narrativa. A visualização dedicada usa a largura útil do
+ * produto e mantém o board compacto somente no dashboard.
+ *
+ * O título é "Sua narrativa", não "Seu mapa": é para cá que o card de identidade
+ * do Perfil manda quem toca em "Ver narrativa completa", e um botão que promete
+ * uma coisa e entrega uma tela com outro nome faz a pessoa achar que errou o
+ * caminho. O termo "mapa" segue vivo como nome da ESTRUTURA por dentro
+ * (territórios, assets, tom); "narrativa" é o nome do que a tela entrega.
  */
 export default function StrategicMapPage() {
   const router = useRouter();
@@ -22,15 +28,15 @@ export default function StrategicMapPage() {
           style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
           <DiagnosticoNavHeader
-            title="Seu mapa"
+            title="Sua narrativa"
             onBack={() => router.push(CREATOR_PROFILE_ROUTE)}
           />
         </div>
         <div className="hidden lg:block">
           <DesktopWorkspaceHeader
             eyebrow="Direção de conteúdo"
-            title="Seu mapa"
-            description="Revise os sinais que orientam seu conteúdo."
+            title="Sua narrativa"
+            description="Revise o fio que a leitura da semana usa para comparar seus posts."
           />
         </div>
         <div className="min-h-0 flex-1 lg:pb-7">

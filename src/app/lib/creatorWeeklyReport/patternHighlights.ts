@@ -142,6 +142,9 @@ export interface PatternHighlight {
   id: string;
   detailId: CreatorWeeklyReportDetailId;
   groupId: string;
+  /** Id do item promovido dentro do ranking. É por ele que a série de 4 semanas
+   *  é reencontrada nos relatórios já congelados. Só existe em `answer`. */
+  itemId: string | null;
   /** Rótulo curto da capa. */
   label: string;
   kind: PatternHighlightKind;
@@ -151,6 +154,10 @@ export interface PatternHighlight {
   index: number | null;
   /** Linha de apoio ("7 posts em 90 dias · vale testar"). */
   support: string | null;
+  /** Posts que sustentam a resposta promovida. Só existe em `answer`. */
+  nPosts: number | null;
+  /** Posts já lidos naquela dimensão, promovida ou não. */
+  analysedPosts: number;
   /** Força do sinal do item promovido. */
   evidence: CreatorWeeklyReportRankItem["evidence"] | null;
 }
@@ -199,13 +206,18 @@ function highlightFor(
   };
   const top = bestPromotable(group);
 
+  const analysed = group.items.reduce((total, item) => total + (item.nPosts ?? 0), 0);
+
   if (top) {
     return {
       ...base,
+      itemId: top.id,
       kind: "answer",
       value: top.label,
       index: top.index,
       support: supportLabel(top),
+      nPosts: top.nPosts,
+      analysedPosts: analysed,
       evidence: top.evidence,
     };
   }
@@ -213,9 +225,9 @@ function highlightFor(
   // Nada rendeu acima da mediana NESTE ranking. O card diz isso com a palavra da
   // própria dimensão e mostra quantos posts já foram lidos — a leitura do detalhe
   // fala dos seis rankings de cena ao mesmo tempo e não serve de resposta aqui.
-  const analysed = group.items.reduce((total, item) => total + (item.nPosts ?? 0), 0);
   return {
     ...base,
+    itemId: null,
     kind: group.items.length > 0 ? "reading" : "empty",
     value:
       group.items.length > 0
@@ -223,6 +235,8 @@ function highlightFor(
         : "Ainda faltam vídeos analisados para apontar um padrão.",
     index: null,
     support: analysed > 0 ? `${postsLabel(analysed)} lidos` : detail.coverageLabel || null,
+    nPosts: null,
+    analysedPosts: analysed,
     evidence: null,
   };
 }

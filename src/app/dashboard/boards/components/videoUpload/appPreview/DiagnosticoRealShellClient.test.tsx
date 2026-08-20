@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { DiagnosticoRealShellClient } from "./DiagnosticoRealShellClient";
 import { buildDiagnosticoPageDataFixture } from "./diagnosticoTestFixtures";
 import { openPaywallModal } from "@/utils/paywallModal";
@@ -138,15 +138,15 @@ describe("DiagnosticoRealShellClient", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Ana Criadora" })).toBeInTheDocument();
-    // Sem Norte declarado, o primeiro passo é a narrativa — não a oferta nem a conexão.
-    expect(screen.getByRole("button", { name: "Definir meu Norte" })).toBeInTheDocument();
+    // Sem Norte declarado, o pedido de narrativa é o corpo do card de identidade.
+    expect(screen.getByRole("button", { name: "Definir minha narrativa" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Entrar na comunidade" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analisar conteúdo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collabs" })).toBeInTheDocument();
     expect(mockDiagnosticoPageRender).not.toHaveBeenCalled();
   });
 
-  it("abre o mapa completo diretamente pelo card do mapa", () => {
+  it("abre a narrativa completa diretamente pelo card de identidade", () => {
     render(
       <DiagnosticoRealShellClient
         data={buildDiagnosticoPageDataFixture({
@@ -167,9 +167,14 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Ver mapa completo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver narrativa completa" }));
 
-    expect(mockRouterPush).toHaveBeenCalledWith("/dashboard/strategic-map");
+    // Abre POR CIMA do Perfil, sem trocar de rota: quem entra para conferir uma
+    // camada volta com um toque e não perde a rolagem da leitura da semana.
+    expect(mockRouterPush).not.toHaveBeenCalledWith("/dashboard/strategic-map");
+    const view = screen.getByRole("dialog");
+    expect(within(view).getByText("Territórios")).toBeInTheDocument();
+    expect(within(view).getByText("Adjacências")).toBeInTheDocument();
   });
 
   it("lets an admin with a Free billing label use premium mobile actions", async () => {
@@ -211,7 +216,7 @@ describe("DiagnosticoRealShellClient", () => {
     );
     expect(openPaywallModal).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: /Quanto vale sua publi/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Calculadora/i }));
     expect(await screen.findByRole("dialog", { name: "Resultado sugerido" })).toBeInTheDocument();
     expect(openPaywallModal).not.toHaveBeenCalled();
     fetchSpy.mockRestore();

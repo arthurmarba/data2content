@@ -19,7 +19,6 @@ import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
-  MOBILE_STRATEGIC_MAP_ROUTE,
 } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
@@ -1985,6 +1984,13 @@ export function DiagnosticoRealShellClient({
   const handleOpenAccountMenu = useCallback(() => setAccountMenuOpen(true), []);
   const handleOpenSurvey = useCallback(() => setSurveyOpen(true), []);
   const handleOpenNorte = useCallback(() => setNorteOpen(true), []);
+  /**
+   * "Ver narrativa completa" deixou de trocar de rota: o Perfil abre a narrativa
+   * por cima de si mesmo, e quem entra para conferir uma camada volta sem perder
+   * a posição de rolagem na leitura da semana. A rota dedicada continua viva para
+   * o board do desktop e para quem chega por link — só não é mais o caminho de
+   * dentro do Perfil. Aqui sobra o registro de que a pessoa pediu.
+   */
   const handleOpenFullMap = useCallback(() => {
     trackMobileNarrativeEvent("mobile_status_action_clicked", {
       route: profileRoute,
@@ -1993,8 +1999,7 @@ export function DiagnosticoRealShellClient({
       instagramConnected: data.instagramConnected,
       actionType: "open_full_map",
     });
-    router.push(MOBILE_STRATEGIC_MAP_ROUTE);
-  }, [data.accessState, data.instagramConnected, hasProAccess, router]);
+  }, [data.accessState, data.instagramConnected, hasProAccess, profileRoute]);
 
   useEffect(() => {
     const action = searchParams.get("action");

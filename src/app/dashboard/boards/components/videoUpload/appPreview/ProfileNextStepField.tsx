@@ -70,7 +70,7 @@ function formatLastRead(value: string | null | undefined) {
 
 /** O assunto do campo muda com o estado — e é ele que nomeia a seção. */
 const KICKER: Record<Exclude<NextStepFieldState, "connected" | "none">, string> = {
-  define_north: "Seu mapa",
+  define_north: "Sua narrativa",
   billing: "Assinatura",
   subscribe: "Pro",
   connect_instagram: "Conexão",
@@ -123,13 +123,13 @@ export function ProfileNextStepField({
         <ProfileSectionHeader title={KICKER.define_north} />
         <FieldCard>
           <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
-            Defina seu Norte para começar o mapa.
+            Defina sua narrativa para começar.
           </h2>
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
             Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.
           </p>
           <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onDefineNorth}>
-            Definir meu Norte
+            Definir minha narrativa
           </button>
         </FieldCard>
       </section>
@@ -157,7 +157,7 @@ export function ProfileNextStepField({
             Seu pagamento precisa ser atualizado.
           </h2>
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
-            Seu mapa continua seguro. O que para enquanto isso é o relatório da semana.
+            Sua narrativa continua aqui. O que para enquanto isso é a leitura da semana.
           </p>
           <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
             Atualizar pagamento
@@ -172,9 +172,12 @@ export function ProfileNextStepField({
       <section id="pro-activation">
         <ProfileSectionHeader title={KICKER.subscribe} />
         <FieldCard>
-          <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">Ative o Pro</h2>
+          <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+            Ative o Pro para a leitura ser dos seus posts.
+          </h2>
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
-            Seu mapa vira relatório, pautas e collabs toda semana. Por enquanto, o que aparece aqui embaixo é um exemplo.
+            Toda segunda a D2C lê o que você postou, separa o que já é regra do que ainda é hipótese e recomenda o
+            próximo passo. Por enquanto, o que aparece aqui embaixo é um exemplo.
           </p>
           <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
             Ativar o Pro
@@ -190,12 +193,12 @@ export function ProfileNextStepField({
       <ProfileSectionHeader title={KICKER.connect_instagram} />
       <FieldCard>
         <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
-          {reconnecting ? "Seu relatório parou de atualizar." : "Conecte seu Instagram."}
+          {reconnecting ? "Sua leitura parou de atualizar." : "Conecte seu Instagram."}
         </h2>
         <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
           {reconnecting
-            ? "A conexão com o Instagram caiu, o que acontece de tempos em tempos. Enquanto você não reconectar, o relatório fica parado nos posts que já entraram."
-            : "É assim que o relatório aqui embaixo passa a mostrar os seus posts, e não um exemplo."}
+            ? "A conexão com o Instagram caiu, o que acontece de tempos em tempos. Enquanto você não reconectar, a leitura fica parada nos posts que já entraram."
+            : "É assim que a leitura aqui embaixo passa a mostrar os seus posts, e não um exemplo."}
         </p>
         <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onConnectInstagram}>
           {reconnecting ? "Reconectar Instagram" : "Conectar Instagram"}
