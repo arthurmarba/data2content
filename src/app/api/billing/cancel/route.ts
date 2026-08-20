@@ -1,17 +1,23 @@
 // src/app/api/billing/cancel/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import Stripe from "stripe";
 import { stripe } from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
+import { validateCancellationRequest } from "@/lib/billing/cancellation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const cacheHeader = { "Cache-Control": "no-store, max-age=0" } as const;
+
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") return {} as any;
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
 
 /** Menor current_period_end entre os itens (compat “basil”) */
 function getMinCurrentPeriodEnd(sub: Stripe.Subscription): Date | null {
@@ -55,7 +61,7 @@ function computeExpiresAtAfterUpdate(sub: Stripe.Subscription): Date | null {
 
 export async function POST(req: Request) {
   try {
-    const session = (await getServerSession(authOptions)) as any;
+    const session = (await getServerSession(await loadAuthOptions())) as any;
     if (!session?.user?.id) {
       return NextResponse.json(
         { ok: false, message: "Unauthorized" },
@@ -63,15 +69,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Parse reasons/comment from body if available
-    let body: any = {};
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
-      // ignore JSON parse error (empty body)
+      return NextResponse.json(
+        { ok: false, message: "Informe o motivo e a justificativa do cancelamento." },
+        { status: 422, headers: cacheHeader }
+      );
     }
 
-    const { reasons, comment } = body;
+    const validation = validateCancellationRequest(body);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { ok: false, message: validation.message },
+        { status: 422, headers: cacheHeader }
+      );
+    }
+    const { reasons, comment, stripeFeedback } = validation.value;
 
     await connectToDatabase();
     const user = await User.findById(session.user.id);
@@ -88,14 +103,15 @@ export async function POST(req: Request) {
       { expand: ["items.data.price"] }
     );
 
-    // Prepare metadata
-    const metadata: Stripe.MetadataParam = {};
-    if (Array.isArray(reasons) && reasons.length > 0) {
-      metadata["cancellation_reasons"] = reasons.join(", ");
-    }
-    if (typeof comment === "string" && comment.trim()) {
-      metadata["cancellation_comment"] = comment.substring(0, 500); // Limit length
-    }
+    const metadata: Stripe.MetadataParam = {
+      cancellation_reasons: reasons.join(", "),
+      cancellation_comment: comment,
+      cancellation_source: "d2c_billing",
+    };
+    const cancellationDetails = {
+      feedback: stripeFeedback,
+      comment,
+    } satisfies Stripe.SubscriptionUpdateParams.CancellationDetails;
 
     // 2) Ação: cancela na hora se estiver problemática, senão agenda no fim do ciclo
     let finalSubscription: Stripe.Subscription;
@@ -103,20 +119,21 @@ export async function POST(req: Request) {
       subscription.status === "past_due" ||
       subscription.status === "incomplete"
     ) {
-      if (Object.keys(metadata).length > 0) {
-        await stripe.subscriptions.update(user.stripeSubscriptionId, {
-          metadata,
-        });
-      }
+      await stripe.subscriptions.update(user.stripeSubscriptionId, {
+        metadata,
+        cancellation_details: cancellationDetails,
+      });
       finalSubscription = await stripe.subscriptions.cancel(
-        user.stripeSubscriptionId
+        user.stripeSubscriptionId,
+        { cancellation_details: cancellationDetails }
       );
     } else {
       finalSubscription = await stripe.subscriptions.update(
         user.stripeSubscriptionId,
         {
           cancel_at_period_end: true,
-          metadata: Object.keys(metadata).length ? metadata : undefined,
+          metadata,
+          cancellation_details: cancellationDetails,
         }
       );
     }
@@ -157,7 +174,7 @@ export async function POST(req: Request) {
       errorCode: null,
       stripeRequestId: (finalSubscription as any)?.lastResponse?.requestId ?? null,
       reasons,
-      hasComment: !!comment
+      hasComment: true
     });
 
     return NextResponse.json(

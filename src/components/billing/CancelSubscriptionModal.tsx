@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import {
+  CANCELLATION_REASONS,
+  MAX_CANCELLATION_COMMENT_LENGTH,
+  MIN_CANCELLATION_COMMENT_LENGTH,
+} from '@/lib/billing/cancellation';
 
 interface Props {
   open: boolean;
@@ -7,19 +12,6 @@ interface Props {
   onConfirm: (data: { reasons: string[]; comment: string }) => void;
   currentPeriodEnd?: string | null;
 }
-
-const REASONS = [
-  'Preço muito alto',
-  'Não uso o suficiente',
-  'Falta de funcionalidades',
-  'Encontrei outra solução',
-  'Dificuldade de uso',
-  'Suporte insatisfatório',
-  'Muitos erros / Bugs',
-  'Mudança de estratégia',
-  'Projeto temporário / Sazonal',
-  'Outro',
-];
 
 export default function CancelSubscriptionModal({
   open,
@@ -45,7 +37,11 @@ export default function CancelSubscriptionModal({
   const date = currentPeriodEnd
     ? new Date(currentPeriodEnd).toLocaleDateString()
     : null;
-  const isValid = selectedReasons.length > 0 && comment.trim().length > 0;
+  const trimmedCommentLength = comment.trim().length;
+  const isValid =
+    selectedReasons.length > 0 &&
+    trimmedCommentLength >= MIN_CANCELLATION_COMMENT_LENGTH &&
+    trimmedCommentLength <= MAX_CANCELLATION_COMMENT_LENGTH;
 
   const toggleReason = (reason: string) => {
     setSelectedReasons((prev) =>
@@ -87,7 +83,7 @@ export default function CancelSubscriptionModal({
             Selecione um ou mais motivos:
           </p>
           <div className="divide-y divide-[var(--ds-color-line)] border-y border-[var(--ds-color-line)]">
-            {REASONS.map((reason) => (
+            {CANCELLATION_REASONS.map((reason) => (
               <label
                 key={reason}
                 className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm text-[var(--ds-color-text-secondary)]"
@@ -114,7 +110,13 @@ export default function CancelSubscriptionModal({
             placeholder="Conte-nos um pouco mais sobre sua decisão..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            minLength={MIN_CANCELLATION_COMMENT_LENGTH}
+            maxLength={MAX_CANCELLATION_COMMENT_LENGTH}
+            required
           />
+          <p className="mt-2 text-xs text-[var(--ds-color-text-secondary)]">
+            Mínimo de {MIN_CANCELLATION_COMMENT_LENGTH} caracteres. {comment.length}/{MAX_CANCELLATION_COMMENT_LENGTH}
+          </p>
         </div>
 
         <div className="grid gap-2 pt-2 sm:grid-cols-2">

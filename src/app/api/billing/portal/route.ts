@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
@@ -12,9 +11,32 @@ export const dynamic = "force-dynamic";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") return {} as any;
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
+
+async function getSafePortalConfigurationId(): Promise<string | null> {
+  const configuredId = process.env.STRIPE_BILLING_PORTAL_CONFIG_ID;
+  const configuration = configuredId
+    ? await stripe.billingPortal.configurations.retrieve(configuredId)
+    : (
+        await stripe.billingPortal.configurations.list({
+          active: true,
+          limit: 100,
+        })
+      ).data.find((candidate) => candidate.is_default);
+
+  if (!configuration) return null;
+  return configuration.features.subscription_cancel.enabled
+    ? null
+    : configuration.id;
+}
+
 export async function POST() {
   try {
-    const session = (await getServerSession(authOptions)) as any;
+    const session = (await getServerSession(await loadAuthOptions())) as any;
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Não autenticado" },
@@ -87,12 +109,27 @@ export async function POST() {
     const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
     const returnUrl = `${baseUrl}/dashboard/billing`;
 
-    const configuration = process.env.STRIPE_BILLING_PORTAL_CONFIG_ID;
+    const configuration = await getSafePortalConfigurationId();
+    if (!configuration) {
+      logger.error("billing_portal_unsafe_cancellation_configuration", {
+        endpoint: "POST /api/billing/portal",
+        userId: String(user._id),
+        customerId: user.stripeCustomerId ?? null,
+        subscriptionId: user.stripeSubscriptionId ?? null,
+      });
+      return NextResponse.json(
+        {
+          code: "PORTAL_CANCELLATION_NOT_SAFE",
+          message: "O portal de cobrança está temporariamente indisponível.",
+        },
+        { status: 503, headers: noStoreHeaders }
+      );
+    }
 
     const portal = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
       return_url: returnUrl,
-      ...(configuration ? { configuration } : {}),
+      configuration,
     });
 
     logger.info("billing_portal_created", {

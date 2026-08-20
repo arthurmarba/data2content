@@ -181,6 +181,10 @@ export async function POST() {
     const updated = needsFlip
       ? await stripe.subscriptions.update(user.stripeSubscriptionId, {
           cancel_at_period_end: false,
+          cancellation_details: {
+            comment: null,
+            feedback: null,
+          },
           metadata: {
             ...(current.metadata ?? {}),
             cancellation_reasons: null,

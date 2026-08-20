@@ -90,6 +90,10 @@ describe("POST /api/billing/reactivate", () => {
 
     expect(mockUpdate).toHaveBeenCalledWith("sub_1", {
       cancel_at_period_end: false,
+      cancellation_details: {
+        comment: null,
+        feedback: null,
+      },
       metadata: {
         plan: "monthly",
         cancellation_reasons: null,
