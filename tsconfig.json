@@ -61,6 +61,7 @@
     "scripts/reuniao/**/*",
     "scripts/revista/**/*",
     "src/tests/**/*",
+    "src/app/lib/mcp/**/*.test.ts",
     "playwright/**/*"
   ]
 }
