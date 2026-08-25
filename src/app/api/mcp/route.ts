@@ -16,6 +16,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 function noStoreHeaders() {
   return { "Cache-Control": "no-store" };
@@ -72,6 +73,29 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
           `Autorize ${missingScopes.join(", ")} para usar esta ferramenta.`,
           [...identity.scopes, ...missingScopes],
         );
+      }
+      if (toolNames.includes("generate_creator_script")) {
+        const configuredLimit = Number(process.env.MCP_SCRIPT_GENERATION_HOURLY_LIMIT || 20);
+        const hourlyLimit = Number.isFinite(configuredLimit)
+          ? Math.max(1, Math.min(100, Math.floor(configuredLimit)))
+          : 20;
+        const generationRate = await checkRateLimit(
+          `mcp:script_generation:${identity.userId}`,
+          hourlyLimit,
+          3600,
+        );
+        if (!generationRate.allowed) {
+          return NextResponse.json(
+            {
+              error: "script_generation_rate_limit_exceeded",
+              message: "Limite de geração de roteiros atingido. Tente novamente mais tarde.",
+            },
+            {
+              status: 429,
+              headers: { ...noStoreHeaders(), "Retry-After": "3600" },
+            },
+          );
+        }
       }
     }
 

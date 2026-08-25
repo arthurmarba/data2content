@@ -1,16 +1,15 @@
-# MCP Data2Content — inteligência completa v0.4
+# MCP Data2Content — inteligência completa v0.5
 
 ## Objetivo
 
-Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude. O servidor é remoto, usa Streamable HTTP e começa somente com ferramentas de leitura.
+Disponibilizar dados e o motor de roteiros da conta Data2Content em clientes MCP como ChatGPT e Claude. O servidor é remoto e usa Streamable HTTP.
 
 ## Política de acesso
 
 - Apenas assinantes com plano `active` ou `non_renewing` ainda dentro do período pago acessam o MCP.
 - A assinatura é verificada no banco em toda requisição MCP, sem cache de sessão e sem bypass de administrador.
 - Trial, pagamento pendente, conta inativa ou assinatura expirada são bloqueados.
-- Instagram não é requisito para conectar o MCP.
-- Ferramentas de métricas exigem Instagram conectado e retornam o caminho de conexão quando necessário.
+- Instagram não é requisito para concluir o OAuth, mas métricas, DNA e geração personalizada exigem a conexão ativa e retornam o caminho de conexão quando necessário.
 - As ferramentas nunca recebem `userId`; o usuário vem exclusivamente do access token validado.
 
 ## Capacidades atuais
@@ -24,7 +23,7 @@ Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude
 - Consentimento explícito ligado à sessão Data2Content.
 - Códigos de autorização de uso único e refresh tokens opacos com rotação e revogação.
 - Limite de 120 requisições por minuto por usuário quando Redis está disponível.
-- Quatorze ferramentas read-only:
+- Dezoito ferramentas: quinze de leitura/análise, duas de geração/crítica e uma escrita idempotente:
   - `search`
   - `fetch`
   - `get_creator_profile`
@@ -34,6 +33,10 @@ Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude
   - `get_video_diagnosis`: leitura multimodal completa, evidências e recomendação estratégica.
   - `get_audience_intelligence`: audiência agregada, demografia e crescimento.
   - `get_creator_playbook`: padrões de uma semana fechada contra uma base histórica separada de 90 dias; não é fonte para contar um período solicitado.
+  - `get_creator_content_dna`: voz, estruturas, ganchos, assuntos, duração, cenários, objetos, enquadramentos, audiência agregada e cobertura da evidência.
+  - `generate_creator_script`: gera um roteiro integral no motor central Data2Content com recuperação privada dos melhores roteiros/transcrições relacionados ao pedido.
+  - `critique_script_against_creator_dna`: avalia duração, qualidade técnica e aderência ao histórico do creator sem salvar nada.
+  - `save_generated_script`: salva somente após pedido explícito; nunca publica e deduplica pela chave `clientRequestId`.
   - `suggest_collab_creators`: creators assinantes e explicitamente disponíveis para collab.
   - `compare_content_formats`
   - `analyze_content_period`: fonte autoritativa para contagem e análise de um período semântico ou customizado.
@@ -68,7 +71,7 @@ Cada resultado inclui:
 
 O playbook renomeia `postsWeek`, `posts90d`, `nPosts` e `weeklyOccurrences` na saída pública para `publishedInClosedWeek`, `baselinePublishedCount`, `supportingPostsInBaseline` e `occurrencesInClosedWeek`.
 
-O arquivo `src/app/lib/mcp/intelligenceContract.ts` é a allowlist versionada das camadas e dos campos públicos. Dados brutos de provedores, URLs privadas de mídia, erros internos, e-mail, localização precisa, métricas privadas e evidências privadas de outros creators ficam deliberadamente fora do MCP.
+O arquivo `src/app/lib/mcp/intelligenceContract.ts` é a allowlist versionada das camadas e dos campos públicos. Dados brutos de provedores, URLs privadas de mídia, prompts internos, o corpus integral de transcrições históricas, e-mail, localização precisa, métricas privadas e evidências privadas de outros creators ficam deliberadamente fora do MCP. Os textos integrais do próprio creator são recuperados dentro da Data2Content e enviados apenas ao modelo de geração, em no máximo três exemplos vencedores relevantes e um contraste.
 
 ### Privacidade de collabs
 
@@ -84,6 +87,9 @@ O arquivo `src/app/lib/mcp/intelligenceContract.ts` é a allowlist versionada da
 - A classificação de legenda é Gemini-first (`gemini-2.5-flash-lite` por padrão).
 - Se o Gemini falhar e houver uma chave OpenAI válida, o núcleo pode usar OpenAI como fallback.
 - A leitura multimodal de Reel, foto e carrossel usa Gemini.
+- A geração de roteiros usa Gemini como provedor primário (`GEMINI_SCRIPT_MODEL`) e conserva o gerador OpenAI/local como fallback operacional.
+- Cada geração recebe um `evidenceReceipt` com cobertura, quantidade de exemplos integrais usados, demografia disponível e avisos de confiança.
+- Uma validação posterior confere duração, filmabilidade, gancho, CTA e cópia literal de oito palavras ou mais; o Gemini faz uma tentativa de reparo quando necessário.
 - Um cron a cada seis horas reenfileira classificações adiadas, completa leituras multimodais e vincula diagnósticos pré-publicação ao resultado publicado.
 - O cron atende apenas assinantes ativos ou `non_renewing` ainda dentro do período pago, com Instagram conectado.
 - As consultas de conteúdo, mapa, diagnóstico, audiência e playbook apenas leem inteligência materializada, reduzindo latência e custo.
@@ -100,8 +106,10 @@ O desafio inicial `WWW-Authenticate` anuncia todos os scopes suportados. Se um c
 - `intelligence:read`: mapa criativo, diagnóstico multimodal e playbook.
 - `audience:read`: insights e demografia agregada da audiência.
 - `collabs:read`: sugestões read-only da rede de creators disponíveis.
+- `scripts:generate`: geração e crítica personalizadas; implica custo de modelo e exige Instagram conectado.
+- `scripts:write`: salvar um roteiro na conta após confirmação explícita; nunca publicar.
 
-Conexões criadas antes da versão 0.3 não terão os três scopes novos. O servidor responde com `insufficient_scope` para o cliente executar OAuth step-up; se o cliente não fizer isso automaticamente, remova e conecte novamente o Data2Content.
+Conexões criadas antes da versão 0.5 não terão `scripts:generate` e `scripts:write`. O servidor responde com `insufficient_scope` para o cliente executar OAuth step-up; se o cliente não fizer isso automaticamente, remova e conecte novamente o Data2Content.
 
 ## Configuração
 
@@ -116,7 +124,8 @@ MCP_OAUTH_PRIVATE_JWK=<JWK EC P-256 privada em JSON>
 MCP_OAUTH_USER_ID_CLAIM=d2c_user_id
 MCP_OAUTH_ALLOWED_ALGORITHMS=ES256
 MCP_REQUIRED_SCOPE=profile:read
-MCP_SUPPORTED_SCOPES=profile:read,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read
+MCP_SUPPORTED_SCOPES=profile:read,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write
+MCP_SCRIPT_GENERATION_HOURLY_LIMIT=20
 ```
 
 Pipeline de inteligência:
@@ -124,6 +133,8 @@ Pipeline de inteligência:
 ```dotenv
 LLM_PROVIDER_CLASSIFICATION=gemini
 GEMINI_CLASSIFICATION_MODEL=gemini-2.5-flash-lite
+SCRIPTS_GENERATION_V3_ENABLED=true
+GEMINI_SCRIPT_MODEL=gemini-2.5-flash
 INTELLIGENCE_RECOVERY_CLASSIFICATION_LIMIT=100
 INTELLIGENCE_RECOVERY_SCENE_LIMIT=40
 INTELLIGENCE_RECOVERY_REQUEUE_HOURS=6
@@ -171,6 +182,8 @@ Após configurar o ambiente:
 6. Pedir “analise meus conteúdos no último mês” e confirmar uma única chamada a `analyze_content_period`, seguida de `get_content_detail` apenas para aprofundar um post.
 7. Pedir “o que meus vídeos revelam sobre meu estilo?” e confirmar `get_creator_intelligence_profile` + `get_video_diagnosis`.
 8. Pedir “sugira creators para uma collab sobre IA” e verificar que somente candidatos opt-in aparecem, sem dados privados.
+9. Pedir “crie um roteiro de 30 segundos sobre IA” e confirmar `generate_creator_script`, duração, validação e `evidenceReceipt`.
+10. Pedir “salve este roteiro” e confirmar uma chamada a `save_generated_script`; repetir a mesma chamada e validar `idempotentReplay=true`.
 
 ### Casos obrigatórios de confiabilidade
 
@@ -182,7 +195,7 @@ Após configurar o ambiente:
 - Nenhuma resposta usa cobertura, amostra ou suporte de padrão como quantidade publicada.
 - Se `analysisReceipt.status=inconsistent`, a IA não afirma uma contagem sem explicar a divergência.
 
-Os logs guardam somente ferramenta, preset, datas, formato e os campos sanitizados do `analysisReceipt`. Legendas, buscas, argumentos arbitrários, resultados criativos, tokens e segredos não entram no log de auditoria.
+Os logs guardam somente ferramenta, preset, datas, formato, objetivo, duração e contagem de caracteres, além dos campos sanitizados do `analysisReceipt`. Prompt, roteiro, legendas, buscas, resultados criativos, tokens e segredos não entram no log de auditoria.
 
 ## Referências oficiais
 

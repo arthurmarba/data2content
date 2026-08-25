@@ -80,7 +80,7 @@ export const MAX_VISUAL_ITEMS = 10;
  * objeto pelo nome, o título na tela e a primeira fala. Também aperta o critério de
  * roupa, que na v2 acendia em todo vídeo porque todo mundo grava vestido.
  */
-export const SCENE_EVALUATION_VERSION = "cena_mapa_v3";
+export const SCENE_EVALUATION_VERSION = "cena_mapa_v4";
 
 /** O que o worker gravou: papéis do mapa presentes no vídeo. */
 export interface SceneEvaluation {
@@ -125,6 +125,23 @@ export interface SceneEvaluation {
   screenTitle: string | null;
   /** A primeira frase falada, verbatim. É o gancho — e é o que se discute na reunião. */
   openingLine: string | null;
+  /** Transcrição integral sanitizada do áudio. Fica em storage próprio, não em Metric.sceneElements. */
+  transcript: string | null;
+  transcriptSegments: Array<{ startMs: number | null; endMs: number | null; text: string }>;
+  sceneTimeline: Array<{
+    startMs: number | null;
+    endMs: number | null;
+    role: string;
+    description: string;
+    spokenText: string | null;
+    onScreenText: string | null;
+    setting: string | null;
+    objects: string[];
+    framing: string[];
+  }>;
+  narrativeStructure: string[];
+  promise: string | null;
+  cta: string | null;
   /**
    * true quando NENHUM item do mapa apareceu. Não é erro: é sinal de que o vídeo saiu
    * do mapa, e isso é assunto de reunião.
@@ -195,7 +212,7 @@ ESTÉTICA — todos os códigos que se aplicam:
 ${aestheticLines}`;
 
   const format = `Responda SÓ com JSON, sem cercas de código:
-{"assets":["A1","A3"],"tons":["T2"],"assuntos":["S1"],"local":"L2","enquadramento":["E1","E5"],"estetica":["Q1","Q3"],"temas":["voltar a trabalhar depois da licença","culpa de deixar a filha na creche"],"objetos":["caneca","carrinho de bebê"],"falas":["eu chorei no estacionamento no primeiro dia","ninguém te prepara pra isso"],"titulo":"3 coisas que ninguém te conta","fala":"Gente, eu preciso falar sobre ontem"}
+{"assets":["A1","A3"],"tons":["T2"],"assuntos":["S1"],"local":"L2","enquadramento":["E1","E5"],"estetica":["Q1","Q3"],"temas":["voltar a trabalhar depois da licença","culpa de deixar a filha na creche"],"objetos":["caneca","carrinho de bebê"],"falas":["eu chorei no estacionamento no primeiro dia","ninguém te prepara pra isso"],"titulo":"3 coisas que ninguém te conta","fala":"Gente, eu preciso falar sobre ontem","transcricao":"transcrição integral e literal na ordem em que foi falada","segmentos":[{"inicioMs":0,"fimMs":4200,"texto":"Gente, eu preciso falar sobre ontem"}],"cenas":[{"inicioMs":0,"fimMs":4200,"papel":"gancho","descricao":"close no rosto na cozinha","fala":"Gente, eu preciso falar sobre ontem","textoTela":"3 coisas que ninguém te conta","cenario":"cozinha","objetos":["caneca"],"enquadramentos":["close"]}],"estrutura":["gancho","contexto","virada","cta"],"promessa":"explicar o que aconteceu ontem","cta":"me conta se você já passou por isso"}
 
 assets / tons / assuntos: só os códigos presentes. Listas vazias são resposta válida e esperada.
 local: um código L, ou null se nenhum servir.
@@ -204,7 +221,13 @@ temas: de 1 a 4 assuntos que o vídeo tratou, ESPECÍFICOS e nas palavras do pr�
 objetos: até 4 objetos que aparecem em cena com função, 1 a 3 palavras, minúsculas, sem marca ("caneca", não "caneca da Stanley"). Lista vazia é válida.
 falas: até 3 trechos ditos no vídeo, COPIADOS exatamente como foram falados. Prefira os que carregam a ideia do vídeo. Lista vazia se ninguém fala.
 titulo: o texto escrito NA TELA na abertura, copiado exatamente. "" se não houver.
-fala: a primeira frase dita em voz, copiada exatamente. "" se ninguém fala.`;
+fala: a primeira frase dita em voz, copiada exatamente. "" se ninguém fala.
+transcricao: copie integralmente o que foi falado, na ordem, sem resumir nem corrigir a linguagem. "" quando não houver áudio/fala. Nunca inclua descrição visual aqui.
+segmentos: blocos consecutivos da fala com inicioMs/fimMs dentro da duração. Preserve o texto literal. Lista vazia quando não houver fala.
+cenas: de 1 a 12 blocos temporais observáveis. papel deve ser um de gancho, contexto, problema, demonstração, prova, explicação, virada, entrega, cta ou outro. Não invente milissegundos fora do vídeo.
+estrutura: sequência dos papéis narrativos realmente presentes, sem duplicações consecutivas.
+promessa: o que a abertura promete entregar, em uma frase; "" se não houver promessa clara.
+cta: a chamada final copiada ou descrita de forma literal; "" se não houver.`;
 
   return { system, user, format };
 }
@@ -280,6 +303,58 @@ function singleLine(value: unknown): string | null {
   return text && text.length <= 300 ? text : null;
 }
 
+function longText(value: unknown, maxChars = 30_000): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+  return text ? text.slice(0, maxChars) : null;
+}
+
+function milliseconds(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : null;
+}
+
+function transcriptSegments(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 160).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const raw = item as Record<string, unknown>;
+    const text = longText(raw.texto, 1600);
+    if (!text) return [];
+    const startMs = milliseconds(raw.inicioMs);
+    const rawEnd = milliseconds(raw.fimMs);
+    return [{
+      startMs,
+      endMs: rawEnd !== null && (startMs === null || rawEnd >= startMs) ? rawEnd : null,
+      text,
+    }];
+  });
+}
+
+function sceneTimeline(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 40).flatMap((item, index) => {
+    if (!item || typeof item !== "object") return [];
+    const raw = item as Record<string, unknown>;
+    const description = longText(raw.descricao, 800);
+    if (!description) return [];
+    const startMs = milliseconds(raw.inicioMs);
+    const rawEnd = milliseconds(raw.fimMs);
+    return [{
+      startMs,
+      endMs: rawEnd !== null && (startMs === null || rawEnd >= startMs) ? rawEnd : null,
+      role: singleLine(raw.papel)?.slice(0, 60) || `scene_${index + 1}`,
+      description,
+      spokenText: longText(raw.fala, 2000),
+      onScreenText: singleLine(raw.textoTela)?.slice(0, 500) || null,
+      setting: singleLine(raw.cenario)?.slice(0, 120) || null,
+      objects: freeTextList(raw.objetos, { maxItems: 8, maxChars: 80, keepCase: true }),
+      framing: freeTextList(raw.enquadramentos, { maxItems: 8, maxChars: 80, keepCase: true }),
+    }];
+  });
+}
+
 /** Traduz os códigos A1/T2 de volta para os papéis canônicos. */
 export function parseSceneEvaluation(
   text: string | null | undefined,
@@ -342,6 +417,7 @@ export function parseSceneEvaluation(
   const subjects = freeTextList(raw.temas, { maxItems: 4, maxChars: 80 });
   const objects = freeTextList(raw.objetos, { maxItems: 4, maxChars: 32 });
   const quotes = freeTextList(raw.falas, { maxItems: 3, maxChars: 220, keepCase: true });
+  const transcript = longText(raw.transcricao);
 
   return {
     assetRoleIds,
@@ -355,6 +431,12 @@ export function parseSceneEvaluation(
     objects,
     screenTitle: singleLine(raw.titulo),
     openingLine: singleLine(raw.fala),
+    transcript,
+    transcriptSegments: transcriptSegments(raw.segmentos),
+    sceneTimeline: sceneTimeline(raw.cenas),
+    narrativeStructure: freeTextList(raw.estrutura, { maxItems: 12, maxChars: 80 }),
+    promise: singleLine(raw.promessa),
+    cta: singleLine(raw.cta),
     // `offMap` continua olhando SÓ para o mapa: é a pergunta "o vídeo saiu do que ele
     // declarou?". Tema livre e objeto sempre existem, então incluí-los aqui zeraria o
     // sinal — nenhum vídeo seria mais "fora do mapa".

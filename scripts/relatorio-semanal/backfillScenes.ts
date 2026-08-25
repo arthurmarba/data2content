@@ -30,6 +30,7 @@ import {
   sceneElementsUpdate,
   evaluateSceneAgainstMap,
 } from "../../src/app/lib/relatorio/sceneEvaluation";
+import { upsertPublishedContentEvidence } from "../../src/app/lib/scripts/publishedContentEvidence";
 
 function arg(name: string): string | null {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? null;
@@ -203,10 +204,20 @@ async function main() {
     );
 
     if (!dryRun) {
-      await MetricModel.updateOne(
-        { _id: metric._id },
-        { $set: { sceneElements: sceneElementsUpdate(scene) } },
-      );
+      try {
+        await upsertPublishedContentEvidence({
+          metricId: String(metric._id),
+          scene,
+        });
+        await MetricModel.updateOne(
+          { _id: metric._id },
+          { $set: { sceneElements: sceneElementsUpdate(scene) } },
+        );
+      } catch (error) {
+        console.error(`  ✗ ${label}: falha ao persistir evidência integral — ${error instanceof Error ? error.message : String(error)}`);
+        failed += 1;
+        continue;
+      }
     }
     ok += 1;
   }

@@ -30,6 +30,33 @@ jest.mock("./collabIntelligence", () => ({
   suggestMcpCollabCreators: jest.fn(async () => ({ schemaVersion: "collabs_v1", items: [] })),
 }));
 
+jest.mock("./scriptIntelligence", () => ({
+  getMcpCreatorContentDna: jest.fn(async () => ({
+    schemaVersion: "creator_script_dna_v3",
+    confidence: "high",
+  })),
+  generateMcpCreatorScript: jest.fn(async () => ({
+    schemaVersion: "creator_script_generation_v3",
+    title: "Roteiro gerado",
+    content: "Cena 1\nFala: Este é um roteiro integral gerado para o teste.",
+    estimatedDurationSeconds: 30,
+    targetDurationSeconds: 30,
+    evidenceReceipt: { status: "complete" },
+    validation: { passed: true },
+  })),
+  critiqueMcpCreatorScript: jest.fn(async () => ({
+    schemaVersion: "creator_script_critique_v1",
+    passed: true,
+  })),
+  saveMcpGeneratedScript: jest.fn(async () => ({
+    schemaVersion: "saved_script_v1",
+    id: "507f1f77bcf86cd799439099",
+    title: "Roteiro gerado",
+    created: true,
+    idempotentReplay: false,
+  })),
+}));
+
 function textPayload(result: Awaited<ReturnType<Client["callTool"]>>) {
   const textPart = result.content.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") throw new Error("Expected an MCP text result");
@@ -50,6 +77,8 @@ describe("Data2Content MCP server", () => {
           "intelligence:read",
           "audience:read",
           "collabs:read",
+          "scripts:generate",
+          "scripts:write",
         ],
         issuer: "https://auth.example.test",
         token: "not-used-in-tools",
@@ -68,7 +97,7 @@ describe("Data2Content MCP server", () => {
     return { client, server };
   }
 
-  it("exposes the read-only Data2Content tools", async () => {
+  it("exposes read tools plus explicit generation and save tools", async () => {
     const { client, server } = await connect(true);
     try {
       const { tools } = await client.listTools();
@@ -82,13 +111,19 @@ describe("Data2Content MCP server", () => {
         "get_video_diagnosis",
         "get_audience_intelligence",
         "get_creator_playbook",
+        "get_creator_content_dna",
+        "generate_creator_script",
+        "critique_script_against_creator_dna",
+        "save_generated_script",
         "suggest_collab_creators",
         "compare_content_formats",
         "analyze_content_period",
         "get_content_detail",
         "get_data_coverage",
       ]);
-      expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+      expect(tools.find((tool) => tool.name === "get_creator_content_dna")?.annotations?.readOnlyHint).toBe(true);
+      expect(tools.find((tool) => tool.name === "generate_creator_script")?.annotations?.readOnlyHint).toBe(false);
+      expect(tools.find((tool) => tool.name === "save_generated_script")?.annotations?.idempotentHint).toBe(true);
       const periodTool = tools.find((tool) => tool.name === "analyze_content_period");
       expect(JSON.stringify(periodTool?.inputSchema)).toContain("last_closed_week");
       expect(JSON.stringify(periodTool?.outputSchema)).toContain("publishedCount");
@@ -100,6 +135,10 @@ describe("Data2Content MCP server", () => {
             "get_video_diagnosis",
             "get_audience_intelligence",
             "get_creator_playbook",
+            "get_creator_content_dna",
+            "generate_creator_script",
+            "critique_script_against_creator_dna",
+            "save_generated_script",
             "suggest_collab_creators",
             "analyze_content_period",
             "get_content_detail",
@@ -107,6 +146,24 @@ describe("Data2Content MCP server", () => {
           ].includes(tool.name))
           .every((tool) => tool.outputSchema != null),
       ).toBe(true);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("returns a generated script with a verifiable evidence receipt", async () => {
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({
+        name: "generate_creator_script",
+        arguments: { prompt: "Crie um Reel sobre criatividade", goal: "attention", targetDurationSeconds: 30 },
+      });
+      expect(textPayload(result)).toMatchObject({
+        schemaVersion: "creator_script_generation_v3",
+        title: "Roteiro gerado",
+        evidenceReceipt: { status: "complete" },
+      });
     } finally {
       await client.close();
       await server.close();

@@ -164,6 +164,8 @@ function maybeResolveDevelopmentIdentity(request: Request): McpAuthenticatedIden
       "intelligence:read",
       "audience:read",
       "collabs:read",
+      "scripts:generate",
+      "scripts:write",
     ],
     issuer: "local-development",
     token: request.headers.get("authorization") || "local-development",

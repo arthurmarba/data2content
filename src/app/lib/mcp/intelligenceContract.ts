@@ -89,6 +89,34 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     fields: ["weeklyPatterns", "scriptOutcome", "topExamples", "confidence", "sampleSize"],
   },
   {
+    id: "creator_script_dna",
+    label: "DNA de conteúdo e roteiro",
+    source: "PublishedContentEvidence + CreatorScriptDnaProfile + AudienceDemographicSnapshot",
+    scope: "intelligence:read",
+    tools: ["get_creator_content_dna", "generate_creator_script", "critique_script_against_creator_dna"],
+    fields: [
+      "voice", "narrative", "visual", "subjects", "audience", "winningDurations",
+      "performanceIndex", "coverage", "confidence", "evidenceReceipt",
+    ],
+    intentionallyExcluded: [
+      { field: "historicalFullTranscripts", reason: "O corpus integral é usado internamente na recuperação, sem ser entregue ao cliente MCP." },
+      { field: "historicalFullScripts", reason: "Roteiros integrais históricos são usados como evidência privada, sem exposição em massa." },
+      { field: "demographicRawPayload", reason: "Somente distribuições agregadas e sanitizadas orientam a geração." },
+    ],
+  },
+  {
+    id: "creator_script_generation",
+    label: "Geração e crítica de roteiro",
+    source: "CreatorScriptGenerationV3",
+    scope: "scripts:generate",
+    tools: ["generate_creator_script", "critique_script_against_creator_dna", "save_generated_script"],
+    fields: ["script", "duration", "validation", "evidenceReceipt", "provider", "model"],
+    intentionallyExcluded: [
+      { field: "providerPrompt", reason: "Prompt interno contém evidências privadas e regras proprietárias." },
+      { field: "verbatimMatchedText", reason: "O MCP recebe apenas o sinal de sobreposição, não o trecho histórico." },
+    ],
+  },
+  {
     id: "collaboration_network",
     label: "Rede de collabs",
     source: "MapaSeed + User + CreatorVideoNarrativeDiagnosis",

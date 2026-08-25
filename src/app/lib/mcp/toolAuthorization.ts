@@ -13,6 +13,10 @@ export const MCP_TOOL_REQUIRED_SCOPES: Readonly<Record<string, readonly string[]
   get_audience_intelligence: ["audience:read"],
   get_creator_playbook: ["intelligence:read", "metrics:read"],
   suggest_collab_creators: ["collabs:read"],
+  get_creator_content_dna: ["intelligence:read", "metrics:read", "audience:read"],
+  generate_creator_script: ["scripts:generate", "content:read", "metrics:read", "intelligence:read", "audience:read"],
+  critique_script_against_creator_dna: ["scripts:generate", "metrics:read", "intelligence:read", "audience:read"],
+  save_generated_script: ["scripts:write"],
 } as const;
 
 type JsonRpcLike = {
@@ -57,7 +61,7 @@ export function mcpToolAuditForPayload(payload: unknown): Array<Record<string, u
     if (message.method !== "tools/call" || typeof message.params?.name !== "string") return [];
     const name = message.params.name;
     const audit: Record<string, unknown> = { name };
-    if (!["analyze_content_period", "get_data_coverage"].includes(name)) return [audit];
+    if (!["analyze_content_period", "get_data_coverage", "generate_creator_script", "critique_script_against_creator_dna", "save_generated_script"].includes(name)) return [audit];
     const args = message.params.arguments && typeof message.params.arguments === "object"
       ? message.params.arguments as Record<string, unknown>
       : {};
@@ -72,6 +76,12 @@ export function mcpToolAuditForPayload(payload: unknown): Array<Record<string, u
     const endsAt = safePeriodDate(args.endsAt);
     if (startsAt) audit.startsAt = startsAt;
     if (endsAt) audit.endsAt = endsAt;
+    if (typeof args.goal === "string" && /^[a-z_]{1,30}$/.test(args.goal)) audit.goal = args.goal;
+    if (typeof args.targetDurationSeconds === "number" && Number.isFinite(args.targetDurationSeconds)) {
+      audit.targetDurationSeconds = args.targetDurationSeconds;
+    }
+    if (typeof args.prompt === "string") audit.promptCharacters = args.prompt.length;
+    if (typeof args.content === "string") audit.contentCharacters = args.content.length;
     return [audit];
   });
 }

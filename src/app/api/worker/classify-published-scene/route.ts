@@ -32,6 +32,7 @@ import {
   evaluateSceneAgainstMap,
   sceneElementsUpdate,
 } from "@/app/lib/relatorio/sceneEvaluation";
+import { upsertPublishedContentEvidence } from "@/app/lib/scripts/publishedContentEvidence";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -163,6 +164,21 @@ async function handle(metricId: string): Promise<NextResponse> {
     );
   }
 
+  // A transcrição integral e a timeline ficam num documento privado separado.
+  // Ela é persistida ANTES de marcar a cena como v4: se esta escrita falhar, o QStash
+  // repete o job e não deixa um Reel falsamente "completo" sem o corpus integral.
+  try {
+    await upsertPublishedContentEvidence({ metricId, scene: outcome.result });
+  } catch (evidenceError) {
+    logger.warn(`${TAG} ${metricId}: evidência publicada não foi persistida; job será repetido.`, {
+      error: evidenceError instanceof Error ? evidenceError.message : String(evidenceError || ""),
+    });
+    return NextResponse.json(
+      { message: "Falha ao persistir a evidência integral.", retryable: true },
+      { status: 503 },
+    );
+  }
+
   await MetricModel.updateOne(
     { _id: metric._id },
     { $set: { sceneElements: sceneElementsUpdate(outcome.result) } },
@@ -176,7 +192,16 @@ async function handle(metricId: string): Promise<NextResponse> {
       `${outcome.result.offMap ? " · FORA DO MAPA" : ""}`,
   );
 
-  return NextResponse.json({ ok: true, scene: outcome.result });
+  return NextResponse.json({
+    ok: true,
+    evidence: {
+      version: outcome.result.version,
+      provider: outcome.result.provider,
+      subjects: outcome.result.subjects.length,
+      scenes: outcome.result.sceneTimeline.length,
+      transcriptAvailable: Boolean(outcome.result.transcript),
+    },
+  });
 }
 
 export async function POST(request: NextRequest) {

@@ -13,6 +13,8 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric from '@/app/models/Metric';
 import BrandNarrativeProfile from '@/app/models/BrandNarrativeProfile';
 import BrandNarrativeReport from '@/app/models/BrandNarrativeReport';
+import CreatorScriptDnaProfile from '@/app/models/CreatorScriptDnaProfile';
+import PublishedContentEvidence from '@/app/models/PublishedContentEvidence';
 import { logger } from '@/app/lib/logger';
 
 const SCRIPT_TAG = '[SCRIPT_ENSURE_INDEXES]';
@@ -58,6 +60,9 @@ async function ensureCorrectIndexes() {
     logger.info(`${SCRIPT_TAG} Índices de brand narrative profiles garantidos.`);
     await BrandNarrativeReport.createIndexes();
     logger.info(`${SCRIPT_TAG} Índices de brand narrative reports garantidos.`);
+    await PublishedContentEvidence.createIndexes();
+    await CreatorScriptDnaProfile.createIndexes();
+    logger.info(`${SCRIPT_TAG} Índices da inteligência de roteiros v3 garantidos.`);
 
     // campaign_links pode variar conforme legado/pluralização
     const collectionCandidates = ['campaignlinks', 'campaign_links'];

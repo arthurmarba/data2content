@@ -13,7 +13,7 @@ export async function GET() {
     {
       ok: true,
       service: "data2content-mcp",
-      version: "0.4.0",
+      version: "0.5.0",
       capabilities: [
         "period_analysis",
         "semantic_periods",
@@ -25,6 +25,10 @@ export async function GET() {
         "audience_intelligence",
         "creator_playbook",
         "collab_suggestions",
+        "creator_script_dna",
+        "creator_script_generation",
+        "creator_script_critique",
+        "creator_script_save",
         "data_coverage",
         "oauth_step_up",
         "subscriber_entitlement",

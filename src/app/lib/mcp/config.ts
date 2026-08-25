@@ -6,6 +6,8 @@ const DEFAULT_MCP_SCOPES = [
   "intelligence:read",
   "audience:read",
   "collabs:read",
+  "scripts:generate",
+  "scripts:write",
 ] as const;
 
 function trimTrailingSlash(value: string): string {

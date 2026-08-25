@@ -20,6 +20,8 @@ const SCOPE_LABELS: Record<string, string> = {
   "intelligence:read": "Consultar seu mapa criativo e diagnósticos de vídeo",
   "audience:read": "Consultar dados agregados da sua audiência",
   "collabs:read": "Receber sugestões de creators disponíveis para collab",
+  "scripts:generate": "Gerar e avaliar roteiros com sua inteligência Data2Content",
+  "scripts:write": "Salvar roteiros na sua conta somente quando você pedir",
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -96,7 +98,9 @@ export default async function McpAuthorizePage({
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6f51d8]">Autorizar acesso</p>
       <h2 className="mt-2 text-2xl font-bold tracking-tight">{consent.clientName} quer acessar sua conta</h2>
       <p className="mt-3 text-sm leading-6 text-black/60">
-        O assistente poderá apenas consultar os dados abaixo. Ele não poderá publicar, editar ou excluir conteúdos.
+        {consent.scope.includes("scripts:write")
+          ? "O assistente poderá consultar os dados abaixo e salvar roteiros somente quando você pedir. Ele não poderá publicar, editar ou excluir conteúdos."
+          : "O assistente poderá apenas consultar os dados abaixo. Ele não poderá publicar, editar ou excluir conteúdos."}
       </p>
       <ul className="mt-6 space-y-3">
         {consent.scope.map((scope) => (
@@ -107,7 +111,7 @@ export default async function McpAuthorizePage({
         ))}
       </ul>
       {!entitlement.instagramConnected && consent.scope.some((scope) =>
-        ["metrics:read", "audience:read"].includes(scope)
+        ["metrics:read", "audience:read", "scripts:generate"].includes(scope)
       ) ? (
         <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
           Você pode conectar agora. As métricas ficarão disponíveis depois que conectar o Instagram na Data2Content.

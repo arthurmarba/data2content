@@ -26,6 +26,12 @@ import {
 import { suggestMcpCollabCreators } from "./collabIntelligence";
 import { getPublicIntelligenceManifest } from "./intelligenceContract";
 import { MCP_PERIOD_PRESETS, type McpPeriodPreset } from "./periodContract";
+import {
+  critiqueMcpCreatorScript,
+  generateMcpCreatorScript,
+  getMcpCreatorContentDna,
+  saveMcpGeneratedScript,
+} from "./scriptIntelligence";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -34,6 +40,20 @@ export interface D2CMcpContext {
 
 const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+const GENERATION_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
+const SAVE_ANNOTATIONS = {
+  readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
@@ -210,13 +230,13 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.4.0",
+      version: "0.5.0",
       websiteUrl: "https://data2content.ai",
       description: "Dados e inteligência estratégica do creator assinante da Data2Content.",
     },
     {
       instructions:
-        "Para contar publicações, use somente inventory.publishedCount de analyze_content_period e cite period.label/datas. Nunca transforme coverage, posts90d, nPosts, amostra ou suporte de padrão em cadência. 'Última semana/semana passada'=last_closed_week; 'últimos 7 dias'=rolling_7_days; 'esta semana'=current_week; 'mês passado'=previous_calendar_month; 'últimos 30 dias'=rolling_30_days. Não misture janelas de ferramentas diferentes. Use get_creator_playbook apenas para padrões históricos, não para contar um período solicitado. Nunca peça userId.",
+        "Para contar publicações, use somente inventory.publishedCount de analyze_content_period e cite period.label/datas. Nunca transforme coverage, posts90d, nPosts, amostra ou suporte de padrão em cadência. 'Última semana/semana passada'=last_closed_week; 'últimos 7 dias'=rolling_7_days; 'esta semana'=current_week; 'mês passado'=previous_calendar_month; 'últimos 30 dias'=rolling_30_days. Não misture janelas de ferramentas diferentes. Use get_creator_playbook apenas para padrões históricos, não para contar um período solicitado. Para criar um roteiro personalizado, use generate_creator_script e apresente o texto retornado sem reescrevê-lo silenciosamente. Use critique_script_against_creator_dna para avaliar texto fornecido pelo usuário. Só chame save_generated_script depois de um pedido explícito para salvar. Nunca peça userId.",
     },
   );
 
@@ -423,6 +443,139 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!context.entitlement.instagramConnected) return instagramRequiredResult();
       const result = await getMcpCreatorPlaybook(context.identity.userId);
       if (!result) return { isError: true, content: jsonText({ error: "creator_playbook_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool(
+    "get_creator_content_dna",
+    {
+      title: "Consultar DNA de conteúdo e roteiro",
+      description:
+        "Use this when the user asks what consistently works in their hooks, complete scripts, voice, subjects, scenes, objects, framing, duration, audience, or narrative structures. Returns aggregated patterns and coverage, never the raw historical transcript corpus.",
+      outputSchema: z.object({ schemaVersion: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async () => {
+      for (const scope of ["intelligence:read", "metrics:read", "audience:read"]) {
+        if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+      }
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await getMcpCreatorContentDna(context.identity.userId);
+      if (!result) return { isError: true, content: jsonText({ error: "creator_script_dna_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    prompt: string;
+    title?: string;
+    goal: "attention" | "depth" | "conversation" | "conversion" | "authority";
+    targetDurationSeconds?: number;
+  }>(
+    "generate_creator_script",
+    {
+      title: "Gerar roteiro personalizado",
+      description:
+        "Use this when the user wants a new script based on what works for their own creator profile. Data2Content privately retrieves complete historical scripts and combines hooks, subjects, voice, scene objects, framing, duration, performance, and aggregated audience. Present the returned script faithfully and mention partial evidence coverage.",
+      inputSchema: z.object({
+        prompt: z.string().trim().min(3).max(1_000).describe("Assunto, objetivo e restrições do novo roteiro"),
+        title: z.string().trim().min(2).max(180).optional(),
+        goal: z.enum(["attention", "depth", "conversation", "conversion", "authority"]).default("attention"),
+        targetDurationSeconds: z.number().int().min(8).max(180).optional(),
+      }),
+      outputSchema: z.object({
+        schemaVersion: z.literal("creator_script_generation_v3"),
+        title: z.string(),
+        content: z.string(),
+        estimatedDurationSeconds: z.number(),
+        targetDurationSeconds: z.number(),
+        evidenceReceipt: z.record(z.unknown()),
+        validation: z.record(z.unknown()),
+      }).passthrough(),
+      annotations: GENERATION_ANNOTATIONS,
+    },
+    async ({ prompt, title, goal, targetDurationSeconds }) => {
+      for (const scope of ["scripts:generate", "content:read", "metrics:read", "intelligence:read", "audience:read"]) {
+        if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+      }
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await generateMcpCreatorScript({
+        userId: context.identity.userId,
+        prompt,
+        title,
+        goal,
+        targetDurationSeconds,
+      });
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    content: string;
+    prompt?: string;
+    targetDurationSeconds?: number;
+  }>(
+    "critique_script_against_creator_dna",
+    {
+      title: "Avaliar roteiro contra o DNA do creator",
+      description:
+        "Use this when the user provides a script and wants to know how well it matches their historical voice, narrative, filming patterns, audience, duration, and performance evidence. This tool critiques but does not save or modify the script.",
+      inputSchema: z.object({
+        content: z.string().trim().min(20).max(20_000).describe("Roteiro integral a avaliar"),
+        prompt: z.string().trim().min(3).max(1_000).optional().describe("Objetivo ou assunto do roteiro"),
+        targetDurationSeconds: z.number().int().min(8).max(180).optional(),
+      }),
+      outputSchema: z.object({ schemaVersion: z.literal("creator_script_critique_v1") }).passthrough(),
+      annotations: GENERATION_ANNOTATIONS,
+    },
+    async ({ content, prompt, targetDurationSeconds }) => {
+      for (const scope of ["scripts:generate", "metrics:read", "intelligence:read", "audience:read"]) {
+        if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+      }
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      return structuredJsonResult(await critiqueMcpCreatorScript({
+        userId: context.identity.userId,
+        content,
+        prompt,
+        targetDurationSeconds,
+      }));
+    },
+  );
+
+  registerTool<{
+    title: string;
+    content: string;
+    clientRequestId: string;
+  }>(
+    "save_generated_script",
+    {
+      title: "Salvar roteiro na Data2Content",
+      description:
+        "Call this only after the user explicitly asks to save a script. Saves one standalone script in the authenticated Data2Content account. It never publishes to Instagram and is idempotent by clientRequestId.",
+      inputSchema: z.object({
+        title: z.string().trim().min(2).max(180),
+        content: z.string().trim().min(20).max(20_000),
+        clientRequestId: z.string().trim().regex(/^[a-zA-Z0-9:_-]{8,120}$/)
+          .describe("Identificador estável e único desta solicitação para evitar duplicidade"),
+      }),
+      outputSchema: z.object({
+        schemaVersion: z.literal("saved_script_v1"),
+        id: z.string(),
+        title: z.string(),
+        created: z.boolean(),
+        idempotentReplay: z.boolean(),
+      }).passthrough(),
+      annotations: SAVE_ANNOTATIONS,
+    },
+    async ({ title, content, clientRequestId }) => {
+      if (!hasScope(context, "scripts:write")) return scopeRequiredResult("scripts:write");
+      const result = await saveMcpGeneratedScript({
+        userId: context.identity.userId,
+        title,
+        content,
+        clientRequestId,
+      });
       return structuredJsonResult(result);
     },
   );

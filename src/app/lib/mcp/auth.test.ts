@@ -31,11 +31,11 @@ describe("MCP OAuth claims", () => {
     expect(() => resolveMcpUserIdFromClaims({ sub: "oauth-subject" })).toThrow(McpAuthError);
   });
 
-  it("advertises resource metadata and all read scopes on initial authorization", () => {
+  it("advertises resource metadata and all supported scopes on initial authorization", () => {
     const header = buildMcpWwwAuthenticateHeader(new McpAuthError("missing_token", 401, "missing"));
     expect(header).toContain('resource_metadata="');
     expect(header).toContain(
-      'scope="profile:read metrics:read strategy:read content:read intelligence:read audience:read collabs:read"',
+      'scope="profile:read metrics:read strategy:read content:read intelligence:read audience:read collabs:read scripts:generate scripts:write"',
     );
     expect(header).toContain('error="invalid_token"');
   });

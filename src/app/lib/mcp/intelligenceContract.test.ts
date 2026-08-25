@@ -4,7 +4,7 @@ describe("MCP intelligence contract", () => {
   it("maps every public layer to a scope and at least one tool", () => {
     expect(D2C_INTELLIGENCE_MANIFEST.length).toBeGreaterThanOrEqual(7);
     for (const layer of D2C_INTELLIGENCE_MANIFEST) {
-      expect(layer.scope).toMatch(/:read$/);
+      expect(layer.scope).toMatch(/:(read|generate|write)$/);
       expect(layer.tools.length).toBeGreaterThan(0);
       expect(layer.fields.length).toBeGreaterThan(0);
     }
@@ -17,5 +17,7 @@ describe("MCP intelligence contract", () => {
     expect(serialized).toContain("email");
     expect(serialized).toContain("location");
     expect(serialized).toContain("privateMetrics");
+    expect(serialized).toContain("historicalFullTranscripts");
+    expect(serialized).toContain("providerPrompt");
   });
 });

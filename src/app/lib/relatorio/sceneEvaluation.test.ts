@@ -90,6 +90,34 @@ describe("parseSceneEvaluation — códigos do mapa viram PAPÉIS", () => {
       SCENE_EVALUATION_VERSION,
     );
   });
+
+  it("preserva transcrição integral, timeline e estrutura narrativa", () => {
+    const result = parseSceneEvaluation(JSON.stringify({
+      assets: [],
+      tons: [],
+      transcricao: "Primeira frase. Depois vem a entrega completa.",
+      segmentos: [{ inicioMs: 0, fimMs: 2100, texto: "Primeira frase." }],
+      cenas: [{
+        inicioMs: 0,
+        fimMs: 2100,
+        papel: "gancho",
+        descricao: "close no rosto",
+        fala: "Primeira frase.",
+        cenario: "escritório",
+        objetos: ["microfone"],
+        enquadramentos: ["close"],
+      }],
+      estrutura: ["gancho", "entrega"],
+      promessa: "mostrar o processo",
+      cta: "me conta o seu",
+    }), profile)!;
+    expect(result.transcript).toBe("Primeira frase. Depois vem a entrega completa.");
+    expect(result.transcriptSegments).toEqual([{ startMs: 0, endMs: 2100, text: "Primeira frase." }]);
+    expect(result.sceneTimeline[0]).toMatchObject({ role: "gancho", setting: "escritório", objects: ["microfone"] });
+    expect(result.narrativeStructure).toEqual(["gancho", "entrega"]);
+    expect(result.promise).toBe("mostrar o processo");
+    expect(result.cta).toBe("me conta o seu");
+  });
 });
 
 describe("evaluateImagesAgainstMap", () => {

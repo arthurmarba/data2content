@@ -76,6 +76,35 @@ describe("MCP tool authorization", () => {
     ])).toEqual(["intelligence:read", "audience:read", "collabs:read"]);
   });
 
+  it("requires explicit generation and write scopes for script tools", () => {
+    expect(requiredScopesForMcpPayload([
+      { method: "tools/call", params: { name: "generate_creator_script" } },
+      { method: "tools/call", params: { name: "save_generated_script" } },
+    ])).toEqual([
+      "scripts:generate",
+      "content:read",
+      "metrics:read",
+      "intelligence:read",
+      "audience:read",
+      "scripts:write",
+    ]);
+  });
+
+  it("audits only script sizes and safe controls, never prompt or content", () => {
+    expect(mcpToolAuditForPayload({
+      method: "tools/call",
+      params: {
+        name: "generate_creator_script",
+        arguments: { prompt: "assunto privado", goal: "attention", targetDurationSeconds: 30 },
+      },
+    })).toEqual([{
+      name: "generate_creator_script",
+      goal: "attention",
+      targetDurationSeconds: 30,
+      promptCharacters: 15,
+    }]);
+  });
+
   it("does not challenge tool discovery or unknown payloads", () => {
     expect(requiredScopesForMcpPayload({ method: "tools/list" })).toEqual([]);
     expect(requiredScopesForMcpPayload(null)).toEqual([]);
