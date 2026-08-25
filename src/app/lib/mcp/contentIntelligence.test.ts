@@ -3,7 +3,7 @@ import { summarizeContentPeriod } from "./contentIntelligence";
 function post(params: Record<string, unknown>) {
   return {
     _id: params.id,
-    instagramMediaId: params.id,
+    instagramMediaId: params.instagramMediaId ?? params.id,
     postDate: params.postDate,
     type: params.type ?? "REEL",
     format: params.format ?? ["reel"],
@@ -41,7 +41,7 @@ describe("MCP content period intelligence", () => {
       ],
     });
     expect(result.period.days).toBe(30);
-    expect(result.coverage.posts).toBe(1);
+    expect(result.coverage.contentRecordsInPeriod).toBe(1);
     expect(result.pillars.distribution.avgReach).toBe(200);
     expect(result.deltas.avgReach).toBe(1);
   });
@@ -65,7 +65,7 @@ describe("MCP content period intelligence", () => {
         dailySnapshots: [{ date: "2026-08-13T12:00:00.000Z", dailyViews: 50 }],
       })],
     });
-    expect(result.schemaVersion).toBe("mcp_content_period_v2");
+    expect(result.schemaVersion).toBe("mcp_content_period_v3");
     expect(result.signals.proposals[0]?.label).toBe("educar");
     expect(result.signals.communicationTones[0]?.label).toBe("direto");
     expect(result.signals.entities[0]?.label).toContain("Instagram");
@@ -108,7 +108,7 @@ describe("MCP content period intelligence", () => {
         post({ id: "photo", postDate: "2026-08-11T12:00:00.000Z", type: "IMAGE", format: ["photo"], stats: { reach: 50 } }),
       ],
     });
-    expect(result.coverage.posts).toBe(1);
+    expect(result.coverage.contentRecordsInPeriod).toBe(1);
     expect(result.coverage.byFormat).toEqual({ photo: 1 });
   });
 
@@ -128,5 +128,44 @@ describe("MCP content period intelligence", () => {
     expect(result.coverage.visualEligible).toBe(1);
     expect(result.coverage.visualRead).toBe(1);
     expect(result.coverage.openings).toBe(1);
+  });
+
+  it("keeps 30-day, rolling-week and closed-week publication counts separate", () => {
+    const auditNow = new Date("2026-08-25T21:19:00.000Z");
+    const metrics = [
+      post({ id: "before-rolling", postDate: "2026-08-18T19:17:48.000Z", stats: { reach: 100 } }),
+      post({ id: "inside-rolling", postDate: "2026-08-18T23:37:22.000Z", stats: { reach: 100 } }),
+      post({ id: "latest", postDate: "2026-08-21T22:16:01.000Z", type: "IMAGE", format: ["photo"], stats: { reach: 100 } }),
+      post({ id: "older", postDate: "2026-08-01T15:45:44.000Z", stats: { reach: 100 } }),
+    ];
+
+    const rolling = summarizeContentPeriod({ now: auditNow, period: { periodPreset: "rolling_7_days" }, metrics });
+    const closed = summarizeContentPeriod({ now: auditNow, period: { periodPreset: "last_closed_week" }, metrics });
+    const month = summarizeContentPeriod({ now: auditNow, period: { periodPreset: "rolling_30_days" }, metrics });
+
+    expect(rolling.inventory.publishedCount).toBe(2);
+    expect(closed.inventory.publishedCount).toBe(3);
+    expect(month.inventory.publishedCount).toBe(4);
+    expect(closed.facts.publicationCount.sourceField).toBe("inventory.publishedCount");
+    expect(closed.responseContract.safeSummary).toContain("3 publicações");
+    expect(closed.responseContract.safeSummary).toContain("17 a 23 de agosto");
+    expect(closed.responseContract.safeSummary).toContain("1 foto");
+    expect(closed.responseContract.safeSummary).toContain("2 Reels");
+  });
+
+  it("deduplicates the publication inventory and distinguishes population from returned sample", () => {
+    const result = summarizeContentPeriod({
+      now,
+      period: { periodPreset: "rolling_30_days" },
+      metrics: [
+        post({ id: "record-a", instagramMediaId: "same-media", postDate: "2026-08-20T12:00:00.000Z", stats: { reach: 100 } }),
+        post({ id: "record-b", instagramMediaId: "same-media", postDate: "2026-08-20T12:00:00.000Z", stats: { reach: 100 } }),
+      ],
+    });
+
+    expect(result.inventory.publishedCount).toBe(1);
+    expect(result.coverage.contentRecordsInPeriod).toBe(1);
+    expect(result.inventory.returnedSampleCount).toBe(1);
+    expect(result.analysisReceipt.status).toBe("partial");
   });
 });

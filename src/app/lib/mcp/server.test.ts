@@ -89,6 +89,10 @@ describe("Data2Content MCP server", () => {
         "get_data_coverage",
       ]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+      const periodTool = tools.find((tool) => tool.name === "analyze_content_period");
+      expect(JSON.stringify(periodTool?.inputSchema)).toContain("last_closed_week");
+      expect(JSON.stringify(periodTool?.outputSchema)).toContain("publishedCount");
+      expect(periodTool?.description).toContain("authoritative cadence field");
       expect(
         tools
           .filter((tool) => [

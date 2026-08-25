@@ -13,9 +13,12 @@ export async function GET() {
     {
       ok: true,
       service: "data2content-mcp",
-      version: "0.3.0",
+      version: "0.4.0",
       capabilities: [
         "period_analysis",
+        "semantic_periods",
+        "canonical_publication_inventory",
+        "analysis_receipts",
         "content_detail",
         "creator_intelligence",
         "video_diagnosis",

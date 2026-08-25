@@ -10,6 +10,10 @@ import {
   canonicalToneById,
 } from "@/app/lib/relatorio/mapRegistry";
 import { D2C_INTELLIGENCE_SCHEMA_VERSION } from "./intelligenceContract";
+import {
+  resolveMcpPeriod,
+  type McpPeriodRequest,
+} from "./periodContract";
 
 export type McpAnalysisFormat = "all" | "reel" | "carousel" | "photo";
 
@@ -20,6 +24,7 @@ type MetricLike = Record<string, any> & {
   format?: string[] | string | null;
   stats?: Record<string, unknown> | null;
   sceneElements?: Record<string, any> | null;
+  source?: string | null;
 };
 
 type NumericKey =
@@ -46,7 +51,6 @@ type NormalizedPost = {
   performanceIndex: number | null;
 };
 
-const DAY_MS = 86_400_000;
 const MATURITY_MS = 48 * 60 * 60 * 1000;
 
 function finite(value: unknown): number | null {
@@ -269,7 +273,7 @@ function baselineFor(posts: NormalizedPost[]) {
 }
 
 function normalizePosts(metrics: MetricLike[], now: Date): NormalizedPost[] {
-  const posts: NormalizedPost[] = metrics.flatMap((raw): NormalizedPost[] => {
+  const normalized: NormalizedPost[] = metrics.flatMap((raw): NormalizedPost[] => {
     const postDate = toDate(raw.postDate);
     if (!postDate) return [];
     return [{
@@ -282,10 +286,70 @@ function normalizePosts(metrics: MetricLike[], now: Date): NormalizedPost[] {
       performanceIndex: null,
     }];
   });
+  const unique = new Map<string, NormalizedPost>();
+  for (const post of normalized) {
+    const key = String(post.raw.instagramMediaId ?? post.raw._id ?? `${post.postDate.toISOString()}:${post.raw.postLink ?? ""}`);
+    if (!unique.has(key)) unique.set(key, post);
+  }
+  const posts = [...unique.values()];
   const mature = posts.filter((post) => post.mature);
   const baseline = baselineFor(mature.length ? mature : posts);
   for (const post of posts) post.performanceIndex = metricRatios(post, baseline);
   return posts;
+}
+
+function publicationInventory(posts: NormalizedPost[], returnedSampleCount: number) {
+  const items = [...posts]
+    .sort((a, b) => b.postDate.getTime() - a.postDate.getTime())
+    .map((post) => ({
+      id: post.id,
+      instagramMediaId: post.raw.instagramMediaId ?? null,
+      publishedAt: post.postDate.toISOString(),
+      format: post.format,
+      url: typeof post.raw.postLink === "string" ? post.raw.postLink : null,
+      source: typeof post.raw.source === "string" ? post.raw.source : null,
+    }));
+  const metricsEligibleCount = posts.filter((post) =>
+    Object.values(post.metrics).some((value) => value != null),
+  ).length;
+  const fullyAnalyzedCount = posts.filter((post) => {
+    const classified = post.raw.classificationStatus === "completed";
+    const visualEligible = ["reel", "video", "carousel", "photo"].includes(post.format);
+    return classified && (!visualEligible || Boolean(post.raw.sceneElements?.version));
+  }).length;
+  const byFormat = posts.reduce<Record<string, number>>((acc, post) => {
+    acc[post.format] = (acc[post.format] ?? 0) + 1;
+    return acc;
+  }, {});
+  return {
+    countBasis: "distinct_content_records_by_instagram_media_id_or_record_id",
+    publishedCount: posts.length,
+    collectedCount: posts.length,
+    metricsEligibleCount,
+    fullyAnalyzedCount,
+    returnedSampleCount,
+    byFormat,
+    items,
+  };
+}
+
+function publicationSummary(label: string, inventory: ReturnType<typeof publicationInventory>): string {
+  const formatNames: Record<string, { singular: string; plural: string }> = {
+    reel: { singular: "Reel", plural: "Reels" },
+    video: { singular: "vídeo", plural: "vídeos" },
+    carousel: { singular: "carrossel", plural: "carrosséis" },
+    photo: { singular: "foto", plural: "fotos" },
+    unknown: { singular: "conteúdo sem formato identificado", plural: "conteúdos sem formato identificado" },
+  };
+  const breakdown = Object.entries(inventory.byFormat)
+    .filter(([, count]) => count > 0)
+    .map(([format, count]) => {
+      const names = formatNames[format];
+      return `${count} ${names ? (count === 1 ? names.singular : names.plural) : format}`;
+    })
+    .join(" e ");
+  const noun = inventory.publishedCount === 1 ? "publicação" : "publicações";
+  return `No período ${label}, a Data2Content encontrou ${inventory.publishedCount} ${noun}${breakdown ? `: ${breakdown}` : ""}.`;
 }
 
 function filterFormat(posts: NormalizedPost[], format: McpAnalysisFormat): NormalizedPost[] {
@@ -482,18 +546,24 @@ function recommendations(params: {
 
 export function summarizeContentPeriod(params: {
   metrics: MetricLike[];
-  periodDays: number;
+  periodDays?: number;
+  period?: McpPeriodRequest;
   format?: McpAnalysisFormat;
   now?: Date;
 }) {
   const now = params.now ?? new Date();
-  const periodDays = Math.min(365, Math.max(7, Math.trunc(params.periodDays)));
-  const currentStart = new Date(now.getTime() - periodDays * DAY_MS);
-  const previousStart = new Date(currentStart.getTime() - periodDays * DAY_MS);
+  const resolvedPeriod = resolveMcpPeriod(
+    params.period ?? (params.periodDays != null ? { periodDays: params.periodDays } : {}),
+    now,
+  );
   const all = normalizePosts(params.metrics, now);
   const selectedFormat = params.format ?? "all";
-  const current = filterFormat(all.filter((post) => post.postDate >= currentStart && post.postDate <= now), selectedFormat);
-  const previous = filterFormat(all.filter((post) => post.postDate >= previousStart && post.postDate < currentStart), selectedFormat);
+  const current = filterFormat(all.filter((post) =>
+    post.postDate >= resolvedPeriod.startsAt && post.postDate <= resolvedPeriod.endsAt
+  ), selectedFormat);
+  const previous = filterFormat(all.filter((post) =>
+    post.postDate >= resolvedPeriod.comparisonStartsAt && post.postDate <= resolvedPeriod.comparisonEndsAt
+  ), selectedFormat);
   const currentPillars = summarizePillars(current);
   const previousPillars = summarizePillars(previous);
   const currentCoverage = coverage(current);
@@ -544,16 +614,46 @@ export function summarizeContentPeriod(params: {
   const objects = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.objects)
     .map((label) => ({ id: label.toLowerCase(), label })));
 
+  const rankedContent = topContent(current);
+  const inventory = publicationInventory(current, rankedContent.length);
+  const safeSummary = publicationSummary(resolvedPeriod.label, inventory);
+  const consistencyIssues = [
+    inventory.publishedCount !== currentCoverage.posts ? "inventory_coverage_count_mismatch" : null,
+    Object.values(inventory.byFormat).reduce((sum, count) => sum + count, 0) !== inventory.publishedCount
+      ? "format_count_mismatch"
+      : null,
+    inventory.returnedSampleCount > inventory.publishedCount ? "sample_exceeds_population" : null,
+  ].filter((issue): issue is string => Boolean(issue));
+  const analysisStatus = consistencyIssues.length > 0
+    ? "inconsistent"
+    : inventory.fullyAnalyzedCount < inventory.publishedCount
+      ? "partial"
+      : "complete";
+  const { posts: contentRecordsInPeriod, ...enrichmentCoverage } = currentCoverage;
+  const publicCoverage = {
+    meaning: "Cobertura de coleta e enriquecimento de IA; não use estes campos como cadência de publicação.",
+    contentRecordsInPeriod,
+    ...enrichmentCoverage,
+  };
+
   const result = {
-    schemaVersion: "mcp_content_period_v2",
+    schemaVersion: "mcp_content_period_v3",
     intelligenceSchemaVersion: D2C_INTELLIGENCE_SCHEMA_VERSION,
     period: {
-      days: periodDays,
-      startsAt: currentStart.toISOString(),
-      endsAt: now.toISOString(),
-      timezone: "America/Sao_Paulo",
+      preset: resolvedPeriod.preset,
+      kind: resolvedPeriod.kind,
+      label: resolvedPeriod.label,
+      meaning: resolvedPeriod.meaning,
+      days: resolvedPeriod.days,
+      startsAt: resolvedPeriod.startsAt.toISOString(),
+      endsAt: resolvedPeriod.endsAt.toISOString(),
+      timezone: resolvedPeriod.timezone,
+      isClosed: resolvedPeriod.isClosed,
+      legacyPeriodDays: resolvedPeriod.legacyPeriodDays,
       format: selectedFormat,
       comparison: "previous_equivalent_period",
+      comparisonStartsAt: resolvedPeriod.comparisonStartsAt.toISOString(),
+      comparisonEndsAt: resolvedPeriod.comparisonEndsAt.toISOString(),
     },
     freshness: {
       generatedAt: now.toISOString(),
@@ -562,11 +662,22 @@ export function summarizeContentPeriod(params: {
         : null,
       metricMaturityHours: 48,
     },
-    coverage: currentCoverage,
+    inventory,
+    facts: {
+      publicationCount: {
+        value: inventory.publishedCount,
+        unit: "publications",
+        sourceField: "inventory.publishedCount",
+        periodLabel: resolvedPeriod.label,
+        startsAt: resolvedPeriod.startsAt.toISOString(),
+        endsAt: resolvedPeriod.endsAt.toISOString(),
+      },
+    },
+    coverage: publicCoverage,
     pillars: currentPillars,
     deltas: pillarDeltas(currentPillars, previousPillars),
     formatPerformance: formats,
-    topContent: topContent(current),
+    topContent: rankedContent,
     signals: {
       topics,
       openings,
@@ -590,12 +701,37 @@ export function summarizeContentPeriod(params: {
       signal: "3–4 posts: sinal",
       pattern: "5+ posts: padrão mais confiável",
     },
+    responseContract: {
+      safeSummary,
+      authoritativePublicationCountPath: "inventory.publishedCount",
+      rules: [
+        "Use somente inventory.publishedCount para afirmar quantas publicações ocorreram neste período.",
+        "Não trate coverage, returnedSampleCount ou contagens de sinais como frequência de publicação.",
+        "Sempre informe period.label ou as datas period.startsAt e period.endsAt ao citar uma contagem.",
+        "Não combine esta contagem com janelas do creator playbook ou de outra chamada.",
+        "Se analysisReceipt.status for inconsistent, não faça afirmações quantitativas sem explicar a divergência.",
+      ],
+    },
+    analysisReceipt: {
+      id: `mcp-period-${now.getTime()}-${inventory.publishedCount}`,
+      status: analysisStatus,
+      generatedAt: now.toISOString(),
+      periodPreset: resolvedPeriod.preset,
+      startsAt: resolvedPeriod.startsAt.toISOString(),
+      endsAt: resolvedPeriod.endsAt.toISOString(),
+      publishedCount: inventory.publishedCount,
+      collectedCount: inventory.collectedCount,
+      metricsEligibleCount: inventory.metricsEligibleCount,
+      fullyAnalyzedCount: inventory.fullyAnalyzedCount,
+      returnedSampleCount: inventory.returnedSampleCount,
+      consistencyIssues,
+    },
   };
   return result;
 }
 
 const METRIC_SELECT = [
-  "_id instagramMediaId postLink postDate description type format stats",
+  "_id instagramMediaId postLink postDate description type format source stats",
   "classificationStatus proposal context tone references contentIntent narrativeForm contentSignals stance proofStyle commercialMode",
   "classificationMeta entityTargets theme collab collabCreator isPubli lifeAssets",
   "sceneElements dailySnapshots createdAt updatedAt",
@@ -603,18 +739,35 @@ const METRIC_SELECT = [
 
 export async function analyzeMcpContentPeriod(params: {
   userId: string;
-  periodDays: number;
+  periodDays?: number;
+  periodPreset?: McpPeriodRequest["periodPreset"];
+  startsAt?: string;
+  endsAt?: string;
   format?: McpAnalysisFormat;
 }) {
-  await connectToDatabase();
-  const periodDays = Math.min(365, Math.max(7, Math.trunc(params.periodDays)));
   const now = new Date();
-  const queryStart = new Date(now.getTime() - periodDays * 2 * DAY_MS);
+  const period = resolveMcpPeriod({
+    periodPreset: params.periodPreset,
+    periodDays: params.periodDays,
+    startsAt: params.startsAt,
+    endsAt: params.endsAt,
+  }, now);
+  await connectToDatabase();
   const metrics = await MetricModel.find({
     user: new Types.ObjectId(params.userId),
-    postDate: { $gte: queryStart, $lte: now },
+    postDate: { $gte: period.comparisonStartsAt, $lte: period.endsAt },
   }).sort({ postDate: -1 }).select(METRIC_SELECT).lean();
-  return summarizeContentPeriod({ metrics: metrics as MetricLike[], periodDays, format: params.format, now });
+  return summarizeContentPeriod({
+    metrics: metrics as MetricLike[],
+    period: {
+      periodPreset: params.periodPreset,
+      periodDays: params.periodDays,
+      startsAt: params.startsAt,
+      endsAt: params.endsAt,
+    },
+    format: params.format,
+    now,
+  });
 }
 
 export async function getMcpContentDetail(userId: string, contentId: string) {

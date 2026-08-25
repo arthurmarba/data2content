@@ -7,6 +7,8 @@ import { getMcpUpgradeUrl } from "@/app/lib/mcp/config";
 import { logger } from "@/app/lib/logger";
 import { checkRateLimit } from "@/utils/rateLimit";
 import {
+  mcpResultAuditForPayload,
+  mcpToolAuditForPayload,
   mcpToolNamesForPayload,
   missingMcpScopes,
   requiredScopesForMcpPayload,
@@ -23,6 +25,7 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
   let toolNames: string[] = [];
+  let toolAudit: Array<Record<string, unknown>> = [];
 
   try {
     const identity = await authenticateMcpRequest(request);
@@ -59,6 +62,7 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
     if (request.method === "POST") {
       const payload = await request.clone().json().catch(() => null);
       toolNames = mcpToolNamesForPayload(payload);
+      toolAudit = mcpToolAuditForPayload(payload);
       const requiredScopes = requiredScopesForMcpPayload(payload);
       const missingScopes = missingMcpScopes(identity.scopes, requiredScopes);
       if (missingScopes.length > 0) {
@@ -78,6 +82,9 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
     const server = createD2CMcpServer({ identity, entitlement });
     await server.connect(transport);
     const response = await transport.handleRequest(request);
+    const resultAudit = toolNames.some((name) => ["analyze_content_period", "get_data_coverage"].includes(name))
+      ? mcpResultAuditForPayload(await response.clone().json().catch(() => null))
+      : [];
 
     logger.info("[mcp] Request completed.", {
       requestId,
@@ -86,6 +93,8 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       durationMs: Date.now() - startedAt,
       clientId: identity.clientId,
       tools: toolNames,
+      toolAudit,
+      resultAudit,
       scopes: identity.scopes,
     });
 

@@ -17,7 +17,8 @@ export const MCP_TOOL_REQUIRED_SCOPES: Readonly<Record<string, readonly string[]
 
 type JsonRpcLike = {
   method?: unknown;
-  params?: { name?: unknown } | null;
+  params?: { name?: unknown; arguments?: unknown } | null;
+  result?: unknown;
 };
 
 function messages(payload: unknown): JsonRpcLike[] {
@@ -44,6 +45,67 @@ export function mcpToolNamesForPayload(payload: unknown): string[] {
     }
   }
   return [...names];
+}
+
+function safePeriodDate(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 35) return undefined;
+  return /^\d{4}-\d{2}-\d{2}(?:T[\d:.+-]+Z?)?$/.test(value) ? value : undefined;
+}
+
+export function mcpToolAuditForPayload(payload: unknown): Array<Record<string, unknown>> {
+  return messages(payload).flatMap((message) => {
+    if (message.method !== "tools/call" || typeof message.params?.name !== "string") return [];
+    const name = message.params.name;
+    const audit: Record<string, unknown> = { name };
+    if (!["analyze_content_period", "get_data_coverage"].includes(name)) return [audit];
+    const args = message.params.arguments && typeof message.params.arguments === "object"
+      ? message.params.arguments as Record<string, unknown>
+      : {};
+    if (typeof args.periodPreset === "string" && /^[a-z0-9_]{1,40}$/.test(args.periodPreset)) {
+      audit.periodPreset = args.periodPreset;
+    }
+    if (typeof args.periodDays === "number" && Number.isInteger(args.periodDays)) audit.periodDays = args.periodDays;
+    if (typeof args.format === "string" && ["all", "reel", "carousel", "photo"].includes(args.format)) {
+      audit.format = args.format;
+    }
+    const startsAt = safePeriodDate(args.startsAt);
+    const endsAt = safePeriodDate(args.endsAt);
+    if (startsAt) audit.startsAt = startsAt;
+    if (endsAt) audit.endsAt = endsAt;
+    return [audit];
+  });
+}
+
+export function mcpResultAuditForPayload(payload: unknown): Array<Record<string, unknown>> {
+  return messages(payload).flatMap((message) => {
+    const result = message.result && typeof message.result === "object"
+      ? message.result as Record<string, unknown>
+      : null;
+    const structured = result?.structuredContent && typeof result.structuredContent === "object"
+      ? result.structuredContent as Record<string, unknown>
+      : null;
+    const receipt = structured?.analysisReceipt && typeof structured.analysisReceipt === "object"
+      ? structured.analysisReceipt as Record<string, unknown>
+      : null;
+    if (!receipt) return [];
+    const allowedKeys = [
+      "id",
+      "status",
+      "generatedAt",
+      "periodPreset",
+      "startsAt",
+      "endsAt",
+      "publishedCount",
+      "collectedCount",
+      "metricsEligibleCount",
+      "fullyAnalyzedCount",
+      "returnedSampleCount",
+      "consistencyIssues",
+    ];
+    return [Object.fromEntries(allowedKeys
+      .filter((key) => receipt[key] !== undefined)
+      .map((key) => [key, receipt[key]]))];
+  });
 }
 
 export function missingMcpScopes(granted: string[], required: string[]): string[] {

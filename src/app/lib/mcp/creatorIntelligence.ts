@@ -293,16 +293,62 @@ export async function getMcpAudienceIntelligence(userId: string) {
   };
 }
 
-function safeWeeklyPayload(payload: AnyRecord | null | undefined) {
+export function sanitizeMcpWeeklyPayload(payload: AnyRecord | null | undefined) {
   if (!payload) return null;
   const weeklyVideo = payload.weeklyVideo ? { ...payload.weeklyVideo, thumbnailUrl: undefined } : null;
+  const rawCoverage = payload.coverage && typeof payload.coverage === "object"
+    ? payload.coverage as AnyRecord
+    : {};
+  const details = Array.isArray(payload.details) ? payload.details.map((detail: AnyRecord) => ({
+    ...detail,
+    groups: Array.isArray(detail.groups) ? detail.groups.map((group: AnyRecord) => ({
+      ...group,
+      items: Array.isArray(group.items) ? group.items.map((item: AnyRecord) => ({
+        id: item.id,
+        label: item.label,
+        supportingPostsInBaseline: item.nPosts ?? 0,
+        performanceIndex: item.index ?? null,
+        evidence: item.evidence ?? null,
+        occurrencesInClosedWeek: item.weeklyOccurrences ?? 0,
+      })) : [],
+    })) : [],
+  })) : [];
+  const overview = payload.overview && typeof payload.overview === "object"
+    ? {
+      ...payload.overview,
+      numbers: Array.isArray(payload.overview.numbers)
+        ? payload.overview.numbers.map((number: AnyRecord) => ({
+          ...number,
+          label: number.label === "posts" ? "publicações na semana fechada" : number.label,
+        }))
+        : [],
+    }
+    : null;
   return {
     period: payload.period ?? null,
+    periodSemantics: {
+      reportPeriod: "last_closed_week",
+      baselinePeriod: "rolling_90_days_ending_with_closed_week",
+      rule: "Contagens da semana fechada e suporte histórico de 90 dias são universos diferentes.",
+    },
     generatedAt: payload.generatedAt ?? null,
-    coverage: payload.coverage ?? null,
-    overview: payload.overview ?? null,
+    coverage: {
+      publishedInClosedWeek: rawCoverage.postsWeek ?? 0,
+      baselinePublishedCount: rawCoverage.posts90d ?? 0,
+      sceneAnalyzedInBaseline: rawCoverage.postsWithScene ?? 0,
+      sceneCoveragePercentInBaseline: rawCoverage.scenePercent ?? 0,
+    },
+    overview,
     weeklyVideo,
-    details: Array.isArray(payload.details) ? payload.details : [],
+    details,
+    responseContract: {
+      rules: [
+        "Use coverage.publishedInClosedWeek somente para a semana fechada identificada em period.",
+        "supportingPostsInBaseline é suporte histórico de 90 dias, não quantidade publicada na semana.",
+        "occurrencesInClosedWeek é ocorrência de um sinal, não total de publicações.",
+        "Para responder uma contagem solicitada pelo usuário, use analyze_content_period.",
+      ],
+    },
   };
 }
 
@@ -325,11 +371,12 @@ export async function getMcpCreatorPlaybook(userId: string) {
     intelligenceSchemaVersion: D2C_INTELLIGENCE_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     weeklyPatterns: weekly ? {
+      purpose: "historical_patterns_and_next_actions_not_requested_period_count",
       weekKey: weekly.weekKey,
       status: weekly.status,
       generatedAt: asIso(weekly.generatedAt),
       sourceMetricsUpdatedAt: asIso(weekly.sourceMetricsUpdatedAt),
-      report: safeWeeklyPayload(weekly.payload),
+      report: sanitizeMcpWeeklyPayload(weekly.payload),
     } : null,
     scriptOutcome: scriptOutcome ? {
       profileVersion: scriptOutcome.profileVersion,

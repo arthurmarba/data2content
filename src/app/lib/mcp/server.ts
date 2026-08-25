@@ -25,6 +25,7 @@ import {
 } from "./creatorIntelligence";
 import { suggestMcpCollabCreators } from "./collabIntelligence";
 import { getPublicIntelligenceManifest } from "./intelligenceContract";
+import { MCP_PERIOD_PRESETS, type McpPeriodPreset } from "./periodContract";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -60,10 +61,88 @@ function structuredJsonResult(value: Record<string, unknown>) {
   return { content: jsonText(value), structuredContent: value };
 }
 
+const PERIOD_INPUT_FIELDS = {
+  periodPreset: z.enum(MCP_PERIOD_PRESETS).optional().describe(
+    "Semântica do período. Use last_closed_week para 'última semana/semana passada'; rolling_7_days somente para 'últimos 7 dias'; rolling_30_days para 'últimos 30 dias'; previous_calendar_month para 'mês passado'; current_week para 'esta semana'; custom para datas explícitas.",
+  ),
+  periodDays: z.number().int().min(7).max(365).optional().describe(
+    "Compatibilidade legada: janela móvel exata. Prefira periodPreset para novas chamadas.",
+  ),
+  startsAt: z.string().trim().min(10).max(35).optional().describe(
+    "Início do período custom em YYYY-MM-DD ou ISO 8601 com fuso.",
+  ),
+  endsAt: z.string().trim().min(10).max(35).optional().describe(
+    "Fim do período custom em YYYY-MM-DD ou ISO 8601 com fuso.",
+  ),
+} as const;
+
+const PERIOD_INPUT_SCHEMA = z.object(PERIOD_INPUT_FIELDS);
+
+const PERIOD_OUTPUT_SCHEMA = z.object({
+  preset: z.string(),
+  kind: z.enum(["rolling", "calendar", "custom"]),
+  label: z.string(),
+  meaning: z.string(),
+  days: z.number().int(),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  timezone: z.string(),
+  isClosed: z.boolean(),
+  legacyPeriodDays: z.number().int().nullable(),
+  format: z.string(),
+  comparison: z.string(),
+  comparisonStartsAt: z.string(),
+  comparisonEndsAt: z.string(),
+});
+
+const INVENTORY_OUTPUT_SCHEMA = z.object({
+  countBasis: z.string(),
+  publishedCount: z.number().int().nonnegative(),
+  collectedCount: z.number().int().nonnegative(),
+  metricsEligibleCount: z.number().int().nonnegative(),
+  fullyAnalyzedCount: z.number().int().nonnegative(),
+  returnedSampleCount: z.number().int().nonnegative(),
+  byFormat: z.record(z.number().int().nonnegative()),
+  items: z.array(z.object({
+    id: z.string(),
+    instagramMediaId: z.unknown().nullable(),
+    publishedAt: z.string(),
+    format: z.string(),
+    url: z.string().nullable(),
+    source: z.string().nullable(),
+  })),
+});
+
+const ANALYSIS_RECEIPT_OUTPUT_SCHEMA = z.object({
+  id: z.string(),
+  status: z.enum(["complete", "partial", "inconsistent"]),
+  generatedAt: z.string(),
+  periodPreset: z.string(),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  publishedCount: z.number().int().nonnegative(),
+  collectedCount: z.number().int().nonnegative(),
+  metricsEligibleCount: z.number().int().nonnegative(),
+  fullyAnalyzedCount: z.number().int().nonnegative(),
+  returnedSampleCount: z.number().int().nonnegative(),
+  consistencyIssues: z.array(z.string()),
+});
+
 const PERIOD_ANALYSIS_OUTPUT_SCHEMA = z.object({
   schemaVersion: z.string(),
-  period: z.record(z.unknown()),
+  period: PERIOD_OUTPUT_SCHEMA,
   freshness: z.record(z.unknown()),
+  inventory: INVENTORY_OUTPUT_SCHEMA,
+  facts: z.object({
+    publicationCount: z.object({
+      value: z.number().int().nonnegative(),
+      unit: z.literal("publications"),
+      sourceField: z.literal("inventory.publishedCount"),
+      periodLabel: z.string(),
+      startsAt: z.string(),
+      endsAt: z.string(),
+    }),
+  }),
   coverage: z.record(z.unknown()),
   pillars: z.record(z.unknown()),
   deltas: z.record(z.unknown()),
@@ -72,7 +151,20 @@ const PERIOD_ANALYSIS_OUTPUT_SCHEMA = z.object({
   signals: z.record(z.unknown()),
   recommendations: z.array(z.record(z.unknown())),
   interpretationRules: z.record(z.string()),
+  responseContract: z.object({
+    safeSummary: z.string(),
+    authoritativePublicationCountPath: z.literal("inventory.publishedCount"),
+    rules: z.array(z.string()),
+  }),
+  analysisReceipt: ANALYSIS_RECEIPT_OUTPUT_SCHEMA,
 }).passthrough();
+
+type PeriodToolArgs = {
+  periodPreset?: McpPeriodPreset;
+  periodDays?: number;
+  startsAt?: string;
+  endsAt?: string;
+};
 
 function instagramRequiredResult() {
   return {
@@ -100,18 +192,31 @@ function hasScope(context: D2CMcpContext, requiredScope: string): boolean {
   return context.identity.scopes.includes(requiredScope);
 }
 
+function invalidPeriodResult(error: unknown): CallToolResult | null {
+  const code = error instanceof Error ? error.message : "";
+  if (!/^(custom_period_|period_exceeds_)/.test(code)) return null;
+  return {
+    isError: true,
+    content: jsonText({
+      error: "invalid_period",
+      code,
+      message: "Informe um período válido. Para custom, envie startsAt e endsAt em YYYY-MM-DD ou ISO 8601.",
+    }),
+  };
+}
+
 export function createD2CMcpServer(context: D2CMcpContext): McpServer {
   const server = new McpServer(
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.3.0",
+      version: "0.4.0",
       websiteUrl: "https://data2content.ai",
       description: "Dados e inteligência estratégica do creator assinante da Data2Content.",
     },
     {
       instructions:
-        "Use as ferramentas apenas para a conta Data2Content autenticada. Nunca peça userId. Dados de métricas exigem Instagram conectado. O acesso é exclusivo para assinantes ativos.",
+        "Para contar publicações, use somente inventory.publishedCount de analyze_content_period e cite period.label/datas. Nunca transforme coverage, posts90d, nPosts, amostra ou suporte de padrão em cadência. 'Última semana/semana passada'=last_closed_week; 'últimos 7 dias'=rolling_7_days; 'esta semana'=current_week; 'mês passado'=previous_calendar_month; 'últimos 30 dias'=rolling_30_days. Não misture janelas de ferramentas diferentes. Use get_creator_playbook apenas para padrões históricos, não para contar um período solicitado. Nunca peça userId.",
     },
   );
 
@@ -308,7 +413,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Consultar aprendizados do creator",
       description:
-        "Use this when the user asks what they should repeat, avoid, or test next based on weekly patterns and outcomes from previously published scripts and content.",
+        "Use this when the user asks what they should repeat, avoid, or test next based on a closed-week report and a separate 90-day baseline. Do not use this tool to count publications in a requested period; use analyze_content_period instead.",
       outputSchema: z.object({ schemaVersion: z.string() }).passthrough(),
       annotations: READ_ONLY_ANNOTATIONS,
     },
@@ -386,34 +491,39 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
-  registerTool<{
-    periodDays: number;
-    format: McpAnalysisFormat;
-  }>(
+  registerTool<PeriodToolArgs & { format: McpAnalysisFormat }>(
     "analyze_content_period",
     {
       title: "Analisar conteúdos por período",
       description:
-        "Use this when the user asks to analyze their content in a date window such as the last week, month, quarter, or year. Returns base and derived performance, attention, intent, conversion, complete classifications, entities, life assets, hooks, scenes, evidence levels, coverage, and recommendations in one call.",
+        "Use this when the user asks how many contents they published or wants performance and creative analysis for one explicit period. The authoritative cadence field is inventory.publishedCount. The result separates publication inventory, collection/AI coverage, hooks, subjects, scenes, objects, evidence, and recommendations.",
       inputSchema: z.object({
-        periodDays: z.number().int().min(7).max(365).default(30)
-          .describe("Janela móvel em dias; use 30 para último mês"),
+        ...PERIOD_INPUT_FIELDS,
         format: z.enum(["all", "reel", "carousel", "photo"]).default("all")
           .describe("Formato a analisar ou all para comparar todos"),
       }),
       outputSchema: PERIOD_ANALYSIS_OUTPUT_SCHEMA,
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ periodDays, format }) => {
+    async ({ periodPreset, periodDays, startsAt, endsAt, format }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
       if (!hasScope(context, "strategy:read")) return scopeRequiredResult("strategy:read");
       if (!context.entitlement.instagramConnected) return instagramRequiredResult();
-      const result = await analyzeMcpContentPeriod({
-        userId: context.identity.userId,
-        periodDays,
-        format,
-      });
-      return structuredJsonResult(result);
+      try {
+        const result = await analyzeMcpContentPeriod({
+          userId: context.identity.userId,
+          periodPreset,
+          periodDays,
+          startsAt,
+          endsAt,
+          format,
+        });
+        return structuredJsonResult(result);
+      } catch (error) {
+        const invalid = invalidPeriodResult(error);
+        if (invalid) return invalid;
+        throw error;
+      }
     },
   );
 
@@ -441,28 +551,44 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
-  registerTool<{
-    periodDays: number;
-  }>(
+  registerTool<PeriodToolArgs>(
     "get_data_coverage",
     {
       title: "Verificar cobertura dos dados",
       description:
-        "Use this when the user asks what Data2Content can currently analyze, whether data is fresh, or why an analysis is partial. Returns collection and AI-enrichment coverage without inventing missing signals.",
-      inputSchema: z.object({
-        periodDays: z.number().int().min(7).max(365).default(30),
-      }),
+        "Use this when the user asks what Data2Content can currently analyze, whether data is fresh, or why an analysis is partial. Coverage counts describe collection and enrichment, never publishing cadence; use analyze_content_period.inventory.publishedCount for cadence.",
+      inputSchema: PERIOD_INPUT_SCHEMA,
       outputSchema: z.object({
-        period: z.record(z.unknown()),
+        period: PERIOD_OUTPUT_SCHEMA,
         freshness: z.record(z.unknown()),
         coverage: z.record(z.unknown()),
+        inventory: INVENTORY_OUTPUT_SCHEMA,
+        analysisReceipt: ANALYSIS_RECEIPT_OUTPUT_SCHEMA,
+        responseContract: z.object({
+          safeSummary: z.string(),
+          authoritativePublicationCountPath: z.literal("inventory.publishedCount"),
+          rules: z.array(z.string()),
+        }),
       }).passthrough(),
       annotations: READ_ONLY_ANNOTATIONS,
     },
-    async ({ periodDays }) => {
+    async ({ periodPreset, periodDays, startsAt, endsAt }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
       if (!context.entitlement.instagramConnected) return instagramRequiredResult();
-      const analysis = await analyzeMcpContentPeriod({ userId: context.identity.userId, periodDays });
+      let analysis;
+      try {
+        analysis = await analyzeMcpContentPeriod({
+          userId: context.identity.userId,
+          periodPreset,
+          periodDays,
+          startsAt,
+          endsAt,
+        });
+      } catch (error) {
+        const invalid = invalidPeriodResult(error);
+        if (invalid) return invalid;
+        throw error;
+      }
       const intelligenceLayers = await getMcpIntelligenceLayerCoverage({
         userId: context.identity.userId,
         grantedScopes: context.identity.scopes,
@@ -471,6 +597,9 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         period: analysis.period,
         freshness: analysis.freshness,
         coverage: analysis.coverage,
+        inventory: analysis.inventory,
+        analysisReceipt: analysis.analysisReceipt,
+        responseContract: analysis.responseContract,
         intelligenceManifest: getPublicIntelligenceManifest(),
         intelligenceLayers,
       });

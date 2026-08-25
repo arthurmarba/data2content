@@ -1,4 +1,4 @@
-# MCP Data2Content — inteligência completa v0.3
+# MCP Data2Content — inteligência completa v0.4
 
 ## Objetivo
 
@@ -33,16 +33,40 @@ Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude
   - `get_creator_intelligence_profile`: mapa narrativo, confirmações e contribuição dos vídeos.
   - `get_video_diagnosis`: leitura multimodal completa, evidências e recomendação estratégica.
   - `get_audience_intelligence`: audiência agregada, demografia e crescimento.
-  - `get_creator_playbook`: padrões semanais e aprendizado de roteiros publicados.
+  - `get_creator_playbook`: padrões de uma semana fechada contra uma base histórica separada de 90 dias; não é fonte para contar um período solicitado.
   - `suggest_collab_creators`: creators assinantes e explicitamente disponíveis para collab.
   - `compare_content_formats`
-  - `analyze_content_period`: analisa uma janela móvel de 7 a 365 dias e compara com o período anterior equivalente.
+  - `analyze_content_period`: fonte autoritativa para contagem e análise de um período semântico ou customizado.
   - `get_content_detail`: retorna métricas, evolução, classificação completa, entidades, gancho, assunto e evidências visuais de um post.
   - `get_data_coverage`: informa cobertura, frescor, manifesto público e camadas restritas/ausentes.
 
 `search` e `fetch` seguem o contrato de company knowledge usado pelo ChatGPT. As consultas são sempre filtradas pelo usuário autenticado.
 
-`analyze_content_period` compara distribuição, atenção, intenção e conversão. A leitura diferencia exemplo (1 post), indicação (2), sinal (3–4) e padrão (5+), e só cria recomendações ligadas às evidências retornadas. Além de assunto, forma e intenção, a v0.3 entrega proposta, tom, referências, sinais de conteúdo, tipo de prova, modo comercial, entidades, assets de vida e cobertura das métricas derivadas/velocidade. Reels usam duração, watch time, retenção, primeira fala e título de abertura; fotos e carrosséis usam imagens e slides em ordem, inclusive o texto da primeira tela.
+`analyze_content_period` compara distribuição, atenção, intenção e conversão. A leitura diferencia exemplo (1 post), indicação (2), sinal (3–4) e padrão (5+), e só cria recomendações ligadas às evidências retornadas. Além de assunto, forma e intenção, a v0.4 entrega proposta, tom, referências, sinais de conteúdo, tipo de prova, modo comercial, entidades, assets de vida e cobertura das métricas derivadas/velocidade. Reels usam duração, watch time, retenção, primeira fala e título de abertura; fotos e carrosséis usam imagens e slides em ordem, inclusive o texto da primeira tela.
+
+### Contrato temporal e de contagem v0.4
+
+- `last_closed_week`: “última semana” e “semana passada”; segunda a domingo no fuso `America/Sao_Paulo`.
+- `rolling_7_days`: “últimos 7 dias”; sete períodos exatos de 24 horas.
+- `current_week`: “esta semana”; segunda-feira até o momento da análise.
+- `rolling_30_days`: “últimos 30 dias”.
+- `previous_calendar_month`: “mês passado”; mês civil anterior completo.
+- `custom`: `startsAt` e `endsAt` em `YYYY-MM-DD` ou ISO 8601.
+- `periodDays` continua aceito para clientes antigos e sai identificado como `legacy_rolling_days`.
+
+Somente `inventory.publishedCount` sustenta uma frase sobre frequência de publicação. `collectedCount`, `metricsEligibleCount`, `fullyAnalyzedCount`, `returnedSampleCount`, cobertura e suporte de padrões descrevem outros universos e nunca podem ser convertidos em cadência.
+
+Cada resultado inclui:
+
+- período com rótulo, significado, datas, fuso e natureza móvel/civil;
+- inventário conferível com cada publicação contada;
+- fato canônico de publicação;
+- resumo determinístico seguro;
+- cobertura separada da contagem;
+- `analysisReceipt` com status `complete`, `partial` ou `inconsistent`;
+- regras explícitas de interpretação para Claude e ChatGPT.
+
+O playbook renomeia `postsWeek`, `posts90d`, `nPosts` e `weeklyOccurrences` na saída pública para `publishedInClosedWeek`, `baselinePublishedCount`, `supportingPostsInBaseline` e `occurrencesInClosedWeek`.
 
 O arquivo `src/app/lib/mcp/intelligenceContract.ts` é a allowlist versionada das camadas e dos campos públicos. Dados brutos de provedores, URLs privadas de mídia, erros internos, e-mail, localização precisa, métricas privadas e evidências privadas de outros creators ficam deliberadamente fora do MCP.
 
@@ -147,6 +171,18 @@ Após configurar o ambiente:
 6. Pedir “analise meus conteúdos no último mês” e confirmar uma única chamada a `analyze_content_period`, seguida de `get_content_detail` apenas para aprofundar um post.
 7. Pedir “o que meus vídeos revelam sobre meu estilo?” e confirmar `get_creator_intelligence_profile` + `get_video_diagnosis`.
 8. Pedir “sugira creators para uma collab sobre IA” e verificar que somente candidatos opt-in aparecem, sem dados privados.
+
+### Casos obrigatórios de confiabilidade
+
+- “última semana” seleciona `last_closed_week` e cita as datas.
+- “últimos 7 dias” seleciona `rolling_7_days`.
+- “esta semana” seleciona `current_week`.
+- “mês passado” seleciona `previous_calendar_month`.
+- “últimos 30 dias” seleciona `rolling_30_days`.
+- Nenhuma resposta usa cobertura, amostra ou suporte de padrão como quantidade publicada.
+- Se `analysisReceipt.status=inconsistent`, a IA não afirma uma contagem sem explicar a divergência.
+
+Os logs guardam somente ferramenta, preset, datas, formato e os campos sanitizados do `analysisReceipt`. Legendas, buscas, argumentos arbitrários, resultados criativos, tokens e segredos não entram no log de auditoria.
 
 ## Referências oficiais
 

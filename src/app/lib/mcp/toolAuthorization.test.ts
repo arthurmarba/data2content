@@ -1,4 +1,10 @@
-import { mcpToolNamesForPayload, missingMcpScopes, requiredScopesForMcpPayload } from "./toolAuthorization";
+import {
+  mcpResultAuditForPayload,
+  mcpToolAuditForPayload,
+  mcpToolNamesForPayload,
+  missingMcpScopes,
+  requiredScopesForMcpPayload,
+} from "./toolAuthorization";
 
 describe("MCP tool authorization", () => {
   it("discovers the scopes required by a tool call", () => {
@@ -14,6 +20,45 @@ describe("MCP tool authorization", () => {
       { method: "tools/call", params: { name: "analyze_content_period", arguments: { secret: "não-logar" } } },
       { method: "tools/call", params: { name: "get_data_coverage" } },
     ])).toEqual(["analyze_content_period", "get_data_coverage"]);
+  });
+
+  it("logs only allowlisted period dimensions and drops arbitrary arguments", () => {
+    expect(mcpToolAuditForPayload({
+      method: "tools/call",
+      params: {
+        name: "analyze_content_period",
+        arguments: {
+          periodPreset: "last_closed_week",
+          format: "all",
+          secret: "não-logar",
+          query: "legenda privada",
+        },
+      },
+    })).toEqual([{ name: "analyze_content_period", periodPreset: "last_closed_week", format: "all" }]);
+  });
+
+  it("extracts only the sanitized analysis receipt from MCP results", () => {
+    expect(mcpResultAuditForPayload({
+      result: {
+        structuredContent: {
+          analysisReceipt: {
+            id: "receipt-1",
+            status: "complete",
+            periodPreset: "last_closed_week",
+            publishedCount: 3,
+            consistencyIssues: [],
+            privateCaption: "não-logar",
+          },
+          topContent: [{ description: "não-logar" }],
+        },
+      },
+    })).toEqual([{
+      id: "receipt-1",
+      status: "complete",
+      periodPreset: "last_closed_week",
+      publishedCount: 3,
+      consistencyIssues: [],
+    }]);
   });
 
   it("merges scope requirements for JSON-RPC batches", () => {
