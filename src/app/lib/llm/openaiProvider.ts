@@ -45,7 +45,9 @@ export const openaiProvider: LlmProvider = {
 
   async generate(params: LlmGenerateParams) {
     const intensity = params.intensity ?? "medium";
-    const model = params.model || resolveModel(intensity);
+    const model = params.model && !params.model.startsWith("gemini")
+      ? params.model
+      : resolveModel(intensity);
     const temperature = params.temperature ?? TEMPERATURE_BY_INTENSITY[intensity];
     const maxTokens = params.maxTokens ?? DEFAULT_MAX_TOKENS_BY_INTENSITY[intensity];
     const TAG = "[llm][openai]";

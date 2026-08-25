@@ -6,6 +6,11 @@ import { createD2CMcpServer } from "@/app/lib/mcp/server";
 import { getMcpUpgradeUrl } from "@/app/lib/mcp/config";
 import { logger } from "@/app/lib/logger";
 import { checkRateLimit } from "@/utils/rateLimit";
+import {
+  mcpToolNamesForPayload,
+  missingMcpScopes,
+  requiredScopesForMcpPayload,
+} from "@/app/lib/mcp/toolAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +22,7 @@ function noStoreHeaders() {
 async function handleMcpRequest(request: NextRequest): Promise<Response> {
   const requestId = crypto.randomUUID();
   const startedAt = Date.now();
+  let toolNames: string[] = [];
 
   try {
     const identity = await authenticateMcpRequest(request);
@@ -50,6 +56,21 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       );
     }
 
+    if (request.method === "POST") {
+      const payload = await request.clone().json().catch(() => null);
+      toolNames = mcpToolNamesForPayload(payload);
+      const requiredScopes = requiredScopesForMcpPayload(payload);
+      const missingScopes = missingMcpScopes(identity.scopes, requiredScopes);
+      if (missingScopes.length > 0) {
+        throw new McpAuthError(
+          "insufficient_scope",
+          403,
+          `Autorize ${missingScopes.join(", ")} para usar esta ferramenta.`,
+          [...identity.scopes, ...missingScopes],
+        );
+      }
+    }
+
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
@@ -64,6 +85,8 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       status: response.status,
       durationMs: Date.now() - startedAt,
       clientId: identity.clientId,
+      tools: toolNames,
+      scopes: identity.scopes,
     });
 
     response.headers.set("Cache-Control", "no-store");
@@ -84,6 +107,7 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
     logger.error("[mcp] Unhandled request error.", {
       requestId,
       durationMs: Date.now() - startedAt,
+      tools: toolNames,
       error: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json(

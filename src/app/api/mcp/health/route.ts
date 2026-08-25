@@ -13,7 +13,9 @@ export async function GET() {
     {
       ok: true,
       service: "data2content-mcp",
-      version: "0.1.0",
+      version: "0.2.0",
+      capabilities: ["period_analysis", "content_detail", "data_coverage", "oauth_step_up"],
+      classificationProvider: process.env.LLM_PROVIDER_CLASSIFICATION || "gemini",
       authConfigured: externalOAuthConfigured || selfHostedOAuthConfigured,
       oauthMode: selfHostedOAuthConfigured ? "self_hosted" : externalOAuthConfigured ? "external" : "unconfigured",
     },

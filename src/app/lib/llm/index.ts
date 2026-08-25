@@ -40,6 +40,7 @@ export interface LlmCallOptions {
  */
 const SCOPE_DEFAULT_PROVIDER: Record<string, LlmProviderName> = {
   MAPA: "gemini",
+  CLASSIFICATION: "gemini",
 };
 
 /** Resolve a ordem de tentativa [primário, fallback] a partir do env. */

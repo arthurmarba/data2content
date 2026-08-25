@@ -11,21 +11,13 @@ import { logger } from "@/app/lib/logger";
 import {
   buildDeferredClassificationErrorMessage,
   classifyAiFailureMessage,
-  type ClassificationAiFailureKind,
 } from "@/app/lib/classificationAiErrors";
 import {
-  buildClassificationOpenAiPayload,
   buildMetricClassificationUpdate,
   createEmptyMetricClassificationUpdate,
-  getEmptyClassificationResult,
-  normalizeClassificationResponse,
-  type ClassificationResult,
 } from "@/app/lib/classificationRuntime";
-import { getCachedClassification, setCachedClassification } from "@/app/lib/classificationCache";
+import { classifyContentWithAi } from "@/app/lib/classificationAiProvider";
 import mongoose from "mongoose";
-
-const OPENAI_CLASSIFICATION_MODEL =
-  process.env.OPENAI_CLASSIFIER_MODEL?.trim() || "gpt-4o-mini";
 
 export const runtime = "nodejs";
 
@@ -50,124 +42,10 @@ const receiver = new Receiver({
     nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
 });
 
-// --- Função de Classificação Otimizada com OpenAI ---
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-class ClassificationApiError extends Error {
-  kind: ClassificationAiFailureKind;
-  retryAfterMs?: number;
-
-  constructor(kind: ClassificationAiFailureKind, message: string, retryAfterMs?: number) {
-    super(message);
-    this.name = "ClassificationApiError";
-    this.kind = kind;
-    this.retryAfterMs = retryAfterMs;
-  }
-}
-
-function parseRetryAfterMs(retryAfterHeader: string | null): number | undefined {
-  if (!retryAfterHeader) return undefined;
-  const retryAfterSeconds = Number.parseFloat(retryAfterHeader);
-  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-    return retryAfterSeconds * 1000;
-  }
-  return undefined;
-}
-
-async function extractOpenAiError(response: Response): Promise<{
-  message: string;
-  kind: ClassificationAiFailureKind;
-  retryAfterMs?: number;
-}> {
-  const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
-
-  let rawMessage = `${response.status} ${response.statusText}`;
-  const contentType = response.headers.get("content-type") ?? "";
-
-  try {
-    if (contentType.includes("application/json")) {
-      const errorBody = await response.json();
-      rawMessage =
-        errorBody?.error?.message ||
-        errorBody?.message ||
-        JSON.stringify(errorBody);
-    } else {
-      const errorBody = await response.text();
-      if (errorBody.trim()) rawMessage = errorBody;
-    }
-  } catch (error) {
-    logger.warn("[classifyContent_Final_Optimized] Falha ao ler corpo de erro da OpenAI.", error);
-  }
-
-  return {
-    message: rawMessage,
-    kind: classifyAiFailureMessage(rawMessage),
-    retryAfterMs,
-  };
-}
-
-async function classifyContent(description: string): Promise<ClassificationResult> {
-    const TAG = '[classifyContent_Final_Optimized]';
-    if (!description || description.trim() === '') {
-        return getEmptyClassificationResult();
-    }
-
-    // Cache de descrições idênticas — poupa a chamada à OpenAI em reposts/legendas
-    // repetidas. Miss ou cache off cai no comportamento normal (degradação graciosa).
-    const cached = await getCachedClassification(description, OPENAI_CLASSIFICATION_MODEL);
-    if (cached) {
-        logger.info(`${TAG} Cache HIT — classificação reaproveitada sem chamar a OpenAI.`);
-        return cached;
-    }
-
-    const payload = buildClassificationOpenAiPayload(description, OPENAI_CLASSIFICATION_MODEL);
-    
-    const apiKey = process.env.OPENAI_API_KEY; 
-    if (!apiKey) throw new Error("A variável de ambiente OPENAI_API_KEY não está definida.");
-    
-    const apiUrl = 'https://api.openai.com/v1/chat/completions';
-
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        const openAiError = await extractOpenAiError(response);
-        if (openAiError.kind !== "other" || response.status === 429) {
-            throw new ClassificationApiError(
-                openAiError.kind === "other" ? "rate_limit" : openAiError.kind,
-                openAiError.message,
-                openAiError.retryAfterMs
-            );
-        }
-        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${openAiError.message}`);
-    }
-
-    const result = await response.json();
-    
-    if (result.choices?.[0]?.message?.content) {
-        const content = result.choices[0].message.content;
-        const parsedJson = JSON.parse(content);
-        const normalizedResult = normalizeClassificationResponse(parsedJson);
-        logger.info(`${TAG} Classificação recebida e normalizada: ${JSON.stringify(normalizedResult)}`);
-        // Memoiza para descrições idênticas futuras (não-bloqueante para o resultado).
-        await setCachedClassification(description, OPENAI_CLASSIFICATION_MODEL, normalizedResult);
-        return normalizedResult;
-    } else {
-        throw new Error("A resposta da OpenAI não continha os dados de classificação esperados.");
-    }
-}
-
-
 async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Adicionado tipo de retorno explícito
     const TAG = '[Worker Classify Content v5.0.1]';
 
     let metricId: string | undefined;
-    let lastRateLimitError: ClassificationApiError | null = null;
-
     try {
         const body = await request.json();
         metricId = body.metricId;
@@ -207,55 +85,28 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
             return NextResponse.json({ message: "Métrica sem descrição para classificar." }, { status: 200 });
         }
 
-        logger.debug(`${TAG} Chamando classifyContent para Metric ${metricId}...`);
-        
-        let retries = 3;
-        while (retries > 0) {
-            try {
-                const classification = await classifyContent(metricDoc.description);
-                logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
+        logger.debug(`${TAG} Chamando o classificador Gemini-first para Metric ${metricId}...`);
+        const aiResult = await classifyContentWithAi(metricDoc.description);
+        const updateData: Partial<IMetric> = {
+            ...buildMetricClassificationUpdate(metricDoc, aiResult.classification),
+            classificationStatus: 'completed',
+            classificationError: null,
+        };
 
-                const updateData: Partial<IMetric> = {
-                    ...buildMetricClassificationUpdate(metricDoc, classification),
-                    classificationStatus: 'completed',
-                    classificationError: null,
-                };
-
-                await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
-                logger.info(`${TAG} Metric ${metricId} atualizado com sucesso no DB com 5 dimensões (status: completed).`);
-                
-                return NextResponse.json({ message: "Classificação concluída e métrica atualizada." }, { status: 200 });
-
-            } catch (classError: any) {
-                if (classError instanceof ClassificationApiError && classError.kind === 'rate_limit') {
-                    lastRateLimitError = classError;
-                    const waitMatch = classError.message.match(/Please try again in ([\d.]+)s/i);
-                    const retryAfterSeconds = waitMatch?.[1];
-                    const waitTime =
-                        classError.retryAfterMs ??
-                        (retryAfterSeconds ? (parseFloat(retryAfterSeconds) + 0.5) * 1000 : 60000);
-                    logger.warn(`${TAG} Rate limit atingido para Metric ${metricId}. Aguardando ${waitTime / 1000} segundos para tentar novamente...`);
-                    await sleep(waitTime);
-                    retries--;
-                } else {
-                    throw classError; // Lança outros erros para o catch principal
-                }
-            }
-        }
-        
-        // CORREÇÃO: Se o loop terminar após todas as retentativas falharem, lança um erro.
-        // Isso garante que este caminho também seja tratado pelo bloco catch principal,
-        // cobrindo todos os caminhos de código e resolvendo o erro do TypeScript.
-        throw lastRateLimitError ?? new ClassificationApiError(
-            'rate_limit',
-            `Não foi possível classificar o post ${metricId} após múltiplas tentativas de rate limit.`
+        await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
+        logger.info(
+            `${TAG} Metric ${metricId} classificado. provider=${aiResult.provider} model=${aiResult.model}`,
         );
+        return NextResponse.json({
+            message: "Classificação concluída e métrica atualizada.",
+            provider: aiResult.provider,
+            model: aiResult.model,
+        }, { status: 200 });
 
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
         const finalMetricId = metricId || 'ID_DESCONHECIDO';
-        const failureKind =
-            error instanceof ClassificationApiError ? error.kind : classifyAiFailureMessage(errorMessage);
+        const failureKind = classifyAiFailureMessage(errorMessage);
         logger.error(`${TAG} Falha final ao processar Metric ${finalMetricId}: ${errorMessage}`, error);
         
         if (mongoose.isValidObjectId(finalMetricId)) {

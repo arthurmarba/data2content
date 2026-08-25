@@ -31,10 +31,18 @@ describe("MCP OAuth claims", () => {
     expect(() => resolveMcpUserIdFromClaims({ sub: "oauth-subject" })).toThrow(McpAuthError);
   });
 
-  it("advertises resource metadata and the baseline scope", () => {
+  it("advertises resource metadata and all read scopes on initial authorization", () => {
     const header = buildMcpWwwAuthenticateHeader(new McpAuthError("missing_token", 401, "missing"));
     expect(header).toContain('resource_metadata="');
-    expect(header).toContain('scope="profile:read"');
+    expect(header).toContain('scope="profile:read metrics:read strategy:read content:read"');
     expect(header).toContain('error="invalid_token"');
+  });
+
+  it("advertises a step-up scope set for insufficient permissions", () => {
+    const header = buildMcpWwwAuthenticateHeader(
+      new McpAuthError("insufficient_scope", 403, "missing", ["profile:read", "metrics:read"]),
+    );
+    expect(header).toContain('scope="profile:read metrics:read"');
+    expect(header).toContain('error="insufficient_scope"');
   });
 });

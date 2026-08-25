@@ -1,7 +1,7 @@
 /**
  * POST /api/worker/classify-published-scene
  *
- * Confere, contra o vídeo PUBLICADO, quais elementos do mapa daquele criador
+ * Confere, contra o post PUBLICADO, quais elementos do mapa daquele criador
  * apareceram — e grava os papéis canônicos em `Metric.sceneElements`.
  *
  * Recebe `{ metricId }` do QStash, no mesmo padrão de /api/worker/classify-content.
@@ -9,7 +9,7 @@
  * O caminho: Metric → mapa do criador (MapaSeed, resolvido pelo registro canônico) →
  * Graph API (`media_url` fresca) → Gemini com pergunta FECHADA → papéis canônicos.
  *
- * A pergunta é fechada de propósito: em vez de "classifique este vídeo", o prompt leva
+ * A pergunta é fechada de propósito: em vez de "classifique este post", o prompt leva
  * os 5–8 itens do mapa daquele criador, com o rótulo que ele mesmo escreveu, e pergunta
  * quais aparecem. Mais barato, mais preciso, e é o que faz o relatório MEDIR o mapa em
  * vez de medir a legenda. Ver src/app/lib/relatorio/sceneEvaluation.ts.
@@ -25,9 +25,10 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import MetricModel from "@/app/models/Metric";
 import UserModel from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
-import { loadMapProfiles } from "@/app/lib/relatorio/mapProfiles";
+import { loadMapProfiles, type MapProfile } from "@/app/lib/relatorio/mapProfiles";
 import {
   SCENE_EVALUATION_VERSION,
+  evaluateImagesAgainstMap,
   evaluateSceneAgainstMap,
   sceneElementsUpdate,
 } from "@/app/lib/relatorio/sceneEvaluation";
@@ -50,24 +51,39 @@ const GRAPH_VERSION = process.env.INSTAGRAM_API_VERSION || "v20.0";
 async function freshMedia(
   mediaId: string,
   token: string,
-): Promise<{ mediaType: string | null; mediaUrl: string | null }> {
-  const fields = encodeURIComponent("id,media_type,media_url");
+): Promise<{ mediaType: string | null; mediaUrl: string | null; imageUrls: string[] }> {
+  const fields = encodeURIComponent(
+    "id,media_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url}",
+  );
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}?fields=${fields}&access_token=${token}`;
   try {
     const response = await fetch(url);
-    if (!response.ok) return { mediaType: null, mediaUrl: null };
+    if (!response.ok) return { mediaType: null, mediaUrl: null, imageUrls: [] };
     const json = (await response.json()) as {
       media_type?: string;
       media_url?: string;
+      thumbnail_url?: string;
+      children?: { data?: Array<{ media_type?: string; media_url?: string; thumbnail_url?: string }> };
       error?: unknown;
     };
-    if (json.error) return { mediaType: null, mediaUrl: null };
+    if (json.error) return { mediaType: null, mediaUrl: null, imageUrls: [] };
+    const imageUrls = json.media_type === "CAROUSEL_ALBUM"
+      ? (json.children?.data ?? []).flatMap((child) => {
+          const url = child.media_type === "VIDEO"
+            ? child.thumbnail_url || null
+            : child.media_url || child.thumbnail_url || null;
+          return url ? [url] : [];
+        })
+      : json.media_type === "IMAGE"
+        ? [json.media_url || json.thumbnail_url].filter((value): value is string => Boolean(value))
+        : [];
     return {
       mediaType: typeof json.media_type === "string" ? json.media_type : null,
       mediaUrl: typeof json.media_url === "string" ? json.media_url : null,
+      imageUrls,
     };
   } catch {
-    return { mediaType: null, mediaUrl: null };
+    return { mediaType: null, mediaUrl: null, imageUrls: [] };
   }
 }
 
@@ -95,11 +111,20 @@ async function handle(metricId: string): Promise<NextResponse> {
 
   const creatorId = String(metric.user);
   const profiles = await loadMapProfiles([creatorId]);
-  const profile = profiles.get(creatorId);
-  if (!profile) {
-    // Sem mapa não há pergunta a fazer. Não é falha do worker — é falta de mapa.
-    logger.info(`${TAG} criador ${creatorId} sem mapa; nada a conferir.`);
-    return NextResponse.json({ message: "Criador sem mapa." });
+  const profile: MapProfile = profiles.get(creatorId) ?? {
+    creatorId,
+    territoryIds: [],
+    primaryTerritoryId: null,
+    narrative: null,
+    narrativeConfirmed: false,
+    assets: [],
+    toneIds: [],
+    subjects: [],
+    misplacedTerritoryLabels: [],
+    maturity: null,
+  };
+  if (!profiles.has(creatorId)) {
+    logger.info(`${TAG} criador ${creatorId} sem mapa; executando extração visual aberta.`);
   }
 
   const user = await UserModel.findById(metric.user).select("instagramAccessToken").lean<{
@@ -107,23 +132,27 @@ async function handle(metricId: string): Promise<NextResponse> {
   }>();
   const token = user?.instagramAccessToken;
   if (!token) {
-    logger.warn(`${TAG} criador ${creatorId} sem token — impossível baixar o vídeo.`);
+    logger.warn(`${TAG} criador ${creatorId} sem token — impossível baixar a mídia.`);
     return NextResponse.json({ message: "Criador sem token do Instagram." });
   }
 
   const media = await freshMedia(metric.instagramMediaId, token);
-  if (media.mediaType !== "VIDEO" || !media.mediaUrl) {
-    return NextResponse.json({ message: "Post não é vídeo — sem cena para ler." });
-  }
+  const outcome = media.mediaType === "VIDEO" && media.mediaUrl
+    ? await evaluateSceneAgainstMap({
+        mediaUrl: media.mediaUrl,
+        durationSeconds:
+          typeof metric.stats?.video_duration_seconds === "number"
+            ? metric.stats.video_duration_seconds
+            : null,
+        profile,
+      })
+    : ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.imageUrls.length
+      ? await evaluateImagesAgainstMap({ mediaUrls: media.imageUrls, profile })
+      : null;
 
-  const outcome = await evaluateSceneAgainstMap({
-    mediaUrl: media.mediaUrl,
-    durationSeconds:
-      typeof metric.stats?.video_duration_seconds === "number"
-        ? metric.stats.video_duration_seconds
-        : null,
-    profile,
-  });
+  if (!outcome) {
+    return NextResponse.json({ message: "Post sem mídia compatível para leitura visual." });
+  }
 
   if (!outcome.ok) {
     logger.warn(`${TAG} ${metricId}: ${outcome.reason}`);
@@ -142,7 +171,8 @@ async function handle(metricId: string): Promise<NextResponse> {
   logger.info(
     `${TAG} ${metricId}: ${outcome.result.assetRoleIds.join(", ") || "(nenhum asset)"} · ` +
       `tom ${outcome.result.toneIds.join(", ") || "—"} · ` +
-      `${outcome.result.placeId ?? "lugar?"} · ${outcome.result.subjects.join(" | ") || "sem tema"}` +
+      `${outcome.result.placeId ?? "lugar?"} · ${outcome.result.subjects.join(" | ") || "sem tema"} · ` +
+      `${media.mediaType ?? "mídia"}` +
       `${outcome.result.offMap ? " · FORA DO MAPA" : ""}`,
   );
 

@@ -57,6 +57,13 @@ const CRONS = [
     method: 'POST',
     body: '[INSTAGRAM_REFRESH] Atualizar dados e renovar tokens próximos do vencimento',
   },
+  {
+    id: 'content-intelligence-recovery',
+    destination: 'https://data2content.ai/api/cron/recover-content-intelligence',
+    cron: '20 */6 * * *',
+    method: 'POST',
+    body: '[CONTENT_INTELLIGENCE] Recuperar classificações e leituras de vídeo pendentes dos assinantes',
+  },
   // O mês grátis do d2cVIP é cupom, não trial — o Stripe não manda o aviso de
   // "seu teste está acabando". Sem este job a primeira cobrança chega em
   // silêncio, um mês depois da pessoa ter visto R$ 0,00 na tela. Diário porque

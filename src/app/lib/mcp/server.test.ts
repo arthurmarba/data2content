@@ -48,7 +48,7 @@ describe("Data2Content MCP server", () => {
     return { client, server };
   }
 
-  it("exposes the six read-only MVP tools", async () => {
+  it("exposes the read-only Data2Content tools", async () => {
     const { client, server } = await connect(true);
     try {
       const { tools } = await client.listTools();
@@ -59,8 +59,16 @@ describe("Data2Content MCP server", () => {
         "get_performance_summary",
         "list_top_content",
         "compare_content_formats",
+        "analyze_content_period",
+        "get_content_detail",
+        "get_data_coverage",
       ]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+      expect(
+        tools
+          .filter((tool) => ["analyze_content_period", "get_content_detail", "get_data_coverage"].includes(tool.name))
+          .every((tool) => tool.outputSchema != null),
+      ).toBe(true);
     } finally {
       await client.close();
       await server.close();

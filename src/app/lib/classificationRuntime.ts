@@ -820,12 +820,33 @@ Modo Comercial: ${buildCategoryDescriptions(commercialModeCategories)}`;
 // System prompt fixo = regras + catálogo. Prefixo idêntico em toda chamada → cacheável.
 const CLASSIFICATION_SYSTEM_PROMPT = `${CLASSIFICATION_RULES}\n\n${CLASSIFICATION_CATEGORY_BLOCK}`;
 
+export const CLASSIFICATION_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: Object.fromEntries(
+    Object.keys(EMPTY_CLASSIFICATION_RESULT).map((key) => [
+      key,
+      { type: "array", items: { type: "string" } },
+    ]),
+  ),
+  required: Object.keys(EMPTY_CLASSIFICATION_RESULT),
+} as const;
+
+export function buildClassificationLlmRequest(description: string) {
+  return {
+    system: CLASSIFICATION_SYSTEM_PROMPT,
+    prompt: `**Descrição:**\n"${description}"`,
+    jsonSchema: CLASSIFICATION_JSON_SCHEMA,
+  };
+}
+
 export function buildClassificationOpenAiPayload(description: string, model: string) {
+  const request = buildClassificationLlmRequest(description);
   return {
     model,
     messages: [
-      { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
-      { role: "user", content: `**Descrição:**\n"${description}"` },
+      { role: "system", content: request.system },
+      { role: "user", content: request.prompt },
     ],
     response_format: { type: "json_object" },
   };

@@ -13,6 +13,7 @@ import {
   getMcpOAuthJwksUrl,
   getMcpRequiredScope,
   getMcpResourceMetadataUrl,
+  getMcpSupportedScopes,
 } from "./config";
 
 export type McpAuthErrorCode =
@@ -26,6 +27,7 @@ export class McpAuthError extends Error {
     public readonly code: McpAuthErrorCode,
     public readonly status: number,
     message: string,
+    public readonly requiredScopes: string[] = [],
   ) {
     super(message);
     this.name = "McpAuthError";
@@ -199,9 +201,12 @@ export async function authenticateMcpRequest(request: Request): Promise<McpAuthe
 }
 
 export function buildMcpWwwAuthenticateHeader(error?: McpAuthError): string {
+  const scopes = error?.requiredScopes.length
+    ? [...new Set(error.requiredScopes)]
+    : getMcpSupportedScopes();
   const parts = [
     `Bearer resource_metadata="${getMcpResourceMetadataUrl()}"`,
-    `scope="${getMcpRequiredScope()}"`,
+    `scope="${scopes.join(" ")}"`,
   ];
   if (error && error.code !== "auth_not_configured") {
     parts.push(`error="${error.code === "missing_token" ? "invalid_token" : error.code}"`);

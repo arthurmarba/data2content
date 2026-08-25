@@ -13,7 +13,7 @@ Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude
 - Ferramentas de métricas exigem Instagram conectado e retornam o caminho de conexão quando necessário.
 - As ferramentas nunca recebem `userId`; o usuário vem exclusivamente do access token validado.
 
-## Entregue nesta etapa
+## Capacidades atuais
 
 - Endpoint MCP: `GET`, `POST` e `DELETE /api/mcp`.
 - Health check: `GET /api/mcp/health`.
@@ -24,15 +24,40 @@ Disponibilizar dados da conta Data2Content em clientes MCP como ChatGPT e Claude
 - Consentimento explícito ligado à sessão Data2Content.
 - Códigos de autorização de uso único e refresh tokens opacos com rotação e revogação.
 - Limite de 120 requisições por minuto por usuário quando Redis está disponível.
-- Seis ferramentas read-only:
+- Nove ferramentas read-only:
   - `search`
   - `fetch`
   - `get_creator_profile`
   - `get_performance_summary`
   - `list_top_content`
   - `compare_content_formats`
+  - `analyze_content_period`: analisa uma janela móvel de 7 a 365 dias e compara com o período anterior equivalente.
+  - `get_content_detail`: retorna métricas, classificação, gancho, assunto e evidências visuais de um post.
+  - `get_data_coverage`: informa cobertura e frescor para o cliente não inventar sinais ausentes.
 
 `search` e `fetch` seguem o contrato de company knowledge usado pelo ChatGPT. As consultas são sempre filtradas pelo usuário autenticado.
+
+`analyze_content_period` compara distribuição, atenção, intenção e conversão. A leitura diferencia exemplo (1 post), indicação (2), sinal (3–4) e padrão (5+), e só cria recomendações ligadas às evidências retornadas. Reels usam duração, watch time, retenção, primeira fala e título de abertura; fotos e carrosséis usam imagens e slides em ordem, inclusive o texto da primeira tela.
+
+## IA e recuperação dos dados
+
+- A classificação de legenda é Gemini-first (`gemini-2.5-flash-lite` por padrão).
+- Se o Gemini falhar e houver uma chave OpenAI válida, o núcleo pode usar OpenAI como fallback.
+- A leitura multimodal de Reel, foto e carrossel usa Gemini.
+- Um cron a cada seis horas reenfileira classificações adiadas, completa leituras multimodais e vincula diagnósticos pré-publicação ao resultado publicado.
+- O cron atende apenas assinantes ativos ou `non_renewing` ainda dentro do período pago, com Instagram conectado.
+- O request MCP não chama IA: ele lê inteligência materializada, reduzindo latência e custo.
+
+## Scopes e reautorização
+
+O desafio inicial `WWW-Authenticate` anuncia todos os scopes suportados. Se um cliente tiver autorizado apenas parte deles, uma chamada a tool protegida recebe HTTP 403 `insufficient_scope` com o scope necessário, permitindo OAuth step-up.
+
+- `profile:read`: perfil do creator.
+- `metrics:read`: métricas, ranking e cobertura.
+- `strategy:read`: análise e recomendações estratégicas.
+- `content:read`: posts, roteiros e detalhe do conteúdo.
+
+Conexões criadas antes da versão 0.2 podem ter somente `profile:read`. Nesse caso, remova e conecte novamente o Data2Content no Claude ou ChatGPT para aprovar o conjunto novo de permissões.
 
 ## Configuração
 
@@ -48,6 +73,16 @@ MCP_OAUTH_USER_ID_CLAIM=d2c_user_id
 MCP_OAUTH_ALLOWED_ALGORITHMS=ES256
 MCP_REQUIRED_SCOPE=profile:read
 MCP_SUPPORTED_SCOPES=profile:read,metrics:read,strategy:read,content:read
+```
+
+Pipeline de inteligência:
+
+```dotenv
+LLM_PROVIDER_CLASSIFICATION=gemini
+GEMINI_CLASSIFICATION_MODEL=gemini-2.5-flash-lite
+INTELLIGENCE_RECOVERY_CLASSIFICATION_LIMIT=100
+INTELLIGENCE_RECOVERY_SCENE_LIMIT=40
+INTELLIGENCE_RECOVERY_REQUEUE_HOURS=6
 ```
 
 Para o modo self-hosted, use `MCP_OAUTH_ISSUER=https://data2content.ai`. O authorization server emite um access token com o ID interno do usuário no claim configurado e os scopes aprovados. Nunca habilitar `MCP_DEV_AUTH_BYPASS` em Preview ou Production.
@@ -80,17 +115,16 @@ Copie a linha gerada para o gerenciador seguro de variáveis do ambiente. Não g
 
 Mesmo no bypass local, a regra de assinatura continua consultando o banco e bloqueando não assinantes.
 
-## Etapa necessária para produção
-
-O authorization server já está implementado. Ainda é necessário configurar a chave privada e as URLs canônicas no ambiente de produção, publicar e executar o fluxo real nos clientes.
+## Publicação e validação
 
 Após configurar o ambiente:
 
 1. Publicar a URL MCP com HTTPS.
 2. Confirmar os dois documentos `/.well-known` e o JWKS em produção.
-3. Cadastrar `https://data2content.ai/api/mcp` como conector no ChatGPT e no Claude usando DCR.
+3. Cadastrar `https://data2content.ai/api/mcp` como conector no ChatGPT e no Claude usando DCR, ou reconectar para atualizar scopes.
 4. Testar assinante com e sem Instagram.
 5. Testar não assinante, assinatura expirada, revogação e isolamento entre contas.
+6. Pedir “analise meus conteúdos no último mês” e confirmar uma única chamada a `analyze_content_period`, seguida de `get_content_detail` apenas para aprofundar um post.
 
 ## Referências oficiais
 

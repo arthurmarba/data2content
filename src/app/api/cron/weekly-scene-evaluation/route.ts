@@ -1,7 +1,7 @@
 /**
  * POST /api/cron/weekly-scene-evaluation
  *
- * Enfileira, no worker de cena, os vídeos da última semana fechada que ainda não foram
+ * Enfileira, no worker multimodal, os posts da última semana fechada que ainda não foram
  * conferidos contra o mapa do criador.
  *
  * Agendado para segunda 00h BRT — depois de a semana encerrar e ANTES do
@@ -12,11 +12,10 @@
  * POR QUE SÓ A SEMANA, e não um backfill de 90 dias: o corte de elegibilidade olha a
  * janela de 90 dias, e a janela INCLUI a semana corrente. Um território com ~46 posts
  * na semana produz dezenas de ocorrências do papel dominante já na primeira execução —
- * o ranking popula sem pagar pelo trimestre. Medido na base: ~94 vídeos classificáveis
- * por semana ≈ US$ 0,47.
+ * o ranking popula sem pagar pelo trimestre. O teto por execução controla o custo.
  *
- * Fan-out via QStash, no mesmo padrão de refresh-instagram-data: uma tarefa por vídeo,
- * para que um vídeo grande (que sobe pela Files API e demora) não estoure o timeout do
+ * Fan-out via QStash, no mesmo padrão de refresh-instagram-data: uma tarefa por post,
+ * para que um Reel grande (que sobe pela Files API e demora) não estoure o timeout do
  * lote inteiro.
  */
 
@@ -51,7 +50,7 @@ const workerUrl = `${
   process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
 }/api/worker/classify-published-scene`;
 
-/** Teto de vídeos por execução — teto de custo, não de capacidade. */
+/** Teto de posts por execução — teto de custo, não de capacidade. */
 const MAX_PER_RUN = Number(process.env.RELATORIO_CENA_MAX_POR_SEMANA ?? 200);
 
 export async function POST(request: NextRequest) {
@@ -96,7 +95,7 @@ export async function POST(request: NextRequest) {
         postDate: { $gte: week.startsAt, $lte: week.endsAt },
         classificationStatus: "completed",
         instagramMediaId: { $nin: [null, ""] },
-        "stats.video_duration_seconds": { $gt: 0 },
+        type: { $in: ["REEL", "VIDEO", "IMAGE", "CAROUSEL_ALBUM"] },
         user: { $in: withToken.map((u) => u._id) },
         $or: [
           { sceneElements: { $exists: false } },
@@ -124,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info(
-      `${TAG} semana ${week.weekKey}: ${queued} vídeos enfileirados ` +
+      `${TAG} semana ${week.weekKey}: ${queued} posts enfileirados ` +
         `(≈ US$ ${(queued * 0.005).toFixed(2)}).`,
     );
 

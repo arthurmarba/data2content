@@ -60,6 +60,8 @@ export const MAX_INLINE_VIDEO_BYTES = GEMINI_INLINE_VIDEO_BYTES_LIMIT;
 /** Teto absoluto: acima disso nem pela Files API vale a pena — não é reel. */
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 export const MAX_VIDEO_SECONDS = 180;
+export const MAX_VISUAL_IMAGE_BYTES = 6 * 1024 * 1024;
+export const MAX_VISUAL_ITEMS = 10;
 /**
  * Versão do contrato de avaliação. É a chave de idempotência: o worker pula qualquer
  * post que já tenha esta versão gravada.
@@ -415,23 +417,89 @@ export type EvaluateSceneOutcome =
 
 const DEFAULT_MODEL = process.env.GEMINI_CENA_MODEL || "gemini-2.5-flash";
 
+export interface EvaluateImagesParams {
+  mediaUrls: string[];
+  profile: MapProfile;
+  apiKey?: string;
+  model?: string;
+  fetchImpl?: typeof fetch;
+}
+
+/**
+ * Lê foto e carrossel com o mesmo vocabulário canônico usado nos Reels. A ordem dos
+ * parts é a ordem dos slides, portanto `titulo` representa o gancho da primeira tela.
+ */
+export async function evaluateImagesAgainstMap(
+  params: EvaluateImagesParams,
+): Promise<EvaluateSceneOutcome> {
+  const { profile } = params;
+  const apiKey = (params.apiKey ?? process.env.GEMINI_API_KEY ?? "").trim();
+  if (!apiKey) return { ok: false, reason: "GEMINI_API_KEY ausente.", retryable: false };
+
+  const urls = params.mediaUrls.filter(Boolean).slice(0, MAX_VISUAL_ITEMS);
+  if (!urls.length) return { ok: false, reason: "Foto/carrossel sem mídia utilizável.", retryable: false };
+  const doFetch = params.fetchImpl ?? fetch;
+  const imageParts = [];
+  let transientDownloads = 0;
+  for (const url of urls) {
+    try {
+      const response = await doFetch(url);
+      if (!response.ok) {
+        if (response.status === 403 || response.status >= 500) transientDownloads += 1;
+        continue;
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (!bytes.byteLength || bytes.byteLength > MAX_VISUAL_IMAGE_BYTES) continue;
+      const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
+      const mimeType = contentType.startsWith("image/") ? contentType : "image/jpeg";
+      imageParts.push(createPartFromBase64(bytes.toString("base64"), mimeType));
+    } catch {
+      transientDownloads += 1;
+    }
+  }
+  if (!imageParts.length) {
+    return {
+      ok: false,
+      reason: "Não foi possível baixar nenhuma imagem do post.",
+      retryable: transientDownloads > 0,
+    };
+  }
+
+  const model = params.model ?? DEFAULT_MODEL;
+  const prompt = buildPrompt(profile);
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const mediaInstruction = [
+      `Você recebeu ${imageParts.length === 1 ? "uma foto" : `${imageParts.length} slides em ordem`}.`,
+      "Para foto/carrossel, leia também o texto escrito nos slides.",
+      "Em titulo, copie o principal texto do PRIMEIRO slide; em fala, use vazio porque não há áudio.",
+      "Em falas, você pode copiar até 3 trechos escritos que carreguem a ideia do post.",
+    ].join(" ");
+    const response = await ai.models.generateContent({
+      model,
+      contents: createUserContent([prompt.user, mediaInstruction, prompt.format, ...imageParts]),
+      config: {
+        systemInstruction: prompt.system,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json",
+        temperature: 0,
+      },
+    });
+    logGeminiUsage("cena", model, response);
+    const parsed = parseSceneEvaluation(response.text, profile);
+    if (!parsed) return { ok: false, reason: "Resposta ilegível.", retryable: false };
+    return { ok: true, result: { ...parsed, openingLine: null, provider: model } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "erro desconhecido";
+    logger.warn(`${TAG} falha na leitura de foto/carrossel: ${message}`);
+    return { ok: false, reason: message, retryable: /429|rate|quota|503|timeout|ECONN/i.test(message) };
+  }
+}
+
 export async function evaluateSceneAgainstMap(
   params: EvaluateSceneParams,
 ): Promise<EvaluateSceneOutcome> {
   const { profile } = params;
-
-  // Sem mapa não há pergunta a fazer — e é melhor não gastar chamada.
-  if (
-    profile.assets.length === 0 &&
-    profile.toneIds.length === 0 &&
-    profile.subjects.length === 0
-  ) {
-    return {
-      ok: false,
-      reason: "Criador sem asset, tom nem assunto no mapa — nada a conferir.",
-      retryable: false,
-    };
-  }
 
   const apiKey = (params.apiKey ?? process.env.GEMINI_API_KEY ?? "").trim();
   if (!apiKey) return { ok: false, reason: "GEMINI_API_KEY ausente.", retryable: false };

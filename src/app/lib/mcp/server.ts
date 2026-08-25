@@ -11,6 +11,11 @@ import {
   searchMcpKnowledge,
 } from "./catalog";
 import { getInstagramConnectUrl } from "./config";
+import {
+  analyzeMcpContentPeriod,
+  getMcpContentDetail,
+  type McpAnalysisFormat,
+} from "./contentIntelligence";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -28,6 +33,7 @@ type D2CToolConfig = {
   title: string;
   description: string;
   inputSchema?: z.ZodTypeAny;
+  outputSchema?: z.ZodTypeAny;
   annotations: ToolAnnotations;
 };
 
@@ -40,6 +46,24 @@ type D2CRegisterTool = <TArgs = undefined>(
 function jsonText(value: unknown) {
   return [{ type: "text" as const, text: JSON.stringify(value) }];
 }
+
+function structuredJsonResult(value: Record<string, unknown>) {
+  return { content: jsonText(value), structuredContent: value };
+}
+
+const PERIOD_ANALYSIS_OUTPUT_SCHEMA = z.object({
+  schemaVersion: z.string(),
+  period: z.record(z.unknown()),
+  freshness: z.record(z.unknown()),
+  coverage: z.record(z.unknown()),
+  pillars: z.record(z.unknown()),
+  deltas: z.record(z.unknown()),
+  formatPerformance: z.array(z.record(z.unknown())),
+  topContent: z.array(z.record(z.unknown())),
+  signals: z.record(z.unknown()),
+  recommendations: z.array(z.record(z.unknown())),
+  interpretationRules: z.record(z.string()),
+}).passthrough();
 
 function instagramRequiredResult() {
   return {
@@ -72,7 +96,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.1.0",
+      version: "0.2.0",
       websiteUrl: "https://data2content.ai",
       description: "Dados e inteligência estratégica do creator assinante da Data2Content.",
     },
@@ -229,6 +253,91 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         formats: summary.formatPerformance,
       };
       return { content: jsonText(result) };
+    },
+  );
+
+  registerTool<{
+    periodDays: number;
+    format: McpAnalysisFormat;
+  }>(
+    "analyze_content_period",
+    {
+      title: "Analisar conteúdos por período",
+      description:
+        "Use this when the user asks to analyze their content in a date window such as the last week, month, quarter, or year. Returns performance, attention, intent, conversion, formats, topics, hooks, scenes, evidence levels, coverage, and recommendations in one call.",
+      inputSchema: z.object({
+        periodDays: z.number().int().min(7).max(365).default(30)
+          .describe("Janela móvel em dias; use 30 para último mês"),
+        format: z.enum(["all", "reel", "carousel", "photo"]).default("all")
+          .describe("Formato a analisar ou all para comparar todos"),
+      }),
+      outputSchema: PERIOD_ANALYSIS_OUTPUT_SCHEMA,
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ periodDays, format }) => {
+      if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
+      if (!hasScope(context, "strategy:read")) return scopeRequiredResult("strategy:read");
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await analyzeMcpContentPeriod({
+        userId: context.identity.userId,
+        periodDays,
+        format,
+      });
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    contentId: string;
+  }>(
+    "get_content_detail",
+    {
+      title: "Consultar inteligência de um conteúdo",
+      description:
+        "Use this after analyze_content_period or list_top_content when the user wants the metrics, classification, hook, subjects, quotes, scene, framing, tone, cast, objects, and visual evidence for one of their posts.",
+      inputSchema: z.object({
+        contentId: z.string().regex(/^[a-f0-9]{24}$/i).describe("ID do conteúdo retornado por outra ferramenta"),
+      }),
+      outputSchema: z.object({ id: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ contentId }) => {
+      if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
+      if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await getMcpContentDetail(context.identity.userId, contentId);
+      if (!result) return { isError: true, content: jsonText({ error: "content_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    periodDays: number;
+  }>(
+    "get_data_coverage",
+    {
+      title: "Verificar cobertura dos dados",
+      description:
+        "Use this when the user asks what Data2Content can currently analyze, whether data is fresh, or why an analysis is partial. Returns collection and AI-enrichment coverage without inventing missing signals.",
+      inputSchema: z.object({
+        periodDays: z.number().int().min(7).max(365).default(30),
+      }),
+      outputSchema: z.object({
+        period: z.record(z.unknown()),
+        freshness: z.record(z.unknown()),
+        coverage: z.record(z.unknown()),
+      }),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ periodDays }) => {
+      if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const analysis = await analyzeMcpContentPeriod({ userId: context.identity.userId, periodDays });
+      return structuredJsonResult({
+        period: analysis.period,
+        freshness: analysis.freshness,
+        coverage: analysis.coverage,
+      });
     },
   );
 

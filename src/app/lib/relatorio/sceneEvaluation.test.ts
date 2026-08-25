@@ -1,10 +1,18 @@
 import {
   MAX_INLINE_VIDEO_BYTES,
   SCENE_EVALUATION_VERSION,
+  evaluateImagesAgainstMap,
   evaluateSceneAgainstMap,
   parseSceneEvaluation,
 } from "./sceneEvaluation";
 import type { MapProfile } from "./mapProfiles";
+
+jest.mock("@google/genai", () => ({
+  GoogleGenAI: jest.fn(),
+  createUserContent: jest.fn((parts) => ({ role: "user", parts })),
+  createPartFromBase64: jest.fn((data, mimeType) => ({ inlineData: { data, mimeType } })),
+  createPartFromUri: jest.fn((uri, mimeType) => ({ fileData: { fileUri: uri, mimeType } })),
+}));
 
 /** Mapa real de um criador de Maternidade, do jeito que o card guarda. */
 const profile: MapProfile = {
@@ -84,8 +92,37 @@ describe("parseSceneEvaluation — códigos do mapa viram PAPÉIS", () => {
   });
 });
 
+describe("evaluateImagesAgainstMap", () => {
+  it("sem chave não baixa a foto nem faz chamada", async () => {
+    const fetchImpl = jest.fn();
+    const outcome = await evaluateImagesAgainstMap({
+      mediaUrls: ["https://exemplo/foto.jpg"],
+      profile,
+      apiKey: "",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(outcome).toMatchObject({ ok: false, retryable: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("falha temporária em todos os slides pode ser reenfileirada", async () => {
+    const outcome = await evaluateImagesAgainstMap({
+      mediaUrls: ["https://exemplo/slide-1.jpg", "https://exemplo/slide-2.jpg"],
+      profile,
+      apiKey: "chave",
+      fetchImpl: jest.fn().mockResolvedValue({ ok: false, status: 403 }) as unknown as typeof fetch,
+    });
+    expect(outcome).toMatchObject({ ok: false, retryable: true });
+  });
+
+  it("recusa post sem URL antes de chamar o provider", async () => {
+    const outcome = await evaluateImagesAgainstMap({ mediaUrls: [], profile, apiKey: "chave" });
+    expect(outcome).toMatchObject({ ok: false, retryable: false });
+  });
+});
+
 describe("evaluateSceneAgainstMap", () => {
-  it("não gasta chamada quando o criador não tem asset nem tom no mapa", async () => {
+  it("sem chave não gasta chamada mesmo quando o criador ainda não tem mapa", async () => {
     const fetchImpl = jest.fn();
     const outcome = await evaluateSceneAgainstMap({
       mediaUrl: "https://exemplo/v.mp4",

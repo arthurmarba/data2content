@@ -1,0 +1,534 @@
+import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import MetricModel from "@/app/models/Metric";
+import { getCategoryByValue } from "@/app/lib/classification";
+import {
+  canonicalAestheticById,
+  canonicalAssetRoleById,
+  canonicalFramingById,
+  canonicalPlaceById,
+  canonicalToneById,
+} from "@/app/lib/relatorio/mapRegistry";
+
+export type McpAnalysisFormat = "all" | "reel" | "carousel" | "photo";
+
+type MetricLike = Record<string, any> & {
+  _id?: unknown;
+  postDate?: Date | string | null;
+  type?: string | null;
+  format?: string[] | string | null;
+  stats?: Record<string, unknown> | null;
+  sceneElements?: Record<string, any> | null;
+};
+
+type NumericKey =
+  | "reach"
+  | "views"
+  | "interactions"
+  | "saved"
+  | "shares"
+  | "comments"
+  | "likes"
+  | "watchTimeSeconds"
+  | "durationSeconds"
+  | "retentionRate"
+  | "profileVisits"
+  | "follows";
+
+type NormalizedPost = {
+  raw: MetricLike;
+  id: string;
+  postDate: Date;
+  format: Exclude<McpAnalysisFormat, "all"> | "video" | "unknown";
+  metrics: Record<NumericKey, number | null>;
+  mature: boolean;
+  performanceIndex: number | null;
+};
+
+const DAY_MS = 86_400_000;
+const MATURITY_MS = 48 * 60 * 60 * 1000;
+
+function finite(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function toDate(value: unknown): Date | null {
+  const date = value instanceof Date ? value : typeof value === "string" ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime()) ? date : null;
+}
+
+function stringList(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  return [...new Set(values
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean))];
+}
+
+function normalizeFormat(metric: MetricLike): NormalizedPost["format"] {
+  const values = [...stringList(metric.format), String(metric.type ?? "")].join(" ").toLowerCase();
+  if (/reel/.test(values)) return "reel";
+  if (/carousel|carrossel/.test(values)) return "carousel";
+  if (/photo|image|foto/.test(values)) return "photo";
+  if (/video|vídeo/.test(values)) return "video";
+  return "unknown";
+}
+
+function readMetrics(metric: MetricLike): NormalizedPost["metrics"] {
+  const stats = metric.stats ?? {};
+  const watchTimeSeconds = finite(stats.average_video_watch_time_seconds)
+    ?? finite(stats.avg_watch_time_seconds)
+    ?? (() => {
+      const milliseconds = finite(stats.ig_reels_avg_watch_time);
+      return milliseconds == null ? null : milliseconds / 1000;
+    })();
+  const durationSeconds = finite(stats.video_duration_seconds);
+  const reach = finite(stats.reach) ?? finite(stats.accounts_reached) ?? finite(stats.impressions);
+  const interactions = finite(stats.total_interactions) ?? finite(stats.engagement) ?? (() => {
+    const values = [stats.likes, stats.comments, stats.shares, stats.saved ?? stats.saves]
+      .map(finite)
+      .filter((value): value is number => value != null);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+  })();
+  return {
+    reach,
+    views: finite(stats.views) ?? finite(stats.video_views) ?? finite(stats.plays),
+    interactions,
+    saved: finite(stats.saved) ?? finite(stats.saves),
+    shares: finite(stats.shares),
+    comments: finite(stats.comments),
+    likes: finite(stats.likes),
+    watchTimeSeconds,
+    durationSeconds,
+    retentionRate: finite(stats.retention_rate)
+      ?? (watchTimeSeconds != null && durationSeconds ? watchTimeSeconds / durationSeconds : null),
+    profileVisits: finite(stats.profile_visits),
+    follows: finite(stats.follows),
+  };
+}
+
+function avg(values: Array<number | null>): number | null {
+  const usable = values.filter((value): value is number => value != null);
+  return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : null;
+}
+
+function median(values: Array<number | null>): number | null {
+  const usable = values.filter((value): value is number => value != null).sort((a, b) => a - b);
+  if (!usable.length) return null;
+  const middle = Math.floor(usable.length / 2);
+  return usable.length % 2 ? usable[middle]! : (usable[middle - 1]! + usable[middle]!) / 2;
+}
+
+function round(value: number | null, digits = 2): number | null {
+  if (value == null) return null;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function delta(current: number | null, previous: number | null): number | null {
+  return current != null && previous != null && previous > 0 ? round((current - previous) / previous) : null;
+}
+
+function evidenceLevel(count: number): "example" | "indication" | "signal" | "pattern" {
+  if (count >= 5) return "pattern";
+  if (count >= 3) return "signal";
+  if (count === 2) return "indication";
+  return "example";
+}
+
+function humanize(value: string): string {
+  return value.replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function contextLabel(value: string): string {
+  return getCategoryByValue(value, "context")?.label ?? humanize(value);
+}
+
+function metricRatios(post: NormalizedPost, baseline: Record<string, number | null>) {
+  const intent = post.metrics.reach && post.metrics.reach > 0
+    ? ((post.metrics.saved ?? 0) + (post.metrics.shares ?? 0)) / post.metrics.reach
+    : null;
+  const engagement = post.metrics.reach && post.metrics.reach > 0 && post.metrics.interactions != null
+    ? post.metrics.interactions / post.metrics.reach
+    : null;
+  const components = [
+    { value: post.metrics.reach, baseline: baseline.reach, weight: 0.35 },
+    { value: post.metrics.retentionRate, baseline: baseline.retentionRate, weight: 0.25 },
+    { value: intent, baseline: baseline.intentRate, weight: 0.25 },
+    { value: engagement, baseline: baseline.engagementRate, weight: 0.15 },
+  ].filter((item) => item.value != null && item.baseline != null && item.baseline > 0);
+  if (!components.length) return null;
+  const totalWeight = components.reduce((sum, item) => sum + item.weight, 0);
+  return round(components.reduce((sum, item) => {
+    const ratio = Math.min(3, Math.max(0, item.value! / item.baseline!));
+    return sum + ratio * item.weight;
+  }, 0) / totalWeight);
+}
+
+function baselineFor(posts: NormalizedPost[]) {
+  const intentRates = posts.map((post) => post.metrics.reach && post.metrics.reach > 0
+    ? ((post.metrics.saved ?? 0) + (post.metrics.shares ?? 0)) / post.metrics.reach
+    : null);
+  const engagementRates = posts.map((post) => post.metrics.reach && post.metrics.reach > 0 && post.metrics.interactions != null
+    ? post.metrics.interactions / post.metrics.reach
+    : null);
+  return {
+    reach: median(posts.map((post) => post.metrics.reach)),
+    retentionRate: median(posts.map((post) => post.metrics.retentionRate)),
+    intentRate: median(intentRates),
+    engagementRate: median(engagementRates),
+  };
+}
+
+function normalizePosts(metrics: MetricLike[], now: Date): NormalizedPost[] {
+  const posts: NormalizedPost[] = metrics.flatMap((raw): NormalizedPost[] => {
+    const postDate = toDate(raw.postDate);
+    if (!postDate) return [];
+    return [{
+      raw,
+      id: String(raw._id ?? raw.instagramMediaId ?? ""),
+      postDate,
+      format: normalizeFormat(raw),
+      metrics: readMetrics(raw),
+      mature: now.getTime() - postDate.getTime() >= MATURITY_MS,
+      performanceIndex: null,
+    }];
+  });
+  const mature = posts.filter((post) => post.mature);
+  const baseline = baselineFor(mature.length ? mature : posts);
+  for (const post of posts) post.performanceIndex = metricRatios(post, baseline);
+  return posts;
+}
+
+function filterFormat(posts: NormalizedPost[], format: McpAnalysisFormat): NormalizedPost[] {
+  return format === "all" ? posts : posts.filter((post) => post.format === format);
+}
+
+function summarizePillars(posts: NormalizedPost[]) {
+  const intentRates = posts.map((post) => post.metrics.reach && post.metrics.reach > 0
+    ? ((post.metrics.saved ?? 0) + (post.metrics.shares ?? 0)) / post.metrics.reach
+    : null);
+  return {
+    distribution: {
+      avgReach: round(avg(posts.map((post) => post.metrics.reach))),
+      avgViews: round(avg(posts.map((post) => post.metrics.views))),
+    },
+    attention: {
+      avgWatchTimeSeconds: round(avg(posts.map((post) => post.metrics.watchTimeSeconds))),
+      avgRetentionRate: round(avg(posts.map((post) => post.metrics.retentionRate)), 4),
+    },
+    intent: {
+      avgSaves: round(avg(posts.map((post) => post.metrics.saved))),
+      avgShares: round(avg(posts.map((post) => post.metrics.shares))),
+      avgIntentRate: round(avg(intentRates), 4),
+    },
+    conversion: {
+      avgProfileVisits: round(avg(posts.map((post) => post.metrics.profileVisits))),
+      avgFollows: round(avg(posts.map((post) => post.metrics.follows))),
+    },
+  };
+}
+
+function pillarDeltas(current: ReturnType<typeof summarizePillars>, previous: ReturnType<typeof summarizePillars>) {
+  return {
+    avgReach: delta(current.distribution.avgReach, previous.distribution.avgReach),
+    avgViews: delta(current.distribution.avgViews, previous.distribution.avgViews),
+    avgRetentionRate: delta(current.attention.avgRetentionRate, previous.attention.avgRetentionRate),
+    avgIntentRate: delta(current.intent.avgIntentRate, previous.intent.avgIntentRate),
+    avgProfileVisits: delta(current.conversion.avgProfileVisits, previous.conversion.avgProfileVisits),
+    avgFollows: delta(current.conversion.avgFollows, previous.conversion.avgFollows),
+  };
+}
+
+function rankedSignals(
+  posts: NormalizedPost[],
+  values: (post: NormalizedPost) => Array<{ id: string; label: string }>,
+  limit = 5,
+) {
+  const groups = new Map<string, { label: string; posts: Set<string>; scores: number[] }>();
+  for (const post of posts) {
+    for (const value of values(post)) {
+      if (!value.id || !value.label) continue;
+      const group = groups.get(value.id) ?? { label: value.label, posts: new Set<string>(), scores: [] };
+      group.posts.add(post.id);
+      if (post.performanceIndex != null) group.scores.push(post.performanceIndex);
+      groups.set(value.id, group);
+    }
+  }
+  return [...groups.entries()].map(([id, group]) => ({
+    id,
+    label: group.label,
+    postsCount: group.posts.size,
+    avgPerformanceIndex: round(avg(group.scores)),
+    evidenceLevel: evidenceLevel(group.posts.size),
+  })).sort((a, b) => (b.avgPerformanceIndex ?? -1) - (a.avgPerformanceIndex ?? -1)
+    || b.postsCount - a.postsCount).slice(0, limit);
+}
+
+function formatPerformance(posts: NormalizedPost[]) {
+  const formats = ["reel", "carousel", "photo", "video", "unknown"] as const;
+  return formats.flatMap((format) => {
+    const matching = posts.filter((post) => post.format === format);
+    if (!matching.length) return [];
+    const pillars = summarizePillars(matching);
+    return [{
+      format,
+      postsCount: matching.length,
+      avgPerformanceIndex: round(avg(matching.map((post) => post.performanceIndex))),
+      avgReach: pillars.distribution.avgReach,
+      avgViews: pillars.distribution.avgViews,
+      avgRetentionRate: pillars.attention.avgRetentionRate,
+      avgIntentRate: pillars.intent.avgIntentRate,
+      evidenceLevel: evidenceLevel(matching.length),
+    }];
+  }).sort((a, b) => (b.avgPerformanceIndex ?? -1) - (a.avgPerformanceIndex ?? -1));
+}
+
+function topContent(posts: NormalizedPost[], limit = 5) {
+  return [...posts].sort((a, b) => (b.performanceIndex ?? -1) - (a.performanceIndex ?? -1))
+    .slice(0, limit).map((post) => ({
+      id: post.id,
+      instagramMediaId: post.raw.instagramMediaId ?? null,
+      publishedAt: post.postDate.toISOString(),
+      format: post.format,
+      description: typeof post.raw.description === "string" ? post.raw.description.slice(0, 320) : "",
+      url: typeof post.raw.postLink === "string" ? post.raw.postLink : null,
+      performanceIndex: post.performanceIndex,
+      mature: post.mature,
+      metrics: post.metrics,
+      intelligence: {
+        subjects: stringList(post.raw.sceneElements?.subjects),
+        openingLine: post.raw.sceneElements?.openingLine ?? null,
+        screenTitle: post.raw.sceneElements?.screenTitle ?? null,
+        narrativeForms: stringList(post.raw.narrativeForm).map(humanize),
+        contentIntents: stringList(post.raw.contentIntent).map(humanize),
+      },
+    }));
+}
+
+function coverage(posts: NormalizedPost[]) {
+  const count = (read: (post: NormalizedPost) => unknown) => posts.filter((post) => {
+    const value = read(post);
+    return Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined && value !== "";
+  }).length;
+  const visualEligiblePosts = posts.filter((post) =>
+    ["reel", "video", "carousel", "photo"].includes(post.format),
+  );
+  const classification = count((post) => post.raw.classificationStatus === "completed" ? true : null);
+  const sceneEligible = visualEligiblePosts.length;
+  const withScene = visualEligiblePosts.filter((post) => Boolean(post.raw.sceneElements?.version)).length;
+  return {
+    posts: posts.length,
+    maturePosts: posts.filter((post) => post.mature).length,
+    byFormat: posts.reduce<Record<string, number>>((acc, post) => {
+      acc[post.format] = (acc[post.format] ?? 0) + 1;
+      return acc;
+    }, {}),
+    basicMetrics: count((post) => post.metrics.reach),
+    classification,
+    classificationPercent: posts.length ? Math.round(classification / posts.length * 100) : 0,
+    sceneEligible,
+    sceneRead: withScene,
+    scenePercent: sceneEligible ? Math.round(withScene / sceneEligible * 100) : 0,
+    visualEligible: sceneEligible,
+    visualRead: withScene,
+    visualPercent: sceneEligible ? Math.round(withScene / sceneEligible * 100) : 0,
+    openings: count((post) => post.raw.sceneElements?.openingLine ?? post.raw.sceneElements?.screenTitle),
+    subjects: count((post) => post.raw.sceneElements?.subjects),
+    watchTime: count((post) => post.metrics.watchTimeSeconds),
+    profileVisits: count((post) => post.metrics.profileVisits),
+    follows: count((post) => post.metrics.follows),
+  };
+}
+
+function recommendations(params: {
+  coverage: ReturnType<typeof coverage>;
+  formats: ReturnType<typeof formatPerformance>;
+  topics: ReturnType<typeof rankedSignals>;
+  openings: ReturnType<typeof rankedSignals>;
+}) {
+  const result: Array<{ action: string; evidence: string; evidenceLevel: string }> = [];
+  if (params.coverage.classificationPercent < 90 || (params.coverage.sceneEligible && params.coverage.scenePercent < 90)) {
+    result.push({
+      action: "Trate esta leitura como parcial até os posts pendentes serem reprocessados.",
+      evidence: `${params.coverage.classification}/${params.coverage.posts} classificados; ${params.coverage.visualRead}/${params.coverage.visualEligible} posts lidos visualmente.`,
+      evidenceLevel: "coverage_warning",
+    });
+  }
+  const topFormat = params.formats[0];
+  if (topFormat) result.push({
+    action: `Teste novamente o formato ${topFormat.format}, preservando o elemento criativo que gerou o resultado.`,
+    evidence: `${topFormat.postsCount} posts; índice médio ${topFormat.avgPerformanceIndex ?? "n/d"}.`,
+    evidenceLevel: topFormat.evidenceLevel,
+  });
+  const topTopic = params.topics[0];
+  if (topTopic) result.push({
+    action: `Aprofunde o assunto “${topTopic.label}” com um ângulo novo.`,
+    evidence: `${topTopic.postsCount} posts; índice médio ${topTopic.avgPerformanceIndex ?? "n/d"}.`,
+    evidenceLevel: topTopic.evidenceLevel,
+  });
+  const topOpening = params.openings[0];
+  if (topOpening) result.push({
+    action: `Repita a lógica de abertura de “${topOpening.label}”, sem copiar a frase literalmente.`,
+    evidence: `${topOpening.postsCount} ocorrência(s); índice ${topOpening.avgPerformanceIndex ?? "n/d"}.`,
+    evidenceLevel: topOpening.evidenceLevel,
+  });
+  return result.slice(0, 4);
+}
+
+export function summarizeContentPeriod(params: {
+  metrics: MetricLike[];
+  periodDays: number;
+  format?: McpAnalysisFormat;
+  now?: Date;
+}) {
+  const now = params.now ?? new Date();
+  const periodDays = Math.min(365, Math.max(7, Math.trunc(params.periodDays)));
+  const currentStart = new Date(now.getTime() - periodDays * DAY_MS);
+  const previousStart = new Date(currentStart.getTime() - periodDays * DAY_MS);
+  const all = normalizePosts(params.metrics, now);
+  const selectedFormat = params.format ?? "all";
+  const current = filterFormat(all.filter((post) => post.postDate >= currentStart && post.postDate <= now), selectedFormat);
+  const previous = filterFormat(all.filter((post) => post.postDate >= previousStart && post.postDate < currentStart), selectedFormat);
+  const currentPillars = summarizePillars(current);
+  const previousPillars = summarizePillars(previous);
+  const currentCoverage = coverage(current);
+  const formats = formatPerformance(current);
+  const topics = rankedSignals(current, (post) => {
+    const exact = stringList(post.raw.sceneElements?.subjects);
+    if (exact.length) return exact.map((label) => ({ id: label.toLowerCase(), label }));
+    return stringList(post.raw.context).map((id) => ({ id, label: contextLabel(id) }));
+  });
+  const openings = rankedSignals(current, (post) => {
+    const opening = String(post.raw.sceneElements?.openingLine ?? post.raw.sceneElements?.screenTitle ?? "").trim();
+    return opening ? [{ id: opening.toLowerCase(), label: opening }] : [];
+  });
+  const narrativeForms = rankedSignals(current, (post) => stringList(post.raw.narrativeForm)
+    .map((id) => ({ id, label: humanize(id) })));
+  const contentIntents = rankedSignals(current, (post) => stringList(post.raw.contentIntent)
+    .map((id) => ({ id, label: humanize(id) })));
+  const stances = rankedSignals(current, (post) => stringList(post.raw.stance)
+    .map((id) => ({ id, label: humanize(id) })));
+  const places = rankedSignals(current, (post) => {
+    const id = String(post.raw.sceneElements?.placeId ?? "").trim();
+    return id ? [{ id, label: canonicalPlaceById(id)?.label ?? humanize(id) }] : [];
+  });
+  const framings = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.framingIds)
+    .map((id) => ({ id, label: canonicalFramingById(id)?.label ?? humanize(id) })));
+  const aesthetics = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.aestheticIds)
+    .map((id) => ({ id, label: canonicalAestheticById(id)?.label ?? humanize(id) })));
+  const tones = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.toneIds)
+    .map((id) => ({ id, label: canonicalToneById(id)?.label ?? humanize(id) })));
+  const cast = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.assetRoleIds)
+    .map((id) => ({ id, label: canonicalAssetRoleById(id)?.label ?? humanize(id) })));
+  const objects = rankedSignals(current, (post) => stringList(post.raw.sceneElements?.objects)
+    .map((label) => ({ id: label.toLowerCase(), label })));
+
+  const result = {
+    schemaVersion: "mcp_content_period_v1",
+    period: {
+      days: periodDays,
+      startsAt: currentStart.toISOString(),
+      endsAt: now.toISOString(),
+      timezone: "America/Sao_Paulo",
+      format: selectedFormat,
+      comparison: "previous_equivalent_period",
+    },
+    freshness: {
+      generatedAt: now.toISOString(),
+      newestPostDate: current.length
+        ? [...current].sort((a, b) => b.postDate.getTime() - a.postDate.getTime())[0]!.postDate.toISOString()
+        : null,
+      metricMaturityHours: 48,
+    },
+    coverage: currentCoverage,
+    pillars: currentPillars,
+    deltas: pillarDeltas(currentPillars, previousPillars),
+    formatPerformance: formats,
+    topContent: topContent(current),
+    signals: {
+      topics,
+      openings,
+      narrativeForms,
+      contentIntents,
+      stances,
+      scene: { places, framings, aesthetics, tones, cast, objects },
+    },
+    recommendations: recommendations({ coverage: currentCoverage, formats, topics, openings }),
+    interpretationRules: {
+      example: "1 post: exemplo, não padrão",
+      indication: "2 posts: indício",
+      signal: "3–4 posts: sinal",
+      pattern: "5+ posts: padrão mais confiável",
+    },
+  };
+  return result;
+}
+
+const METRIC_SELECT = [
+  "_id instagramMediaId postLink postDate description type format stats",
+  "classificationStatus classificationError context contentIntent narrativeForm stance",
+  "sceneElements",
+].join(" ");
+
+export async function analyzeMcpContentPeriod(params: {
+  userId: string;
+  periodDays: number;
+  format?: McpAnalysisFormat;
+}) {
+  await connectToDatabase();
+  const periodDays = Math.min(365, Math.max(7, Math.trunc(params.periodDays)));
+  const now = new Date();
+  const queryStart = new Date(now.getTime() - periodDays * 2 * DAY_MS);
+  const metrics = await MetricModel.find({
+    user: new Types.ObjectId(params.userId),
+    postDate: { $gte: queryStart, $lte: now },
+  }).sort({ postDate: -1 }).select(METRIC_SELECT).lean();
+  return summarizeContentPeriod({ metrics: metrics as MetricLike[], periodDays, format: params.format, now });
+}
+
+export async function getMcpContentDetail(userId: string, contentId: string) {
+  if (!Types.ObjectId.isValid(contentId)) return null;
+  await connectToDatabase();
+  const metric = await MetricModel.findOne({ _id: new Types.ObjectId(contentId), user: new Types.ObjectId(userId) })
+    .select(METRIC_SELECT).lean() as MetricLike | null;
+  if (!metric) return null;
+  const post = normalizePosts([metric], new Date())[0];
+  if (!post) return null;
+  return {
+    id: post.id,
+    instagramMediaId: metric.instagramMediaId ?? null,
+    publishedAt: post.postDate.toISOString(),
+    format: post.format,
+    description: metric.description ?? "",
+    url: metric.postLink ?? null,
+    metrics: post.metrics,
+    classification: {
+      status: metric.classificationStatus ?? null,
+      contexts: stringList(metric.context).map(contextLabel),
+      contentIntents: stringList(metric.contentIntent).map(humanize),
+      narrativeForms: stringList(metric.narrativeForm).map(humanize),
+      stances: stringList(metric.stance).map(humanize),
+    },
+    visualIntelligence: metric.sceneElements ? {
+      analyzed: Boolean(metric.sceneElements.version),
+      subjects: stringList(metric.sceneElements.subjects),
+      openingLine: metric.sceneElements.openingLine ?? null,
+      screenTitle: metric.sceneElements.screenTitle ?? null,
+      quotes: stringList(metric.sceneElements.quotes),
+      place: metric.sceneElements.placeId
+        ? canonicalPlaceById(metric.sceneElements.placeId)?.label ?? humanize(metric.sceneElements.placeId)
+        : null,
+      framings: stringList(metric.sceneElements.framingIds)
+        .map((id) => canonicalFramingById(id)?.label ?? humanize(id)),
+      aesthetics: stringList(metric.sceneElements.aestheticIds)
+        .map((id) => canonicalAestheticById(id)?.label ?? humanize(id)),
+      tones: stringList(metric.sceneElements.toneIds)
+        .map((id) => canonicalToneById(id)?.label ?? humanize(id)),
+      cast: stringList(metric.sceneElements.assetRoleIds)
+        .map((id) => canonicalAssetRoleById(id)?.label ?? humanize(id)),
+      objects: stringList(metric.sceneElements.objects),
+    } : { analyzed: false },
+  };
+}
