@@ -246,6 +246,8 @@ export function ProfileNarrativeView({
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const [failure, setFailure] = useState<string | null>(null);
+
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const { overflow } = document.body.style;
@@ -284,14 +286,34 @@ export function ProfileNarrativeView({
     };
   }, [onClose]);
 
-  const mutate = (
+  /**
+   * Otimista, mas não crédulo: se a gravação falhar, o chip VOLTA ao que era e a
+   * tela diz que não salvou.
+   *
+   * Engolir a falha aqui é pior do que em qualquer outro lugar do produto. A
+   * pessoa vê o chip aparecer, fecha a tela achando que mexeu na régua da
+   * semana, e no próximo carregamento a mudança sumiu — ou, pior, o chip que ela
+   * apagou está de volta. Ela não tem como saber que o problema foi a rede.
+   */
+  const mutate = async (
     section: MapSeedSection,
     op: "add" | "remove",
     value: string,
     group?: LifeAssetGroupKey,
   ) => {
+    const previous = mapa;
+    setFailure(null);
     onMapaChange(applyMapSeedMutation(mapa, section, op, value, group));
-    void persistMapSeedMutation(section, op, value, group);
+
+    const saved = await persistMapSeedMutation(section, op, value, group);
+    if (!saved) {
+      onMapaChange(previous);
+      setFailure(
+        op === "add"
+          ? `Não foi possível salvar “${value}”. Tente de novo.`
+          : `Não foi possível remover “${value}”. Tente de novo.`,
+      );
+    }
   };
 
   const declaredSubjects = [...listOf(mapa, "temas"), ...listOf(mapa, "territorios")];
@@ -340,14 +362,23 @@ export function ProfileNarrativeView({
           </p>
         </div>
 
+        {failure ? (
+          <p
+            role="alert"
+            className="mt-4 rounded-[12px] border border-[var(--ds-color-danger)] bg-[var(--ds-color-danger-soft)] px-3.5 py-2.5 text-[12.5px] leading-[1.4] text-[var(--ds-color-danger)]"
+          >
+            {failure}
+          </p>
+        ) : null}
+
         <div className="mt-[26px] grid grid-cols-2 gap-3">
           {SECTIONS.map((spec) => (
             <ChipSection
               key={spec.section}
               spec={spec}
               items={listOf(mapa, spec.section)}
-              onAdd={(value) => mutate(spec.section, "add", value, spec.group)}
-              onRemove={(value) => mutate(spec.section, "remove", value, spec.group)}
+              onAdd={(value) => void mutate(spec.section, "add", value, spec.group)}
+              onRemove={(value) => void mutate(spec.section, "remove", value, spec.group)}
             />
           ))}
 

@@ -60,7 +60,7 @@ function PatternCard({
     <button
       type="button"
       onClick={onOpen}
-      className={`rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[15px] text-left ${
+      className={`ds-card-stamp ds-card-lift rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[15px] text-left ${
         card.wide ? "col-span-2" : ""
       }`}
     >
@@ -200,7 +200,7 @@ export function ProfilePatternSections({
             type="button"
             onClick={() => setWaitingOpen((value) => !value)}
             aria-expanded={waitingOpen}
-            className="w-full rounded-[16px] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[15px] text-left"
+            className="ds-card-lift w-full rounded-[16px] border border-dashed border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-[15px] text-left"
           >
             <span className="flex items-center justify-between gap-2">
               <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">

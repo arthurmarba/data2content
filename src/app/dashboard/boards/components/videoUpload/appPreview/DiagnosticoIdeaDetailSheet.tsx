@@ -162,7 +162,7 @@ export function DiagnosticoIdeaDetailSheet({
                 </div>
               ) : (
                 <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">
-                  <span className="text-[var(--ds-color-brand-strong)]">{idea.suggestedFormat}</span>
+                  <span className="font-semibold text-[var(--ds-color-ink)]">{idea.suggestedFormat}</span>
                   <span aria-hidden="true" className="text-zinc-300">/</span>
                   <span className="truncate">{idea.territory}</span>
                   {blueprint.estimatedDurationSeconds ? (
@@ -245,7 +245,7 @@ export function DiagnosticoIdeaDetailSheet({
             <button
               type="button"
               onClick={() => onDecide("interested")}
-              className="ds-button ds-button--primary min-h-12 w-full"
+              className="ds-button ds-button--secondary min-h-12 w-full"
             >
               Quero gravar com {collab.name.split(" ")[0]}
             </button>
@@ -270,7 +270,7 @@ export function DiagnosticoIdeaDetailSheet({
           </div>
         ) : activePlan === "solo" && onSaveIdea && idea.status !== "saved" ? (
           <div className="shrink-0 border-t border-zinc-100 bg-white/95 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-7">
-            <button type="button" onClick={onSaveIdea} className="ds-button ds-button--primary min-h-12 w-full">
+            <button type="button" onClick={onSaveIdea} className="ds-button ds-button--secondary min-h-12 w-full">
               Salvar ideia para gravar
             </button>
           </div>
@@ -308,7 +308,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
     <div>
       <section aria-labelledby="idea-opening-title">
         <div className="flex items-center justify-between gap-3">
-          <p id="idea-opening-title" className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">
+          <p id="idea-opening-title" className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
             Comece assim
           </p>
           <CopyButton text={idea.hook} label="Copiar abertura" />
@@ -367,7 +367,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
 
       {idea.opportunityBrief?.timing ? (
         <section className="mt-8 border-y border-zinc-100 py-5" aria-labelledby="idea-timing-title">
-          <p id="idea-timing-title" className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">
+          <p id="idea-timing-title" className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
             Quando publicar
           </p>
           <p className="mt-2 font-display text-[1.35rem] font-bold tracking-[-0.03em] text-zinc-950">
@@ -394,7 +394,7 @@ function SoloPlan({ idea, reduceMotion }: { idea: ContentIdeaListItem; reduceMot
             ) : null}
             <p>{idea.opportunityBrief?.evidenceSummary ?? buildOpportunityEvidenceSummary(0)}</p>
             {idea.whyItFits ? <p><strong className="text-zinc-800">O que combina com você: </strong>{simplifyUserFacingText(idea.whyItFits, 300)}</p> : null}
-            {idea.resonanceNote ? <p><strong className="text-[var(--ds-color-success)]">O que as pessoas costumam salvar: </strong>{simplifyUserFacingText(idea.resonanceNote, 220)}</p> : null}
+            {idea.resonanceNote ? <p><strong className="text-[var(--ds-color-ink)]">O que as pessoas costumam salvar: </strong>{simplifyUserFacingText(idea.resonanceNote, 220)}</p> : null}
             {mapAnchors.length > 0 ? (
               <ul className="divide-y divide-zinc-100 border-y border-zinc-100">
                 {mapAnchors.map((anchor) => (
@@ -474,7 +474,7 @@ function CollabPlan({
           />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Plano da parceria</p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">Plano da parceria</p>
           <h3 id="collab-plan-title" className="mt-0.5 truncate font-display text-[1.6rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
             Você + {collab.name.split(" ")[0]}
           </h3>
@@ -511,7 +511,7 @@ function CollabPlan({
         <section className="mt-8" aria-labelledby="collab-storyboard-title">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[var(--ds-color-brand-strong)]">Como gravar juntos</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">Como gravar juntos</p>
               <h4 id="collab-storyboard-title" className="mt-1 font-display text-[1.55rem] font-bold leading-none tracking-[-0.035em] text-zinc-950">
                 Quem faz cada parte
               </h4>
@@ -533,7 +533,7 @@ function CollabPlan({
                 </span>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-[var(--ds-color-brand-soft)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--ds-color-brand-strong)]">
+                    <span className="rounded-md bg-[var(--ds-color-neutral)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-secondary)]">
                       {ownerLabel(scene.owner, collab.name)}
                     </span>
                     <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-400">{BEAT_LABEL[scene.beat]}</span>
@@ -599,7 +599,7 @@ function Checklist({ title, items }: { title: string; items: string[] }) {
       <ul className="mt-3 divide-y divide-zinc-100 border-y border-zinc-100">
         {items.map((item, index) => (
           <li key={`${item}-${index}`} className="flex gap-3 py-3 text-[15px] leading-[1.45] text-zinc-700">
-            <span className="mt-0.5 text-[var(--ds-color-brand-strong)]">✓</span>
+            <span className="mt-0.5 text-[var(--ds-color-ink)]">✓</span>
             <span>{item}</span>
           </li>
         ))}
@@ -616,13 +616,13 @@ function CollabContextTeaser({ onUpgrade }: { onUpgrade?: () => void }) {
       className="mt-8 flex w-full items-center gap-3 border-y border-[var(--ds-color-line)] py-5 text-left"
     >
       <div
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[var(--ds-color-brand)] text-lg font-extrabold text-[var(--ds-color-on-brand)]"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[var(--ds-color-ink)] text-lg font-extrabold text-[var(--ds-color-on-brand)]"
       >
         ?
       </div>
       <div className="min-w-0 flex-1">
         <span className="block text-[15px] font-bold text-zinc-950">Esta ideia também pode ser feita em parceria</span>
-        <span className="mt-0.5 block text-[13px] text-[var(--ds-color-brand-strong)]">Veja uma sugestão e como vocês podem gravar →</span>
+        <span className="mt-0.5 block text-[13px] text-[var(--ds-color-text-secondary)]">Veja uma sugestão e como vocês podem gravar →</span>
       </div>
     </button>
   );

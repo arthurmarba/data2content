@@ -5,6 +5,11 @@
 // dois (nada é publicado). O CTA leva pro DM do Instagram — o app faz a
 // apresentação e sai da frente; não existe chat interno (decisão de produto).
 //
+// O CTA é PRETO, não rosa: na aba Collabs o preto é o "sim" (o botão "Quero
+// fazer" do deck), e o rosa ficou reservado à conversão do Pro no app inteiro.
+// A cor da comemoração vem do sparkle e do anel do parceiro, que já são rosa —
+// e um botão rosa aqui competiria com eles em vez de somar.
+//
 // variant:
 //   "celebration" — o momento em si (springs, sparkle). Copy calma, sem hype.
 //   "revisit"     — reaberto depois (ex.: fileira Combinadas). Sem fanfarra:
@@ -207,7 +212,7 @@ export function DiagnosticoCollabMatchOverlay({
                   href={instagramUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="ds-button ds-button--primary ds-button--block"
+                  className="ds-button ds-button--secondary ds-button--block"
                   style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
                     width: "100%",

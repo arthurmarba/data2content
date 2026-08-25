@@ -69,21 +69,23 @@ export function ProfileTerritoryTrends({
 
   return (
     <section aria-labelledby="territory-trends-title">
-      <ProfileSectionHeader
-        id="territory-trends-title"
-        title={`Inspiração em ${territory.toLocaleLowerCase("pt-BR")}`}
-      />
+      {/* "Trends do seu território": o assunto da seção é o TERRITÓRIO, e o nome
+          dele aparece na linha de cada post — repeti-lo no cabeçalho gastava a
+          largura do título com a palavra que já está três vezes abaixo. */}
+      <ProfileSectionHeader id="territory-trends-title" title="Trends do seu território" />
 
-      <div className="mt-4 rounded-[18px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
+      <div className="ds-card-stamp mt-4 rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-4">
         <button type="button" onClick={() => openPost(lead)} className="flex w-full gap-3 text-left">
-          <Cover url={lead.coverUrl} className="h-[112px] w-[82px] shrink-0 rounded-[10px]" />
+          <Cover url={lead.coverUrl} className="min-h-[104px] w-[76px] shrink-0 rounded-[10px]" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[17px] font-semibold leading-[1.25] tracking-[-0.02em] text-[var(--ds-color-ink)]">
+            <span className="block text-[16px] font-semibold leading-[1.28] tracking-[-0.005em] text-[var(--ds-color-ink)]">
               {lead.description}
             </span>
-            {lead.creatorName ? (
-              <span className="mt-1.5 block text-[12.5px] font-medium leading-[1.3] text-[var(--ds-color-text-secondary)]">
-                {lead.creatorName}
+            {/* Quem postou E em que assunto: sem o segundo, a lista parece um
+                ranking geral do Instagram em vez do recorte do território. */}
+            {lead.creatorName || territory ? (
+              <span className="mt-1.5 block text-[12px] leading-[1.3] text-[var(--ds-color-text-muted)]">
+                {[lead.creatorName, territory.toLocaleLowerCase("pt-BR")].filter(Boolean).join(" · ")}
               </span>
             ) : null}
             {leadMetric ? (
@@ -98,7 +100,7 @@ export function ProfileTerritoryTrends({
         </button>
 
         {open && rest.length > 0 ? (
-          <div className="mt-3.5 rounded-[var(--ds-radius-sm)] bg-[var(--ds-color-neutral)] px-3 py-1">
+          <div className="mt-3.5 border-t border-dashed border-[var(--ds-color-line)] pt-3">
             {rest.map((post) => {
               const metric = metricLine(post);
               return (
@@ -106,11 +108,11 @@ export function ProfileTerritoryTrends({
                   key={post.id}
                   type="button"
                   onClick={() => openPost(post)}
-                  className="flex w-full items-center gap-2.5 py-2 text-left"
+                  className="flex w-full items-center gap-2.5 py-[7px] text-left"
                 >
-                  <Cover url={post.coverUrl} className="h-[46px] w-[34px] shrink-0 rounded-[6px]" />
+                  <Cover url={post.coverUrl} className="h-[44px] w-[32px] shrink-0 rounded-[6px]" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-semibold leading-[1.25] text-[var(--ds-color-ink)]">
+                    <span className="block truncate text-[13px] font-medium leading-[1.3] text-[var(--ds-color-ink)]">
                       {post.description}
                     </span>
                     <span className="mt-0.5 block text-[11.5px] leading-[1.2] text-[var(--ds-color-text-muted)]">
@@ -133,7 +135,7 @@ export function ProfileTerritoryTrends({
             className="mt-3.5 flex w-full items-center justify-between text-[12.5px] font-semibold text-[var(--ds-color-text-secondary)]"
           >
             <span>{open ? "Fechar a lista" : `Ver os ${posts.length} mais vistos do mês`}</span>
-            <span aria-hidden="true">{open ? "⌃" : "›"}</span>
+            <span aria-hidden="true" className="text-[var(--ds-color-text-muted)]">{open ? "–" : "+"}</span>
           </button>
         ) : null}
 

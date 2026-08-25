@@ -59,7 +59,7 @@ export function ProfileIdentityCard({
     <section
       id="creator-weekly-map"
       aria-labelledby="creator-map-title"
-      className={`col-span-2 rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-6 transition-shadow duration-700 ${
+      className={`ds-card-stamp col-span-2 rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-6 transition-shadow duration-700 ${
         starterMapJustCreated
           ? "ring-2 ring-[var(--ds-color-brand)] ring-offset-4 ring-offset-[var(--ds-color-paper)]"
           : ""
@@ -190,7 +190,7 @@ export function ProfileToolCards({
           key={card.id}
           type="button"
           onClick={card.action}
-          className="rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-5 text-left"
+          className="ds-card-stamp ds-card-lift rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-5 text-left"
         >
           <span className="flex items-center justify-between gap-2">
             <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">

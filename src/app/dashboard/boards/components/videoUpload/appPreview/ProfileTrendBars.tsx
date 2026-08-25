@@ -79,6 +79,13 @@ export function describeTrend(series: number[], label: string): string | null {
   if (previous > 0 && last <= previous * 0.85) {
     return `Caiu de ${format(previous)} para ${format(last)} de uma semana para a outra.`;
   }
+  // Duas medidas não estabelecem estabilidade — estabelecem que duas medidas
+  // deram parecido. Chamar isso de "estável" promete uma leitura que a amostra
+  // ainda não sustenta, e hoje quase toda conta da base tem duas ou três
+  // semanas gravadas, não quatro.
+  if (active < 3) {
+    return `Parecido nas duas semanas em que apareceu. A terceira é que começa a mostrar tendência.`;
+  }
   return `Estável nas últimas ${weeks} semanas, sem sobressalto de uma para a outra.`;
 }
 

@@ -80,6 +80,11 @@ const KICKER: Record<Exclude<NextStepFieldState, "connected" | "none">, string> 
 /**
  * Card do campo condicional: contorno tracejado, porque o que está aqui é
  * pendência — algo que espera uma ação, não um dado já confirmado.
+ *
+ * O botão é PRETO, não rosa. O rosa da marca fica reservado para a conversão do
+ * Pro no convite provocado por um padrão bloqueado; se toda pendência da conta
+ * também for rosa, a cor deixa de significar "esta é a decisão que importa" e
+ * vira só a cor dos botões.
  */
 function FieldCard({ children }: { children: ReactNode }) {
   return (
@@ -128,7 +133,7 @@ export function ProfileNextStepField({
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
             Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.
           </p>
-          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onDefineNorth}>
+          <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={onDefineNorth}>
             Definir minha narrativa
           </button>
         </FieldCard>
@@ -159,7 +164,7 @@ export function ProfileNextStepField({
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
             Sua narrativa continua aqui. O que para enquanto isso é a leitura da semana.
           </p>
-          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
+          <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
             Atualizar pagamento
           </button>
         </FieldCard>
@@ -179,7 +184,7 @@ export function ProfileNextStepField({
             Toda segunda a D2C lê o que você postou, separa o que já é regra do que ainda é hipótese e recomenda o
             próximo passo. Por enquanto, o que aparece aqui embaixo é um exemplo.
           </p>
-          <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
+          <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
             Ativar o Pro
           </button>
         </FieldCard>
@@ -200,7 +205,7 @@ export function ProfileNextStepField({
             ? "A conexão com o Instagram caiu, o que acontece de tempos em tempos. Enquanto você não reconectar, a leitura fica parada nos posts que já entraram."
             : "É assim que a leitura aqui embaixo passa a mostrar os seus posts, e não um exemplo."}
         </p>
-        <button type="button" className="ds-button ds-button--primary ds-button--block mt-4" onClick={onConnectInstagram}>
+        <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={onConnectInstagram}>
           {reconnecting ? "Reconectar Instagram" : "Conectar Instagram"}
         </button>
       </FieldCard>

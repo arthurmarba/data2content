@@ -155,7 +155,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.getByText("Pauta b").closest('[aria-hidden="true"]')).not.toBeNull();
   });
 
-  it("mantém a frente minimalista e revela a justificativa apenas no verso", () => {
+  it("mostra território e formato na frente, e a justificativa só no verso", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -171,7 +171,9 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(collabCard).toHaveTextContent("Com Marina");
     expect(collabCard).toHaveTextContent("Marina");
     expect(collabCard).not.toHaveTextContent("Um olhar financeiro que completa essa história");
-    expect(collabCard).not.toHaveTextContent("Reel falado");
+    // Território e formato ficam na FRENTE: são o que decide "eu gravo isso?".
+    // O que continua escondido é a JUSTIFICATIVA — o texto que explica a escolha.
+    expect(collabCard).toHaveTextContent("Reel falado");
     expect(collabCard).not.toHaveTextContent("Cada pessoa grava de onde estiver");
 
     const identityHeader = screen.getByTestId("collab-identity-header");
@@ -627,7 +629,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
 
     // Ícone de combinadas → só os matches + o alerta de WhatsApp no rodapé.
     fireEvent.click(screen.getByRole("button", { name: "Ver parcerias confirmadas (1)" }));
-    expect(screen.getByRole("dialog", { name: "Parcerias confirmadas" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Combinadas" })).toBeInTheDocument();
     expect(screen.getByText("Parceria com Théo confirmada")).toBeInTheDocument();
     expect(screen.getByText("Próximo passo: combinar a gravação.")).toBeInTheDocument();
     expect(screen.getByText(/Avisamos no WhatsApp/)).toBeInTheDocument();
@@ -651,7 +653,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(combinadasBtn).not.toHaveTextContent(/\d/);
 
     fireEvent.click(combinadasBtn);
-    expect(screen.getByRole("dialog", { name: "Parcerias confirmadas" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Combinadas" })).toBeInTheDocument();
     expect(screen.getByText("Nenhuma parceria confirmada ainda")).toBeInTheDocument();
     expect(screen.getByText("Quando outra pessoa escolher a mesma ideia, ela aparecerá aqui.")).toBeInTheDocument();
   });

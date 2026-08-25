@@ -38,7 +38,6 @@ import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
   CS_BRAND_HEX,
-  CS_BRAND_STRONG_HEX,
   CS_INK_HEX,
   CS_MUTED,
   CS_NEUTRAL_HEX,
@@ -67,7 +66,8 @@ function stackItemIdentity(item: CollabStackItem | null) {
 // Acento do prêmio (collab) = brand creator-studio; tintas derivadas do rosa.
 const COLLAB_ACCENT = CS_BRAND_HEX;
 const CARD_BG = "var(--ds-color-surface)";
-const STACK_CARD_SHADOW = "var(--ds-shadow-raised)";
+// Carimbo, não profundidade — a mesma assinatura do Perfil. Ver `.ds-card-stamp`.
+const STACK_CARD_SHADOW = "2px 2px 0 rgba(18, 16, 20, 0.08)";
 /** Deslocamento (px) a partir do qual soltar o card confirma a decisão. */
 const SWIPE_CONFIRM_PX = 96;
 const SWIPE_CONFIRM_VELOCITY = 600;
@@ -75,50 +75,15 @@ const SWIPE_CONFIRM_VELOCITY = 600;
  * Teto da experiência completa: progresso, face do flashcard e decisões. A
  * face usa o espaço restante e preserva o mesmo respiro no mobile e desktop.
  */
-const CARD_MAX_HEIGHT = 480;
-const DECISION_ZONE_HEIGHT = 96;
+// O deck ocupa a altura que sobrar: cabeçalho e decisão ficam fixos e a IDEIA
+// usa o resto. Com 480px o card virava um retângulo no meio de uma tela vazia.
+const CARD_MAX_HEIGHT = 680;
+// Dois botões de 52px + respiro. Eles são retangulares e ficam FORA do card:
+// no mockup a decisão é mobília fixa da tela, e o card é que voa.
+const DECISION_ZONE_HEIGHT = 72;
 
 // ─── Ícones (stroke style do app) ─────────────────────────────────────────────
 
-function XIcon({ size = 20, color = "var(--ds-color-text-muted)" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BookmarkIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M7 4.75A1.75 1.75 0 0 1 8.75 3h6.5A1.75 1.75 0 0 1 17 4.75V20l-5-3.15L7 20V4.75z"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CheckIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 12.5l4.3 4.3L19 7" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LockIcon({ size = 20, color = "var(--ds-color-on-brand)" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="5.5" y="10" width="13" height="10" rx="2" stroke={color} strokeWidth="2" />
-      <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// Silhueta borrada + "?" — mesma linguagem do MysteryAvatar histórico do feed.
 export function MysteryAvatar({ size = 38 }: { size?: number }) {
   return (
     <div
@@ -177,7 +142,7 @@ function DecisionStamp({
         fontWeight: 800,
         letterSpacing: 0.4,
         textTransform: "uppercase",
-        background: positive ? COLLAB_ACCENT : "var(--ds-color-neutral)",
+        background: positive ? CS_INK_HEX : "var(--ds-color-neutral)",
         color: positive ? "var(--ds-color-on-brand)" : TEXT_SECONDARY_HEX,
         border: positive ? "none" : "1.5px solid var(--ds-color-line)",
         boxShadow: "none",
@@ -193,18 +158,6 @@ function DecisionStamp({
 // Cartão didático: a FRENTE é mínima — decide-se de relance. O detalhe (gancho,
 // por que combina, como gravar juntos, roteiro) mora no "verso": tocar o corpo
 // vira o cartão e abre a tela de detalhe (ficha) com × pra voltar.
-
-function PautaEyebrow() {
-  return (
-    <span style={{
-      display: "block", alignSelf: "flex-start",
-      color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
-      letterSpacing: 0.72, textTransform: "uppercase",
-    }}>
-      Ideia para você
-    </span>
-  );
-}
 
 function flashcardTitleFontSize(title: string, kind: CollabStackCardKind): string {
   const length = title.trim().length;
@@ -281,7 +234,7 @@ function CollabIdentityHeader({
       )}
 
       <div style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
-        <span style={{ display: "block", color: COLLAB_ACCENT, fontSize: 10, fontWeight: 800, letterSpacing: 0.68, textTransform: "uppercase" }}>
+        <span style={{ display: "block", color: TEXT_SECONDARY_HEX, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.84, textTransform: "uppercase" }}>
           {isRealCollab ? "Collab sugerida" : "Collab disponível"}
         </span>
         <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", marginTop: 4, color: CS_INK_HEX, fontSize: "clamp(17px, 2.5dvh, 20px)", fontWeight: 760, lineHeight: 1.12, letterSpacing: -0.3 }}>
@@ -378,7 +331,9 @@ function executionSummary(item: CollabStackItem): string {
       : null,
     formatCardFormat(format),
     blueprint.estimatedDurationSeconds ? `${blueprint.estimatedDurationSeconds}s` : null,
-    item.pauta.opportunityBrief?.timing?.shortLabel ?? null,
+    // O melhor horário fica de fora: na frente do card a pílula precisa caber
+    // em UMA linha, e "quinta à noite" é decisão do dia de postar, não do
+    // "eu gravo isso?" que se responde aqui.
   ].filter((value): value is string => Boolean(value));
   return parts.join(" · ");
 }
@@ -394,6 +349,9 @@ function FlashcardFront({
 }) {
   const { kind, pauta, collab } = item;
   const title = cleanIdeaText(pauta.title);
+  const metaChips = [pauta.territory, executionSummary(item)]
+    .map((value) => (value ?? "").trim())
+    .filter(Boolean);
   const flipLabel = kind === "collab"
     ? "Ver por que combina"
     : kind === "mystery" ? "Ver indicação" : "Ver como gravar";
@@ -404,16 +362,39 @@ function FlashcardFront({
       className="d2c-flashcard-front"
       style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "clamp(14px, 2.2dvh, 22px) 22px 10px" }}
     >
-      {kind !== "pauta" ? (
-        <CollabIdentityHeader kind={kind} collab={collab} />
-      ) : (
-        <div style={{ width: "100%", paddingBottom: "clamp(11px, 1.7dvh, 15px)", borderBottom: "1px solid var(--ds-color-line)" }}>
-          <PautaEyebrow />
-        </div>
-      )}
+      {/* Só a parceria ganha cabeçalho. A ideia solo não precisa de etiqueta
+          dizendo que é uma ideia: o título grande sozinho já é o card, e é o
+          CONTRASTE com o cabeçalho da collab que diz qual é qual. */}
+      {kind !== "pauta" ? <CollabIdentityHeader kind={kind} collab={collab} /> : null}
 
-      <div className="d2c-flashcard-title-zone" style={{ flex: 1, minHeight: 0, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 2.1dvh, 22px) 0 8px" }}>
+      <div
+        className="d2c-flashcard-title-zone"
+        style={{
+          flex: 1, minHeight: 0, width: "100%", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: "clamp(10px, 1.6dvh, 18px)",
+          padding: "clamp(12px, 2.1dvh, 22px) 0 8px",
+        }}
+      >
         <FlashcardTitle title={title} kind={kind} />
+        {/* Território e formato na FRENTE: são o que decide se a pessoa topa
+            antes de virar o card — "eu gravo isso?" depende de saber que é um
+            reel de 40s de rotina, não só do assunto. */}
+        {metaChips.length > 0 ? (
+          <div style={{ flex: "none", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 7, overflow: "hidden" }}>
+            {metaChips.map((chip) => (
+              <span
+                key={chip}
+                style={{
+                  border: "1px solid var(--ds-color-line-strong)", borderRadius: 999,
+                  padding: "6px 12px", fontSize: 11.5, fontWeight: 500, lineHeight: 1.2,
+                  color: TEXT_SECONDARY_HEX,
+                }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <FlipHint label={flipLabel} onFlip={onFlip} active={active} />
@@ -424,7 +405,7 @@ function FlashcardFront({
 function BackSection({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={className} style={{ minWidth: 0 }}>
-      <span style={{ display: "block", color: CS_BRAND_STRONG_HEX, fontSize: 9.5, fontWeight: 800, letterSpacing: 0.65, textTransform: "uppercase" }}>
+      <span style={{ display: "block", color: TEXT_SECONDARY_HEX, fontSize: 10, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase" }}>
         {label}
       </span>
       <div style={{ marginTop: 4 }}>{children}</div>
@@ -467,7 +448,7 @@ function FlashcardBack({
       style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", padding: "clamp(14px, 2.2dvh, 22px) 22px 14px" }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
+        <span style={{ color: TEXT_SECONDARY_HEX, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.84, textTransform: "uppercase" }}>
           {kind === "collab" ? `Por que ${firstName}` : "Como gravar"}
         </span>
         <FlipHint label="Voltar para a ideia" onFlip={onFlip} active={active} />
@@ -532,9 +513,13 @@ function FlashcardBack({
               event.stopPropagation();
               onOpenIdea();
             }}
-            style={{ minHeight: 34, marginTop: 4, padding: 0, border: 0, background: "transparent", color: COLLAB_ACCENT, fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
+            style={{
+              width: "100%", minHeight: 44, marginTop: 10, borderRadius: 12,
+              border: "1px solid var(--ds-color-line-strong)", background: "var(--ds-color-surface)",
+              color: CS_INK_HEX, fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}
           >
-            Abrir plano completo <span aria-hidden="true">›</span>
+            Abrir plano completo
           </button>
         ) : null}
       </div>
@@ -720,7 +705,7 @@ export function DiagnosticoCollabStack({
       : "As próximas ideias usarão os assuntos do seu Mapa.";
     return (
       <div style={{ flex: "1 1 auto", width: "100%", maxWidth: 520, minHeight: 0, maxHeight: CARD_MAX_HEIGHT, margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "16px 8px 12px", textAlign: "center" }}>
-        <p style={{ fontSize: 10.5, fontWeight: 800, color: CS_BRAND_STRONG_HEX, margin: 0, letterSpacing: 1.15, textTransform: "uppercase" }}>
+        <p style={{ fontSize: 10.5, fontWeight: 600, color: TEXT_SECONDARY_HEX, margin: 0, letterSpacing: 0.84, textTransform: "uppercase" }}>
           {triaged ? "Rodada concluída" : "Sem ideias disponíveis"}
         </p>
         <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, lineHeight: 1.06, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: "8px 0 0", letterSpacing: -0.8 }}>
@@ -742,13 +727,18 @@ export function DiagnosticoCollabStack({
   const isMysteryTop = top.kind === "mystery";
   const topTitle = cleanIdeaText(top.pauta.title);
   const firstName = top.collab?.name.trim().split(" ")[0] || "essa pessoa";
-  const positiveLabel = isCollabTop ? `gravar com ${firstName}` : isMysteryTop ? "ver no Pro" : "salvar ideia";
-  const negativeLabel = isCollabTop ? "agora não" : "descartar ideia";
+  // O botão diz a DECISÃO em primeira pessoa, não o nome da operação: "Quero
+  // fazer" é o que a pessoa está dizendo; "salvar ideia" é o que o sistema faz
+  // depois. O card do topo decide a aposta — topar uma pessoa não é o mesmo
+  // que guardar uma ideia.
+  const positiveLabel = isCollabTop ? "Quero fazer" : isMysteryTop ? "Ver no Pro" : "Quero gravar";
+  const negativeLabel = "Não é pra mim";
   const progressCurrent = completedCount + 1;
   const progressTotal = completedCount + items.length;
-  const cardBorder = isCollabTop
-    ? "1px solid color-mix(in srgb, var(--ds-color-brand) 28%, var(--ds-color-line))"
-    : "1px solid var(--ds-color-line)";
+  // Borda igual nos dois tipos. A parceria já se anuncia pela foto e pelo
+  // cabeçalho; tingir a moldura de rosa fazia a tela ter dois sinais dizendo a
+  // mesma coisa — e o rosa deixava de significar ação.
+  const cardBorder = "1px solid var(--ds-color-line)";
 
   return (
     <div style={{ flex: "1 1 auto", width: "100%", maxWidth: 520, minHeight: 0, maxHeight: CARD_MAX_HEIGHT, margin: "0 auto", display: "flex", flexDirection: "column" }}>
@@ -802,23 +792,22 @@ export function DiagnosticoCollabStack({
             data-stack-position={i + 1}
             aria-hidden="true"
             initial={false}
-            animate={{
-              scale: 1 - (i + 1) * 0.03,
-              y: (i + 1) * 10,
-              rotate: i === 0 ? -1.8 : 1.4,
-              opacity: 1 - (i + 1) * 0.18,
-            }}
+            // Baralho, não leque: as cartas de trás recuam pelos QUATRO lados e
+            // descem, sem rotação. O leque inclinado sugeria que dava para
+            // escolher qual carta puxar — e não dá; o deck é uma fila.
+            animate={{ scale: 1, y: 0, rotate: 0, opacity: 1 }}
             transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 26 }}
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: DECISION_ZONE_HEIGHT,
+              top: (i + 1) * 12,
+              left: (i + 1) * 12,
+              right: (i + 1) * 12,
+              bottom: 0,
               borderRadius: 22,
-              background: CARD_BG,
+              // A segunda carta é neutra: duas brancas idênticas empilhadas
+              // leem como uma borda dupla, não como duas cartas.
+              background: i === 0 ? CARD_BG : CS_NEUTRAL_HEX,
               border: "1px solid var(--ds-color-line)",
-              boxShadow: STACK_CARD_SHADOW,
               zIndex: 2 - i,
               overflow: "hidden",
               pointerEvents: "none",
@@ -826,7 +815,11 @@ export function DiagnosticoCollabStack({
               flexDirection: "column",
             }}
           >
-            <FlashcardFront item={item} onFlip={() => {}} active={false} />
+            {/* A carta logo atrás mostra o PRÓXIMO conteúdo; a terceira fica
+                vazia, só volume. Enquanto o topo voa para fora (~400ms) é ela
+                que está sob o olho — vazia, a tela piscava em branco no meio de
+                cada decisão. */}
+            {i === 0 ? <FlashcardFront item={item} onFlip={() => {}} active={false} /> : null}
           </motion.div>
         ))}
 
@@ -875,7 +868,7 @@ export function DiagnosticoCollabStack({
             }
           }}
         >
-          <div style={{ position: "relative", height: `calc(100% - ${DECISION_ZONE_HEIGHT}px)`, minHeight: 0, perspective: 1100 }}>
+          <div style={{ position: "relative", height: "100%", minHeight: 0, perspective: 1100 }}>
             <DecisionStamp label={positiveLabel} side="left" opacity={wantOpacity} scale={wantScale} />
             <DecisionStamp label={negativeLabel} side="right" opacity={skipOpacity} scale={skipScale} />
 
@@ -929,46 +922,49 @@ export function DiagnosticoCollabStack({
             )}
           </div>
 
-          <div
-            style={{
-              height: DECISION_ZONE_HEIGHT, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 48,
-              padding: "8px 0 2px",
-            }}
-            onPointerDownCapture={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); pressButton(-1); }}
-                aria-label={isCollabTop ? "Agora não quero esta parceria" : "Descartar ideia"}
-                style={{
-                  width: "clamp(50px, 6.6dvh, 56px)", height: "clamp(50px, 6.6dvh, 56px)", borderRadius: 9999, background: "var(--ds-color-surface)",
-                  border: "1.5px solid var(--ds-color-line)", display: "grid", placeItems: "center", boxShadow: "var(--ds-shadow-subtle)",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                <XIcon size={21} />
-              </button>
-              <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_SECONDARY_HEX }}>{negativeLabel}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); pressButton(1); }}
-                aria-label={isCollabTop ? `Quero gravar com ${firstName}` : isMysteryTop ? "Ver sugestão de parceria no Pro" : "Salvar ideia"}
-                style={{
-                  width: "clamp(54px, 7.3dvh, 62px)", height: "clamp(54px, 7.3dvh, 62px)", borderRadius: 9999, background: COLLAB_ACCENT,
-                  border: "none", display: "grid", placeItems: "center", cursor: "pointer",
-                  boxShadow: "none", fontFamily: "inherit",
-                }}
-              >
-                {isCollabTop ? <CheckIcon size={25} /> : isMysteryTop ? <LockIcon size={23} /> : <BookmarkIcon size={23} />}
-              </button>
-              <span style={{ fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
-            </div>
-          </div>
         </motion.div>
+      </div>
+
+      {/* A decisão é mobília FIXA da tela, não parte do card: no gesto antigo os
+          botões voavam junto com a carta que estava saindo, o que fazia o alvo
+          fugir do dedo no meio do toque. Fixos, o card sai e a próxima decisão
+          já está sob o polegar.
+
+          A proporção 1fr/1.4fr não é estética: o "quero" é o movimento que o
+          produto existe para provocar, e um par de botões idênticos obriga a
+          ler os dois para escolher. */}
+      <div
+        style={{
+          flex: "none", height: DECISION_ZONE_HEIGHT,
+          display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 10,
+          alignItems: "center", padding: "10px 0 4px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => pressButton(-1)}
+          aria-label={isCollabTop ? "Agora não quero esta parceria" : "Descartar ideia"}
+          style={{
+            minHeight: 52, borderRadius: 14, background: "var(--ds-color-surface)",
+            border: "1px solid var(--ds-color-line-strong)", color: TEXT_SECONDARY_HEX,
+            fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}
+        >
+          {negativeLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => pressButton(1)}
+          aria-label={isCollabTop ? `Quero gravar com ${firstName}` : isMysteryTop ? "Ver sugestão de parceria no Pro" : "Salvar ideia"}
+          style={{
+            minHeight: 52, borderRadius: 14, background: CS_INK_HEX,
+            border: `1px solid ${CS_INK_HEX}`, color: "var(--ds-color-on-brand)",
+            fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            boxShadow: "2px 2px 0 rgba(18, 16, 20, 0.18)",
+          }}
+        >
+          {positiveLabel}
+        </button>
       </div>
     </div>
   );

@@ -26,6 +26,8 @@
     "requeue:classification-retryable": "tsx --env-file=.env.local ./scripts/requeueRetryableClassificationFailures.ts",
     "normalize-format": "tsx --env-file=.env.local ./scripts/normalizeFormatFromMetricType.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
+    "audit:perfil-territorio": "tsx --env-file=.env.local ./scripts/auditPerfilTerritoryCoverage.ts",
+    "audit:collabs": "tsx --env-file=.env.local ./scripts/auditCollabsMechanism.ts",
     "seed:brand-narratives": "tsx --env-file=.env.local ./scripts/seedBrandNarrativeProfiles.ts",
     "seed:brand-narratives:dry-run": "npm run seed:brand-narratives -- --dry-run",
     "seed:brand-narratives:only-new": "npm run seed:brand-narratives -- --only-new",

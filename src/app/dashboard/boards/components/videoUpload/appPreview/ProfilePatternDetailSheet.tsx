@@ -67,8 +67,8 @@ function BarList({
     <div
       className={`rounded-[16px] p-4 ${
         own
-          ? "border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]"
-          : "border border-[var(--ds-color-line)] bg-[var(--ds-color-neutral)]"
+          ? "ds-card-stamp border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]"
+          : "ds-card-stamp--soft border border-[var(--ds-color-line)] bg-[var(--ds-color-neutral)]"
       }`}
     >
       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
@@ -248,7 +248,10 @@ export function ProfilePatternDetailSheet({
           <p className="mt-3.5 text-[12.5px] leading-[1.5] text-[var(--ds-color-text-secondary)]">{trendText}</p>
         ) : null}
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Lado a lado mesmo no celular, e não empilhados: a tela inteira existe
+            para comparar duas barras. Empilhado, a comparação vira memória —
+            você rola até o segundo ranking e tenta lembrar do primeiro. */}
+        <div className="mt-6 grid grid-cols-2 gap-3">
           <BarList title="Seu ranking" rows={ownRows} tone="own" highlightLabel={highlight.value} />
           {territoryRows.length > 0 ? (
             <BarList

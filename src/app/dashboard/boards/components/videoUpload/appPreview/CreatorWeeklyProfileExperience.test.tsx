@@ -330,9 +330,14 @@ describe("CreatorWeeklyProfileExperience", () => {
     render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
 
     await waitFor(() => expect(screen.getByText(LATEST_RECORDING.title)).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", "/reunioes-gravadas");
+    expect(screen.getByRole("link", { name: /Ver todas as gravadas/ })).toHaveAttribute(
+      "href",
+      "/reunioes-gravadas",
+    );
+    // Quem não assina vê a capa e o assunto; o convite entra no play.
+    expect(screen.getByText(/assinantes assistem completo/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: `Assistir: ${LATEST_RECORDING.title}` }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(LATEST_RECORDING.title) }));
     expect(callbacks.onUpgrade).toHaveBeenCalledWith("recorded_meetings");
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar na comunidade" }));
@@ -449,7 +454,9 @@ describe("inspiração no território", () => {
     await waitFor(() => expect(screen.getByText(TREND_POST.description)).toBeInTheDocument());
     // O nome da seção é a gaveta em que os posts do criador caem, medida pelo
     // servidor — não o território escrito no mapa, que nem sempre tem gaveta.
-    expect(screen.getByText("Inspiração em parentalidade")).toBeInTheDocument();
+    expect(screen.getByText("Trends do seu território")).toBeInTheDocument();
+    // O território nomeia a linha do post, não o cabeçalho.
+    expect(screen.getByText(/Juliana Dias · parentalidade/)).toBeInTheDocument();
     expect(screen.getByText("1,2 mi")).toBeInTheDocument();
     // A origem do número fica escrita: "mais vistos" sem dizer entre quem sugere
     // um universo que não é o nosso.

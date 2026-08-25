@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import type { IMapaData } from "@/app/models/MapaSeed";
 
@@ -64,6 +64,28 @@ describe("a narrativa por inteiro", () => {
       "/api/dashboard/mobile-strategic-profile/map-seed",
       expect.objectContaining({ method: "PATCH" }),
     );
+  });
+
+  it("desfaz o chip e avisa quando o servidor recusa a gravação", async () => {
+    // Engolir a falha aqui é o pior caso do produto: a pessoa fecha a tela
+    // achando que mexeu na régua da semana e a mudança some sozinha depois.
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) }) as unknown as typeof fetch;
+    const { onMapaChange } = renderView();
+    const territorios = screen.getByRole("region", { name: "Territórios" });
+
+    await act(async () => {
+      fireEvent.click(within(territorios).getByRole("button", { name: "+ adicionar" }));
+    });
+    fireEvent.change(within(territorios).getByRole("textbox", { name: "Adicionar em Territórios" }), {
+      target: { value: "Casa e rotina" },
+    });
+    await act(async () => {
+      fireEvent.click(within(territorios).getByRole("button", { name: "salvar" }));
+    });
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/Não foi possível salvar/));
+    // A última chamada devolve o mapa ao que era antes do otimismo.
+    expect(onMapaChange).toHaveBeenLastCalledWith(MAPA);
   });
 
   it("remove um chip pela seção certa", () => {

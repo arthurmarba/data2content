@@ -202,8 +202,8 @@ function SuggestedCollabsSection({
   if (state.status === "error") {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-[var(--ds-color-brand-soft)]"
-        iconSlot={<CollabIcon stroke="var(--ds-color-brand-strong)" size={24} />}
+        iconBg="bg-[var(--ds-color-neutral)]"
+        iconSlot={<CollabIcon stroke="var(--ds-color-text-secondary)" size={24} />}
         title="Não consegui carregar os matches"
         description={state.error || "As collabs dependem da leitura do Instagram. Tente novamente."}
         ctaLabel={onNewReading ? "Analisar vídeo" : undefined}
@@ -215,8 +215,8 @@ function SuggestedCollabsSection({
   if (!state.items.length) {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-[var(--ds-color-brand-soft)]"
-        iconSlot={<CollabIcon stroke="var(--ds-color-brand-strong)" size={24} />}
+        iconBg="bg-[var(--ds-color-neutral)]"
+        iconSlot={<CollabIcon stroke="var(--ds-color-text-secondary)" size={24} />}
         title="Collabs aparecem com mais leituras"
         description="A D2C identifica criadores com narrativa compatível depois de detectar consistência no seu conteúdo — geralmente a partir da 3ª análise."
         ctaLabel="Analisar vídeo"
@@ -337,7 +337,7 @@ function CollabCreatorSlide({
 
       {/* Badge top-left + contador top-right */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
-        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--ds-color-brand)] px-2.5 py-1 text-[11px] font-bold text-[var(--ds-color-on-brand)]">
+        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--ds-color-ink)] px-2.5 py-1 text-[11px] font-semibold text-[var(--ds-color-on-brand)]">
           ✦ Match narrativo
         </span>
         {total > 1 && (
@@ -577,8 +577,8 @@ function DirectoryCreatorCard({
       {/* Badge de match — usa o acento canônico do Perfil. */}
       {isMatched && (
         <>
-          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[var(--ds-color-brand)] ring-inset" />
-          <span className="absolute right-1.5 top-1.5 flex items-center justify-center rounded-md bg-[var(--ds-color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--ds-color-on-brand)]">
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[var(--ds-color-ink)] ring-inset" />
+          <span className="absolute right-1.5 top-1.5 flex items-center justify-center rounded-md bg-[var(--ds-color-ink)] px-1.5 py-0.5 text-[9px] font-bold text-[var(--ds-color-on-brand)]">
             ✦
           </span>
         </>

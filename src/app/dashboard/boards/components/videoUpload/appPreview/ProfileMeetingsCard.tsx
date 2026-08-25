@@ -25,6 +25,9 @@ import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
  * convite para assinar aparece no play, não antes.
  */
 
+/** Quantas gravadas cabem na gaveta antes de ela virar catálogo. */
+const RECORDINGS_SHOWN = 3;
+
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "short",
@@ -53,14 +56,6 @@ function formatNextMeeting(meeting: WeeklyMeetingProfileData | null) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function PlayIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
-    </svg>
-  );
-}
-
 export function ProfileMeetingsCard({
   meeting,
   isPro,
@@ -76,7 +71,7 @@ export function ProfileMeetingsCard({
   onOpenWhatsAppGroup: () => void;
   onOpenRecording?: (meetingId: string, allowed: boolean) => void;
 }) {
-  const [latest, setLatest] = useState<RecordedMeetingCatalogItem | null>(null);
+  const [recordings, setRecordings] = useState<RecordedMeetingCatalogItem[]>([]);
   const [playing, setPlaying] = useState<RecordedMeetingPlayback | null>(null);
   const cancelled = meeting?.status === "cancelled";
 
@@ -89,7 +84,9 @@ export function ProfileMeetingsCard({
         const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.ok) return;
         const meetings = Array.isArray(payload.meetings) ? payload.meetings : [];
-        setLatest((meetings[0] as RecordedMeetingCatalogItem) ?? null);
+        // A gaveta mostra as últimas, não só a última: uma capa sozinha faz o
+        // acervo parecer ter um item, e é ele que sustenta o convite.
+        setRecordings((meetings as RecordedMeetingCatalogItem[]).slice(0, RECORDINGS_SHOWN));
       })
       .catch(() => {
         /* silencioso: o card continua válido sem a gravação */
@@ -97,9 +94,8 @@ export function ProfileMeetingsCard({
     return () => controller.abort();
   }, []);
 
-  const handlePlay = useCallback(async () => {
-    if (!latest) return;
-    onOpenRecording?.(latest.id, isPro);
+  const handlePlay = useCallback(async (meeting: RecordedMeetingCatalogItem) => {
+    onOpenRecording?.(meeting.id, isPro);
 
     if (!isPro) {
       onUpgrade("recorded_meetings");
@@ -108,7 +104,7 @@ export function ProfileMeetingsCard({
 
     try {
       const response = await fetch(
-        `/api/dashboard/recorded-meetings/${encodeURIComponent(latest.id)}/playback`,
+        `/api/dashboard/recorded-meetings/${encodeURIComponent(meeting.id)}/playback`,
         { cache: "no-store", credentials: "include" },
       );
       const payload = await response.json().catch(() => null);
@@ -117,73 +113,97 @@ export function ProfileMeetingsCard({
       }
       setPlaying(payload.meeting as RecordedMeetingPlayback);
     } catch {
-      window.location.assign(`${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(latest.id)}`);
+      window.location.assign(`${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(meeting.id)}`);
     }
-  }, [isPro, latest, onOpenRecording, onUpgrade]);
+  }, [isPro, onOpenRecording, onUpgrade]);
 
   return (
     <>
       <section id="community-d2c">
-        <ProfileSectionHeader title="Reuniões da comunidade" />
-        <div className="mt-4 rounded-[18px] bg-[var(--ds-color-neutral)] p-6">
-        <h2 className="text-[19px] font-bold leading-[1.25] tracking-[-0.025em] text-[var(--ds-color-ink)]">
-          {cancelled ? "A próxima edição foi cancelada." : "Sua semana entra na pauta do grupo."}
-        </h2>
-        <p className="ds-caption mt-1.5">
-          {cancelled ? "Avisamos no grupo quando a próxima for marcada." : `${formatNextMeeting(meeting)} · ao vivo, no WhatsApp`}
-        </p>
+        {/* "Comunidade", não "Reuniões da comunidade": o cabeçalho nomeia o
+            assunto e o card diz o que acontece nele. */}
+        <ProfileSectionHeader title="Comunidade" />
+        <div className="ds-card-stamp mt-4 rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-[18px]">
+          {/* A DATA é o elemento grande, não uma frase de convencimento: quem já
+              está dentro volta aqui para saber quando é, e quem ainda não está
+              entende a oferta melhor vendo que ela tem hora marcada. */}
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
+            Próxima ao vivo
+          </p>
+          <h2 className="mt-2.5 text-[19px] font-semibold leading-[1.24] tracking-[-0.025em] text-[var(--ds-color-ink)]">
+            {cancelled ? "A próxima edição foi cancelada." : formatNextMeeting(meeting)}
+          </h2>
+          <p className="mt-1.5 text-[12.5px] leading-[1.4] text-[var(--ds-color-text-muted)]">
+            {cancelled ? "Avisamos no grupo quando a próxima for marcada." : "Ao vivo, no WhatsApp"}
+          </p>
 
-        {latest ? (
-          <div className="ds-notebook-media mt-4 overflow-hidden bg-[var(--ds-color-surface)]">
-            <button
-              type="button"
-              onClick={() => void handlePlay()}
-              className="relative block aspect-[16/9] w-full bg-[var(--ds-color-ink)]"
-              aria-label={`Assistir: ${latest.title}`}
-            >
-              <Image
-                src={latest.thumbnailUrl}
-                alt=""
-                fill
-                sizes="(min-width: 1024px) 380px, 100vw"
-                className="object-cover opacity-85"
-              />
-              <span className="absolute inset-0 grid place-items-center">
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--ds-color-paper)] pl-0.5 text-[var(--ds-color-ink)] shadow-[var(--ds-shadow-floating)]">
-                  <PlayIcon />
-                </span>
-              </span>
-            </button>
-            <div className="px-4 pb-4 pt-3">
-              <p className="text-[14px] font-bold leading-[1.25] text-[var(--ds-color-ink)]">{latest.title}</p>
-              <p className="ds-caption mt-1">
-                {formatRecordingDate(latest.publishedAt)} · última reunião
-                {isPro ? "" : " · assinantes assistem completo"}
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mt-4 flex flex-wrap gap-2">
           {isPro ? (
             <a
               href={COMMUNITY_PRO_JOIN_ROUTE}
               target="_blank"
               rel="noreferrer"
-              className="ds-button ds-button--primary ds-button--small no-underline"
+              className="ds-button ds-button--secondary ds-button--block mt-3.5 no-underline"
               onClick={onOpenWhatsAppGroup}
             >
               {whatsappGroupLinkOpened ? "Abrir a comunidade" : "Entrar na comunidade"}
             </a>
           ) : (
-            <button type="button" className="ds-button ds-button--primary ds-button--small" onClick={() => onUpgrade("community")}>
+            <button
+              type="button"
+              className="ds-button ds-button--secondary ds-button--block mt-3.5"
+              onClick={() => onUpgrade("community")}
+            >
               Entrar na comunidade
             </button>
           )}
-          <Link href={RECORDED_MEETINGS_ROUTE} className="ds-button ds-button--quiet ds-button--small no-underline">
-            Ver todas
-          </Link>
-        </div>
+
+          {recordings.length > 0 ? (
+            <div className="mt-[18px] border-t border-dashed border-[var(--ds-color-line)] pt-3.5">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
+                Gravadas
+              </p>
+              {recordings.map((recording) => (
+                <button
+                  key={recording.id}
+                  type="button"
+                  onClick={() => void handlePlay(recording)}
+                  className="mt-3 flex w-full items-center gap-3 text-left"
+                >
+                  <span className="relative block h-[46px] w-[64px] shrink-0 overflow-hidden rounded-[8px] bg-[var(--ds-color-neutral)]">
+                    <Image
+                      src={recording.thumbnailUrl}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-medium leading-[1.3] text-[var(--ds-color-ink)]">
+                      {recording.title}
+                    </span>
+                    <span className="mt-0.5 block text-[11.5px] leading-[1.2] text-[var(--ds-color-text-muted)]">
+                      Gravada em {formatRecordingDate(recording.publishedAt)}
+                      {isPro ? "" : " · assinantes assistem completo"}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="text-[13px] font-semibold text-[var(--ds-color-text-muted)]">
+                    ›
+                  </span>
+                </button>
+              ))}
+
+              <Link
+                href={RECORDED_MEETINGS_ROUTE}
+                className="mt-3.5 flex w-full items-center gap-2.5 pt-0.5 text-[12.5px] font-semibold text-[var(--ds-color-ink)] no-underline"
+              >
+                <span className="min-w-0 flex-1">Ver todas as gravadas</span>
+                <span aria-hidden="true" className="text-[13px] text-[var(--ds-color-text-muted)]">
+                  ›
+                </span>
+              </Link>
+            </div>
+          ) : null}
         </div>
       </section>
 

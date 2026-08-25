@@ -39,7 +39,7 @@ const WA_GREEN = "#25D366";
 
 // Mesma relação do Perfil: canvas quente e conteúdo em superfície branca.
 const FEED_BG = "var(--ds-color-neutral)";
-const FEED_CARD_SHADOW = "var(--ds-shadow-raised)";
+const FEED_CARD_SHADOW = "2px 2px 0 rgba(18, 16, 20, 0.07)";
 
 export type PautaActionKind = "save" | "unsave" | "dismiss" | "collab-interest" | "collab-decline";
 export type PautaActionPhase = "pending" | "failed" | "confirmed";
@@ -141,7 +141,10 @@ function HeaderIconButton({
   pulseKey?: number;
   children: React.ReactNode;
 }) {
-  const badgeBg = badgeTone === "match" ? "var(--ds-color-success)" : CS_INK_HEX;
+  // Um badge só, preto: o verde vinha de quando "match" era um estado
+  // celebrado com cor própria. Hoje a comemoração tem tela inteira, e aqui o
+  // número é só contagem.
+  const badgeBg = CS_INK_HEX;
   return (
     <button
       type="button"
@@ -178,6 +181,7 @@ function FeedHeader({
   matchCount,
   loading,
   showTitle,
+  headline,
   onOpenSalvas,
   onOpenCombinadas,
 }: {
@@ -189,6 +193,8 @@ function FeedHeader({
   matchCount: number;
   loading?: boolean;
   showTitle: boolean;
+  /** "Uma parceria pra decidir" / "Uma ideia pra decidir" / "Nada em aberto". */
+  headline: string;
   onOpenSalvas: () => void;
   onOpenCombinadas: () => void;
 }) {
@@ -196,19 +202,30 @@ function FeedHeader({
     // Hero em Bricolage (creator-studio) — piloto do design system da landing.
     // Compacto de propósito: nesta tela o header é coadjuvante do deck — cada
     // pt gasto aqui é pt tirado do card (que é a experiência inteira da aba).
-    <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 20px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", padding: "12px 20px 6px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
       {/* O contador do marcador "pulsa" quando um card cai na mochila. */}
       <style>{`@keyframes d2c-pocket-pop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}`}</style>
+      {/* "Collabs" vira etiqueta e a MANCHETE diz o que está em jogo agora: a
+          pessoa abre a aba já sabendo se o card do topo é uma parceria (com
+          gente do outro lado) ou uma ideia dela sozinha — que é a diferença
+          entre as duas decisões que ela pode tomar aqui. */}
       <div style={{ minWidth: 0, flex: 1 }}>
         {showTitle ? (
-          <h1 style={{
-            fontFamily: CS_FONT_DISPLAY,
-            fontSize: "clamp(26px, 8.5vw, 33px)",
-            fontWeight: 700, color: CS_INK_HEX, margin: 0,
-            letterSpacing: CS_DISPLAY_TRACKING, lineHeight: 1.1,
-          }}>
-            Collabs
-          </h1>
+          <>
+            <span style={{
+              display: "block", fontSize: 10.5, fontWeight: 600, lineHeight: 1,
+              letterSpacing: "0.08em", textTransform: "uppercase", color: TEXT_SECONDARY_HEX,
+            }}>
+              Collabs
+            </span>
+            <h1 style={{
+              fontFamily: CS_FONT_DISPLAY,
+              fontSize: 22, fontWeight: 700, color: CS_INK_HEX, margin: "7px 0 0",
+              letterSpacing: CS_DISPLAY_TRACKING, lineHeight: 1.05,
+            }}>
+              {headline}
+            </h1>
+          </>
         ) : null}
       </div>
       {/* Dois pontos de entrada: matches (novidade) e salvas (acervo).
@@ -221,19 +238,39 @@ function FeedHeader({
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {loading ? (
           <>
-            <span aria-hidden="true" style={{ width: 40, height: 40, borderRadius: 9999, background: CS_NEUTRAL_HEX }} />
+            <span aria-hidden="true" style={{ width: 108, height: 36, borderRadius: 999, background: CS_NEUTRAL_HEX }} />
             <span aria-hidden="true" style={{ width: 40, height: 40, borderRadius: 9999, background: CS_NEUTRAL_HEX }} />
           </>
         ) : (
           <>
-            <HeaderIconButton
+            {/* Pílula com a palavra, não só o glifo: "Combinadas" é o lugar
+                onde mora a única coisa desta aba que envolve outra pessoa
+                esperando — um ícone sozinho não convida a conferir. */}
+            <button
+              type="button"
               onClick={onOpenCombinadas}
-              ariaLabel={matchCount > 0 ? `Ver parcerias confirmadas (${matchCount})` : "Ver parcerias confirmadas — nenhuma ainda"}
-              badge={matchCount}
-              badgeTone="match"
+              aria-label={matchCount > 0 ? `Ver parcerias confirmadas (${matchCount})` : "Ver parcerias confirmadas — nenhuma ainda"}
+              style={{
+                flex: "none", display: "inline-flex", alignItems: "center", gap: 7, minHeight: 36,
+                border: "1px solid var(--ds-color-line-strong)", background: "var(--ds-color-surface)",
+                borderRadius: 999, padding: "0 13px", fontFamily: "inherit",
+                fontSize: 11.5, fontWeight: 600, color: CS_INK_HEX, cursor: "pointer",
+              }}
             >
-              <CollabGlyph />
-            </HeaderIconButton>
+              Combinadas
+              {/* Sem match, sem número. "Combinadas 0" não informa nada e ainda
+                  lê como notificação — a contagem só existe quando há alguém
+                  do outro lado esperando. */}
+              {matchCount > 0 ? (
+                <span style={{
+                  display: "grid", placeItems: "center", minWidth: 18, height: 18, borderRadius: 999,
+                  background: CS_INK_HEX, color: "var(--ds-color-on-brand)",
+                  fontSize: 10.5, fontWeight: 600, padding: "0 5px",
+                }}>
+                  {matchCount}
+                </span>
+              ) : null}
+            </button>
             {hasSavedItems ? (
               <HeaderIconButton
                 onClick={onOpenSalvas}
@@ -325,10 +362,20 @@ function CombinadasSheet({
   onClose: () => void;
 }) {
   return (
-    <CollabSheet title="Parcerias confirmadas" onClose={onClose}>
+    <CollabSheet title="Combinadas" onClose={onClose}>
       <div style={{ padding: "0 16px" }}>
         {matches.length > 0 ? (
-          <ConfirmedMatchesRow matches={matches} pautaById={pautaById} onOpenMatch={onOpenMatch} framed={false} withHeading={false} />
+          <>
+            {/* A gaveta abre dizendo o que mudou e o que falta. "Parcerias
+                confirmadas" nomeia a lista; isto nomeia a próxima ação. */}
+            <p style={{
+              margin: "0 2px 16px", fontFamily: CS_FONT_DISPLAY, fontSize: 20, fontWeight: 700,
+              lineHeight: 1.16, letterSpacing: CS_DISPLAY_TRACKING, color: TEXT_PRIMARY_HEX,
+            }}>
+              Os dois lados disseram sim. Agora é combinar a gravação.
+            </p>
+            <ConfirmedMatchesRow matches={matches} pautaById={pautaById} onOpenMatch={onOpenMatch} framed={false} withHeading={false} />
+          </>
         ) : (
           // Sem match ainda: a sheet abre mesmo assim e diz isso — o botão do
           // header nunca some, então tocar nele não pode levar a uma tela em
@@ -336,9 +383,9 @@ function CombinadasSheet({
           <div style={{ padding: "8px 4px 22px", textAlign: "center" }}>
             <span style={{
               display: "inline-grid", placeItems: "center", width: 52, height: 52,
-              borderRadius: 12, background: "var(--ds-color-brand-soft)", marginBottom: 12,
+              borderRadius: 12, background: CS_NEUTRAL_HEX, marginBottom: 12,
             }} aria-hidden="true">
-              <CollabGlyph size={22} color="var(--ds-color-brand-strong)" />
+              <CollabGlyph size={22} color={TEXT_SECONDARY_HEX} />
             </span>
             <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.3 }}>
               Nenhuma parceria confirmada ainda
@@ -532,7 +579,7 @@ function ConfirmedMatchesRow({
   return (
     <div style={{ padding: framed ? "20px 16px 0" : 0 }}>
       {withHeading ? (
-        <span style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", color: "var(--ds-color-success)", padding: "0 2px", marginBottom: 10 }}>
+        <span style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", color: TEXT_SECONDARY_HEX, padding: "0 2px", marginBottom: 10 }}>
           Parcerias confirmadas
         </span>
       ) : null}
@@ -552,8 +599,9 @@ function ConfirmedMatchesRow({
               aria-label={pautaTitle ? `Abrir plano da parceria com ${collab.name}: ${pautaTitle}` : `Abrir plano da parceria com ${collab.name}`}
               style={{
                 display: "flex", alignItems: "center", gap: 11, width: "100%",
-                borderRadius: 12, padding: "10px 14px 10px 10px", textAlign: "left",
-                background: "var(--ds-color-success-soft)", border: "1px solid color-mix(in srgb, var(--ds-color-success) 18%, transparent)",
+                borderRadius: 16, padding: "14px 16px", textAlign: "left",
+                background: "var(--ds-color-surface)", border: `1px solid ${CS_LINE}`,
+                boxShadow: FEED_CARD_SHADOW,
                 cursor: onOpenMatch ? "pointer" : "default", fontFamily: "inherit",
               }}
             >
@@ -573,7 +621,7 @@ function ConfirmedMatchesRow({
                 </div>
                 <span style={{
                   position: "absolute", bottom: -2, right: -2, width: 16, height: 16,
-                  borderRadius: 9999, background: "var(--ds-color-success)", border: "2px solid var(--ds-color-success-soft)",
+                  borderRadius: 9999, background: CS_INK_HEX, border: "2px solid var(--ds-color-surface)",
                   display: "grid", placeItems: "center",
                 }}>
                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -586,7 +634,7 @@ function ConfirmedMatchesRow({
                   Parceria com {firstName} confirmada
                 </span>
                 {pautaTitle ? (
-                  <span style={{ display: "block", fontSize: 12, color: "var(--ds-color-success)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ display: "block", fontSize: 11.5, color: TEXT_SECONDARY_HEX, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {pautaTitle}
                   </span>
                 ) : null}
@@ -594,7 +642,17 @@ function ConfirmedMatchesRow({
                   Próximo passo: combinar a gravação.
                 </span>
               </div>
-              {onOpenMatch ? <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ds-color-success)", flexShrink: 0 }}>Abrir plano ›</span> : null}
+              {/* Botão de contorno, como no mockup: "Abrir" é a ação da linha e
+                  precisa parecer um alvo, não um rótulo colorido. */}
+              {onOpenMatch ? (
+                <span style={{
+                  flexShrink: 0, display: "inline-grid", placeItems: "center", minHeight: 38,
+                  borderRadius: 10, padding: "0 12px", border: `1px solid ${CS_LINE}`,
+                  background: "var(--ds-color-surface)", fontSize: 11.5, fontWeight: 600, color: CS_INK_HEX,
+                }}>
+                  Abrir
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -758,7 +816,7 @@ function PautaCard({
             {[pauta.suggestedFormat, pauta.opportunityBrief?.timing?.shortLabel].filter(Boolean).join(" · ")}
           </span>
           {onOpenIdea ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12.5, fontWeight: 700, color: "var(--ds-color-brand-strong)" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: TEXT_PRIMARY_HEX }}>
               Abrir plano <span aria-hidden="true">›</span>
             </span>
           ) : null}
@@ -1085,6 +1143,15 @@ export function DiagnosticoCollabsFeed({
     return ordered;
   }, [deckOrder, deckRoundFingerprint, proposedDeck, proposedDeckCardIds]);
 
+  // A manchete do cabeçalho acompanha o card do topo — é ela que diz, antes de
+  // a pessoa olhar o card, se há alguém do outro lado desta decisão.
+  const deckTop = deckItems[0] ?? null;
+  const deckHeadline = !deckTop
+    ? "Nada em aberto"
+    : deckTop.kind === "pauta"
+      ? "Uma ideia pra decidir"
+      : "Uma parceria pra decidir";
+
   const pautaById = useMemo(() => new Map(pautas.map((p) => [p.id, p])), [pautas]);
   // Roteia a decisão pelo tipo do card — o gesto é um, as consequências não.
   //   RECUSAR parceria = recusa só a pessoa; a ideia volta depois como solo.
@@ -1127,6 +1194,7 @@ export function DiagnosticoCollabsFeed({
           matchCount={confirmedMatches?.length ?? 0}
           loading={bootstrapPending}
           showTitle={showHeaderTitle}
+          headline={deckHeadline}
           onOpenSalvas={() => setOpenSheet("salvas")}
           onOpenCombinadas={() => setOpenSheet("combinadas")}
         />

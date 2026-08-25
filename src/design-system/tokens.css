@@ -889,3 +889,31 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─── Carimbo do cartão ──────────────────────────────────────────────────────
+ *
+ * A sombra do Perfil não é uma sombra de profundidade — é um deslocamento duro
+ * de 2px, sem desfoque, como carimbo em papel. Faz o cartão existir sobre o
+ * fundo sem fingir altura, o que importa numa tela em que o fundo e o cartão
+ * são quase da mesma cor: só a borda separava os dois, e borda sozinha lê como
+ * grade, não como objeto.
+ *
+ * `--soft` é para o cartão que já repousa sobre superfície neutra, onde a mesma
+ * intensidade pesaria demais.
+ */
+.ds-card-stamp { box-shadow: 2px 2px 0 rgba(18, 16, 20, 0.07); }
+.ds-card-stamp--soft { box-shadow: 2px 2px 0 rgba(18, 16, 20, 0.05); }
+
+/* O cartão que é botão sobe 2px no ponteiro e volta ao ser pressionado. Sem
+   isso, um cartão inteiro clicável não se anuncia como clicável em lugar
+   nenhum — a seta de 13px no canto é pequena demais para carregar sozinha. */
+.ds-card-lift { transition: transform var(--ds-motion-fast) cubic-bezier(0.16, 1, 0.3, 1); }
+@media (hover: hover) {
+  .ds-card-lift:hover { transform: translateY(-2px); }
+}
+.ds-card-lift:active { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-card-lift { transition: none; }
+  .ds-card-lift:hover { transform: none; }
+}
