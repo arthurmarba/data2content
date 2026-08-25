@@ -39,6 +39,10 @@ async function main() {
       technicalScore: result.validation.technicalScore,
       evidenceStatus: result.evidenceReceipt.status,
       fullExemplarsUsed: result.evidenceReceipt.fullExemplarsUsed,
+      spokenWordCounts: result.content.split("\n")
+        .map((line) => /^\s*Fala:\s*(.+)$/i.exec(line)?.[1]?.trim() || "")
+        .filter(Boolean)
+        .map((line) => line.split(/\s+/).filter(Boolean).length),
     };
     results.push(row);
     process.stdout.write(`${JSON.stringify(row)}\n`);

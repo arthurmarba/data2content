@@ -8,6 +8,7 @@ import PublishedContentEvidence, {
   type PublishedTranscriptSegment,
 } from "@/app/models/PublishedContentEvidence";
 import ScriptEntry from "@/app/models/ScriptEntry";
+import AudienceDemographicSnapshot from "@/app/models/demographics/AudienceDemographicSnapshot";
 
 export type PublishedEvidenceCoverage = {
   schemaVersion: "published_evidence_coverage_v1";
@@ -303,6 +304,21 @@ function ratio(value: number, total: number): number {
   return total ? Number((value / total).toFixed(4)) : 0;
 }
 
+function hasDemographicData(snapshot: unknown): boolean {
+  if (!snapshot || typeof snapshot !== "object") return false;
+  const demographics = (snapshot as { demographics?: Record<string, unknown> }).demographics;
+  if (!demographics || typeof demographics !== "object") return false;
+  for (const sourceKey of ["engaged_audience_demographics", "follower_demographics"]) {
+    const source = demographics[sourceKey];
+    if (!source || typeof source !== "object") continue;
+    for (const dimension of Object.values(source)) {
+      if (!dimension || typeof dimension !== "object") continue;
+      if (Object.values(dimension).some((value) => Number(value) > 0)) return true;
+    }
+  }
+  return false;
+}
+
 export async function getPublishedEvidenceCoverage(params: {
   userId: string;
   lookbackDays?: number;
@@ -313,7 +329,7 @@ export async function getPublishedEvidenceCoverage(params: {
   const lookbackDays = Math.max(7, Math.min(365, Math.floor(params.lookbackDays || 180)));
   const since = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
   const userId = new Types.ObjectId(params.userId);
-  const [publishedContent, videoContent, aggregates] = await Promise.all([
+  const [publishedContent, videoContent, aggregates, demographicSnapshot] = await Promise.all([
     MetricModel.countDocuments({ user: userId, postDate: { $gte: since } }),
     MetricModel.countDocuments({
       user: userId,
@@ -332,6 +348,12 @@ export async function getPublishedEvidenceCoverage(params: {
         scriptsLinked: { $sum: { $cond: ["$completeness.scriptLink", 1, 0] } },
       } },
     ]),
+    params.demographicsAvailable === undefined
+      ? AudienceDemographicSnapshot.findOne({ user: userId })
+          .sort({ recordedAt: -1 })
+          .select("demographics")
+          .lean()
+      : null,
   ]);
   const row = aggregates[0] || {};
   const evidenceRecords = Number(row.evidenceRecords || 0);
@@ -353,7 +375,7 @@ export async function getPublishedEvidenceCoverage(params: {
     durationAvailable,
     performanceAvailable,
     scriptsLinked,
-    demographicsAvailable: Boolean(params.demographicsAvailable),
+    demographicsAvailable: params.demographicsAvailable ?? hasDemographicData(demographicSnapshot),
     ratios: {
       evidence: ratio(evidenceRecords, Math.max(1, videoContent)),
       transcript: ratio(fullTranscriptAvailable, Math.max(1, videoContent)),

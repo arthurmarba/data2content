@@ -106,6 +106,28 @@ export function estimateScriptDurationSeconds(content: string, wordsPerSecond?: 
   return Math.max(1, Math.round(count / pace));
 }
 
+export function resolveDurationWordBudget(targetDurationSeconds: number, wordsPerSecond?: number | null) {
+  const pace = typeof wordsPerSecond === "number" && wordsPerSecond >= 1.3 && wordsPerSecond <= 4
+    ? wordsPerSecond : 2.35;
+  const target = Math.max(5, targetDurationSeconds);
+  const toleranceSeconds = Math.max(7, target * 0.25);
+  return {
+    ideal: Math.max(8, Math.round(target * pace)),
+    minimum: Math.max(6, Math.round(Math.max(3, target - toleranceSeconds) * pace)),
+    maximum: Math.max(10, Math.round((target + toleranceSeconds) * pace)),
+  };
+}
+
+export function replaceSpokenLines(content: string, replacements: string[]): string {
+  let replacementIndex = 0;
+  return content.split("\n").map((line) => {
+    const match = /^(\s*)Fala:\s*/i.exec(line);
+    if (!match || replacementIndex >= replacements.length) return line;
+    const replacement = String(replacements[replacementIndex++] || "").replace(/\s+/g, " ").trim();
+    return replacement ? `${match[1]}Fala: ${replacement}` : line;
+  }).join("\n");
+}
+
 function compactEvidencePack(pack: CreatorScriptEvidencePack) {
   return {
     request: pack.request,
@@ -150,6 +172,10 @@ function buildV3Prompt(input: GenerateCreatorScriptV3Input, pack: CreatorScriptE
     title: input.title,
     intelligenceContext: input.intelligenceContext,
   });
+  const wordBudget = resolveDurationWordBudget(
+    pack.generationConstraints.targetDurationSeconds,
+    pack.dna?.voice?.wordsPerSecond,
+  );
   return `${base}\n\n` +
     `EVIDÊNCIA EDITORIAL V3 DA DATA2CONTENT\n` +
     `${JSON.stringify(compactEvidencePack(pack))}\n\n` +
@@ -157,7 +183,8 @@ function buildV3Prompt(input: GenerateCreatorScriptV3Input, pack: CreatorScriptE
     `- Aprenda com o texto INTEGRAL dos exemplares, incluindo ritmo, progressão, vocabulário e transições.\n` +
     `- Não copie 8 ou mais palavras consecutivas de nenhum exemplar. Recrie o padrão, não a frase.\n` +
     `- A Fala de cada cena deve ser literal, completa e pronta para o criador dizer; não escreva apenas "explique" ou "conte".\n` +
-    `- O conjunto das Falas deve caber aproximadamente em ${pack.generationConstraints.targetDurationSeconds} segundos.\n` +
+    `- O conjunto das Falas deve caber em ${pack.generationConstraints.targetDurationSeconds} segundos: use ${wordBudget.minimum}-${wordBudget.maximum} palavras faladas no total, buscando ${wordBudget.ideal}. Conte somente o texto depois de "Fala:".\n` +
+    `- Para essa duração, use no máximo ${pack.generationConstraints.preferredSceneCount} cenas. Gancho, desenvolvimento e CTA precisam dividir esse mesmo orçamento de palavras.\n` +
     `- Use cenário, objeto e enquadramento somente quando fizer sentido para o assunto; não force todos os sinais do DNA.\n` +
     `- Use demografia somente para clareza e exemplos, nunca para estereotipar.\n` +
     `- Resultado histórico é evidência correlacional, não promessa de performance.\n` +
@@ -175,6 +202,15 @@ async function callGemini(prompt: string): Promise<{ draft: { title: string; con
     config: {
       systemInstruction: "Você é o motor de roteiros da Data2Content. Use somente as evidências do próprio criador e cumpra o contrato JSON.",
       responseMimeType: "application/json",
+      responseSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "content"],
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 180 },
+          content: { type: "string", minLength: 1, maxLength: 20_000 },
+        },
+      },
       temperature: 0.35,
       thinkingConfig: { thinkingBudget: 0 },
     },
@@ -190,18 +226,116 @@ async function repairWithGemini(params: {
   overlap: string | null;
   estimatedDuration: number;
   targetDuration: number;
+  wordsPerSecond?: number | null;
+  attempt: number;
+  technicalScore: number;
 }) {
+  const wordBudget = resolveDurationWordBudget(params.targetDuration, params.wordsPerSecond);
+  const currentSpokenWords = words(spokenText(params.draft.content) || params.draft.content).length;
+  const speechLines = Math.max(1, (params.draft.content.match(/^Fala:/gim) || []).length);
+  const wordsPerSpeechLine = {
+    minimum: Math.max(3, Math.ceil(wordBudget.minimum / speechLines)),
+    ideal: Math.max(4, Math.round(wordBudget.ideal / speechLines)),
+    maximum: Math.max(5, Math.floor(wordBudget.maximum / speechLines)),
+  };
   const issues = [
     params.overlap ? `Há cópia literal proibida: "${params.overlap}".` : "",
     Math.abs(params.estimatedDuration - params.targetDuration) > Math.max(7, params.targetDuration * 0.25)
-      ? `A duração estimada é ${params.estimatedDuration}s; ajuste para ${params.targetDuration}s.` : "",
+      ? `A duração estimada é ${params.estimatedDuration}s, com ${currentSpokenWords} palavras faladas; reescreva para ${wordBudget.minimum}-${wordBudget.maximum} palavras faladas, idealmente ${wordBudget.ideal}, visando ${params.targetDuration}s.` : "",
+    params.technicalScore < 0.68
+      ? `A qualidade técnica está em ${params.technicalScore.toFixed(3)}. Reforce gancho específico, progressão concreta, fala natural, filmabilidade e CTA coerente sem perder o orçamento de palavras.` : "",
   ].filter(Boolean);
   if (!issues.length) return null;
+  const repairContext = params.attempt >= 2
+    ? `Você é um editor de roteiro e duração. Preserve título, assunto e tom, mas corrija as Falas e a estrutura para cumprir os critérios abaixo.\n` +
+      `REGRA DE ACEITE: a soma de todas as palavras depois de "Fala:" deve ficar entre ${wordBudget.minimum} e ${wordBudget.maximum}, buscando ${wordBudget.ideal}. Conte antes de responder.\n` +
+      `O roteiro tem ${speechLines} falas: cada uma deve ter ${wordsPerSpeechLine.minimum}-${wordsPerSpeechLine.maximum} palavras, buscando ${wordsPerSpeechLine.ideal}; nenhuma pode ficar abaixo do mínimo.\n` +
+      `${params.estimatedDuration < params.targetDuration
+        ? "Expanda com explicação concreta, exemplo, consequência ou prova; não use enchimento."
+        : "Condense frases e remova redundância sem cortar ideias no meio."}\n` +
+      `Mantenha falas literais, completas e naturais. Retorne somente JSON com title e content.`
+    : params.basePrompt;
   return callGemini(
-    `${params.basePrompt}\n\nREVISÃO OBRIGATÓRIA\n${issues.map((item) => `- ${item}`).join("\n")}\n` +
+    `${repairContext}\n\nREVISÃO OBRIGATÓRIA\n${issues.map((item) => `- ${item}`).join("\n")}\n` +
     `Roteiro a corrigir:\n${JSON.stringify(params.draft)}\n` +
     `Preserve o assunto e a estratégia. Retorne somente JSON com title e content.`,
   );
+}
+
+async function fitSpeechDurationWithGemini(params: {
+  draft: { title: string; content: string };
+  targetDuration: number;
+  wordsPerSecond?: number | null;
+}) {
+  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
+  if (!apiKey) return null;
+  const speechLines = params.draft.content.split("\n")
+    .map((line) => /^\s*Fala:\s*(.+)$/i.exec(line)?.[1]?.trim() || "")
+    .filter(Boolean);
+  if (!speechLines.length) return null;
+  const budget = resolveDurationWordBudget(params.targetDuration, params.wordsPerSecond);
+  const perLineMinimum = Math.max(3, Math.ceil(budget.minimum / speechLines.length));
+  const perLineMaximum = Math.max(perLineMinimum, Math.floor(budget.maximum / speechLines.length));
+  const perLineIdeal = Math.max(perLineMinimum, Math.min(perLineMaximum, Math.round(budget.ideal / speechLines.length)));
+  const model = (process.env.GEMINI_SCRIPT_MODEL || "gemini-2.5-flash").trim();
+  const ai = new GoogleGenAI({ apiKey });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await ai.models.generateContent({
+      model,
+      contents: createUserContent([
+        `Reescreva somente as ${speechLines.length} falas abaixo, preservando assunto, tom, progressão e CTA.\n` +
+        `Cada fala deve ter ${perLineMinimum}-${perLineMaximum} palavras, buscando ${perLineIdeal}. Nenhuma pode ficar abaixo do mínimo. Conte cada fala antes de responder.\n` +
+        `Use explicação concreta, exemplo, consequência ou prova para expandir; remova redundância para reduzir. Não use enchimento.\n` +
+        `${attempt > 0 ? "A tentativa anterior não cumpriu a contagem. Desta vez, só responda depois de conferir cada item.\n" : ""}` +
+        `Falas atuais: ${JSON.stringify(speechLines)}`,
+      ]),
+      config: {
+        systemInstruction: "Você é um editor de fala para vídeo. Retorne exatamente uma fala revisada para cada fala recebida.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["speechLines"],
+          properties: {
+            speechLines: {
+              type: "array",
+              minItems: speechLines.length,
+              maxItems: speechLines.length,
+              items: {
+                type: "string",
+                minLength: perLineMinimum * 6,
+                maxLength: perLineMaximum * 10,
+              },
+            },
+          },
+        },
+        temperature: 0.2,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    logGeminiUsage("script_generation_duration_fit", model, response);
+    try {
+      const parsed = JSON.parse(response.text || "{}") as { speechLines?: unknown[] };
+      const replacements = Array.isArray(parsed.speechLines)
+        ? parsed.speechLines.map((item) => String(item || "").replace(/\s+/g, " ").trim()).filter(Boolean)
+        : [];
+      const counts = replacements.map((item) => words(item).length);
+      const valid = replacements.length === speechLines.length && counts.every(
+        (count) => count >= perLineMinimum && count <= perLineMaximum,
+      );
+      if (!valid) continue;
+      return {
+        draft: {
+          title: params.draft.title,
+          content: replaceSpokenLines(params.draft.content, replacements),
+        },
+        model,
+      };
+    } catch {
+      // Segunda tentativa recebe instrução mais explícita de contagem.
+    }
+  }
+  return null;
 }
 
 function validate(params: {
@@ -274,11 +408,12 @@ export async function generateCreatorScriptV3(input: GenerateCreatorScriptV3Inpu
       prompt,
       title: input.title,
       intelligenceContext: input.intelligenceContext,
+      allowModelCall: process.env.SCRIPTS_OPENAI_FALLBACK_ENABLED !== "false",
     });
     draft = { title: fallback.title, content: fallback.content };
     reviewMeta = fallback.reviewMeta;
-    provider = process.env.OPENAI_API_KEY ? "openai_fallback" : "local_fallback";
-    model = process.env.OPENAI_MODEL || "local";
+    provider = fallback.generationProvider === "openai" ? "openai_fallback" : "local_fallback";
+    model = fallback.generationProvider === "openai" ? (process.env.OPENAI_MODEL || "gpt-4o") : "local";
   }
 
   const sanitized = sanitizeScriptIdentityLeakage(draft, identitySources);
@@ -289,31 +424,74 @@ export async function generateCreatorScriptV3(input: GenerateCreatorScriptV3Inpu
     runQualityPass: true,
     editorialDecision: input.intelligenceContext?.editorialDecision,
     preferredSceneCount: pack.generationConstraints.preferredSceneCount || density.preferredSceneCount,
-    maxSceneCount: Math.max(pack.generationConstraints.preferredSceneCount, density.maxSceneCount),
+    maxSceneCount: pack.generationConstraints.targetDurationSeconds <= 20
+      ? pack.generationConstraints.preferredSceneCount
+      : Math.max(
+          pack.generationConstraints.preferredSceneCount,
+          Math.min(density.maxSceneCount, pack.generationConstraints.preferredSceneCount + 1),
+        ),
   });
   let checked = validate({ content: normalized.content, pack });
 
-  if (provider === "gemini" && (!checked.durationWithinTolerance || checked.overlap)) {
-    try {
-      const repaired = await repairWithGemini({
-        basePrompt: v3Prompt,
-        draft: normalized,
-        overlap: checked.overlap,
-        estimatedDuration: checked.estimated,
-        targetDuration: pack.generationConstraints.targetDurationSeconds,
-      });
-      if (repaired?.draft) {
-        const repairedSafe = sanitizeScriptIdentityLeakage(repaired.draft, identitySources);
-        normalized = enforceTechnicalScriptContract(repairedSafe, `${anchor}\n${prompt}`, {
-          runQualityPass: true,
-          editorialDecision: input.intelligenceContext?.editorialDecision,
-          preferredSceneCount: pack.generationConstraints.preferredSceneCount,
-          maxSceneCount: Math.max(pack.generationConstraints.preferredSceneCount, density.maxSceneCount),
+  if (provider === "gemini") {
+    for (
+      let repairAttempt = 0;
+      repairAttempt < 2 && (!checked.durationWithinTolerance || checked.overlap || checked.quality.perceivedQuality < 0.68);
+      repairAttempt += 1
+    ) {
+      try {
+        const repaired = await repairWithGemini({
+          basePrompt: v3Prompt,
+          draft: normalized,
+          overlap: checked.overlap,
+          estimatedDuration: checked.estimated,
+          targetDuration: pack.generationConstraints.targetDurationSeconds,
+          wordsPerSecond: pack.dna?.voice?.wordsPerSecond,
+          attempt: repairAttempt + 1,
+          technicalScore: checked.quality.perceivedQuality,
         });
+        if (repaired?.draft) {
+          const repairedSafe = sanitizeScriptIdentityLeakage(repaired.draft, identitySources);
+          normalized = enforceTechnicalScriptContract(repairedSafe, `${anchor}\n${prompt}`, {
+            runQualityPass: false,
+            editorialDecision: input.intelligenceContext?.editorialDecision,
+            preferredSceneCount: pack.generationConstraints.preferredSceneCount,
+            maxSceneCount: pack.generationConstraints.targetDurationSeconds <= 20
+              ? pack.generationConstraints.preferredSceneCount
+              : Math.max(
+                  pack.generationConstraints.preferredSceneCount,
+                  Math.min(density.maxSceneCount, pack.generationConstraints.preferredSceneCount + 1),
+                ),
+          });
+          checked = validate({ content: normalized.content, pack });
+        }
+      } catch (error) {
+        logger.warn("[scripts][v3][repair_failed]", {
+          attempt: repairAttempt + 1,
+          error: error instanceof Error ? error.message : String(error || ""),
+        });
+        break;
+      }
+    }
+  }
+
+  if (!checked.durationWithinTolerance && process.env.GEMINI_API_KEY) {
+    try {
+      const fitted = await fitSpeechDurationWithGemini({
+        draft: normalized,
+        targetDuration: pack.generationConstraints.targetDurationSeconds,
+        wordsPerSecond: pack.dna?.voice?.wordsPerSecond,
+      });
+      if (fitted?.draft) {
+        // O roteiro já passou pelo contrato técnico; reexecutá-lo aqui substituiria
+        // falas longas/CTA por fallbacks e desfaria o ajuste de duração validado.
+        normalized = fitted.draft;
         checked = validate({ content: normalized.content, pack });
+        provider = "gemini";
+        model = fitted.model;
       }
     } catch (error) {
-      logger.warn("[scripts][v3][repair_failed]", {
+      logger.warn("[scripts][v3][duration_fit_failed]", {
         error: error instanceof Error ? error.message : String(error || ""),
       });
     }

@@ -11,8 +11,8 @@ Todo roteiro gerado na plataforma, no Claude ou no ChatGPT passa pelo mesmo moto
 3. O vínculo é confirmado quando o usuário ligou o roteiro ao post. Caso contrário, usa similaridade lexical dentro de uma janela temporal e marca a confiança como `high`, `possible` ou `unlinked`.
 4. `CreatorScriptDnaProfile` agrega até 500 conteúdos dos últimos 365 dias: voz, ritmo, expressões recorrentes, estruturas vencedoras, assuntos, padrões visuais, duração e demografia engajada/followers.
 5. Para cada pedido, o retrieval ranqueia todo o acervo e carrega no máximo três textos integrais vencedores relevantes e um contraste. O restante entra somente como DNA agregado.
-6. Gemini gera o roteiro com fala literal por cena. OpenAI/local é fallback se o Gemini estiver indisponível.
-7. O validador mede duração, gancho, CTA, filmabilidade e sobreposição literal. Uma tentativa de reparo é feita quando duração ou cópia falha.
+6. Gemini gera o roteiro com fala literal por cena. OpenAI/local é fallback configurável se o Gemini estiver indisponível.
+7. O validador mede duração, gancho, CTA, filmabilidade e sobreposição literal. Até duas revisões gerais são feitas quando duração ou cópia falha; se o tempo continuar fora, um ajuste estruturado reescreve somente as falas com orçamento validado por cena.
 8. O resultado inclui um recibo de evidência. Baixa cobertura reduz a confiança e aparece como aviso, nunca como informação inventada.
 
 ## Privacidade e segurança
@@ -53,6 +53,8 @@ O backfill começa pelos vídeos mais novos porque a URL de mídia do Instagram 
 - `insufficient`: nenhum texto integral vencedor; o motor usa apenas padrões agregados e regras-base, declarando a limitação.
 
 O rollout pode ser revertido com `SCRIPTS_GENERATION_V3_ENABLED=false` na geração dentro da plataforma. As ferramentas MCP v0.5 permanecem protegidas por scopes e devem ser retiradas do manifesto caso o motor v3 seja desabilitado por período prolongado.
+
+Quando a conta interna da OpenAI estiver sem saldo, use `SCRIPTS_OPENAI_FALLBACK_ENABLED=false`. Isso afeta apenas o provedor interno de geração; Claude e ChatGPT continuam acessando o MCP normalmente.
 
 ## Avaliação contínua
 

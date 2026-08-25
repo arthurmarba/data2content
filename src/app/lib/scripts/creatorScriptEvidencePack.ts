@@ -243,7 +243,7 @@ export async function buildCreatorScriptEvidencePack(params: {
     contrastExemplar: bottom ? toExemplar(bottom) : null,
     generationConstraints: {
       targetDurationSeconds: Math.round(targetDurationSeconds),
-      preferredSceneCount: targetDurationSeconds <= 25 ? 4 : targetDurationSeconds <= 50 ? 5 : 6,
+      preferredSceneCount: targetDurationSeconds <= 20 ? 3 : targetDurationSeconds <= 35 ? 4 : targetDurationSeconds <= 50 ? 5 : 6,
       creatorFitConfidence: dna?.confidence || "low",
       avoidVerbatimCopy: true,
       audienceGuidance: audienceGuidance(dna),

@@ -33,12 +33,14 @@ export type ScriptSemanticReviewMeta = {
 
 type ScriptDraftWithReview = ScriptDraft & {
   reviewMeta?: ScriptSemanticReviewMeta;
+  generationProvider?: "openai" | "local";
 };
 
 type GenerateInput = {
   prompt: string;
   title?: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
+  allowModelCall?: boolean;
 };
 
 type AdjustInput = {
@@ -2723,6 +2725,8 @@ function buildNormalizedTechnicalScenes(
   const objective = inferScriptObjective(fallbackPrompt);
   const parsed = parseTechnicalScenes(content);
   const normalized = parsed.length ? parsed : buildTechnicalScenesFromLegacyContent(content, fallbackPrompt);
+  const preferredSceneCount = Math.max(3, Math.min(6, options?.preferredSceneCount || 4));
+  const maxSceneCount = Math.max(preferredSceneCount, Math.min(6, options?.maxSceneCount || 6));
 
   const scenes: TechnicalSceneBlock[] = normalized.length
     ? normalized
@@ -2733,7 +2737,7 @@ function buildNormalizedTechnicalScenes(
     }));
 
   scenes.sort((a, b) => a.index - b.index);
-  while (scenes.length < 4) {
+  while (scenes.length < Math.min(4, preferredSceneCount)) {
     const nextIndex = scenes.length + 1;
     scenes.push({
       index: nextIndex,
@@ -2741,11 +2745,12 @@ function buildNormalizedTechnicalScenes(
       row: buildDefaultTechnicalRow(nextIndex, Math.max(4, nextIndex), topic, objective),
     });
   }
-  const preferredSceneCount = Math.max(4, Math.min(6, options?.preferredSceneCount || 4));
-  const maxSceneCount = Math.max(preferredSceneCount, Math.min(6, options?.maxSceneCount || 6));
   if (scenes.length > maxSceneCount) {
     const keepIndices = new Set<number>();
-    if (maxSceneCount <= 4) {
+    if (maxSceneCount <= 3) {
+      [1, 2].forEach((index) => keepIndices.add(index));
+      keepIndices.add(scenes.length);
+    } else if (maxSceneCount === 4) {
       [1, 2, 3].forEach((index) => keepIndices.add(index));
       keepIndices.add(scenes.length);
     } else {
@@ -2755,7 +2760,7 @@ function buildNormalizedTechnicalScenes(
       keepIndices.add(scenes.length);
     }
     const trimmed = scenes.filter((scene) => keepIndices.has(scene.index));
-    if (trimmed.length >= 4) {
+    if (trimmed.length >= 3) {
       scenes.length = 0;
       scenes.push(...trimmed.slice(0, maxSceneCount));
     }
@@ -3006,6 +3011,7 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
   const allowedIdentitySources = [userPrompt, input.title || "", editorialAnchorTitle];
 
   try {
+    if (input.allowModelCall === false) throw new Error("model_call_disabled");
     const result = await callModel(llmPrompt, {
       userPrompt,
       operation: "generate",
@@ -3045,6 +3051,7 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
       return {
         ...finalDraft,
         reviewMeta: refined.reviewMeta,
+        generationProvider: "openai",
       };
     }
   } catch (error) {
@@ -3067,6 +3074,7 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
       retried: false,
       acceptedAfterRetry: false,
     },
+    generationProvider: "local",
   };
 }
 
