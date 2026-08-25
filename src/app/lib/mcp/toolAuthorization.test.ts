@@ -23,6 +23,14 @@ describe("MCP tool authorization", () => {
     ])).toEqual(["content:read", "metrics:read"]);
   });
 
+  it("keeps audience, intelligence and collab permissions separate", () => {
+    expect(requiredScopesForMcpPayload([
+      { method: "tools/call", params: { name: "get_video_diagnosis" } },
+      { method: "tools/call", params: { name: "get_audience_intelligence" } },
+      { method: "tools/call", params: { name: "suggest_collab_creators" } },
+    ])).toEqual(["intelligence:read", "audience:read", "collabs:read"]);
+  });
+
   it("does not challenge tool discovery or unknown payloads", () => {
     expect(requiredScopesForMcpPayload({ method: "tools/list" })).toEqual([]);
     expect(requiredScopesForMcpPayload(null)).toEqual([]);

@@ -8,6 +8,11 @@ export const MCP_TOOL_REQUIRED_SCOPES: Readonly<Record<string, readonly string[]
   analyze_content_period: ["metrics:read", "strategy:read"],
   get_content_detail: ["metrics:read", "content:read"],
   get_data_coverage: ["metrics:read"],
+  get_creator_intelligence_profile: ["intelligence:read"],
+  get_video_diagnosis: ["intelligence:read"],
+  get_audience_intelligence: ["audience:read"],
+  get_creator_playbook: ["intelligence:read", "metrics:read"],
+  suggest_collab_creators: ["collabs:read"],
 } as const;
 
 type JsonRpcLike = {

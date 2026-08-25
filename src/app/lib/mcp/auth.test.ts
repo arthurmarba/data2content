@@ -34,7 +34,9 @@ describe("MCP OAuth claims", () => {
   it("advertises resource metadata and all read scopes on initial authorization", () => {
     const header = buildMcpWwwAuthenticateHeader(new McpAuthError("missing_token", 401, "missing"));
     expect(header).toContain('resource_metadata="');
-    expect(header).toContain('scope="profile:read metrics:read strategy:read content:read"');
+    expect(header).toContain(
+      'scope="profile:read metrics:read strategy:read content:read intelligence:read audience:read collabs:read"',
+    );
     expect(header).toContain('error="invalid_token"');
   });
 

@@ -333,8 +333,24 @@ export async function buildNarrativeCandidatePool(
       "@/app/models/CreatorVideoNarrativeDiagnosis"
     );
     const { default: AccountInsightModel } = await import("@/app/models/AccountInsight");
+    const { default: CollabInterest } = await import("@/app/models/CollabInterest");
 
-    const users = await UserModel.find({ _id: { $in: candidateIds } })
+    // Discoverability is explicit. Historical "interested" swipes count as an
+    // explicit collaboration action so existing participants are not stranded
+    // when the dedicated opt-in field is introduced.
+    const historicallyInterested = await CollabInterest.distinct("user", {
+      decision: "interested",
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+    });
+
+    const users = await UserModel.find({
+      _id: { $in: candidateIds },
+      planStatus: { $in: ["active", "non_renewing"] },
+      $or: [
+        { collabDiscoveryOptIn: true },
+        { _id: { $in: historicallyInterested } },
+      ],
+    })
       .select("_id name username instagramUsername email image providerImage profile_picture_url isInstagramConnected instagramAccountId availableIgAccounts mediaKitSlug location")
       .lean<Array<EligibleCandidate["user"]>>();
     const missingAvatarIds = users

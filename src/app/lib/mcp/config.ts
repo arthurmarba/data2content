@@ -3,6 +3,9 @@ const DEFAULT_MCP_SCOPES = [
   "metrics:read",
   "strategy:read",
   "content:read",
+  "intelligence:read",
+  "audience:read",
+  "collabs:read",
 ] as const;
 
 function trimTrailingSlash(value: string): string {

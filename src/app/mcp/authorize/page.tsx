@@ -17,6 +17,9 @@ const SCOPE_LABELS: Record<string, string> = {
   "metrics:read": "Consultar métricas e performance do Instagram",
   "strategy:read": "Consultar análises e inteligência estratégica",
   "content:read": "Consultar posts, pautas e roteiros salvos",
+  "intelligence:read": "Consultar seu mapa criativo e diagnósticos de vídeo",
+  "audience:read": "Consultar dados agregados da sua audiência",
+  "collabs:read": "Receber sugestões de creators disponíveis para collab",
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -103,7 +106,9 @@ export default async function McpAuthorizePage({
           </li>
         ))}
       </ul>
-      {!entitlement.instagramConnected && consent.scope.includes("metrics:read") ? (
+      {!entitlement.instagramConnected && consent.scope.some((scope) =>
+        ["metrics:read", "audience:read"].includes(scope)
+      ) ? (
         <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
           Você pode conectar agora. As métricas ficarão disponíveis depois que conectar o Instagram na Data2Content.
         </p>

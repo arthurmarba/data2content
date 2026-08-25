@@ -18,6 +18,18 @@ jest.mock("./config", () => ({
   getInstagramConnectUrl: () => "https://data2content.ai/dashboard/instagram/connect?source=mcp",
 }));
 
+jest.mock("./creatorIntelligence", () => ({
+  getMcpCreatorIntelligenceProfile: jest.fn(async () => ({ schemaVersion: "profile_v1" })),
+  getMcpVideoDiagnosis: jest.fn(async () => ({ schemaVersion: "diagnosis_v1", diagnosisId: "diag-1" })),
+  getMcpAudienceIntelligence: jest.fn(async () => ({ schemaVersion: "audience_v1" })),
+  getMcpCreatorPlaybook: jest.fn(async () => ({ schemaVersion: "playbook_v1" })),
+  getMcpIntelligenceLayerCoverage: jest.fn(async () => []),
+}));
+
+jest.mock("./collabIntelligence", () => ({
+  suggestMcpCollabCreators: jest.fn(async () => ({ schemaVersion: "collabs_v1", items: [] })),
+}));
+
 function textPayload(result: Awaited<ReturnType<Client["callTool"]>>) {
   const textPart = result.content.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") throw new Error("Expected an MCP text result");
@@ -30,7 +42,15 @@ describe("Data2Content MCP server", () => {
       identity: {
         userId: "507f1f77bcf86cd799439011",
         subject: "oauth-subject",
-        scopes: ["profile:read", "metrics:read", "content:read", "strategy:read"],
+        scopes: [
+          "profile:read",
+          "metrics:read",
+          "content:read",
+          "strategy:read",
+          "intelligence:read",
+          "audience:read",
+          "collabs:read",
+        ],
         issuer: "https://auth.example.test",
         token: "not-used-in-tools",
       },
@@ -58,6 +78,11 @@ describe("Data2Content MCP server", () => {
         "get_creator_profile",
         "get_performance_summary",
         "list_top_content",
+        "get_creator_intelligence_profile",
+        "get_video_diagnosis",
+        "get_audience_intelligence",
+        "get_creator_playbook",
+        "suggest_collab_creators",
         "compare_content_formats",
         "analyze_content_period",
         "get_content_detail",
@@ -66,7 +91,16 @@ describe("Data2Content MCP server", () => {
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
       expect(
         tools
-          .filter((tool) => ["analyze_content_period", "get_content_detail", "get_data_coverage"].includes(tool.name))
+          .filter((tool) => [
+            "get_creator_intelligence_profile",
+            "get_video_diagnosis",
+            "get_audience_intelligence",
+            "get_creator_playbook",
+            "suggest_collab_creators",
+            "analyze_content_period",
+            "get_content_detail",
+            "get_data_coverage",
+          ].includes(tool.name))
           .every((tool) => tool.outputSchema != null),
       ).toBe(true);
     } finally {

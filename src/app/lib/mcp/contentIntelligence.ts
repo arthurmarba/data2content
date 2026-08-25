@@ -9,6 +9,7 @@ import {
   canonicalPlaceById,
   canonicalToneById,
 } from "@/app/lib/relatorio/mapRegistry";
+import { D2C_INTELLIGENCE_SCHEMA_VERSION } from "./intelligenceContract";
 
 export type McpAnalysisFormat = "all" | "reel" | "carousel" | "photo";
 
@@ -105,6 +106,92 @@ function readMetrics(metric: MetricLike): NormalizedPost["metrics"] {
       ?? (watchTimeSeconds != null && durationSeconds ? watchTimeSeconds / durationSeconds : null),
     profileVisits: finite(stats.profile_visits),
     follows: finite(stats.follows),
+  };
+}
+
+const DERIVED_METRIC_KEYS = [
+  "engagement_rate_on_reach",
+  "engagement_rate_on_impressions",
+  "follower_conversion_rate",
+  "propagation_index",
+  "like_comment_ratio",
+  "comment_share_ratio",
+  "save_like_ratio",
+  "virality_weighted",
+  "follow_reach_ratio",
+  "engagement_deep_vs_reach",
+  "engagement_fast_vs_reach",
+  "deep_fast_engagement_ratio",
+] as const;
+
+function readDerivedMetrics(metric: MetricLike) {
+  const stats = metric.stats ?? {};
+  return Object.fromEntries(DERIVED_METRIC_KEYS.map((key) => [key, finite(stats[key])])) as Record<
+    typeof DERIVED_METRIC_KEYS[number],
+    number | null
+  >;
+}
+
+function velocitySummary(metric: MetricLike) {
+  const snapshots = Array.isArray(metric.dailySnapshots) ? metric.dailySnapshots : [];
+  const normalized = snapshots.flatMap((snapshot: Record<string, unknown>) => {
+    const date = toDate(snapshot?.date);
+    if (!date) return [];
+    return [{
+      date: date.toISOString(),
+      dailyViews: finite(snapshot.dailyViews),
+      dailyLikes: finite(snapshot.dailyLikes),
+      dailyComments: finite(snapshot.dailyComments),
+      dailyShares: finite(snapshot.dailyShares),
+      cumulativeViews: finite(snapshot.cumulativeViews),
+      cumulativeLikes: finite(snapshot.cumulativeLikes),
+    }];
+  }).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+  const first = normalized[0];
+  const latest = normalized.at(-1);
+  return {
+    available: normalized.length > 0,
+    snapshotsCount: normalized.length,
+    startsAt: first?.date ?? null,
+    endsAt: latest?.date ?? null,
+    cumulativeViewGrowth: first?.cumulativeViews != null && latest?.cumulativeViews != null
+      ? latest.cumulativeViews - first.cumulativeViews
+      : null,
+    snapshots: normalized,
+  };
+}
+
+function entityTargets(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const type = String((item as Record<string, unknown>).type ?? "").trim();
+    const label = String((item as Record<string, unknown>).label ?? "").trim();
+    if (!type || !label) return [];
+    return [{ type, label, canonicalId: (item as Record<string, unknown>).canonicalId ?? null }];
+  });
+}
+
+function classificationSummary(metric: MetricLike) {
+  const meta = metric.classificationMeta && typeof metric.classificationMeta === "object"
+    ? metric.classificationMeta as Record<string, unknown>
+    : {};
+  return {
+    status: metric.classificationStatus ?? null,
+    proposals: stringList(metric.proposal).map(humanize),
+    contexts: stringList(metric.context).map(contextLabel),
+    tones: stringList(metric.tone).map(humanize),
+    references: stringList(metric.references).map(humanize),
+    contentIntents: stringList(metric.contentIntent).map(humanize),
+    narrativeForms: stringList(metric.narrativeForm).map(humanize),
+    contentSignals: stringList(metric.contentSignals).map(humanize),
+    stances: stringList(metric.stance).map(humanize),
+    proofStyles: stringList(metric.proofStyle).map(humanize),
+    commercialModes: stringList(metric.commercialMode).map(humanize),
+    primary: typeof meta.primary === "string" ? humanize(meta.primary) : null,
+    secondary: typeof meta.secondary === "string" ? humanize(meta.secondary) : null,
+    confidence: meta.confidence && typeof meta.confidence === "object" ? meta.confidence : {},
+    evidence: meta.evidence && typeof meta.evidence === "object" ? meta.evidence : {},
   };
 }
 
@@ -227,6 +314,10 @@ function summarizePillars(posts: NormalizedPost[]) {
       avgProfileVisits: round(avg(posts.map((post) => post.metrics.profileVisits))),
       avgFollows: round(avg(posts.map((post) => post.metrics.follows))),
     },
+    derived: Object.fromEntries(DERIVED_METRIC_KEYS.map((key) => [
+      key,
+      round(avg(posts.map((post) => readDerivedMetrics(post.raw)[key])), 4),
+    ])),
   };
 }
 
@@ -297,12 +388,19 @@ function topContent(posts: NormalizedPost[], limit = 5) {
       performanceIndex: post.performanceIndex,
       mature: post.mature,
       metrics: post.metrics,
+      derivedMetrics: readDerivedMetrics(post.raw),
       intelligence: {
         subjects: stringList(post.raw.sceneElements?.subjects),
         openingLine: post.raw.sceneElements?.openingLine ?? null,
         screenTitle: post.raw.sceneElements?.screenTitle ?? null,
         narrativeForms: stringList(post.raw.narrativeForm).map(humanize),
         contentIntents: stringList(post.raw.contentIntent).map(humanize),
+        proposals: stringList(post.raw.proposal).map(humanize),
+        tones: stringList(post.raw.tone).map(humanize),
+        contentSignals: stringList(post.raw.contentSignals).map(humanize),
+        proofStyles: stringList(post.raw.proofStyle).map(humanize),
+        commercialModes: stringList(post.raw.commercialMode).map(humanize),
+        lifeAssets: stringList(post.raw.lifeAssets),
       },
     }));
 }
@@ -339,6 +437,11 @@ function coverage(posts: NormalizedPost[]) {
     watchTime: count((post) => post.metrics.watchTimeSeconds),
     profileVisits: count((post) => post.metrics.profileVisits),
     follows: count((post) => post.metrics.follows),
+    derivedMetrics: count((post) => Object.values(readDerivedMetrics(post.raw)).some((value) => value != null)),
+    velocity: count((post) => Array.isArray(post.raw.dailySnapshots) && post.raw.dailySnapshots.length > 0),
+    entities: count((post) => entityTargets(post.raw.entityTargets)),
+    lifeAssets: count((post) => post.raw.lifeAssets),
+    classificationConfidence: count((post) => post.raw.classificationMeta?.confidence),
   };
 }
 
@@ -410,6 +513,22 @@ export function summarizeContentPeriod(params: {
     .map((id) => ({ id, label: humanize(id) })));
   const stances = rankedSignals(current, (post) => stringList(post.raw.stance)
     .map((id) => ({ id, label: humanize(id) })));
+  const proposals = rankedSignals(current, (post) => stringList(post.raw.proposal)
+    .map((id) => ({ id, label: humanize(id) })));
+  const communicationTones = rankedSignals(current, (post) => stringList(post.raw.tone)
+    .map((id) => ({ id, label: humanize(id) })));
+  const references = rankedSignals(current, (post) => stringList(post.raw.references)
+    .map((id) => ({ id, label: humanize(id) })));
+  const contentSignals = rankedSignals(current, (post) => stringList(post.raw.contentSignals)
+    .map((id) => ({ id, label: humanize(id) })));
+  const proofStyles = rankedSignals(current, (post) => stringList(post.raw.proofStyle)
+    .map((id) => ({ id, label: humanize(id) })));
+  const commercialModes = rankedSignals(current, (post) => stringList(post.raw.commercialMode)
+    .map((id) => ({ id, label: humanize(id) })));
+  const lifeAssets = rankedSignals(current, (post) => stringList(post.raw.lifeAssets)
+    .map((label) => ({ id: label.toLowerCase(), label })));
+  const entities = rankedSignals(current, (post) => entityTargets(post.raw.entityTargets)
+    .map((entity) => ({ id: `${entity.type}:${entity.label.toLowerCase()}`, label: `${entity.label} (${entity.type})` })));
   const places = rankedSignals(current, (post) => {
     const id = String(post.raw.sceneElements?.placeId ?? "").trim();
     return id ? [{ id, label: canonicalPlaceById(id)?.label ?? humanize(id) }] : [];
@@ -426,7 +545,8 @@ export function summarizeContentPeriod(params: {
     .map((label) => ({ id: label.toLowerCase(), label })));
 
   const result = {
-    schemaVersion: "mcp_content_period_v1",
+    schemaVersion: "mcp_content_period_v2",
+    intelligenceSchemaVersion: D2C_INTELLIGENCE_SCHEMA_VERSION,
     period: {
       days: periodDays,
       startsAt: currentStart.toISOString(),
@@ -453,6 +573,14 @@ export function summarizeContentPeriod(params: {
       narrativeForms,
       contentIntents,
       stances,
+      proposals,
+      communicationTones,
+      references,
+      contentSignals,
+      proofStyles,
+      commercialModes,
+      lifeAssets,
+      entities,
       scene: { places, framings, aesthetics, tones, cast, objects },
     },
     recommendations: recommendations({ coverage: currentCoverage, formats, topics, openings }),
@@ -468,8 +596,9 @@ export function summarizeContentPeriod(params: {
 
 const METRIC_SELECT = [
   "_id instagramMediaId postLink postDate description type format stats",
-  "classificationStatus classificationError context contentIntent narrativeForm stance",
-  "sceneElements",
+  "classificationStatus proposal context tone references contentIntent narrativeForm contentSignals stance proofStyle commercialMode",
+  "classificationMeta entityTargets theme collab collabCreator isPubli lifeAssets",
+  "sceneElements dailySnapshots createdAt updatedAt",
 ].join(" ");
 
 export async function analyzeMcpContentPeriod(params: {
@@ -497,6 +626,8 @@ export async function getMcpContentDetail(userId: string, contentId: string) {
   const post = normalizePosts([metric], new Date())[0];
   if (!post) return null;
   return {
+    schemaVersion: "mcp_content_detail_v2",
+    intelligenceSchemaVersion: D2C_INTELLIGENCE_SCHEMA_VERSION,
     id: post.id,
     instagramMediaId: metric.instagramMediaId ?? null,
     publishedAt: post.postDate.toISOString(),
@@ -504,13 +635,17 @@ export async function getMcpContentDetail(userId: string, contentId: string) {
     description: metric.description ?? "",
     url: metric.postLink ?? null,
     metrics: post.metrics,
-    classification: {
-      status: metric.classificationStatus ?? null,
-      contexts: stringList(metric.context).map(contextLabel),
-      contentIntents: stringList(metric.contentIntent).map(humanize),
-      narrativeForms: stringList(metric.narrativeForm).map(humanize),
-      stances: stringList(metric.stance).map(humanize),
+    derivedMetrics: readDerivedMetrics(metric),
+    velocity: velocitySummary(metric),
+    publication: {
+      theme: typeof metric.theme === "string" ? metric.theme : null,
+      isSponsored: Boolean(metric.isPubli),
+      isCollaboration: Boolean(metric.collab),
+      collaborator: typeof metric.collabCreator === "string" ? metric.collabCreator : null,
     },
+    classification: classificationSummary(metric),
+    entities: entityTargets(metric.entityTargets),
+    lifeAssets: stringList(metric.lifeAssets),
     visualIntelligence: metric.sceneElements ? {
       analyzed: Boolean(metric.sceneElements.version),
       subjects: stringList(metric.sceneElements.subjects),
@@ -529,6 +664,12 @@ export async function getMcpContentDetail(userId: string, contentId: string) {
       cast: stringList(metric.sceneElements.assetRoleIds)
         .map((id) => canonicalAssetRoleById(id)?.label ?? humanize(id)),
       objects: stringList(metric.sceneElements.objects),
+      offMap: Boolean(metric.sceneElements.offMap),
+      audit: {
+        provider: metric.sceneElements.provider ?? null,
+        version: metric.sceneElements.version ?? null,
+        analyzedAt: toDate(metric.sceneElements.analyzedAt)?.toISOString() ?? null,
+      },
     } : { analyzed: false },
   };
 }

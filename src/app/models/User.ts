@@ -453,6 +453,9 @@ export interface IUser extends Document {
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
+  /** Explicit permission to be discoverable as a collaboration candidate. */
+  collabDiscoveryOptIn?: boolean;
+  collabDiscoveryOptInDate?: Date | null;
   /** O convite foi aberto; não significa que a entrada no grupo foi concluída. */
   whatsappGroupLinkOpenedAt?: Date | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
@@ -803,6 +806,8 @@ const userSchema = new Schema<IUser>(
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
+    collabDiscoveryOptIn: { type: Boolean, default: false, index: true },
+    collabDiscoveryOptInDate: { type: Date, default: null },
     whatsappGroupLinkOpenedAt: { type: Date, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
     communityInspirationHistory: { type: [communityInspirationHistoryEntrySchema], default: [] },

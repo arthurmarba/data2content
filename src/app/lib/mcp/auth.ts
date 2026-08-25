@@ -156,7 +156,15 @@ function maybeResolveDevelopmentIdentity(request: Request): McpAuthenticatedIden
   return {
     userId,
     subject: userId,
-    scopes: ["profile:read", "metrics:read", "strategy:read", "content:read"],
+    scopes: [
+      "profile:read",
+      "metrics:read",
+      "strategy:read",
+      "content:read",
+      "intelligence:read",
+      "audience:read",
+      "collabs:read",
+    ],
     issuer: "local-development",
     token: request.headers.get("authorization") || "local-development",
   };

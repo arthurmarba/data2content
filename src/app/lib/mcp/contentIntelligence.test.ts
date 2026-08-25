@@ -15,6 +15,15 @@ function post(params: Record<string, unknown>) {
     narrativeForm: params.narrativeForm ?? [],
     contentIntent: params.contentIntent ?? [],
     stance: params.stance ?? [],
+    proposal: params.proposal ?? [],
+    tone: params.tone ?? [],
+    references: params.references ?? [],
+    contentSignals: params.contentSignals ?? [],
+    proofStyle: params.proofStyle ?? [],
+    commercialMode: params.commercialMode ?? [],
+    entityTargets: params.entityTargets ?? [],
+    lifeAssets: params.lifeAssets ?? [],
+    dailySnapshots: params.dailySnapshots ?? [],
   };
 }
 
@@ -35,6 +44,33 @@ describe("MCP content period intelligence", () => {
     expect(result.coverage.posts).toBe(1);
     expect(result.pillars.distribution.avgReach).toBe(200);
     expect(result.deltas.avgReach).toBe(1);
+  });
+
+  it("exposes the complete stored classification and coverage layers", () => {
+    const result = summarizeContentPeriod({
+      now,
+      periodDays: 30,
+      metrics: [post({
+        id: "complete",
+        postDate: "2026-08-12T12:00:00.000Z",
+        stats: { reach: 200, propagation_index: 0.12 },
+        proposal: ["educar"],
+        tone: ["direto"],
+        references: ["cultura_pop"],
+        contentSignals: ["lista"],
+        proofStyle: ["demonstracao"],
+        commercialMode: ["organico"],
+        entityTargets: [{ type: "platform", label: "Instagram" }],
+        lifeAssets: ["casa"],
+        dailySnapshots: [{ date: "2026-08-13T12:00:00.000Z", dailyViews: 50 }],
+      })],
+    });
+    expect(result.schemaVersion).toBe("mcp_content_period_v2");
+    expect(result.signals.proposals[0]?.label).toBe("educar");
+    expect(result.signals.communicationTones[0]?.label).toBe("direto");
+    expect(result.signals.entities[0]?.label).toContain("Instagram");
+    expect(result.coverage.velocity).toBe(1);
+    expect(result.coverage.lifeAssets).toBe(1);
   });
 
   it("exposes multimodal signals and explicit coverage", () => {

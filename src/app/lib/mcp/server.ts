@@ -16,6 +16,15 @@ import {
   getMcpContentDetail,
   type McpAnalysisFormat,
 } from "./contentIntelligence";
+import {
+  getMcpAudienceIntelligence,
+  getMcpCreatorIntelligenceProfile,
+  getMcpCreatorPlaybook,
+  getMcpIntelligenceLayerCoverage,
+  getMcpVideoDiagnosis,
+} from "./creatorIntelligence";
+import { suggestMcpCollabCreators } from "./collabIntelligence";
+import { getPublicIntelligenceManifest } from "./intelligenceContract";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -96,7 +105,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.2.0",
+      version: "0.3.0",
       websiteUrl: "https://data2content.ai",
       description: "Dados e inteligência estratégica do creator assinante da Data2Content.",
     },
@@ -230,6 +239,127 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
   );
 
   registerTool(
+    "get_creator_intelligence_profile",
+    {
+      title: "Consultar mapa e identidade criativa",
+      description:
+        "Use this when the user asks what their content reveals about their narrative, territories, themes, assets, tone, formats, confirmed patterns, or creative identity.",
+      outputSchema: z.object({ schemaVersion: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async () => {
+      if (!hasScope(context, "intelligence:read")) return scopeRequiredResult("intelligence:read");
+      const result = await getMcpCreatorIntelligenceProfile(context.identity.userId);
+      if (!result) {
+        return { isError: true, content: jsonText({ error: "creator_intelligence_not_found" }) };
+      }
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    diagnosisId?: string;
+    instagramMediaId?: string;
+  }>(
+    "get_video_diagnosis",
+    {
+      title: "Consultar diagnóstico de vídeo",
+      description:
+        "Use this when the user wants the complete Data2Content reading of a video: hook, speech, pacing, production, framing, first frame, narrative coherence, potential, evidence, and next experiment. With no ID, returns the latest completed diagnosis.",
+      inputSchema: z.object({
+        diagnosisId: z.string().trim().min(1).max(100).optional(),
+        instagramMediaId: z.string().trim().min(1).max(100).optional(),
+      }),
+      outputSchema: z.object({ schemaVersion: z.string(), diagnosisId: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ diagnosisId, instagramMediaId }) => {
+      if (!hasScope(context, "intelligence:read")) return scopeRequiredResult("intelligence:read");
+      const result = await getMcpVideoDiagnosis({
+        userId: context.identity.userId,
+        diagnosisId,
+        instagramMediaId,
+      });
+      if (!result) return { isError: true, content: jsonText({ error: "video_diagnosis_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool(
+    "get_audience_intelligence",
+    {
+      title: "Consultar inteligência de audiência",
+      description:
+        "Use this when the user asks who their Instagram audience is, how it is distributed by age, gender, country or city, how the engaged audience differs, or how the account is growing.",
+      outputSchema: z.object({ schemaVersion: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async () => {
+      if (!hasScope(context, "audience:read")) return scopeRequiredResult("audience:read");
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await getMcpAudienceIntelligence(context.identity.userId);
+      if (!result) return { isError: true, content: jsonText({ error: "audience_intelligence_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool(
+    "get_creator_playbook",
+    {
+      title: "Consultar aprendizados do creator",
+      description:
+        "Use this when the user asks what they should repeat, avoid, or test next based on weekly patterns and outcomes from previously published scripts and content.",
+      outputSchema: z.object({ schemaVersion: z.string() }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async () => {
+      if (!hasScope(context, "intelligence:read")) return scopeRequiredResult("intelligence:read");
+      if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
+      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const result = await getMcpCreatorPlaybook(context.identity.userId);
+      if (!result) return { isError: true, content: jsonText({ error: "creator_playbook_not_found" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool<{
+    topic?: string;
+    goal?: string;
+    format: "reel" | "carousel" | "photo" | "story" | "any";
+    mode: "any" | "presencial" | "remoto";
+    limit: number;
+  }>(
+    "suggest_collab_creators",
+    {
+      title: "Sugerir creators para collab",
+      description:
+        "Use this when the user wants Data2Content creators for a collaboration. Returns only active subscribers who explicitly opted in, with narrative fit and recording direction but no private metrics, evidence, email, or location.",
+      inputSchema: z.object({
+        topic: z.string().trim().min(2).max(160).optional(),
+        goal: z.string().trim().min(2).max(160).optional(),
+        format: z.enum(["reel", "carousel", "photo", "story", "any"]).default("any"),
+        mode: z.enum(["any", "presencial", "remoto"]).default("any"),
+        limit: z.number().int().min(1).max(5).default(3),
+      }),
+      outputSchema: z.object({ schemaVersion: z.string(), items: z.array(z.record(z.unknown())) }).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ topic, goal, format, mode, limit }) => {
+      if (!hasScope(context, "collabs:read")) return scopeRequiredResult("collabs:read");
+      const result = await suggestMcpCollabCreators({
+        userId: context.identity.userId,
+        topic,
+        goal,
+        format,
+        mode,
+        limit,
+      });
+      if (!result) return { isError: true, content: jsonText({ error: "collab_suggestions_unavailable" }) };
+      return structuredJsonResult(result);
+    },
+  );
+
+  registerTool(
     "compare_content_formats",
     {
       title: "Comparar formatos de conteúdo",
@@ -264,7 +394,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Analisar conteúdos por período",
       description:
-        "Use this when the user asks to analyze their content in a date window such as the last week, month, quarter, or year. Returns performance, attention, intent, conversion, formats, topics, hooks, scenes, evidence levels, coverage, and recommendations in one call.",
+        "Use this when the user asks to analyze their content in a date window such as the last week, month, quarter, or year. Returns base and derived performance, attention, intent, conversion, complete classifications, entities, life assets, hooks, scenes, evidence levels, coverage, and recommendations in one call.",
       inputSchema: z.object({
         periodDays: z.number().int().min(7).max(365).default(30)
           .describe("Janela móvel em dias; use 30 para último mês"),
@@ -294,7 +424,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Consultar inteligência de um conteúdo",
       description:
-        "Use this after analyze_content_period or list_top_content when the user wants the metrics, classification, hook, subjects, quotes, scene, framing, tone, cast, objects, and visual evidence for one of their posts.",
+        "Use this after analyze_content_period or list_top_content when the user wants base and derived metrics, velocity, complete classification, entities, collaboration/publication context, hook, subjects, quotes, scene, framing, tone, cast, objects, and visual evidence for one post.",
       inputSchema: z.object({
         contentId: z.string().regex(/^[a-f0-9]{24}$/i).describe("ID do conteúdo retornado por outra ferramenta"),
       }),
@@ -326,17 +456,23 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         period: z.record(z.unknown()),
         freshness: z.record(z.unknown()),
         coverage: z.record(z.unknown()),
-      }),
+      }).passthrough(),
       annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ periodDays }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
       if (!context.entitlement.instagramConnected) return instagramRequiredResult();
       const analysis = await analyzeMcpContentPeriod({ userId: context.identity.userId, periodDays });
+      const intelligenceLayers = await getMcpIntelligenceLayerCoverage({
+        userId: context.identity.userId,
+        grantedScopes: context.identity.scopes,
+      });
       return structuredJsonResult({
         period: analysis.period,
         freshness: analysis.freshness,
         coverage: analysis.coverage,
+        intelligenceManifest: getPublicIntelligenceManifest(),
+        intelligenceLayers,
       });
     },
   );
