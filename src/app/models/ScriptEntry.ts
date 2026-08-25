@@ -1,4 +1,6 @@
-import mongoose, { Schema, model, models, Types, Document } from "mongoose";
+import mongoose, { Schema, Types, type Document } from "mongoose";
+
+const { model, models } = mongoose;
 
 export type ScriptOrigin = "manual" | "ai" | "planner";
 export type ScriptLinkType = "standalone" | "planner_slot";

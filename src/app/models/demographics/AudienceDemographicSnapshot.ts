@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models, Document, Model, Types } from 'mongoose';
+import mongoose, { Schema, type Document, type Model, Types } from 'mongoose';
 
 export interface IDemographicBreakdown {
   value: string;
