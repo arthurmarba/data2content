@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "plugins": [],
+    "types": ["jest"]
+  },
+  "include": [
+    "next-env.d.ts",
+    "types/**/*.d.ts",
+    "src/app/lib/mcp/**/*.ts",
+    "src/app/api/mcp/**/*.ts",
+    "src/app/.well-known/oauth-protected-resource/route.ts",
+    "src/app/.well-known/oauth-authorization-server/route.ts",
+    "src/app/mcp/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}
