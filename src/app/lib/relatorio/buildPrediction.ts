@@ -100,6 +100,7 @@ const KIND_PHRASE: Record<ElementKind, (label: string) => string> = {
   local: (label) => `gravar em ${label.toLowerCase()}`,
   enquadramento: (label) => `gravar em ${label.toLowerCase()}`,
   estetica: (label) => `gravar com ${label.toLowerCase()}`,
+  gancho: (label) => `abrir com ${label.toLowerCase()}`,
 };
 
 /** Linguagem de pauta: mais acionável que a frase usada na previsão. */
@@ -122,6 +123,7 @@ const PAUTA_PHRASE: Record<ElementKind, (label: string) => string> = {
   local: (label) => `gravar em ${label.toLowerCase()}`,
   enquadramento: (label) => `gravar em ${label.toLowerCase()}`,
   estetica: (label) => `usar a estética ${label.toLowerCase()}`,
+  gancho: (label) => `usar uma abertura em ${label.toLowerCase()}`,
 };
 
 /**

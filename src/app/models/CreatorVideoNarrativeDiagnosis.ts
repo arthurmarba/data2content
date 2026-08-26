@@ -15,6 +15,9 @@ import type {
   VideoNarrativeCoherence,
 } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisTypes";
 import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
+import type { HookRecommendation, HookRecommendationCandidate } from "@/app/dashboard/boards/videoUpload/hookRecommendation";
+import type { ScriptAdjustmentRecommendation } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentRecommendation";
+import type { ScriptAdjustmentExperimentCohort } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentExperiment";
 
 export interface ICreatorVideoNarrativeDiagnosis extends Document {
   userId: Types.ObjectId;
@@ -36,12 +39,19 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   /** Coherence verdict against the creator's confirmed top-performing narrative pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
-  /** Additive recommendation fields are validated by the video-analysis layer. */
-  hookRecommendation?: unknown;
-  hookSelection?: unknown;
-  scriptAdjustmentRecommendation?: unknown;
-  scriptAdjustmentSelection?: unknown;
-  scriptAdjustmentExperimentCohort?: "control" | "video_only" | "personalized";
+  hookRecommendation?: HookRecommendation;
+  hookSelection?: {
+    candidateId: string;
+    candidate: HookRecommendationCandidate;
+    selectedAt: Date;
+  };
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation;
+  scriptAdjustmentSelection?: {
+    selectedStepIds: string[];
+    recommendationVersion: string;
+    selectedAt: Date;
+  };
+  scriptAdjustmentExperimentCohort?: ScriptAdjustmentExperimentCohort;
   /** Versioned pre-publication analysis surface. */
   analysisVersion?: "v1" | "v2";
   /** V2 analyses stay out of the narrative map until matched to a published post. */
@@ -82,8 +92,22 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
     relativeIntent?: number | null;
     capturedAt: Date;
   };
-  hookOutcome?: unknown;
-  scriptAdjustmentOutcome?: unknown;
+  hookOutcome?: {
+    selectedCandidateId: string;
+    pattern: string;
+    strategy: string;
+    openingMatchScore: number | null;
+    usedInPublishedOpening: boolean | null;
+    capturedAt: Date;
+  };
+  scriptAdjustmentOutcome?: {
+    recommendationVersion: string;
+    pattern: string;
+    effort: string;
+    selectedStepIds: string[];
+    publishedStructureMatchScore: number | null;
+    capturedAt: Date;
+  };
   schemaVersion: "creator_video_narrative_diagnosis_v1";
   createdAt: Date;
   updatedAt: Date;

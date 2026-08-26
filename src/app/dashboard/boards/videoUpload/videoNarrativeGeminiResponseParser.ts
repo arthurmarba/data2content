@@ -11,6 +11,8 @@ import type {
   VideoNarrativePotentialDimension,
 } from "./videoNarrativeContentPotentialScan";
 import { sanitizeVideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+import { sanitizeHookRecommendation } from "./hookRecommendation";
+import { sanitizeScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
 
 const REQUIRED_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
   "mainNarrative",
@@ -97,6 +99,8 @@ const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
   attentionPoint: ["attention_point", "attention", "pontoDeAtencao", "ponto_de_atencao", "atencao"],
   recommendedAdjustment: ["recommended_adjustment", "adjustment", "calibragem", "ajusteRecomendado", "ajuste_recomendado"],
   suggestedHook: ["suggested_hook", "hook", "ganchoSugerido", "gancho_sugerido", "gancho"],
+  hookRecommendation: ["hook_recommendation", "ganchoRecomendado", "recomendacaoDeGancho", "recomendacao_gancho"],
+  scriptAdjustmentRecommendation: ["script_adjustment_recommendation", "ajusteDeRoteiro", "ajuste_de_roteiro", "scriptRecommendation"],
   commercialPotential: ["commercial_potential", "commercialFit", "territorioComercial", "potencialComercial"],
   nextActions: ["next_actions", "nextSteps", "proximosSinais", "proximasAcoes", "próximasAções"],
   creatorSignals: ["creator_signals", "signals", "sinaisDoCreator", "sinais_do_creator", "sinais"],
@@ -573,6 +577,10 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
   const audienceCoherence = readAxisCoherence(root, "audienceCoherence");
   const brandCoherence = readAxisCoherence(root, "brandCoherence");
   const contentPotentialScan = readContentPotentialScan(root);
+  const hookRecommendation = sanitizeHookRecommendation(readAliasedField(root, "hookRecommendation"));
+  const scriptAdjustmentRecommendation = sanitizeScriptAdjustmentRecommendation(
+    readAliasedField(root, "scriptAdjustmentRecommendation"),
+  );
 
   // Optional: direct answer to the creator's question. Absent in older responses,
   // so it never blocks parsing — just truncated/sanitised when present.
@@ -591,6 +599,8 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
       attentionPoint: strings.attentionPoint!,
       recommendedAdjustment: strings.recommendedAdjustment!,
       suggestedHook: strings.suggestedHook!,
+      ...(hookRecommendation ? { hookRecommendation } : {}),
+      ...(scriptAdjustmentRecommendation ? { scriptAdjustmentRecommendation } : {}),
       commercialPotential: strings.commercialPotential!,
       nextActions: arrays.nextActions!,
       creatorSignals: arrays.creatorSignals!,

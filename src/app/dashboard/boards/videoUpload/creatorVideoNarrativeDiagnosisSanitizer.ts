@@ -8,6 +8,8 @@ import type {
   VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 import { sanitizeVideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+import { sanitizeHookRecommendation } from "./hookRecommendation";
+import { sanitizeScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
 
 const MAX_TEXT_FIELD_LENGTH = 4000;
 const MAX_ARRAY_ITEM_LENGTH = 1000;
@@ -464,6 +466,20 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
     ...(input.contentPotentialScan
       ? { contentPotentialScan: sanitizeVideoNarrativeContentPotentialScan(input.contentPotentialScan) }
       : {}),
+    ...(() => {
+      const hookRecommendation = sanitizeHookRecommendation(input.hookRecommendation);
+      return hookRecommendation ? { hookRecommendation } : {};
+    })(),
+    ...(["control", "video_only", "personalized"].includes(String(input.scriptAdjustmentExperimentCohort))
+      ? { scriptAdjustmentExperimentCohort: input.scriptAdjustmentExperimentCohort }
+      : {}),
+    ...(() => {
+      const scriptAdjustmentRecommendation = sanitizeScriptAdjustmentRecommendation(
+        input.scriptAdjustmentRecommendation,
+        { durationSeconds: input.videoMetadata?.durationSeconds },
+      );
+      return scriptAdjustmentRecommendation ? { scriptAdjustmentRecommendation } : {};
+    })(),
     ...(input.analysisVersion === "v1" || input.analysisVersion === "v2"
       ? { analysisVersion: input.analysisVersion }
       : {}),

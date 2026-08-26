@@ -1682,8 +1682,10 @@ export function DiagnosticoRealShellClient({
             coherenceVerdict: snap?.coherenceVerdict ?? null,
             coherenceReasoning: snap?.coherenceReasoning ?? null,
             contentPotentialScan: snap?.contentPotentialScan ?? null,
+            hookRecommendation: snap?.hookRecommendation ?? null,
+            scriptAdjustmentRecommendation: snap?.scriptAdjustmentRecommendation ?? null,
           }
-        : snap?.directAnswer || snap?.coherenceVerdict || snap?.contentPotentialScan
+        : snap?.directAnswer || snap?.coherenceVerdict || snap?.contentPotentialScan || snap?.hookRecommendation || snap?.scriptAdjustmentRecommendation
           ? {
               diagnosisSummary: null,
               unlockedSignals: [],
@@ -1692,6 +1694,8 @@ export function DiagnosticoRealShellClient({
               coherenceVerdict: snap?.coherenceVerdict ?? null,
               coherenceReasoning: snap?.coherenceReasoning ?? null,
               contentPotentialScan: snap?.contentPotentialScan ?? null,
+              hookRecommendation: snap?.hookRecommendation ?? null,
+              scriptAdjustmentRecommendation: snap?.scriptAdjustmentRecommendation ?? null,
             }
           : null;
       return {
@@ -1727,8 +1731,47 @@ export function DiagnosticoRealShellClient({
     [router],
   );
 
-  const handleScanReportInteraction = useCallback((_event: "copy_suggestion", actionType?: string) => {
-    trackMobileNarrativeEvent("mobile_scan_suggestion_copied", { route: profileRoute, actionType });
+  const handleScanReportInteraction = useCallback((event: "copy_suggestion" | "hook_copied" | "hook_selected" | "hook_alternatives_viewed" | "script_adjustment_viewed" | "script_adjustment_expanded" | "script_adjustment_copied" | "script_adjustment_step_toggled" | "script_adjustment_selected", actionType?: string) => {
+    const eventName = event === "hook_copied"
+      ? "mobile_hook_recommendation_copied"
+      : event === "hook_selected"
+        ? "mobile_hook_recommendation_selected"
+      : event === "hook_alternatives_viewed"
+          ? "mobile_hook_alternatives_viewed"
+          : event === "script_adjustment_viewed"
+            ? "mobile_script_adjustment_viewed"
+            : event === "script_adjustment_expanded"
+              ? "mobile_script_adjustment_expanded"
+              : event === "script_adjustment_copied"
+                ? "mobile_script_adjustment_copied"
+                : event === "script_adjustment_step_toggled"
+                  ? "mobile_script_adjustment_step_toggled"
+                  : event === "script_adjustment_selected"
+                    ? "mobile_script_adjustment_selected"
+                    : "mobile_scan_suggestion_copied";
+    trackMobileNarrativeEvent(eventName, { route: profileRoute, actionType });
+  }, []);
+
+  const handleHookSelection = useCallback(async ({ diagnosisId, candidateId }: {
+    diagnosisId: string;
+    candidateId: string;
+  }) => {
+    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/hook-selection`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateId }),
+    });
+  }, []);
+
+  const handleScriptAdjustmentSelection = useCallback(async ({ diagnosisId, selectedStepIds }: {
+    diagnosisId: string;
+    selectedStepIds: string[];
+  }) => {
+    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/script-adjustment-selection`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selectedStepIds }),
+    });
   }, []);
 
   const handleCompletionUpgrade = useCallback(() => {
@@ -2440,6 +2483,8 @@ export function DiagnosticoRealShellClient({
         enableRealAnalysis={REAL_ANALYSIS_ENABLED}
         onCleanupTemporaryUpload={handleCleanupUpload}
         onReportInteraction={handleScanReportInteraction}
+        onSelectHookRecommendation={handleHookSelection}
+        onSelectScriptAdjustment={handleScriptAdjustmentSelection}
         completionSecondaryAction={data.accessState === "free_unused" ? "upgrade" : "another_video"}
         onCompletionUpgrade={handleCompletionUpgrade}
         readingsSummary={(() => {

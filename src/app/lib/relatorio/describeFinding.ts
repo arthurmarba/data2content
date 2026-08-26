@@ -34,6 +34,7 @@ const KIND_PHRASE: Record<ElementKind, (label: string) => string> = {
   local: (label) => `gravado em ${label.toLowerCase()}`,
   enquadramento: (label) => `em ${label.toLowerCase()}`,
   estetica: (label) => `com ${label.toLowerCase()}`,
+  gancho: (label) => `com abertura em ${label.toLowerCase()}`,
 };
 
 /**

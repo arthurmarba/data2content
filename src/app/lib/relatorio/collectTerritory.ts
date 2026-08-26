@@ -28,6 +28,10 @@ import {
   canonicalToneById,
 } from "./mapRegistry";
 import { describeTable } from "./describeFinding";
+import {
+  classifyCreatorHookPattern,
+  CREATOR_HOOK_PATTERN_LABELS,
+} from "@/app/dashboard/boards/videoUpload/creatorHookEvidence";
 import type {
   DurationBar,
   ElementKind,
@@ -144,6 +148,30 @@ export function durationObservations(
       metrics: post.raw,
       views: post.absolute.visualizacoes ?? null,
     }));
+}
+
+/**
+ * Converte aberturas em padrões anônimos. A frase original é deliberadamente
+ * descartada aqui: o território ensina a estrutura que funciona, nunca o texto de
+ * outro criador.
+ */
+export function hookPatternObservations(
+  posts: readonly ReportPost[],
+  isInWeek: (post: ReportPost) => boolean,
+): ElementObservation[] {
+  return posts.flatMap((post) => {
+    const opening = post.openingLine?.trim() || post.screenTitle?.trim();
+    if (!opening) return [];
+    const pattern = classifyCreatorHookPattern(opening);
+    return [{
+      key: pattern,
+      label: CREATOR_HOOK_PATTERN_LABELS[pattern],
+      creatorId: post.creatorId,
+      inWeek: isInWeek(post),
+      metrics: post.raw,
+      views: post.absolute.visualizacoes ?? null,
+    }];
+  });
 }
 
 // ─── Narrativas (Regra 1: nunca ranqueadas) ──────────────────────────────────
@@ -525,6 +553,8 @@ export interface CollectedTerritory {
     tons: BuildRankingResult;
     horarios: BuildRankingResult;
     duracoes: BuildRankingResult;
+    /** Padrões anônimos de abertura; nunca contém a frase de outro criador. */
+    ganchos: BuildRankingResult;
     /** As abertas, lidas do vídeo — ver DIMENSION_READERS. */
     temas: BuildRankingResult;
     objetos: BuildRankingResult;
@@ -692,6 +722,25 @@ export function collectTerritory(params: CollectTerritoryParams): CollectedTerri
     previousRanks: previousRanksOf("duracao"),
   });
 
+  const ganchos = buildRankingTable({
+    ...common,
+    kind: "gancho",
+    title: "Padrões de gancho",
+    sortedBy: "retencao",
+    columns: ["retencao", "engajamento", "compartilhamentos"],
+    observations: hookPatternObservations(windowPosts, isInWeek),
+    previousRanks: previousRanksOf("gancho"),
+    fitsResolver: (key) =>
+      new Set(
+        windowPosts
+          .filter((post) => {
+            const opening = post.openingLine?.trim() || post.screenTitle?.trim();
+            return opening ? classifyCreatorHookPattern(opening) === key : false;
+          })
+          .map((post) => post.creatorId),
+      ).size,
+  });
+
   // A leitura em português de cada tabela, do mesmo número que ela mostra — e o nome de
   // quem produziu a linha, que o motor não tem como saber (ele só conhece id).
   const withReading = <T extends BuildRankingResult>(table: T): T => ({
@@ -712,6 +761,7 @@ export function collectTerritory(params: CollectTerritoryParams): CollectedTerri
     tons: withReading(tons),
     horarios: withReading(horarios),
     duracoes: withReading(duracoes),
+    ganchos: withReading(ganchos),
     temas: withReading(temas),
     objetos: withReading(objetos),
     falas: withReading(falas),

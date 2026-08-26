@@ -53,6 +53,75 @@ const schemaExample = {
   attentionPoint: "string — aspecto de calibração observado: onde a narrativa fica mais vaga ou o sinal menos claro; não é uma fraqueza, é uma observação",
   recommendedAdjustment: "string — o que a narrativa não explicita e que, se estivesse presente, tornaria a leitura mais precisa; escreva como observação ('a narrativa não deixa claro X'), nunca como imperativo ao creator ('faça X', 'ajuste Y')",
   suggestedHook: "string",
+  hookRecommendation: {
+    version: "hook-recommendation-v1",
+    primary: {
+      id: "primary",
+      spokenLine: "string — frase pronta para abrir este vídeo sem prometer algo que ele não entrega",
+      onScreenText: "string ou null — texto curto no primeiro frame",
+      firstFrameDirection: "string ou null — imagem/ação específica do primeiro frame",
+      deliveryDirection: "string ou null — orientação curta de ritmo ou interpretação",
+      strategy: "creator_first | territory_first | hybrid",
+      pattern: "question | diagnostic | comparison | specific_number | contrarian | personal_confession | direct_statement",
+      whyForThisVideo: "string — evidência concreta do vídeo que torna este gancho adequado",
+    },
+    alternatives: [
+      {
+        id: "alternative-1",
+        spokenLine: "string",
+        onScreenText: "string ou null",
+        firstFrameDirection: "string ou null",
+        deliveryDirection: "string ou null",
+        strategy: "creator_first | territory_first | hybrid",
+        pattern: "string",
+        whyForThisVideo: "string",
+      },
+    ],
+    basis: {
+      creatorPosts: 0,
+      territoryPosts: 0,
+      territoryCreators: 0,
+      windowDays: 0,
+      confidence: "low | medium | high",
+    },
+  },
+  scriptAdjustmentRecommendation: {
+    version: "script-adjustment-v1",
+    pattern: "problem_demo_explanation_action | result_process_explanation | question_proof_answer | before_after_reason_guidance | claim_test_verdict | scene_tension_turn | context_process_result | direct_explanation",
+    summary: "string — conclusão simples, iniciada por verbo de ação, sobre a principal mudança",
+    effort: "no_rerecord | one_pickup | new_version",
+    canUseExistingFootage: true,
+    currentStructure: [
+      { id: "current-1", role: "context", label: "Apresentação", sourceStartMs: 0, sourceEndMs: 4000 },
+    ],
+    recommendedStructure: [
+      { id: "recommended-1", role: "demonstration", label: "Demonstração", sourceStartMs: 11000, sourceEndMs: 13000 },
+    ],
+    steps: [
+      {
+        id: "step-1",
+        action: "keep | cut | shorten | move | overlay | rerecord",
+        sourceStartMs: 11000,
+        sourceEndMs: 13000,
+        targetStartMs: 0,
+        targetEndMs: 2000,
+        targetOrder: 1,
+        title: "Mostre a demonstração primeiro",
+        instruction: "Use o trecho de 11 a 13 segundos, em que o erro aparece.",
+        suggestedCopy: "string ou null — fala ou texto pronto para copiar",
+        reason: "string — motivo curto e específico",
+        confidence: "low | medium | high",
+      },
+    ],
+    rationale: "string — por que esta ordem combina com o material observado",
+    basis: {
+      video: true,
+      creatorPosts: 0,
+      territoryPosts: 0,
+      territoryCreators: 0,
+      confidence: "low | medium | high",
+    },
+  },
   commercialPotential: "string — território de atuação possível com marcas, descrito como área de fit narrativo; evite 'alto potencial', 'grande fit' ou qualquer avaliação de resultado comercial",
   nextActions: ["string — o que a D2C percebeu que vale observar a seguir neste perfil; escreva como sinal a acompanhar, não como tarefa para o creator"],
   creatorSignals: ["string"],
@@ -186,6 +255,74 @@ function formatAudienceContext(input: VideoNarrativeAiProviderInput): string {
   return lines.join("\n");
 }
 
+function formatCreatorHookEvidence(input: VideoNarrativeAiProviderInput): string {
+  const evidence = input.profileContext?.hookEvidence ?? [];
+  if (evidence.length === 0) {
+    return [
+      "Sem aberturas próprias com resultado comparável para este creator.",
+      "Não finja conhecer o estilo histórico de gancho; use somente o vídeo e o mapa disponíveis.",
+    ].join("\n");
+  }
+
+  return [
+    "Aberturas do próprio creator associadas aos melhores sinais relativos do perfil:",
+    ...evidence.slice(0, 5).map((item, index) => {
+      const parts = [
+        `${index + 1}. padrão=${item.pattern}`,
+        item.spokenLine ? `fala="${safeString(item.spokenLine)}"` : null,
+        item.screenTitle ? `texto_tela="${safeString(item.screenTitle)}"` : null,
+        item.subject ? `assunto=${safeString(item.subject)}` : null,
+        item.tone ? `tom=${safeString(item.tone)}` : null,
+        `força_relativa=${item.performanceIndex.toFixed(2)}x`,
+        `sinais=${item.outcomeSignals.join("+") || "estrutura"}`,
+      ].filter(Boolean);
+      return `- ${parts.join("; ")}`;
+    }),
+    "Essas frases pertencem ao próprio creator. Não as copie mecanicamente: preserve voz, ritmo e estrutura, mas escreva um gancho novo e fiel ao vídeo atual.",
+  ].join("\n");
+}
+
+function formatTerritoryHookEvidence(input: VideoNarrativeAiProviderInput): string {
+  const context = input.profileContext?.territoryHookContext;
+  if (!context?.patterns.length) {
+    return "Sem padrão coletivo de território com lastro suficiente para esta análise.";
+  }
+
+  return [
+    `Território ${safeString(context.territoryLabel)} — padrões anônimos de abertura associados a resultados relativos:`,
+    ...context.patterns.map((item) =>
+      `- padrão=${item.pattern}; leitura=${safeString(item.label)}; força_relativa=${item.performanceIndex.toFixed(2)}x; posts=${item.posts}; criadores=${item.creators}; lastro=${safeString(item.evidence)}`
+    ),
+    "O contexto coletivo contém somente estruturas, nunca frases de terceiros. Adapte o padrão ao vídeo atual e à voz do creator; não imite uma formulação externa.",
+  ].join("\n");
+}
+
+function formatCreatorStructureEvidence(input: VideoNarrativeAiProviderInput): string {
+  const evidence = input.profileContext?.structureEvidence ?? [];
+  if (evidence.length === 0) {
+    return "Sem estruturas próprias com resultado comparável; decida a ordem pelo material observado neste vídeo.";
+  }
+  return [
+    "Estruturas narrativas do próprio creator associadas aos melhores sinais relativos:",
+    ...evidence.slice(0, 4).map((item) =>
+      `- padrão=${item.pattern}; leitura=${safeString(item.label)}; posts=${item.posts}; força_relativa=${item.performanceIndex.toFixed(2)}x; sinais=${item.outcomeSignals.join("+") || "estrutura"}`
+    ),
+    "Use isso apenas para escolher a sequência; preserve o conteúdo, a voz e as cenas do vídeo atual.",
+  ].join("\n");
+}
+
+function formatTerritoryStructureEvidence(input: VideoNarrativeAiProviderInput): string {
+  const context = input.profileContext?.territoryStructureContext;
+  if (!context?.patterns.length) return "Sem estrutura coletiva do território com lastro suficiente para esta análise.";
+  return [
+    `Território ${safeString(context.territoryLabel)} — estruturas anônimas associadas a resultados relativos:`,
+    ...context.patterns.map((item) =>
+      `- padrão=${item.pattern}; leitura=${safeString(item.label)}; força_relativa=${item.performanceIndex.toFixed(2)}x; posts=${item.posts}; criadores=${item.creators}; lastro=${safeString(item.evidence)}`
+    ),
+    "Esses dados representam estruturas agregadas, nunca roteiros ou frases de terceiros.",
+  ].join("\n");
+}
+
 function safeString(value: string | undefined | null, fallback = "Não informado"): string {
   const trimmed = value?.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redigido]").replace(/\s+/g, " ").trim();
   return trimmed || fallback;
@@ -258,6 +395,14 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
           "Não referencie métricas, alcance, engajamento ou formatos do perfil. Analise apenas o vídeo enviado.",
         ];
       })(),
+      "Evidência de ganchos do próprio creator:",
+      formatCreatorHookEvidence(input),
+      "Evidência coletiva do território:",
+      formatTerritoryHookEvidence(input),
+      "Estruturas do próprio creator:",
+      formatCreatorStructureEvidence(input),
+      "Estruturas coletivas do território:",
+      formatTerritoryStructureEvidence(input),
       // Audiência real (demografia). Quando presente, é a âncora do eixo audienceCoherence.
       ...(() => {
         const audienceBlock = formatAudienceContext(input);
@@ -352,6 +497,28 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "- practicalDirection é OBRIGATÓRIO e traz uma única mudança prioritária para ESTE vídeo. action deve dizer onde e como aplicá-la no corte, texto, ordem, imagem ou fala.",
       "- practicalDirection.example deve ser uma sugestão pronta para usar, nunca apresentada como fala real do vídeo. Use null quando um exemplo textual não fizer sentido.",
       "- band/confidence/basis são provisórios e serão recalibrados pelo servidor. Não use números, percentuais ou promessa de alcance.",
+      "hookRecommendation (OBRIGATÓRIO — entrega principal para este vídeo):",
+      "- Gere 1 recomendação principal e exatamente 2 alternativas distintas.",
+      "- A frase precisa poder ser dita no primeiro segundo e criar uma promessa que o restante do vídeo realmente entrega.",
+      "- primary deve combinar a evidência mais forte do vídeo com a voz do creator. Use strategy=creator_first quando houver base própria forte; hybrid quando estiver adaptando um padrão; territory_first apenas quando houver contexto coletivo explícito.",
+      "- Quando houver evidência coletiva, pattern deve usar exatamente um dos ids de padrão apresentados no contexto do território. O padrão ajuda a escolher a estrutura, mas o conteúdo do vídeo decide a frase.",
+      "- onScreenText deve complementar ou condensar a fala, não repeti-la sem necessidade.",
+      "- firstFrameDirection deve apontar uma imagem ou ação que já exista ou possa ser obtida deste vídeo, sem inventar prova externa.",
+      "- whyForThisVideo deve citar o problema, demonstração, fala, cena ou entrega realmente observada neste vídeo.",
+      "- Não use clichês como 'você não vai acreditar', 'o segredo que ninguém contou' ou promessa de viralização.",
+      "- basis é provisório e será sobrescrito pelo servidor; nunca invente volume de posts ou criadores.",
+      "scriptAdjustmentRecommendation (OBRIGATÓRIO — plano de edição para este vídeo):",
+      "- Primeiro divida o vídeo em blocos temporais observáveis. Use milissegundos inteiros e nunca cite um tempo fora da duração verificada.",
+      "- currentStructure descreve a ordem atual. recommendedStructure descreve a melhor ordem possível com o material existente.",
+      "- Retorne de 3 a 6 passos quando houver mudanças seguras. Se a estrutura já estiver boa, retorne 1 passo keep e deixe isso claro.",
+      "- Priorize keep, cut, shorten, move e overlay. Use rerecord apenas quando o vídeo não tiver material suficiente para cumprir a promessa.",
+      "- Cada title e instruction deve começar com um verbo simples: Use, Corte, Mostre, Mova, Diga, Escreva, Mantenha, Encurte, Retire, Abra, Grave.",
+      "- Uma ação por passo. Diga exatamente qual trecho usar e para onde ele vai. Se não houver segurança temporal, use null e identifique a cena em palavras; nunca invente segundos.",
+      "- Não use jargões como payoff, setup, pattern interrupt, CTA, score, baseline ou reranking.",
+      "- Não escreva orientações vagas como 'melhore a retenção' ou 'deixe mais envolvente'. Diga o corte, a ordem, a imagem, a fala ou o texto.",
+      "- suggestedCopy é sempre uma sugestão nova, nunca uma fala alegadamente existente. Use null quando não for necessário.",
+      "- pattern deve ser um dos ids canônicos informados no schema. Use evidência do creator/território apenas quando ela estiver explícita no contexto.",
+      "- basis é provisório e será sobrescrito pelo servidor; nunca invente volume ou confiança.",
       "Evidence anchors (OBRIGATÓRIO — não retorne arrays vazios):",
       "- Forneça pelo menos 1 sceneAnchor descrevendo um momento concreto observado no vídeo.",
       "- Extraia até 4 falas curtas realmente ditas pelo creator que sustentem a leitura estratégica.",
@@ -376,6 +543,10 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "Valores aceitos em narrativeCoherence.verdict: confirms_top_pattern, experiment, deviation, first_reading, unknown.",
       "audienceCoherence e brandCoherence são OBRIGATÓRIOS; cada um com verdict e reading.",
       "contentPotentialScan é OBRIGATÓRIO e deve conter exatamente as cinco dimensões estruturadas, 2 a 3 watchedMoments e practicalDirection.",
+      "hookRecommendation é OBRIGATÓRIO; deve conter primary, exatamente 2 alternatives distintas e basis. suggestedHook deve repetir hookRecommendation.primary.spokenLine por compatibilidade.",
+      "scriptAdjustmentRecommendation é OBRIGATÓRIO; deve conter a estrutura atual, a ordem recomendada, passos executáveis, esforço e basis.",
+      "Em scriptAdjustmentRecommendation, todos os tempos devem estar em milissegundos e dentro da duração verificada do vídeo; use null quando não tiver segurança.",
+      "Textos direcionais devem ser humanos, objetivos e compreensíveis para alguém sem experiência em edição.",
       "Valores aceitos em audienceCoherence.verdict e brandCoherence.verdict: aligned, tension, off, unknown.",
       "reading de audienceCoherence e brandCoherence deve ter no máximo 120 caracteres, tom observacional, sem imperativo e sem linguagem de performance.",
       "evidenceAnchors é OBRIGATÓRIO; sceneAnchors deve ter no mínimo 1 item descrevendo um momento concreto do vídeo; speechQuotes pode ser [].",

@@ -34,6 +34,8 @@
     "normalize-format": "tsx --env-file=.env.local ./scripts/normalizeFormatFromMetricType.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
     "audit:perfil-territorio": "tsx --env-file=.env.local ./scripts/auditPerfilTerritoryCoverage.ts",
+    "audit:hook-readiness": "tsx --env-file=.env.local ./scripts/auditHookRecommendationReadiness.ts",
+    "audit:script-adjustment": "tsx --env-file=.env.local ./scripts/auditScriptAdjustmentExperiment.ts",
     "audit:collabs": "tsx --env-file=.env.local ./scripts/auditCollabsMechanism.ts",
     "seed:brand-narratives": "tsx --env-file=.env.local ./scripts/seedBrandNarrativeProfiles.ts",
     "seed:brand-narratives:dry-run": "npm run seed:brand-narratives -- --dry-run",
