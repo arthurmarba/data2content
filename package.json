@@ -13,7 +13,14 @@
     "playwright:install-chromium": "node scripts/install-playwright-chromium.mjs",
     "lint": "eslint src --quiet",
     "typecheck": "npm run smoke:types",
+    "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "jest --watchAll=false",
+    "test:mcp": "jest --watchAll=false --runInBand src/app/lib/mcp",
+    "eval:mcp": "jest --watchAll=false --runInBand src/app/lib/mcp/qualityEvals.test.ts src/app/lib/mcp/server.test.ts",
+    "mcp:generate-key": "node scripts/generateMcpOAuthKey.mjs",
+    "smoke:mcp-oauth": "tsx scripts/smokeMcpOAuthCrypto.ts",
+    "smoke:mcp-admin-integration": "tsx --env-file=.env.local scripts/smokeMcpAdminIntegration.ts",
+    "smoke:mcp-admin-http": "tsx --env-file=.env.local scripts/smokeMcpAdminHttp.ts",
     "test:e2e": "playwright test",
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "reclassify:strategic-residual": "tsx --env-file=.env.local ./scripts/reclassifyStrategicResidual.ts",
@@ -80,6 +87,7 @@
     "@google/genai": "^2.3.0",
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@sentry/nextjs": "^10.0.0",
     "@sparticuz/chromium": "^148.0.0",
     "@stripe/react-stripe-js": "2.9.0",
@@ -167,6 +175,6 @@
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "undici": "6.27.0",
-    "zod-to-json-schema": "^3.24.5"
+    "zod-to-json-schema": "3.24.6"
   }
 }

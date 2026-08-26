@@ -4,6 +4,7 @@ import { createClient, RedisClientType } from 'redis';
 import { logger } from '@/app/lib/logger';
 
 let client: RedisClientType | null = null;
+let connectionPromise: Promise<void> | null = null;
 let connectionAttempted = false;
 let redisUnavailable = false;
 let disabledReasonLogged = false;
@@ -75,14 +76,16 @@ function getClient(): RedisClientType | null {
     });
   });
 
-  client.connect().catch((err: any) => {
-    redisUnavailable = true;
-    client = null;
-    logger.warn('[rateLimit] Initial connection to Redis failed. Rate limiting disabled for this runtime.', {
-      error: err?.message ?? String(err),
-      code: err?.code,
+  connectionPromise = client.connect()
+    .then(() => undefined)
+    .catch((err: any) => {
+      redisUnavailable = true;
+      client = null;
+      logger.warn('[rateLimit] Initial connection to Redis failed. Rate limiting disabled for this runtime.', {
+        error: err?.message ?? String(err),
+        code: err?.code,
+      });
     });
-  });
 
   return client;
 }
@@ -90,24 +93,29 @@ function getClient(): RedisClientType | null {
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
+  available: boolean;
 }
 
-export async function checkRateLimit(
+async function checkRateLimitWithPolicy(
   key: string,
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
+  failOpen: boolean,
 ): Promise<RateLimitResult> {
   const redis = getClient();
   if (!redis) {
-    return { allowed: true, remaining: limit };
+    return { allowed: failOpen, remaining: failOpen ? limit : 0, available: false };
   }
 
+  if (!redis.isReady && !failOpen && connectionPromise) {
+    await connectionPromise;
+  }
   if (!redis.isReady) {
     if (!notReadyLogged) {
       notReadyLogged = true;
       logger.warn('[rateLimit] Redis not ready. Skipping rate limit checks until connection recovers.');
     }
-    return { allowed: true, remaining: limit };
+    return { allowed: failOpen, remaining: failOpen ? limit : 0, available: false };
   }
 
   try {
@@ -115,14 +123,30 @@ export async function checkRateLimit(
     if (count === 1) {
       await redis.expire(key, windowSeconds);
     }
-    return { allowed: count <= limit, remaining: Math.max(0, limit - count) };
+    return { allowed: count <= limit, remaining: Math.max(0, limit - count), available: true };
   } catch (err) {
     logger.warn('[rateLimit] Error during Redis command. Skipping rate limit check.', {
       key,
       error: err instanceof Error ? err.message : String(err),
     });
-    return { allowed: true, remaining: limit };
+    return { allowed: failOpen, remaining: failOpen ? limit : 0, available: false };
   }
+}
+
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateLimitResult> {
+  return checkRateLimitWithPolicy(key, limit, windowSeconds, true);
+}
+
+export async function checkRateLimitStrict(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateLimitResult> {
+  return checkRateLimitWithPolicy(key, limit, windowSeconds, false);
 }
 
 interface RateLimiterOptions {
