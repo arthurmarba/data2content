@@ -7,6 +7,14 @@ import {
   canonicalPlaceById,
   canonicalToneById,
 } from "@/app/lib/relatorio/mapRegistry";
+import {
+  buildCreatorHookEvidenceFromMetrics,
+  type CreatorHookEvidence,
+} from "./creatorHookEvidence";
+import {
+  buildCreatorStructureEvidenceFromMetrics,
+  type CreatorStructureEvidence,
+} from "./creatorStructureEvidence";
 
 export type CreatorEngagementPattern = {
   key: string;
@@ -35,10 +43,15 @@ export type CreatorEngagementBaseline = {
     openingLines: string[];
     screenTitles: string[];
   };
+  /** Creator-owned openings ranked by hook-relevant outcomes. */
+  hookEvidence: CreatorHookEvidence[];
+  /** Creator-owned narrative structures ranked by relative outcomes. */
+  structureEvidence: CreatorStructureEvidence[];
 };
 
 type MetricLike = {
   stats?: Record<string, unknown>;
+  narrativeForm?: string[] | string | null;
   sceneElements?: {
     framingIds?: string[];
     aestheticIds?: string[];
@@ -167,6 +180,8 @@ export function buildCreatorEngagementBaselineFromMetrics(
       openingLines: uniqueExamples(top.map((metric) => metric.sceneElements?.openingLine)),
       screenTitles: uniqueExamples(top.map((metric) => metric.sceneElements?.screenTitle)),
     },
+    hookEvidence: buildCreatorHookEvidenceFromMetrics(metrics),
+    structureEvidence: buildCreatorStructureEvidenceFromMetrics(metrics),
   };
 }
 
@@ -187,7 +202,7 @@ export async function buildCreatorEngagementBaseline(
       { "stats.video_duration_seconds": { $gt: 0 } },
     ],
   })
-    .select("stats sceneElements postDate")
+    .select("stats sceneElements narrativeForm postDate")
     .sort({ postDate: -1 })
     .limit(MAX_POSTS)
     .lean();

@@ -23,6 +23,66 @@ describe("videoNarrativeGeminiResponseParser", () => {
     }
   });
 
+  it("captura recomendação versionada de gancho quando presente", () => {
+    const raw = {
+      ...JSON.parse(geminiVideoNarrativeRawJsonFixture),
+      hookRecommendation: {
+        version: "hook-recommendation-v1",
+        primary: {
+          id: "primary",
+          spokenLine: "Você sente mais a lombar do que o glúteo aqui?",
+          onScreenText: "Lombar ou glúteo?",
+          firstFrameDirection: "Mostrar a execução.",
+          deliveryDirection: null,
+          strategy: "creator_first",
+          pattern: "question",
+          whyForThisVideo: "O vídeo demonstra o erro antes da correção.",
+        },
+        alternatives: [],
+        basis: { creatorPosts: 8, territoryPosts: 0, territoryCreators: 0, windowDays: 90, confidence: "medium" },
+      },
+    };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.hookRecommendation?.primary).toEqual(expect.objectContaining({
+        strategy: "creator_first",
+        pattern: "question",
+      }));
+    }
+  });
+
+  it("captura ajuste de roteiro e sanitiza os textos direcionais", () => {
+    const raw = {
+      ...JSON.parse(geminiVideoNarrativeRawJsonFixture),
+      scriptAdjustmentRecommendation: {
+        version: "script-adjustment-v1",
+        pattern: "problem_demo_explanation_action",
+        summary: "Mostre o erro antes da explicação.",
+        effort: "no_rerecord",
+        canUseExistingFootage: true,
+        currentStructure: [{ id: "context", role: "context", label: "Apresentação", sourceStartMs: 0, sourceEndMs: 4000 }],
+        recommendedStructure: [{ id: "demo", role: "demonstration", label: "Erro", sourceStartMs: 11000, sourceEndMs: 13000 }],
+        steps: [{
+          id: "move-demo", action: "move", sourceStartMs: 11000, sourceEndMs: 13000,
+          targetStartMs: 0, targetEndMs: 2000, targetOrder: 1,
+          title: "Mostre o erro primeiro", instruction: "Use o trecho em que o erro aparece.",
+          suggestedCopy: null, reason: "A imagem é fácil de entender.", confidence: "high",
+        }],
+        rationale: "A demonstração aparece tarde, mas entrega a ideia rapidamente.",
+        basis: { video: true, creatorPosts: 0, territoryPosts: 0, territoryCreators: 0, confidence: "low" },
+      },
+    };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.analysis.scriptAdjustmentRecommendation).toEqual(expect.objectContaining({
+      effort: "no_rerecord",
+      pattern: "problem_demo_explanation_action",
+    }));
+    expect(result.analysis.scriptAdjustmentRecommendation?.steps[0]?.sourceStartMs).toBe(11000);
+  });
+
   it("não quebra quando directAnswer está ausente (resposta antiga)", () => {
     const result = parseVideoNarrativeGeminiResponse(geminiVideoNarrativeRawJsonFixture);
     expect(result.ok).toBe(true);

@@ -9,6 +9,14 @@ import type {
   VideoNarrativePersonalComparison,
   VideoNarrativePotentialDimensionStatus,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
+import {
+  HookRecommendationCard,
+  type HookRecommendationInteraction,
+} from "./HookRecommendationCard";
+import {
+  ScriptAdjustmentCard,
+  type ScriptAdjustmentInteraction,
+} from "./ScriptAdjustmentCard";
 
 const VERDICT_COPY: Record<VideoNarrativeEngagementPotentialVerdict, string> = {
   strong: "Tem forte potencial de engajar.",
@@ -102,11 +110,19 @@ export function ContentAnalysisReport({
   thumbnailSrc,
   analyzedAt,
   onCopySuggestion,
+  onHookInteraction,
+  onHookCandidateChosen,
+  onScriptAdjustmentInteraction,
+  onScriptAdjustmentSelectionChange,
 }: {
   data: MobileStrategicProfileAnalyzeConfirmationData | null;
   thumbnailSrc?: string | null;
   analyzedAt?: string | null;
   onCopySuggestion?: (scan: VideoNarrativeContentPotentialScan) => void;
+  onHookInteraction?: (event: HookRecommendationInteraction, actionType: string) => void;
+  onHookCandidateChosen?: (candidateId: string) => void;
+  onScriptAdjustmentInteraction?: (event: ScriptAdjustmentInteraction, actionType: string) => void;
+  onScriptAdjustmentSelectionChange?: (selectedStepIds: string[]) => void;
 }) {
   const reduceMotion = Boolean(useReducedMotion());
   const scan = data?.contentPotentialScan ?? null;
@@ -164,6 +180,37 @@ export function ContentAnalysisReport({
             Conteúdo analisado
           </figcaption>
         </motion.figure>
+      ) : null}
+
+      {data?.hookRecommendation ? (
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.05 }}
+          className="mb-7"
+        >
+          <HookRecommendationCard
+            recommendation={data.hookRecommendation}
+            onInteraction={onHookInteraction}
+            onCandidateChosen={onHookCandidateChosen}
+          />
+        </motion.div>
+      ) : null}
+
+      {data?.scriptAdjustmentRecommendation ? (
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08 }}
+          className="mb-7"
+        >
+          <ScriptAdjustmentCard
+            key={data.scriptAdjustmentRecommendation.version}
+            recommendation={data.scriptAdjustmentRecommendation}
+            onInteraction={onScriptAdjustmentInteraction}
+            onSelectionChange={onScriptAdjustmentSelectionChange}
+          />
+        </motion.div>
       ) : null}
 
       <motion.header

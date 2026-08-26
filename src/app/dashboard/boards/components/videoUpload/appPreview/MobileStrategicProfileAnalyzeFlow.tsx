@@ -12,6 +12,10 @@ import type {
 import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
 import { ContentAnalysisReport } from "./ContentAnalysisReport";
 import { AnalysisProcessingExperience } from "./AnalysisProcessingExperience";
+import type { HookRecommendation } from "@/app/dashboard/boards/videoUpload/hookRecommendation";
+import type { HookRecommendationInteraction } from "./HookRecommendationCard";
+import type { ScriptAdjustmentRecommendation } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentRecommendation";
+import type { ScriptAdjustmentInteraction } from "./ScriptAdjustmentCard";
 
 const STEPS = [
   "upload",
@@ -72,6 +76,8 @@ export type MobileStrategicProfileAnalyzeConfirmationData = {
   /** Does this video open/sustain a coherent commercial territory? (eixo marca) */
   brandCoherence?: AxisCoherence | null;
   contentPotentialScan?: import("@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan").VideoNarrativeContentPotentialScan | null;
+  hookRecommendation?: HookRecommendation | null;
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation | null;
 };
 
 export type MobileStrategicProfileAnalyzeResult = {
@@ -125,9 +131,19 @@ type MobileStrategicProfileAnalyzeFlowProps = {
   }) => Promise<void>;
   /** Telemetria sem conteúdo: somente a ação realizada no relatório. */
   onReportInteraction?: (
-    event: "copy_suggestion",
+    event: "copy_suggestion" | HookRecommendationInteraction | ScriptAdjustmentInteraction,
     actionType?: string,
   ) => void;
+  /** Persists the chosen suggestion without sending its text back from the client. */
+  onSelectHookRecommendation?: (payload: {
+    diagnosisId: string;
+    candidateId: string;
+  }) => Promise<void>;
+  /** Persists only step IDs that belong to the saved recommendation. */
+  onSelectScriptAdjustment?: (payload: {
+    diagnosisId: string;
+    selectedStepIds: string[];
+  }) => Promise<void>;
   /**
    * Resumo de cota de leituras, exibido no passo de upload. `null`/ausente esconde o
    * contador (ex.: admin com leituras ilimitadas). Free mostra a leitura-presente;
@@ -275,11 +291,14 @@ export function MobileStrategicProfileAnalyzeFlow({
   enableRealAnalysis = false,
   onCleanupTemporaryUpload,
   onReportInteraction,
+  onSelectHookRecommendation,
+  onSelectScriptAdjustment,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
   initialThumbnailSrc = null,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
+  const scriptSelectionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -818,6 +837,20 @@ export function MobileStrategicProfileAnalyzeFlow({
             data={confirmationData}
             thumbnailSrc={thumbnailDataUrl}
             onCopySuggestion={copyPracticalSuggestion}
+            onHookInteraction={(event, actionType) => onReportInteraction?.(event, actionType)}
+            onHookCandidateChosen={(candidateId) => {
+              if (!savedDiagnosisId) return;
+              void onSelectHookRecommendation?.({ diagnosisId: savedDiagnosisId, candidateId })
+                .catch(() => undefined);
+            }}
+            onScriptAdjustmentInteraction={(event, actionType) => onReportInteraction?.(event, actionType)}
+            onScriptAdjustmentSelectionChange={(selectedStepIds) => {
+              if (!savedDiagnosisId || !onSelectScriptAdjustment) return;
+              scriptSelectionQueueRef.current = scriptSelectionQueueRef.current
+                .catch(() => undefined)
+                .then(() => onSelectScriptAdjustment({ diagnosisId: savedDiagnosisId, selectedStepIds }))
+                .catch(() => undefined);
+            }}
           />
         ) : null}
 

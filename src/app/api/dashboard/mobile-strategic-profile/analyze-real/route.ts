@@ -18,9 +18,18 @@ import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashb
 import { buildInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/instagramMetricsSummaryService";
 import { buildContentPotentialCalibrationHistory } from "@/app/dashboard/boards/videoUpload/contentPotentialHistoryService";
 import { buildCreatorEngagementBaseline } from "@/app/dashboard/boards/videoUpload/creatorEngagementBaselineService";
+import {
+  buildTerritoryHookContextForUser,
+  isTerritoryHookEvidenceEnabled,
+} from "@/app/dashboard/boards/videoUpload/territoryHookEvidenceService";
+import {
+  buildTerritoryStructureContextForUser,
+  isTerritoryStructureEvidenceEnabled,
+} from "@/app/dashboard/boards/videoUpload/territoryStructureEvidenceService";
 import { buildAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/audienceContextSummaryService";
 import { listRecentCreatorVideoNarrativeDiagnosesForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import type { VideoNarrativeInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes";
+import { resolveScriptAdjustmentExperiment } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentExperiment";
 import {
   deleteLocalVideoNarrativeTemporaryUpload,
   isLocalVideoNarrativeTemporaryUploadEnabled,
@@ -361,14 +370,30 @@ export async function POST(request: Request) {
       );
     }
 
+    const scriptAdjustmentCohort = resolveScriptAdjustmentExperiment({ userId: session.user.id });
+
     // Fetch Instagram metrics + recent readings in parallel to enrich the Gemini prompt.
     // Both are non-blocking: failures degrade gracefully (null / empty array).
-    const [rawInstagramMetrics, recentReadings, audienceContext, contentPotentialHistory, engagementBaseline] = await Promise.all([
+    const [
+      rawInstagramMetrics,
+      recentReadings,
+      audienceContext,
+      contentPotentialHistory,
+      engagementBaseline,
+      territoryHookContext,
+      territoryStructureContext,
+    ] = await Promise.all([
       buildInstagramMetricsSummary(session.user.id).catch(() => null),
       listRecentCreatorVideoNarrativeDiagnosesForUser({ userId: session.user.id, limit: 4 }).catch(() => []),
       buildAudienceContextSummary(session.user.id).catch(() => null),
       buildContentPotentialCalibrationHistory(session.user.id).catch(() => ({ outcomesLinked: 0, bandOutcomes: {} })),
       buildCreatorEngagementBaseline(session.user.id).catch(() => null),
+      isTerritoryHookEvidenceEnabled()
+        ? buildTerritoryHookContextForUser(session.user.id).catch(() => null)
+        : Promise.resolve(null),
+      scriptAdjustmentCohort === "personalized" && isTerritoryStructureEvidenceEnabled()
+        ? buildTerritoryStructureContextForUser(session.user.id).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     // Map the rich InstagramMetricsSummary to the provider-facing type, including
@@ -498,6 +523,9 @@ export async function POST(request: Request) {
         audienceContext,
         contentPotentialHistory,
         engagementBaseline,
+        territoryHookContext,
+        territoryStructureContext,
+        scriptAdjustmentCohort,
         evaluateAllowlist: () => ({ ok: true, reason: "narrative_map_entitlement" }),
         assertCanRunRealAnalysis: localRealAnalysisEnabled
           ? async () => ({
@@ -720,6 +748,12 @@ export async function POST(request: Request) {
             audienceCoherence: result.confirmation?.audienceCoherence ?? null,
             brandCoherence: result.confirmation?.brandCoherence ?? null,
             contentPotentialScan: result.confirmation?.contentPotentialScan ?? null,
+            ...(result.confirmation?.hookRecommendation
+              ? { hookRecommendation: result.confirmation.hookRecommendation }
+              : {}),
+            ...(result.confirmation?.scriptAdjustmentRecommendation
+              ? { scriptAdjustmentRecommendation: result.confirmation.scriptAdjustmentRecommendation }
+              : {}),
           }
         : null;
 

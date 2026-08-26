@@ -13,6 +13,9 @@ import type { VideoNarrativeStrategicDiagnosis } from "./videoNarrativeDiagnosis
 import type { VideoNarrativeEvolvingDiagnosis } from "./videoNarrativeEvolvingDiagnosisContract";
 import type { VideoNarrativeDiagnosisPresentation } from "./videoNarrativeDiagnosisPresentationModel";
 import type { PostCreationVideoSeed } from "./videoNarrativePostCreationSeed";
+import type { HookRecommendation } from "./hookRecommendation";
+import type { ScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
+import type { ScriptAdjustmentExperimentCohort } from "./scriptAdjustmentExperiment";
 
 export type SaveCreatorVideoNarrativeDiagnosisErrorCode =
   | "invalid_video_reading_input"
@@ -37,6 +40,9 @@ export type SaveCreatorVideoNarrativeDiagnosisFromStructuredAnalysisParams = {
     CreatorVideoNarrativeDiagnosisInput,
     "analysisVersion" | "learningStatus" | "historyVisibility" | "thumbnailStatus"
   >;
+  hookRecommendation?: HookRecommendation | null;
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation | null;
+  scriptAdjustmentExperimentCohort?: ScriptAdjustmentExperimentCohort;
 };
 
 export type SaveCreatorVideoNarrativeDiagnosisResult =
@@ -124,6 +130,15 @@ export async function saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis(
     mappedInput = mapToDiagnosisInput(buildMapperParams(params));
     if (params.analysisLifecycle) {
       mappedInput = { ...mappedInput, ...params.analysisLifecycle };
+    }
+    if (params.hookRecommendation) {
+      mappedInput = { ...mappedInput, hookRecommendation: params.hookRecommendation };
+    }
+    if (params.scriptAdjustmentRecommendation) {
+      mappedInput = { ...mappedInput, scriptAdjustmentRecommendation: params.scriptAdjustmentRecommendation };
+    }
+    if (params.scriptAdjustmentExperimentCohort) {
+      mappedInput = { ...mappedInput, scriptAdjustmentExperimentCohort: params.scriptAdjustmentExperimentCohort };
     }
     mappedInput = sanitizeCreatorVideoNarrativeDiagnosisInput(mappedInput);
   } catch (error) {

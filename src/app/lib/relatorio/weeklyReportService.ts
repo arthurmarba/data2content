@@ -228,6 +228,7 @@ function snapshotElementsOf(collected: CollectedTerritory) {
     collected.tables.tons,
     collected.tables.horarios,
     collected.tables.duracoes,
+    collected.tables.ganchos,
   ];
   const elements: Array<Record<string, unknown>> = [];
   for (const table of tables) {
@@ -247,6 +248,7 @@ function snapshotElementsOf(collected: CollectedTerritory) {
         fitsCount: row.fitsCount,
         fitsOutOf: row.fitsOutOf,
         pullsDown: row.pullsDown,
+        evidence: row.evidence,
       });
     });
   }
@@ -332,6 +334,7 @@ export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekRes
             tom: collected.tables.tons.sortedBy,
             horario: collected.tables.horarios.sortedBy,
             duracao: collected.tables.duracoes.sortedBy,
+            gancho: collected.tables.ganchos.sortedBy,
           },
           elements: snapshotElementsOf(collected),
           overviewRank: built.overviewRanks.get(territoryId) ?? null,

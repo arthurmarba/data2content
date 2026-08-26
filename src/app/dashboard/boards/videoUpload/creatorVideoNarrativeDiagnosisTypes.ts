@@ -1,4 +1,7 @@
 import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+import type { HookRecommendation, HookRecommendationCandidate } from "./hookRecommendation";
+import type { ScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
+import type { ScriptAdjustmentExperimentCohort } from "./scriptAdjustmentExperiment";
 
 // ─── Video content context extracted by the AI from watching the video ──────────
 // Structured dimensions that describe the life assets visible in each upload.
@@ -237,6 +240,20 @@ export interface CreatorVideoNarrativeDiagnosisInput {
   narrativeCoherence?: VideoNarrativeCoherence;
   /** Safe structured Raio X result persisted without raw media. */
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  /** Suggestions shown before publication, retained so a later outcome can train the recommender. */
+  hookRecommendation?: HookRecommendation;
+  hookSelection?: {
+    candidateId: string;
+    candidate: HookRecommendationCandidate;
+    selectedAt: Date;
+  };
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation;
+  scriptAdjustmentSelection?: {
+    selectedStepIds: string[];
+    recommendationVersion: string;
+    selectedAt: Date;
+  };
+  scriptAdjustmentExperimentCohort?: ScriptAdjustmentExperimentCohort;
   analysisVersion?: "v1" | "v2";
   learningStatus?: "analysis_only" | "published_matched";
   historyVisibility?: "visible" | "hidden";
