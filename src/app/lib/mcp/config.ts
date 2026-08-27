@@ -154,7 +154,7 @@ export function isMcpAdminResource(resource: string): boolean {
 }
 
 export function isMcpAdminEnabled(): boolean {
-  return process.env.MCP_ADMIN_ENABLED === "1";
+  return process.env.MCP_ADMIN_ENABLED?.trim() === "1";
 }
 
 export function getMcpOAuthIssuer(): string {

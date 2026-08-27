@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isMcpAdminEnabled } from "@/app/lib/mcp/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export async function GET() {
       ok: true,
       service: "data2content-mcp",
       version: "0.7.0",
-      adminMcpEnabled: process.env.MCP_ADMIN_ENABLED === "1",
+      adminMcpEnabled: isMcpAdminEnabled(),
       authConfigured: externalOAuthConfigured || selfHostedOAuthConfigured,
       oauthMode: selfHostedOAuthConfigured ? "self_hosted" : externalOAuthConfigured ? "external" : "unconfigured",
     },
