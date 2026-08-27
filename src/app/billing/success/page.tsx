@@ -76,6 +76,17 @@ export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): PostC
     : null;
 }
 
+export function isChatGptCheckoutFlow(returnTo: string | null, source: string | null): boolean {
+  if (source === "chatgpt_profile_upgrade") return true;
+  if (!returnTo) return false;
+  try {
+    const url = new URL(returnTo, "https://d2c.local");
+    return url.searchParams.get("source") === "chatgpt";
+  } catch {
+    return false;
+  }
+}
+
 export function buildProfileActivationHref(
   returnTo: string | null,
   activation: "instagram" | "whatsapp",
@@ -183,12 +194,9 @@ export default function BillingSuccessPage() {
               redirectHref = buildProfileActivationHref(returnTo, "whatsapp");
               keepPaywallReturnState = false;
             } else if (postCheckoutIntent === "connect_instagram" && !paymentUnconfirmed) {
-              // O pagamento volta primeiro ao app. O Perfil explica a próxima
-              // ação em contexto, sem jogar o novo assinante direto em outro fluxo.
-              redirectHref = buildProfileActivationHref(
-                returnTo,
-                "instagram",
-              );
+              redirectHref = isChatGptCheckoutFlow(returnTo, source)
+                ? "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin"
+                : buildProfileActivationHref(returnTo, "instagram");
               keepPaywallReturnState = false;
             } else if (postCheckoutIntent === "watch_recorded_meeting" && !paymentUnconfirmed) {
               redirectHref = returnTo ?? RECORDED_MEETINGS_ROUTE;

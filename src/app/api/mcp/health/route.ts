@@ -14,7 +14,7 @@ export async function GET() {
     {
       ok: true,
       service: "data2content-mcp",
-      version: "0.7.0",
+      version: "0.8.0",
       adminMcpEnabled: isMcpAdminEnabled(),
       authConfigured: externalOAuthConfigured || selfHostedOAuthConfigured,
       oauthMode: selfHostedOAuthConfigured ? "self_hosted" : externalOAuthConfigured ? "external" : "unconfigured",

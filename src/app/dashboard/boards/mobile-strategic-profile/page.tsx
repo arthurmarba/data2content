@@ -92,6 +92,7 @@ export type MobileStrategicProfilePageProps = {
   searchParams?: Promise<{
     state?: string | string[];
     affiliate?: string | string[];
+    source?: string | string[];
   }>;
 };
 
@@ -115,11 +116,13 @@ export async function renderCreatorProfilePage({
     () => getServerSession(authOptions),
   );
   if (!session?.user) {
-    const callbackUrl = encodeURIComponent(
-      surface === "responsive"
+    const profilePath = surface === "responsive"
         ? "/dashboard/profile"
-        : "/dashboard/boards/mobile-strategic-profile",
-    );
+        : "/dashboard/boards/mobile-strategic-profile";
+    const callbackPath = resolvedSearchParams?.source === "chatgpt"
+      ? `${profilePath}?source=chatgpt`
+      : profilePath;
+    const callbackUrl = encodeURIComponent(callbackPath);
     redirect(`/login?callbackUrl=${callbackUrl}&intent=strategic_profile`);
     return null;
   }

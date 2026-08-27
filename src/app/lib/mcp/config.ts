@@ -197,10 +197,14 @@ export function getMcpAdminAuditRetentionDays(): number {
   return Math.min(365, Math.max(30, Number.isFinite(value) ? value : 180));
 }
 
-export function getMcpUpgradeUrl(): string {
-  return `${getMcpAppBaseUrl()}/dashboard/billing?source=mcp`;
+export function getMcpProfileUrl(): string {
+  return `${getMcpAppBaseUrl()}/chatgpt/recursos`;
 }
 
 export function getInstagramConnectUrl(): string {
-  return `${getMcpAppBaseUrl()}/dashboard/instagram/connect?source=mcp`;
+  return `${getMcpAppBaseUrl()}/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin`;
+}
+
+export function getMcpCommunityJoinUrl(): string {
+  return `${getMcpAppBaseUrl()}/api/dashboard/community/pro-join?source=chatgpt`;
 }

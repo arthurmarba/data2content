@@ -2,16 +2,16 @@
 
 import { assertMcpOAuthSubjectAccess } from "./service";
 import { getMcpAdminAuthorization } from "../adminAuthorization";
-import { getMcpEntitlement } from "../entitlement";
+import { getMcpAccountState } from "../accountState";
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 jest.mock("../adminAuthorization", () => ({ getMcpAdminAuthorization: jest.fn() }));
-jest.mock("../entitlement", () => ({ getMcpEntitlement: jest.fn() }));
+jest.mock("../accountState", () => ({ getMcpAccountState: jest.fn() }));
 
 const mockAdminAuthorization = getMcpAdminAuthorization as jest.MockedFunction<typeof getMcpAdminAuthorization>;
-const mockEntitlement = getMcpEntitlement as jest.MockedFunction<typeof getMcpEntitlement>;
+const mockAccountState = getMcpAccountState as jest.MockedFunction<typeof getMcpAccountState>;
 
 describe("MCP OAuth subject access policy", () => {
   const userId = "507f1f77bcf86cd799439011";
@@ -39,7 +39,7 @@ describe("MCP OAuth subject access policy", () => {
     await expect(
       assertMcpOAuthSubjectAccess(userId, "https://data2content.ai/api/mcp/admin", "consent"),
     ).resolves.toBeUndefined();
-    expect(mockEntitlement).not.toHaveBeenCalled();
+    expect(mockAccountState).not.toHaveBeenCalled();
   });
 
   it("rejects a revoked admin during refresh or code exchange", async () => {
@@ -55,18 +55,60 @@ describe("MCP OAuth subject access policy", () => {
     ).rejects.toMatchObject({ code: "invalid_grant", status: 400 });
   });
 
-  it("preserves subscription entitlement for the subscriber resource", async () => {
-    mockEntitlement.mockResolvedValue({
-      eligible: false,
-      reason: "subscription_required",
-      normalizedStatus: "",
-      validUntil: null,
+  it("allows a free account to connect to the subscriber resource", async () => {
+    mockAccountState.mockResolvedValue({
+      accountAvailable: true,
+      reason: "ready_free",
+      accessLevel: "free",
+      entitlement: {
+        eligible: false,
+        reason: "subscription_required",
+        normalizedStatus: "inactive",
+        validUntil: null,
+        instagramConnected: false,
+      },
       instagramConnected: false,
+      creatorNorth: null,
+      northDeclared: false,
+      communityInvitePending: false,
+      capabilities: {
+        aggregateCommunityContext: true,
+        privateCreatorIntelligence: false,
+        membershipBenefits: false,
+      },
     });
 
     await expect(
       assertMcpOAuthSubjectAccess(userId, "https://data2content.ai/api/mcp", "consent"),
-    ).rejects.toMatchObject({ code: "subscription_required", status: 403 });
+    ).resolves.toBeUndefined();
     expect(mockAdminAuthorization).not.toHaveBeenCalled();
+  });
+
+  it("rejects an account that cannot be resolved", async () => {
+    mockAccountState.mockResolvedValue({
+      accountAvailable: false,
+      reason: "user_not_found",
+      accessLevel: "free",
+      entitlement: {
+        eligible: false,
+        reason: "user_not_found",
+        normalizedStatus: "",
+        validUntil: null,
+        instagramConnected: false,
+      },
+      instagramConnected: false,
+      creatorNorth: null,
+      northDeclared: false,
+      communityInvitePending: false,
+      capabilities: {
+        aggregateCommunityContext: false,
+        privateCreatorIntelligence: false,
+        membershipBenefits: false,
+      },
+    });
+
+    await expect(
+      assertMcpOAuthSubjectAccess(userId, "https://data2content.ai/api/mcp", "consent"),
+    ).rejects.toMatchObject({ code: "access_denied", status: 403 });
   });
 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getMcpAppBaseUrl,
   getMcpOAuthIssuer,
   getMcpServerUrl,
   getMcpSupportedScopes,
@@ -15,6 +16,8 @@ export async function GET() {
       authorization_servers: [getMcpOAuthIssuer()],
       scopes_supported: getMcpSupportedScopes(),
       bearer_methods_supported: ["header"],
+      resource_name: "Data2Content",
+      resource_documentation: `${getMcpAppBaseUrl()}/politica-de-privacidade`,
     },
     {
       headers: {

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { logger } from "@/app/lib/logger";
 import type { McpAuthenticatedIdentity } from "./auth";
-import type { McpEntitlement } from "./entitlement";
+import type { McpAccountState } from "./accountState";
 import {
   analyzeMcpCreatorPeriod,
   analyzeMcpInspirationContent,
@@ -21,12 +21,14 @@ import {
   saveMcpScript,
   searchMcpKnowledge,
 } from "./catalog";
-import { getInstagramConnectUrl } from "./config";
+import { getInstagramConnectUrl, getMcpCommunityJoinUrl, getMcpProfileUrl } from "./config";
+import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNorth";
+import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
-  entitlement: McpEntitlement;
+  accountState: McpAccountState;
 }
 
 const READ_ONLY_ANNOTATIONS = {
@@ -56,6 +58,7 @@ type D2CToolConfig = {
   inputSchema?: z.ZodTypeAny;
   outputSchema?: z.ZodTypeAny;
   annotations: ToolAnnotations;
+  _meta?: Record<string, unknown>;
 };
 
 type D2CRegisterTool = <TArgs = undefined>(
@@ -220,14 +223,12 @@ const deepContentOutputSchema = z.object({
 
 const scriptDraftOutputSchema = z.object({
   schemaVersion: z.literal("script_draft_v1"),
-  generationId: z.string(),
   clientRequestId: z.string(),
   draft: z.object({
     title: z.string(),
     content: z.string(),
   }),
   intelligence: z.record(z.unknown()).nullable(),
-  review: z.record(z.unknown()).nullable(),
   inspirationReferences: z.object({
     requestedIds: z.array(z.string()),
     usedIds: z.array(z.string()),
@@ -240,8 +241,6 @@ const scriptDraftOutputSchema = z.object({
     instruction: z.string(),
   }),
   receipt: z.object({
-    generatedAt: z.string(),
-    providerPolicy: z.literal("gemini_primary_openai_fallback_opt_in"),
     usedCreatorIntelligence: z.boolean(),
     usedCommunityInspiration: z.boolean(),
   }),
@@ -459,6 +458,36 @@ function instagramRequiredResult() {
   };
 }
 
+function profileRequiredResult() {
+  return {
+    isError: true,
+    content: jsonText({
+      error: "private_creator_intelligence_unavailable",
+      message:
+        "A inteligência dos seus próprios conteúdos não está disponível no estado atual da conta. " +
+        "Consulte seu perfil Data2Content para entender os recursos disponíveis.",
+      profileUrl: getMcpProfileUrl(),
+    }),
+  };
+}
+
+function membershipRequiredResult() {
+  return {
+    isError: true,
+    content: jsonText({
+      error: "membership_feature_unavailable",
+      message: "Este recurso da comunidade não está disponível no estado atual da conta.",
+      profileUrl: getMcpProfileUrl(),
+    }),
+  };
+}
+
+function privateCreatorContextRequiredResult(context: D2CMcpContext) {
+  if (context.accountState.accessLevel !== "pro") return profileRequiredResult();
+  if (!context.accountState.instagramConnected) return instagramRequiredResult();
+  return null;
+}
+
 function scopeRequiredResult(requiredScope: string) {
   return {
     isError: true,
@@ -487,13 +516,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.6.0",
+      version: "0.8.0",
       websiteUrl: "https://data2content.ai",
-      description: "Dados e inteligência estratégica do creator assinante da Data2Content.",
+      description:
+        "Planejamento e criação de conteúdo com o Norte do creator, padrões agregados da comunidade e, quando disponível, inteligência privada dos próprios conteúdos.",
     },
     {
       instructions:
-        "Para pesquisar referências, tendências, ganchos, tons, durações, cenários, objetos ou enquadramentos de outros creators, use research_inspiration_content. Trate 'viral' como desempenho relativo observado, nunca como garantia, e diga que trends representam a comunidade Data2Content. Use IDs de inspiração para aprofundar, comparar ou gerar roteiro; adapte padrões sem copiar. Para períodos do próprio creator, use analyze_creator_period com datas explícitas e nunca estime. Respeite coverage.warnings. generate_script_draft não salva; só use save_script após confirmação explícita. Use apenas a conta autenticada.",
+        "No início de uma conversa Data2Content, use get_account_state. Se o Norte estiver ausente, peça ao usuário que o descreva e use set_creator_north; em seguida use build_creator_radar. Contas gratuitas recebem valor com o Norte e padrões agregados da comunidade; nunca promova assinatura, planos ou upgrades. Só mencione limitações de acesso quando o usuário pedir um recurso indisponível, explicando o motivo e oferecendo apenas o link informativo retornado; nunca direcione a checkout. Para pesquisar referências, tendências, ganchos, tons, durações, cenários, objetos ou enquadramentos de outros creators, use research_inspiration_content. Trate 'viral' como desempenho relativo observado, nunca como garantia, e diga que trends representam a comunidade Data2Content. Use IDs de inspiração para aprofundar, comparar ou gerar roteiro; adapte padrões sem copiar. Para períodos do próprio creator, use analyze_creator_period com datas explícitas e nunca estime. Respeite coverage.warnings. generate_script_draft não salva; só use save_script após confirmação explícita. Use apenas a conta autenticada.",
     },
   );
 
@@ -502,7 +532,13 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
   const rawRegisterTool = server.registerTool.bind(server) as unknown as D2CRegisterTool;
   const accountRef = createHash("sha256").update(context.identity.userId).digest("hex").slice(0, 12);
   const registerTool: D2CRegisterTool = (name, config, handler) =>
-    rawRegisterTool(name, config, async (args) => {
+    rawRegisterTool(name, {
+      ...config,
+      _meta: {
+        ...config._meta,
+        securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
+      },
+    }, async (args) => {
       const startedAt = Date.now();
       try {
         const result = await handler(args as never);
@@ -526,6 +562,115 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }
     });
 
+  registerTool(
+    "get_account_state",
+    {
+      title: "Consultar estado da conta Data2Content",
+      description:
+        "Use this at the start of a Data2Content conversation to learn whether the creator has declared a North, which context depth is available, and the correct non-commercial next action.",
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async () => {
+      if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
+      return structuredJsonResult({
+        schemaVersion: "account_state_v1",
+        accessLevel: context.accountState.accessLevel,
+        instagramConnected: context.accountState.instagramConnected,
+        creatorNorth: context.accountState.creatorNorth,
+        northDeclared: context.accountState.northDeclared,
+        contextDepth: context.accountState.capabilities.privateCreatorIntelligence
+          ? "private_creator_and_aggregate_community"
+          : context.accountState.northDeclared
+            ? "creator_north_and_aggregate_community"
+            : "aggregate_community_only",
+        profileUrl: getMcpProfileUrl(),
+        membership: {
+          included: context.accountState.capabilities.membershipBenefits,
+          communityJoinPending: context.accountState.communityInvitePending,
+          communityJoinUrl: context.accountState.communityInvitePending
+            ? getMcpCommunityJoinUrl()
+            : null,
+        },
+        instagramConnectUrl:
+          context.accountState.accessLevel === "pro" && !context.accountState.instagramConnected
+            ? getInstagramConnectUrl()
+            : null,
+      });
+    },
+  );
+
+  registerTool<{ creatorNorth: string }>(
+    "set_creator_north",
+    {
+      title: "Registrar o Norte do creator",
+      description:
+        "Use this after the user describes who they help, the transformation they want to create, or the direction of their content. It stores the declaration in their Data2Content account before generating contextual ideas.",
+      inputSchema: z.object({
+        creatorNorth: z
+          .string()
+          .trim()
+          .min(15)
+          .max(400)
+          .describe("Declaração do propósito e da direção de conteúdo do creator"),
+      }),
+      annotations: IDEMPOTENT_WRITE_ANNOTATIONS,
+    },
+    async ({ creatorNorth }) => {
+      if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
+      try {
+        const result = await saveMcpCreatorNorth(context.identity.userId, creatorNorth);
+        if (!result) {
+          return { isError: true, content: jsonText({ error: "account_not_found" }) };
+        }
+        context.accountState.creatorNorth = result.creatorNorth;
+        context.accountState.northDeclared = true;
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
+      } catch (error) {
+        if (error instanceof McpCreatorNorthValidationError) {
+          return {
+            isError: true,
+            content: jsonText({ error: "invalid_creator_north", message: error.message }),
+          };
+        }
+        throw error;
+      }
+    },
+  );
+
+  registerTool<{ periodDays: number }>(
+    "build_creator_radar",
+    {
+      title: "Construir radar inicial do creator",
+      description:
+        "Use this after the creator has a North. It correlates that declaration with aggregate patterns from opted-in Data2Content community content and returns no creator identities or private metrics. Use it for the free narrative preview and the first content directions.",
+      inputSchema: z.object({
+        periodDays: z.number().int().min(30).max(365).default(180),
+      }),
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    async ({ periodDays }) => {
+      if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
+        return scopeRequiredResult("intelligence:read");
+      }
+      if (!context.accountState.creatorNorth) {
+        return {
+          isError: true,
+          content: jsonText({
+            error: "creator_north_required",
+            message: "Peça ao creator que descreva seu Norte antes de montar o radar.",
+            nextTool: "set_creator_north",
+          }),
+        };
+      }
+      const result = await buildMcpCreatorRadar({
+        userId: context.identity.userId,
+        creatorNorth: context.accountState.creatorNorth,
+        periodDays,
+      });
+      return structuredJsonResult(result as unknown as Record<string, unknown>);
+    },
+  );
+
   registerTool<{ query: string }>(
     "search",
     {
@@ -540,7 +685,11 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     async ({ query }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
       return {
-        content: jsonText({ results: await searchMcpKnowledge(context.identity.userId, query) }),
+        content: jsonText({
+          results: await searchMcpKnowledge(context.identity.userId, query, {
+            includeInstagramPosts: context.accountState.capabilities.privateCreatorIntelligence,
+          }),
+        }),
       };
     },
   );
@@ -558,6 +707,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async ({ id }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
+      if (/^post:/i.test(id)) {
+        const unavailable = privateCreatorContextRequiredResult(context);
+        if (unavailable) return unavailable;
+      }
       const item = await fetchMcpKnowledgeItem(context.identity.userId, id);
       if (!item) {
         return {
@@ -629,7 +782,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async ({ startDate, endDate, timeZone, format, evidenceLimit }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
 
       try {
         const result = await analyzeMcpCreatorPeriod({
@@ -681,7 +835,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
       }
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
       const result = await getMcpCreatorIntelligenceSnapshot({
         userId: context.identity.userId,
         focus,
@@ -711,6 +866,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async ({ contentId, includeTranscript }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
       const result = await getMcpDeepContentAnalysis({
         userId: context.identity.userId,
         contentId,
@@ -779,7 +936,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
       }
-      if (mode === "similar_to_me" && !context.entitlement.instagramConnected) return instagramRequiredResult();
+      if (mode === "similar_to_me") {
+        const unavailable = privateCreatorContextRequiredResult(context);
+        if (unavailable) return unavailable;
+      }
       if (
         filters.minDurationSeconds != null &&
         filters.maxDurationSeconds != null &&
@@ -882,7 +1042,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Gerar rascunho de roteiro personalizado",
       description:
-        "Use this when the user asks Data2Content to create a new script based on what actually works for their creator profile. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. This tool only generates a draft and never saves it. Show the complete draft before asking whether to save it.",
+        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. This tool only generates a draft and never saves it. Show the complete draft before asking whether to save it.",
       inputSchema: z.object({
         prompt: z.string().trim().min(3).max(2000).describe("Briefing completo do roteiro desejado"),
         title: z.string().trim().max(180).default("").describe("Título opcional pedido pelo usuário"),
@@ -902,13 +1062,26 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
         return scopeRequiredResult("scripts:generate");
       }
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      if (context.accountState.accessLevel === "free" && !context.accountState.northDeclared) {
+        return {
+          isError: true,
+          content: jsonText({
+            error: "creator_north_required",
+            message: "Antes do primeiro roteiro, peça ao creator que descreva seu Norte.",
+            nextTool: "set_creator_north",
+          }),
+        };
+      }
+      const contextualPrompt = context.accountState.creatorNorth
+        ? `Norte declarado pelo creator: ${context.accountState.creatorNorth}\n\nPedido atual: ${prompt}`
+        : prompt;
       const result = await generateMcpScriptDraft({
         userId: context.identity.userId,
-        prompt,
+        prompt: contextualPrompt,
         title: title || null,
         lookbackDays,
         inspirationContentIds,
+        includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
       });
       return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
@@ -942,7 +1115,6 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["scripts:write", "content:write"])) {
         return scopeRequiredResult("scripts:write");
       }
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
       if (userConfirmed !== true) {
         return {
           isError: true,
@@ -996,7 +1168,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["collabs:read", "strategy:read"])) {
         return scopeRequiredResult("collabs:read");
       }
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      if (!context.accountState.capabilities.membershipBenefits) return membershipRequiredResult();
       const result = await getMcpCollabCreatorSuggestions({
         userId: context.identity.userId,
         themeKeyword,
@@ -1018,7 +1190,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async () => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
       const summary = await getMcpPerformanceSummary(context.identity.userId);
       if (!summary) {
         return {
@@ -1053,7 +1226,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async ({ metric, format, periodDays, limit }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
       const items = await listMcpTopContent({
         userId: context.identity.userId,
         metric,
@@ -1076,7 +1250,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async () => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
-      if (!context.entitlement.instagramConnected) return instagramRequiredResult();
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
       const summary = await getMcpPerformanceSummary(context.identity.userId);
       if (!summary) {
         return {

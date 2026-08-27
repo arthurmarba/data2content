@@ -7,7 +7,7 @@ import McpOAuthRefreshTokenModel from "@/app/models/McpOAuthRefreshToken";
 import McpOAuthConsentRequestModel, {
   type IMcpOAuthConsentRequest,
 } from "@/app/models/McpOAuthConsentRequest";
-import { getMcpEntitlement } from "../entitlement";
+import { getMcpAccountState } from "../accountState";
 import { getMcpAdminAuthorization } from "../adminAuthorization";
 import {
   getMcpOAuthAuthorizationCodeTtlSeconds,
@@ -257,12 +257,14 @@ export async function assertMcpOAuthSubjectAccess(
     return;
   }
 
-  const entitlement = await getMcpEntitlement(userId);
-  if (!entitlement.eligible) {
+  const accountState = await getMcpAccountState(userId);
+  if (!accountState.accountAvailable) {
     throw new McpOAuthError(
-      phase === "consent" ? "subscription_required" : "invalid_grant",
+      phase === "consent" ? "access_denied" : "invalid_grant",
       phase === "consent" ? 403 : 400,
-      phase === "consent" ? "A assinatura não está ativa." : "A assinatura vinculada não está ativa.",
+      accountState.reason === "account_state_unavailable"
+        ? "Não foi possível validar a conta Data2Content."
+        : "A conta Data2Content não está disponível.",
     );
   }
 }

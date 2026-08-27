@@ -3,6 +3,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createD2CMcpServer } from "./server";
+import { generateMcpScriptDraft } from "./catalog";
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -72,11 +73,9 @@ jest.mock("./catalog", () => ({
   fetchMcpKnowledgeItem: jest.fn(async () => null),
   generateMcpScriptDraft: jest.fn(async (params: { inspirationContentIds?: string[] }) => ({
     schemaVersion: "script_draft_v1",
-    generationId: "generation-1",
     clientRequestId: "mcp-11111111-1111-4111-8111-111111111111",
     draft: { title: "Roteiro personalizado", content: "[ROTEIRO COPY-FIRST V1]\nCena de teste" },
     intelligence: { intelligenceVersion: "scripts_intelligence_v2" },
-    review: { attempted: true },
     inspirationReferences: {
       requestedIds: params.inspirationContentIds ?? [],
       usedIds: params.inspirationContentIds ?? [],
@@ -89,8 +88,6 @@ jest.mock("./catalog", () => ({
       instruction: "Peça confirmação.",
     },
     receipt: {
-      generatedAt: "2026-08-08T12:00:00.000Z",
-      providerPolicy: "gemini_primary_openai_fallback_opt_in",
       usedCreatorIntelligence: true,
       usedCommunityInspiration: Boolean(params.inspirationContentIds?.length),
     },
@@ -367,7 +364,34 @@ jest.mock("./catalog", () => ({
 }));
 
 jest.mock("./config", () => ({
-  getInstagramConnectUrl: () => "https://data2content.ai/dashboard/instagram/connect?source=mcp",
+  getInstagramConnectUrl: () => "https://data2content.ai/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
+  getMcpProfileUrl: () => "https://data2content.ai/chatgpt/recursos",
+  getMcpCommunityJoinUrl: () => "https://data2content.ai/api/dashboard/community/pro-join?source=chatgpt",
+}));
+
+jest.mock("./creatorNorth", () => ({
+  McpCreatorNorthValidationError: class McpCreatorNorthValidationError extends Error {},
+  saveMcpCreatorNorth: jest.fn(async (_userId: string, creatorNorth: string) => ({
+    schemaVersion: "creator_north_v1",
+    creatorNorth,
+    updatedAt: "2026-08-27T12:00:00.000Z",
+    seedSignal: null,
+    next: { tool: "research_inspiration_content", instruction: "Pesquise padrões agregados." },
+  })),
+}));
+
+jest.mock("./creatorRadar", () => ({
+  buildMcpCreatorRadar: jest.fn(async ({ creatorNorth }: { creatorNorth: string }) => ({
+    schemaVersion: "creator_radar_v1",
+    creatorNorth,
+    narrativePreview: { source: "creator_declared_north" },
+    communityPanorama: {
+      sampleSize: 4,
+      formats: [{ value: "reel", count: 3, shareOfSample: 0.75 }],
+      hooks: [{ value: "Pergunta direta", count: 2, shareOfSample: 0.5 }],
+    },
+    receipt: { onlyAggregateSignalsReturned: true, creatorIdentitiesExposed: false },
+  })),
 }));
 
 function textPayload(result: Awaited<ReturnType<Client["callTool"]>>) {
@@ -389,6 +413,7 @@ describe("Data2Content MCP server", () => {
       "scripts:generate",
       "scripts:write",
     ],
+    accessLevel: "free" | "pro" = "pro",
   ) {
     const server = createD2CMcpServer({
       identity: {
@@ -398,12 +423,30 @@ describe("Data2Content MCP server", () => {
         issuer: "https://auth.example.test",
         token: "not-used-in-tools",
       },
-      entitlement: {
-        eligible: true,
-        reason: "active",
-        normalizedStatus: "active",
-        validUntil: null,
+      accountState: {
+        accountAvailable: true,
+        reason: accessLevel === "free"
+          ? "ready_free"
+          : instagramConnected
+            ? "ready_pro_with_instagram"
+            : "ready_pro_without_instagram",
+        accessLevel,
+        entitlement: {
+          eligible: accessLevel === "pro",
+          reason: accessLevel === "pro" ? "active" : "subscription_required",
+          normalizedStatus: accessLevel === "pro" ? "active" : "inactive",
+          validUntil: null,
+          instagramConnected,
+        },
         instagramConnected,
+        creatorNorth: "Ajudo creators a transformar conhecimento em conteúdo claro.",
+        northDeclared: true,
+        communityInvitePending: accessLevel === "pro",
+        capabilities: {
+          aggregateCommunityContext: true,
+          privateCreatorIntelligence: accessLevel === "pro" && instagramConnected,
+          membershipBenefits: accessLevel === "pro",
+        },
       },
     });
     const client = new Client({ name: "d2c-test", version: "1.0.0" });
@@ -417,6 +460,9 @@ describe("Data2Content MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
+        "get_account_state",
+        "set_creator_north",
+        "build_creator_radar",
         "search",
         "fetch",
         "get_creator_profile",
@@ -441,6 +487,9 @@ describe("Data2Content MCP server", () => {
         readOnlyHint: false,
         idempotentHint: true,
         destructiveHint: false,
+      });
+      expect(tools.find((tool) => tool.name === "get_account_state")?._meta).toMatchObject({
+        securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
       });
     } finally {
       await client.close();
@@ -646,7 +695,10 @@ describe("Data2Content MCP server", () => {
           requiresExplicitUserConfirmation: true,
           nextTool: "save_script",
         },
-        receipt: { providerPolicy: "gemini_primary_openai_fallback_opt_in" },
+        receipt: {
+          usedCreatorIntelligence: true,
+          usedCommunityInspiration: false,
+        },
       });
     } finally {
       await client.close();
@@ -748,8 +800,113 @@ describe("Data2Content MCP server", () => {
       expect(result.isError).toBe(true);
       expect(textPayload(result)).toMatchObject({
         error: "instagram_connection_required",
-        connectUrl: "https://data2content.ai/dashboard/instagram/connect?source=mcp",
+        connectUrl: "https://data2content.ai/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
       });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("gives free accounts a useful state without promotional footers", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({ name: "get_account_state" });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        accessLevel: "free",
+        northDeclared: true,
+        contextDepth: "creator_north_and_aggregate_community",
+        profileUrl: "https://data2content.ai/chatgpt/recursos",
+        membership: {
+          included: false,
+          communityJoinPending: false,
+          communityJoinUrl: null,
+        },
+      });
+      expect(result.content).toHaveLength(1);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("keeps aggregate research available while protecting private creator data on free accounts", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const aggregate = await client.callTool({
+        name: "research_inspiration_content",
+        arguments: { mode: "by_topic", query: "IA", filters: {}, periodDays: 180, limit: 6 },
+      });
+      expect(aggregate.isError).not.toBe(true);
+
+      const privateResult = await client.callTool({ name: "get_performance_summary" });
+      expect(privateResult.isError).toBe(true);
+      expect(textPayload(privateResult)).toMatchObject({
+        error: "private_creator_intelligence_unavailable",
+        profileUrl: "https://data2content.ai/chatgpt/recursos",
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("allows a free creator to update their North inside ChatGPT", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({
+        name: "set_creator_north",
+        arguments: { creatorNorth: "Ajudo pequenos negócios a criarem conteúdo com clareza." },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        schemaVersion: "creator_north_v1",
+        creatorNorth: "Ajudo pequenos negócios a criarem conteúdo com clareza.",
+        next: { tool: "research_inspiration_content" },
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("builds the free radar without exposing creator identities", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({
+        name: "build_creator_radar",
+        arguments: { periodDays: 180 },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        schemaVersion: "creator_radar_v1",
+        communityPanorama: { sampleSize: 4 },
+        receipt: { onlyAggregateSignalsReturned: true, creatorIdentitiesExposed: false },
+      });
+      expect(JSON.stringify(result.structuredContent)).not.toContain("creatorName");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("generates unlimited free-depth scripts from the North without private intelligence", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({
+        name: "generate_script_draft",
+        arguments: {
+          prompt: "Crie um roteiro sobre organização de conteúdo",
+          title: "Organização",
+          lookbackDays: 180,
+        },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(generateMcpScriptDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+        includePrivateIntelligence: false,
+        prompt: expect.stringContaining("Norte declarado pelo creator"),
+      }));
     } finally {
       await client.close();
       await server.close();

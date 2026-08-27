@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateMcpRequest, buildMcpWwwAuthenticateHeader, McpAuthError } from "@/app/lib/mcp/auth";
-import { getMcpEntitlement } from "@/app/lib/mcp/entitlement";
+import { getMcpAccountState } from "@/app/lib/mcp/accountState";
 import { createD2CMcpServer } from "@/app/lib/mcp/server";
-import { getMcpUpgradeUrl } from "@/app/lib/mcp/config";
 import { logger } from "@/app/lib/logger";
 import { checkRateLimit } from "@/utils/rateLimit";
 
@@ -30,21 +29,20 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
         },
       );
     }
-    const entitlement = await getMcpEntitlement(identity.userId);
+    const accountState = await getMcpAccountState(identity.userId);
 
-    if (!entitlement.eligible) {
-      const status = entitlement.reason === "entitlement_unavailable" ? 503 : 403;
-      logger.warn("[mcp] Request blocked by subscription entitlement.", {
+    if (!accountState.accountAvailable) {
+      const status = accountState.reason === "account_state_unavailable" ? 503 : 403;
+      logger.warn("[mcp] Request blocked because the account could not be resolved.", {
         requestId,
-        reason: entitlement.reason,
+        reason: accountState.reason,
         clientId: identity.clientId,
       });
       return NextResponse.json(
         {
-          error: "subscription_required",
-          reason: entitlement.reason,
-          message: "O MCP da Data2Content está disponível apenas para assinantes ativos.",
-          upgradeUrl: getMcpUpgradeUrl(),
+          error: "account_unavailable",
+          reason: accountState.reason,
+          message: "Não foi possível localizar ou validar esta conta Data2Content.",
         },
         { status, headers: noStoreHeaders() },
       );
@@ -54,7 +52,7 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createD2CMcpServer({ identity, entitlement });
+    const server = createD2CMcpServer({ identity, accountState });
     await server.connect(transport);
     const response = await transport.handleRequest(request);
 
@@ -64,6 +62,8 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       status: response.status,
       durationMs: Date.now() - startedAt,
       clientId: identity.clientId,
+      accessLevel: accountState.accessLevel,
+      instagramConnected: accountState.instagramConnected,
     });
 
     response.headers.set("Cache-Control", "no-store");

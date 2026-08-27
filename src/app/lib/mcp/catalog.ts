@@ -74,13 +74,16 @@ export async function generateMcpScriptDraft(params: {
   title?: string | null;
   lookbackDays: number;
   inspirationContentIds?: string[];
+  includePrivateIntelligence?: boolean;
 }) {
   const [intelligenceContext, inspirationReferences] = await Promise.all([
-    buildScriptIntelligenceContext({
-      userId: params.userId,
-      prompt: params.prompt,
-      lookbackDays: params.lookbackDays,
-    }).catch(() => null),
+    params.includePrivateIntelligence === false
+      ? Promise.resolve(null)
+      : buildScriptIntelligenceContext({
+          userId: params.userId,
+          prompt: params.prompt,
+          lookbackDays: params.lookbackDays,
+        }).catch(() => null),
     params.inspirationContentIds?.length
       ? buildMcpInspirationReferenceContext({
           userId: params.userId,
@@ -100,14 +103,12 @@ export async function generateMcpScriptDraft(params: {
 
   return {
     schemaVersion: "script_draft_v1" as const,
-    generationId: randomUUID(),
     clientRequestId,
     draft: {
       title: generated.title,
       content: generated.content,
     },
     intelligence: buildIntelligencePromptSnapshot(intelligenceContext) ?? null,
-    review: generated.reviewMeta ?? null,
     inspirationReferences: {
       requestedIds: (params.inspirationContentIds ?? []).slice(0, 5),
       usedIds: inspirationReferences.ids,
@@ -121,8 +122,6 @@ export async function generateMcpScriptDraft(params: {
         "Mostre o rascunho ao usuário e só chame save_script depois que ele confirmar explicitamente que deseja salvar.",
     },
     receipt: {
-      generatedAt: new Date().toISOString(),
-      providerPolicy: "gemini_primary_openai_fallback_opt_in" as const,
       usedCreatorIntelligence: Boolean(intelligenceContext),
       usedCommunityInspiration: inspirationReferences.ids.length > 0,
     },
@@ -294,6 +293,7 @@ function parseKnowledgeId(id: string): { kind: McpKnowledgeKind; objectId: Types
 export async function searchMcpKnowledge(
   userId: string,
   query: string,
+  options: { includeInstagramPosts?: boolean } = {},
 ): Promise<McpSearchResult[]> {
   await connectToDatabase();
   const userObjectId = new Types.ObjectId(userId);
@@ -301,19 +301,21 @@ export async function searchMcpKnowledge(
   const pattern = new RegExp(escapeRegex(safeQuery), "i");
 
   const [posts, ideas, scripts] = await Promise.all([
-    MetricModel.find({
-      user: userObjectId,
-      $or: [
-        { description: pattern },
-        { format: pattern },
-        { proposal: pattern },
-        { context: pattern },
-      ],
-    })
-      .sort({ postDate: -1 })
-      .limit(4)
-      .select("_id description postLink type format postDate")
-      .lean(),
+    options.includeInstagramPosts === false
+      ? Promise.resolve([])
+      : MetricModel.find({
+          user: userObjectId,
+          $or: [
+            { description: pattern },
+            { format: pattern },
+            { proposal: pattern },
+            { context: pattern },
+          ],
+        })
+          .sort({ postDate: -1 })
+          .limit(4)
+          .select("_id description postLink type format postDate")
+          .lean(),
     CreatorContentIdeaModel.find({
       userId: userObjectId,
       status: { $in: ["active", "saved", "posted"] },
@@ -442,7 +444,7 @@ export async function fetchMcpKnowledgeItem(
 export async function getMcpCreatorProfile(userId: string) {
   await connectToDatabase();
   const user = await UserModel.findById(userId)
-    .select("name username biography followers_count media_count isInstagramConnected")
+    .select("name username biography followers_count media_count isInstagramConnected onboardingAnswers.creatorPurpose")
     .lean();
   if (!user) return null;
   return {
@@ -452,7 +454,8 @@ export async function getMcpCreatorProfile(userId: string) {
     followersCount: typeof user.followers_count === "number" ? user.followers_count : null,
     mediaCount: typeof user.media_count === "number" ? user.media_count : null,
     instagramConnected: Boolean(user.isInstagramConnected),
-    profileUrl: appUrl("/dashboard/boards/mobile-strategic-profile"),
+    creatorNorth: user.onboardingAnswers?.creatorPurpose?.trim() || null,
+    profileUrl: appUrl("/chatgpt/recursos"),
   };
 }
 

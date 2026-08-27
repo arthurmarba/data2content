@@ -42,4 +42,10 @@ describe("Instagram connecting return target", () => {
       "/dashboard/profile?instagramLinked=true",
     );
   });
+
+  it("leva o fluxo do plugin para a confirmação de retorno ao ChatGPT", () => {
+    expect(buildNextUrl("chatgpt-plugin")).toBe(
+      "/dashboard/chatgpt/ready?instagramLinked=true",
+    );
+  });
 });

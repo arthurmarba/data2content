@@ -32,6 +32,7 @@ export default function InstagramPreConnectPage() {
   const nextTarget: InstagramReconnectNextTarget =
     requestedNextTarget === "calculator" ||
     requestedNextTarget === "chat" ||
+    requestedNextTarget === "chatgpt-plugin" ||
     requestedNextTarget === "instagram-connection" ||
     requestedNextTarget === "narrative-map" ||
     requestedNextTarget === "planner" ||
@@ -41,13 +42,18 @@ export default function InstagramPreConnectPage() {
       : "media-kit";
   const isPostCreationFlow = nextTarget === "post-creation";
   const isNarrativeMapFlow = nextTarget === "narrative-map";
+  const isChatGptPluginFlow = nextTarget === "chatgpt-plugin";
   const backTarget = isPostCreationFlow
     ? "/calendar"
+    : isChatGptPluginFlow
+      ? "/dashboard/chatgpt/ready"
     : nextTarget === "narrative-map"
       ? CREATOR_PROFILE_ROUTE
       : "/dashboard?intent=instagram";
   const connectLabel = isPostCreationFlow
     ? "Autorizar e voltar ao board"
+    : isChatGptPluginFlow
+      ? "Conectar e voltar ao ChatGPT"
     : isNarrativeMapFlow
       ? "Conectar e voltar ao mapa"
       : "Autorizar Instagram pela Meta";
@@ -127,6 +133,14 @@ export default function InstagramPreConnectPage() {
 
   const connectCopy = (() => {
     switch (nextTarget) {
+      case "chatgpt-plugin":
+        return {
+          title: "Aprofunde a inteligência no ChatGPT",
+          subtitle:
+            "Ao conectar, a Data2Content poderá usar o contexto dos seus próprios conteúdos para planejar, criar pautas e roteirizar com mais profundidade. A conexão é opcional e nunca publica nada.",
+          backLabel: "Agora não",
+          cta: "Conectar e voltar ao ChatGPT",
+        };
       case "narrative-map":
         return {
           title: "Traga seus posts para o mapa",

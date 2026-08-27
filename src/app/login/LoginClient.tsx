@@ -19,6 +19,8 @@ function LoginContent() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const isReviewAccess = searchParams.get("review") === "1";
+  const isMcpAccess = searchParams.get("mcp") === "1";
+  const [showReviewAccess, setShowReviewAccess] = useState(isReviewAccess);
   const callbackUrl = normalizeInternalCallbackUrl(
     searchParams.get("callbackUrl") || MAIN_DASHBOARD_ROUTE,
   );
@@ -36,11 +38,11 @@ function LoginContent() {
   }, [callbackUrl]);
 
   useEffect(() => {
-    if (isReviewAccess) return;
+    if (isReviewAccess || isMcpAccess) return;
     if (startedAutomatically.current) return;
     startedAutomatically.current = true;
     void startGoogleLogin();
-  }, [isReviewAccess, startGoogleLogin]);
+  }, [isMcpAccess, isReviewAccess, startGoogleLogin]);
 
   const submitReviewAccess = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +71,7 @@ function LoginContent() {
     }
   };
 
-  if (isReviewAccess) {
+  if (showReviewAccess) {
     return (
       <main className="flex min-h-[100dvh] items-center justify-center bg-[#FAFAFB] px-6 py-10">
         <div className="w-full max-w-sm rounded-[28px] bg-white p-7 shadow-[0_18px_50px_rgba(24,24,27,0.08)] ring-1 ring-zinc-200/80 sm:p-8">
@@ -79,7 +81,7 @@ function LoginContent() {
             className="h-auto w-24 brightness-0"
           />
           <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-            Meta App Review
+            Revisão do plugin
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-950">
             Acesso de revisão
@@ -133,6 +135,43 @@ function LoginContent() {
             className="mt-5 w-full text-center text-sm font-medium text-zinc-500 underline-offset-4 hover:text-zinc-800 hover:underline"
           >
             Usar login do Google
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (isMcpAccess) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[#FAFAFB] px-6 py-10">
+        <div className="w-full max-w-sm rounded-[28px] bg-white p-7 text-center shadow-[0_18px_50px_rgba(24,24,27,0.08)] ring-1 ring-zinc-200/80 sm:p-8">
+          <img
+            src="/images/Colorido-Simbolo.png"
+            alt="Data2Content"
+            className="mx-auto h-auto w-24 brightness-0"
+          />
+          <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
+            Data2Content + ChatGPT
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-950">
+            Entre para conectar sua conta
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            Use o mesmo login Google da sua conta Data2Content.
+          </p>
+          <button
+            type="button"
+            onClick={() => void startGoogleLogin()}
+            className="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-black"
+          >
+            Continuar com Google
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowReviewAccess(true)}
+            className="mt-5 text-sm font-medium text-zinc-500 underline-offset-4 hover:text-zinc-800 hover:underline"
+          >
+            Acesso de revisão
           </button>
         </div>
       </main>

@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-4 text-sm text-[var(--ds-color-text-muted)]">
-              <strong>Última Atualização:</strong> 21 de julho de 2026
+              <strong>Última Atualização:</strong> 27 de agosto de 2026
             </p>
           </header>
 
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
             {/* ── 1. Introdução ─────────────────────────────────────────── */}
             <h2 className="text-2xl font-semibold text-gray-900">1. Introdução</h2>
             <p>
-              Bem-vindo(a) ao Data2Content! Esta Política de Privacidade descreve como <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (&quot;Data2Content&quot;, &quot;nós&quot;) coleta, usa, armazena, partilha e protege as suas informações quando você utiliza a nossa plataforma e serviços, incluindo o nosso assistente de IA (o &quot;Serviço&quot;).
+              Bem-vindo(a) ao Data2Content! Esta Política de Privacidade descreve como <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (&quot;Data2Content&quot;, &quot;nós&quot;) coleta, usa, armazena, partilha e protege as suas informações quando você utiliza a nossa plataforma e serviços, incluindo o nosso assistente de IA e o plugin Data2Content para ChatGPT (o &quot;Serviço&quot;).
             </p>
             <p>
               O nosso compromisso é garantir a transparência e a proteção dos seus dados, em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018)</strong> e as Políticas da Meta Platforms, Inc. Ao criar uma conta e utilizar o nosso Serviço, você concorda com a coleta e uso de informações de acordo com esta política e com os nossos{' '}
@@ -75,6 +75,18 @@ export default function PrivacyPolicyPage() {
               <li><strong>Consentimento para a Comunidade de Inspiração:</strong> Registramos separadamente o seu opt-in opcional para essa funcionalidade.</li>
             </ul>
 
+            <h3 className="text-xl font-semibold text-gray-800 mt-6">2.4. Dados Tratados pelo Plugin Data2Content para ChatGPT</h3>
+            <p>
+              Quando você conecta a sua conta Data2Content ao ChatGPT, o plugin usa OAuth para identificar a sua conta e limitar o acesso às permissões autorizadas. Recebemos apenas os campos específicos que o ChatGPT envia para executar a ferramenta escolhida, como o seu Norte, tema, período, briefing de roteiro ou identificadores de conteúdos solicitados.
+            </p>
+            <ul className="list-disc list-inside mt-4 space-y-2">
+              <li><strong>Não solicitamos a conversa completa:</strong> o plugin não pede, reconstrói nem armazena o histórico integral do seu chat.</li>
+              <li><strong>Não solicitamos credenciais:</strong> senhas, códigos de autenticação, chaves de API e dados de cartão não fazem parte das entradas das ferramentas.</li>
+              <li><strong>Respostas conforme a conta:</strong> podemos retornar o Norte declarado, roteiros salvos, padrões agregados da comunidade e, quando disponível e solicitado, análises dos seus próprios conteúdos do Instagram.</li>
+              <li><strong>Dados da comunidade:</strong> radares gratuitos usam sinais agregados sem identificar creators; ferramentas de inspiração podem mostrar atribuição pública apenas de creators que autorizaram a participação, sem expor transcrições completas ou métricas privadas.</li>
+              <li><strong>Entrega ao ChatGPT:</strong> os dados necessários para responder ao seu pedido são enviados à OpenAI por meio da resposta da ferramenta.</li>
+            </ul>
+
             {/* ── 3. Como e Por Que Utilizamos Seus Dados (Bases Legais) ── */}
             <h2 className="text-2xl font-semibold text-gray-900 mt-12">3. Como e Por Que Utilizamos Seus Dados — Bases Legais</h2>
             <p>
@@ -100,6 +112,11 @@ export default function PrivacyPolicyPage() {
                     <td className="border border-gray-300 px-4 py-3">Autenticar login e gerenciar conta</td>
                     <td className="border border-gray-300 px-4 py-3">E-mail, nome, foto de perfil</td>
                     <td className="border border-gray-300 px-4 py-3">Execução de contrato (inciso V)</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">Operar o plugin Data2Content para ChatGPT</td>
+                    <td className="border border-gray-300 px-4 py-3">Identificador da conta, permissões OAuth e campos específicos enviados para a ferramenta solicitada</td>
+                    <td className="border border-gray-300 px-4 py-3">Execução de contrato (inciso V) + Consentimento, quando aplicável (inciso I)</td>
                   </tr>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Processar pagamento de assinatura</td>
@@ -175,7 +192,7 @@ export default function PrivacyPolicyPage() {
                   </tr>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">OpenAI, L.L.C.</td>
-                    <td className="border border-gray-300 px-4 py-3">Processamento de IA para gerar análises e recomendações, quando este provedor estiver habilitado</td>
+                    <td className="border border-gray-300 px-4 py-3">Operação do plugin no ChatGPT e processamento de IA para gerar análises e recomendações, quando este provedor estiver habilitado</td>
                     <td className="border border-gray-300 px-4 py-3">DPA com cláusulas contratuais-padrão (inciso II)</td>
                   </tr>
                   <tr className="even:bg-gray-50">
@@ -226,7 +243,7 @@ export default function PrivacyPolicyPage() {
                 <strong>Informação sobre a possibilidade de não fornecer consentimento:</strong> Você tem o direito de ser informado sobre as consequências de não fornecer consentimento para um determinado tratamento.
               </li>
               <li>
-                <strong>Revogação do consentimento:</strong> Você pode revogar o seu consentimento a qualquer momento, inclusive para a participação na Comunidade de Inspiração, sem que isso afete a legalidade do tratamento realizado anteriormente. A revogação pode ser feita diretamente nas configurações do seu perfil.
+                <strong>Revogação do consentimento:</strong> Você pode revogar o seu consentimento a qualquer momento, inclusive para a participação na Comunidade de Inspiração, sem que isso afete a legalidade do tratamento realizado anteriormente. A revogação pode ser feita diretamente nas configurações do seu perfil. A conexão do plugin também pode ser removida nas configurações do ChatGPT.
               </li>
             </ol>
             <div className="mt-6 p-4 bg-gray-100 rounded-md">
@@ -257,7 +274,7 @@ export default function PrivacyPolicyPage() {
                     <td className="border border-gray-300 px-4 py-3">Pelo período da assinatura ativa; excluídos em 30 dias após cancelamento</td>
                   </tr>
                   <tr className="even:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-3">Logs de conversa com IA / WhatsApp</td>
+                    <td className="border border-gray-300 px-4 py-3">Logs técnicos de interações com IA, ChatGPT ou WhatsApp (sem histórico integral do chat)</td>
                     <td className="border border-gray-300 px-4 py-3">90 dias após cada interação</td>
                   </tr>
                   <tr className="even:bg-gray-50">

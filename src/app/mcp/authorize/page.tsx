@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getMcpAppBaseUrl, getMcpUpgradeUrl, isMcpAdminResource } from "@/app/lib/mcp/config";
-import { getMcpEntitlement } from "@/app/lib/mcp/entitlement";
+import { getMcpAppBaseUrl, isMcpAdminResource } from "@/app/lib/mcp/config";
+import { getMcpAccountState } from "@/app/lib/mcp/accountState";
 import { getMcpAdminAuthorization } from "@/app/lib/mcp/adminAuthorization";
 import { readMcpConsentRequest } from "@/app/lib/mcp/oauth/service";
 import { readMcpOAuthSessionUserId } from "@/app/lib/mcp/oauth/session";
 
 export const metadata: Metadata = {
-  title: "Autorizar MCP — Data2Content",
+  title: "Conectar Data2Content ao ChatGPT",
   description: "Autorize um assistente a consultar sua conta Data2Content.",
   robots: { index: false, follow: false },
 };
@@ -41,7 +41,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#17191d] text-sm font-black text-white">D2C</div>
           <div>
             <p className="text-sm font-semibold text-black/50">Data2Content</p>
-            <h1 className="text-xl font-bold tracking-tight">Conexão MCP</h1>
+            <h1 className="text-xl font-bold tracking-tight">Conectar ao ChatGPT</h1>
           </div>
         </div>
         {children}
@@ -66,6 +66,7 @@ export default async function McpAuthorizePage({
     callbackUrl.searchParams.set("request", requestToken);
     const login = new URL("/login", getMcpAppBaseUrl());
     login.searchParams.set("callbackUrl", callbackUrl.toString());
+    login.searchParams.set("mcp", "1");
     redirect(login.toString());
   }
 
@@ -80,8 +81,8 @@ export default async function McpAuthorizePage({
   }
 
   const adminConsent = isMcpAdminResource(consent.resource);
-  const [entitlement, adminAuthorization] = await Promise.all([
-    adminConsent ? Promise.resolve(null) : getMcpEntitlement(userId),
+  const [accountState, adminAuthorization] = await Promise.all([
+    adminConsent ? Promise.resolve(null) : getMcpAccountState(userId),
     adminConsent ? getMcpAdminAuthorization(userId) : Promise.resolve(null),
   ]);
   if (adminConsent && !adminAuthorization?.authorized) {
@@ -100,17 +101,14 @@ export default async function McpAuthorizePage({
       </Shell>
     );
   }
-  if (!adminConsent && !entitlement?.eligible) {
+  if (!adminConsent && !accountState?.accountAvailable) {
     return (
       <Shell>
-        <h2 className="text-2xl font-bold tracking-tight">Assinatura necessária</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Não foi possível validar sua conta</h2>
         <p className="mt-3 text-sm leading-6 text-black/60">
-          A conexão MCP é exclusiva para assinantes Data2Content. Assine para conectar sua conta ao {consent.clientName}.
+          Entre novamente na Data2Content e tente conectar sua conta ao {consent.clientName}.
         </p>
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <a className="rounded-xl bg-[#17191d] px-5 py-3 text-center text-sm font-semibold text-white" href={getMcpUpgradeUrl()}>
-            Ver planos
-          </a>
+        <div className="mt-7">
           <form action="/api/mcp/oauth/authorize" method="post">
             <input type="hidden" name="request" value={requestToken} />
             <button className="w-full rounded-xl border border-black/15 px-5 py-3 text-sm font-semibold" name="decision" value="deny">
@@ -145,15 +143,15 @@ export default async function McpAuthorizePage({
           </li>
         ))}
       </ul>
-      {!adminConsent && entitlement && !entitlement.instagramConnected && consent.scope.includes("metrics:read") ? (
+      {!adminConsent && accountState && !accountState.instagramConnected && consent.scope.includes("metrics:read") ? (
         <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-          Você pode conectar agora. As métricas ficarão disponíveis depois que conectar o Instagram na Data2Content.
+          Você pode conectar agora e usar os recursos disponíveis na sua conta. Algumas análises individuais também dependem da conexão opcional com o Instagram.
         </p>
       ) : null}
       <p className="mt-5 text-xs leading-5 text-black/45">
         {adminConsent
           ? "Você pode revogar esta conexão a qualquer momento. O papel de administrador será revalidado em todas as chamadas."
-          : "Você pode revogar esta conexão a qualquer momento. A assinatura será revalidada em todas as chamadas."}
+          : "Você pode revogar esta conexão a qualquer momento. As permissões e o estado da conta serão revalidados em todas as chamadas."}
       </p>
       <form action="/api/mcp/oauth/authorize" className="mt-7 grid gap-3 sm:grid-cols-2" method="post">
         <input type="hidden" name="request" value={requestToken} />

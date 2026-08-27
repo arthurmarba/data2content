@@ -107,4 +107,21 @@ describe("LoginPage", () => {
       "E-mail ou senha de revisão inválidos.",
     );
   });
+
+  it("offers Google and reviewer access when connecting the ChatGPT plugin", async () => {
+    searchParamsGetMock.mockImplementation((key: string) => {
+      if (key === "mcp") return "1";
+      if (key === "callbackUrl") return "/mcp/authorize?request=test";
+      return null;
+    });
+
+    render(await LoginPage());
+
+    expect(screen.getByRole("heading", { name: "Entre para conectar sua conta" })).toBeInTheDocument();
+    expect(submitGoogleSignInFallbackMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Acesso de revisão" }));
+
+    expect(screen.getByRole("heading", { name: "Acesso de revisão" })).toBeInTheDocument();
+  });
 });

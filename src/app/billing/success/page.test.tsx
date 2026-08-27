@@ -1,6 +1,7 @@
 import {
   default as BillingSuccessPage,
   buildProfileActivationHref,
+  isChatGptCheckoutFlow,
   normalizeBillingSuccessPostCheckoutIntent,
   resolveBillingSuccessAttemptId,
   sanitizeBillingSuccessReturnTo,
@@ -80,6 +81,12 @@ describe("billing success postCheckoutIntent helpers", () => {
     );
   });
 
+  it("reconhece o checkout iniciado pelo perfil vindo do ChatGPT", () => {
+    expect(isChatGptCheckoutFlow("/dashboard/profile?source=chatgpt", null)).toBe(true);
+    expect(isChatGptCheckoutFlow("/dashboard/profile", "chatgpt_profile_upgrade")).toBe(true);
+    expect(isChatGptCheckoutFlow("/dashboard/profile", "account_menu_upgrade")).toBe(false);
+  });
+
   it("identifica tanto o Checkout hospedado quanto a assinatura do Payment Element", () => {
     expect(resolveBillingSuccessAttemptId(new URLSearchParams("session_id=cs_live_123"))).toBe(
       "cs_live_123",
@@ -142,6 +149,26 @@ describe("billing success postCheckoutIntent helpers", () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith(
       "/dashboard/boards/mobile-strategic-profile?activation=whatsapp",
+    ));
+  });
+
+  it("depois do checkout do ChatGPT oferece a conexão opcional e retorna ao plugin", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "planning",
+        source: "chatgpt_profile_upgrade",
+        returnTo: "/dashboard/profile?source=chatgpt",
+        postCheckoutIntent: "connect_instagram",
+      }),
+    );
+
+    render(<BillingSuccessPage />);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
     ));
   });
 
