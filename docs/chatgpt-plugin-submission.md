@@ -23,6 +23,7 @@ Este arquivo é a fonte de verdade para preencher manualmente o portal de Plugin
 - Política de privacidade: `https://data2content.ai/politica-de-privacidade`
 - Termos: `https://data2content.ai/termos-e-condicoes`
 - Logo: `public/plugin/data2content-logo-512.png`
+- Demo Recording URL: gravar o fluxo no Developer Mode, hospedar em uma URL acessível à revisão e preencher manualmente no portal
 
 ### Descrição curta
 
@@ -155,13 +156,14 @@ Quando o portal fornecer o token:
 5. Faça upload de `chatgpt-app-submission.json` na seção `Plugin Info` e revise os campos preenchidos automaticamente.
 6. Envie `public/plugin/data2content-logo-512.png` como ícone do diretório e do composer.
 7. Preencha os campos que não fazem parte do arquivo de importação usando as informações públicas deste documento.
-8. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
-9. Configure OAuth e as credenciais de revisão.
-10. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
-11. Clique em `Scan Tools`, revise todas as ferramentas e corrija qualquer validação antes de continuar.
-12. Revise os prompts e os oito casos de teste importados.
-13. Selecione apenas Brasil.
-14. Preencha as notas da versão e envie para revisão.
+8. Grave no Developer Mode o fluxo conta gratuita → Norte/radar e o fluxo conta completa → análise/roteiro; hospede o vídeo em URL acessível e informe em `Demo Recording URL`.
+9. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
+10. Configure OAuth e as credenciais de revisão.
+11. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
+12. Clique em `Scan Tools`, revise todas as ferramentas e corrija qualquer validação antes de continuar.
+13. Revise os prompts e os oito casos de teste importados.
+14. Selecione apenas Brasil.
+15. Preencha as notas da versão e envie para revisão.
 
 ## Verificações prévias
 
