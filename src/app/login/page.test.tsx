@@ -74,6 +74,23 @@ describe("LoginPage", () => {
     expect(submitGoogleSignInFallbackMock).not.toHaveBeenCalled();
   });
 
+  it("allows an authenticated user to switch to a reviewer account", async () => {
+    getServerSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    searchParamsGetMock.mockImplementation((key: string) =>
+      key === "review" ? "1" : null,
+    );
+
+    render(
+      await LoginPage({
+        searchParams: Promise.resolve({ review: "1" }),
+      }),
+    );
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Acesso de revisão" })).toBeInTheDocument();
+    expect(submitGoogleSignInFallbackMock).not.toHaveBeenCalled();
+  });
+
   it("offers direct reviewer credentials without starting Google", async () => {
     searchParamsGetMock.mockImplementation((key: string) => {
       if (key === "review") return "1";

@@ -12,9 +12,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function LoginPage() {
+type LoginPageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps = {}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const reviewParam = resolvedSearchParams?.review;
+  const isReviewAccess = Array.isArray(reviewParam)
+    ? reviewParam.includes("1")
+    : reviewParam === "1";
   const session = await getServerSession(authOptions);
-  if (session?.user) redirect(MAIN_DASHBOARD_ROUTE);
+  if (session?.user && !isReviewAccess) redirect(MAIN_DASHBOARD_ROUTE);
 
   return <LoginClient />;
 }
