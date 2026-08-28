@@ -3,8 +3,8 @@
   "schema_version": 1,
   "app_info": {
     "display_name": "Data2Content",
-    "subtitle": "Planeje conteúdo com dados",
-    "description": "A Data2Content ajuda creators a transformar posicionamento em pautas, estratégias e roteiros dentro do ChatGPT. O plugin registra o Norte do creator, cruza essa direção com padrões agregados de conteúdos autorizados da comunidade e pesquisa referências sem copiar outros creators. Quando a conta já possui inteligência privada e o Instagram está conectado, também pode analisar voz, formatos, ganchos, sinais visuais e performance dos próprios conteúdos. A conexão é somente para leitura do Instagram; o plugin não publica conteúdos e só salva um roteiro depois de confirmação explícita.",
+    "subtitle": "Saiba o que postar e por quê",
+    "description": "A Data2Content transforma os sinais dos conteúdos em direção prática para sua criação. Dentro do ChatGPT, você pode definir seu Norte, descobrir pautas, planejar estratégias e desenvolver roteiros alinhados à sua voz. Para assinantes com o Instagram conectado, a inteligência considera assuntos, falas, cenas, formatos e respostas da audiência dos próprios conteúdos para ajudar a decidir o que criar, testar ou ajustar. A experiência também se conecta aos relatórios semanais, às reuniões ao vivo e à comunidade de creators Data2Content.",
     "category": "PRODUCTIVITY"
   },
   "tools": {
