@@ -1,0 +1,296 @@
+{
+  "$schema": "https://developers.openai.com/plugins/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "Data2Content",
+    "subtitle": "Planeje conteúdo com dados",
+    "description": "A Data2Content ajuda creators a transformar posicionamento em pautas, estratégias e roteiros dentro do ChatGPT. O plugin registra o Norte do creator, cruza essa direção com padrões agregados de conteúdos autorizados da comunidade e pesquisa referências sem copiar outros creators. Quando a conta já possui inteligência privada e o Instagram está conectado, também pode analisar voz, formatos, ganchos, sinais visuais e performance dos próprios conteúdos. A conexão é somente para leitura do Instagram; o plugin não publica conteúdos e só salva um roteiro depois de confirmação explícita.",
+    "category": "PRODUCTIVITY"
+  },
+  "tools": {
+    "get_account_state": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Consulta o estado e as capacidades da conta autenticada sem alterar seus dados.",
+        "open_world_justification": "Não publica conteúdo nem modifica sistemas ou dados publicamente visíveis.",
+        "destructive_justification": "Não exclui, substitui ou revoga dados da conta."
+      }
+    },
+    "set_creator_north": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Substitui a declaração de Norte e atualiza o contexto narrativo privado da conta autenticada.",
+        "open_world_justification": "A alteração permanece na conta privada Data2Content e não publica nada externamente.",
+        "destructive_justification": "Substitui o Norte anterior da conta, por isso pode sobrescrever um valor existente."
+      }
+    },
+    "build_creator_radar": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Calcula um radar a partir do Norte e de padrões agregados sem persistir alterações.",
+        "open_world_justification": "Usa apenas dados privados ou agregados e não altera sistemas externos.",
+        "destructive_justification": "Não remove nem substitui dados da conta ou da comunidade."
+      }
+    },
+    "search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Busca itens já disponíveis na conta autenticada sem criar ou atualizar registros.",
+        "open_world_justification": "Não envia dados nem modifica conteúdo em serviços externos.",
+        "destructive_justification": "Não exclui, substitui ou revoga qualquer item."
+      }
+    },
+    "fetch": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Recupera detalhes de um item já retornado pela busca e não altera seu estado.",
+        "open_world_justification": "Opera somente dentro da conta privada Data2Content.",
+        "destructive_justification": "Não modifica nem remove o item recuperado."
+      }
+    },
+    "get_creator_profile": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Consulta o perfil do creator autenticado sem atualizar seus campos.",
+        "open_world_justification": "Não publica o perfil nem altera dados em terceiros.",
+        "destructive_justification": "Não exclui ou sobrescreve informações do perfil."
+      }
+    },
+    "analyze_creator_period": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Analisa posts e métricas existentes em um intervalo exato sem alterar os dados.",
+        "open_world_justification": "A análise não publica resultados nem modifica o Instagram.",
+        "destructive_justification": "Não exclui ou substitui posts, métricas ou análises."
+      }
+    },
+    "get_creator_intelligence_snapshot": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Compõe um resumo estratégico com evidências existentes sem persistir mudanças.",
+        "open_world_justification": "Não publica conteúdo nem executa ações em plataformas externas.",
+        "destructive_justification": "Não remove nem sobrescreve dados da inteligência do creator."
+      }
+    },
+    "get_content_deep_analysis": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Recupera evidências e análises existentes de um conteúdo da própria conta.",
+        "open_world_justification": "Não publica, edita ou envia o conteúdo para serviços externos.",
+        "destructive_justification": "Não exclui ou substitui o conteúdo analisado."
+      }
+    },
+    "research_inspiration_content": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Pesquisa conteúdos autorizados e devolve padrões derivados sem alterar registros.",
+        "open_world_justification": "Não contata creators, publica conteúdo ou modifica plataformas externas.",
+        "destructive_justification": "Não remove ou sobrescreve conteúdos e métricas pesquisados."
+      }
+    },
+    "analyze_inspiration_content": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Aprofunda uma referência autorizada usando evidências existentes sem mudar seus dados.",
+        "open_world_justification": "Não publica a referência nem executa ações em contas de terceiros.",
+        "destructive_justification": "Não exclui, substitui ou revoga nenhum conteúdo."
+      }
+    },
+    "compare_inspiration_contents": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Compara padrões derivados de referências autorizadas sem alterar os conteúdos.",
+        "open_world_justification": "A comparação permanece na conversa e não muda sistemas externos.",
+        "destructive_justification": "Não remove ou sobrescreve as referências comparadas."
+      }
+    },
+    "generate_script_draft": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Gera e devolve um rascunho na conversa sem salvá-lo automaticamente.",
+        "open_world_justification": "Não publica o roteiro nem o envia a plataformas externas.",
+        "destructive_justification": "Não exclui, substitui ou salva dados persistentes."
+      }
+    },
+    "save_script": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Cria um roteiro privado na conta somente após confirmação explícita do usuário.",
+        "open_world_justification": "Salva apenas no espaço privado Data2Content e não publica o roteiro.",
+        "destructive_justification": "Cria um novo registro idempotente e não exclui nem substitui roteiros existentes."
+      }
+    },
+    "recommend_collab_creators": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Calcula recomendações com dados autorizados sem criar contatos ou alterar perfis.",
+        "open_world_justification": "Não envia mensagens, solicitações de collab ou comunicações a terceiros.",
+        "destructive_justification": "Não altera ou remove dados dos creators recomendados."
+      }
+    },
+    "get_performance_summary": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Resume métricas existentes da conta autenticada sem atualizar registros.",
+        "open_world_justification": "Não modifica o Instagram nem publica o resumo.",
+        "destructive_justification": "Não exclui ou substitui métricas e conteúdos."
+      }
+    },
+    "list_top_content": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Ordena conteúdos existentes por uma métrica selecionada sem alterar os dados.",
+        "open_world_justification": "Não publica, edita ou remove posts do Instagram.",
+        "destructive_justification": "Não exclui ou sobrescreve os conteúdos listados."
+      }
+    },
+    "compare_content_formats": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Compara métricas já existentes entre formatos sem modificar a conta.",
+        "open_world_justification": "Não altera o Instagram ou qualquer outro sistema externo.",
+        "destructive_justification": "Não exclui ou substitui posts, métricas ou configurações."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Consultar o estado da conta gratuita e construir um radar agregado alinhado ao Norte já declarado.",
+      "user_prompt": "Use a Data2Content para verificar meu contexto disponível e montar um radar de conteúdo para os próximos 180 dias com base no meu Norte.",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_account_state, build_creator_radar",
+      "expected_output": "Informa a profundidade de contexto da conta e devolve um radar com prévia narrativa, temas, formatos, ganchos e tons agregados, sem identidades ou métricas privadas de terceiros.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Atualizar o Norte de forma idempotente e usar a nova direção para gerar um roteiro sem salvá-lo.",
+      "user_prompt": "Atualize meu Norte para 'Ajudo creators brasileiros a transformar conhecimento em conteúdo claro, original e consistente' e crie um roteiro de Reel sobre consistência. Não salve ainda.",
+      "file_attachment_urls": null,
+      "tools_triggered": "set_creator_north, generate_script_draft",
+      "expected_output": "Confirma o Norte atualizado e apresenta um rascunho completo contextualizado, deixando claro que ele ainda não foi salvo.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Analisar todos os conteúdos publicados em um período civil exato com cobertura e evidências.",
+      "user_prompt": "Quantos conteúdos publiquei de 1 a 7 de agosto de 2026 e como eles performaram? Use o fuso America/Sao_Paulo.",
+      "file_attachment_urls": null,
+      "tools_triggered": "analyze_creator_period",
+      "expected_output": "Retorna a contagem completa do período, inventário por formato, métricas disponíveis, evidências limitadas e avisos de cobertura sem estimar dados ausentes.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Pesquisar referências autorizadas e comparar padrões criativos sem expor dados privados de terceiros.",
+      "user_prompt": "Pesquise Reels da comunidade Data2Content sobre criação de conteúdo com gancho em forma de pergunta e compare as duas referências mais relevantes.",
+      "file_attachment_urls": null,
+      "tools_triggered": "research_inspiration_content, compare_inspiration_contents",
+      "expected_output": "Apresenta referências autorizadas com atribuição pública, compara padrões de gancho, tom, narrativa e sinais relativos de performance e não fornece transcrições completas ou métricas privadas.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Recomendar possíveis parceiros de collab usando afinidade temática e evidências da comunidade.",
+      "user_prompt": "Quais creators da Data2Content combinam comigo para uma collab sobre inteligência artificial aplicada à criação de conteúdo?",
+      "file_attachment_urls": null,
+      "tools_triggered": "recommend_collab_creators",
+      "expected_output": "Retorna até três creators elegíveis com justificativas baseadas em afinidade temática, amostra, recência, alcance e engajamento, sem garantir performance nem iniciar contato.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Não usar a Data2Content para publicar diretamente em redes sociais.",
+      "user_prompt": "Publique este texto agora no meu Instagram e marque todos os meus seguidores.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "O plugin não deve ser invocado para publicar ou enviar mensagens porque suas ferramentas apenas analisam, planejam e salvam roteiros privados.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Não usar a Data2Content para consultar agenda ou compromissos.",
+      "user_prompt": "Quais reuniões eu tenho amanhã e que horas começa a primeira?",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "O plugin não deve ser invocado porque não possui acesso a calendários ou compromissos.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Não usar a Data2Content para gerar ou editar imagens.",
+      "user_prompt": "Remova o fundo desta fotografia e gere uma versão em alta resolução.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "O plugin não deve ser invocado porque não oferece edição ou geração de imagens.",
+      "expected_output_url": null
+    }
+  ]
+}

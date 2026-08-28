@@ -52,6 +52,13 @@ const IDEMPOTENT_WRITE_ANNOTATIONS = {
   openWorldHint: false,
 } as const;
 
+const DESTRUCTIVE_IDEMPOTENT_WRITE_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
 type D2CToolConfig = {
   title: string;
   description: string;
@@ -613,7 +620,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .max(400)
           .describe("Declaração do propósito e da direção de conteúdo do creator"),
       }),
-      annotations: IDEMPOTENT_WRITE_ANNOTATIONS,
+      annotations: DESTRUCTIVE_IDEMPOTENT_WRITE_ANNOTATIONS,
     },
     async ({ creatorNorth }) => {
       if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");

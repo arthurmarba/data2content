@@ -483,6 +483,12 @@ describe("Data2Content MCP server", () => {
         readOnlyHint: true,
         idempotentHint: false,
       });
+      expect(tools.find((tool) => tool.name === "set_creator_north")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        idempotentHint: true,
+        destructiveHint: true,
+        openWorldHint: false,
+      });
       expect(tools.find((tool) => tool.name === "save_script")?.annotations).toMatchObject({
         readOnlyHint: false,
         idempotentHint: true,

@@ -124,7 +124,7 @@ No portal, fornecer a senha fora do repositório e estas instruções:
 
 ## Anotações das ferramentas
 
-Todas as ferramentas usam `openWorldHint: false` e `destructiveHint: false` porque operam apenas sobre a conta Data2Content autenticada, não publicam no Instagram e não executam ações destrutivas.
+Todas as ferramentas usam `openWorldHint: false` porque operam apenas sobre a conta Data2Content autenticada e não publicam no Instagram. Somente `set_creator_north` usa `destructiveHint: true`, pois substitui o Norte anterior; as demais ferramentas usam `destructiveHint: false`.
 
 | Ferramentas | `readOnlyHint` | Justificativa |
 |---|---:|---|
@@ -133,7 +133,7 @@ Todas as ferramentas usam `openWorldHint: false` e `destructiveHint: false` porq
 | `research_inspiration_content`, `analyze_inspiration_content`, `compare_inspiration_contents` | `true` | Pesquisa somente leitura em conteúdos autorizados |
 | `generate_script_draft` | `true` | Gera e devolve um rascunho, sem salvá-lo |
 | `recommend_collab_creators`, `get_performance_summary`, `list_top_content`, `compare_content_formats` | `true` | Recomendações e consultas sem alterar estado |
-| `set_creator_north` | `false` | Atualiza o Norte na conta; é idempotente |
+| `set_creator_north` | `false` | Substitui o Norte anterior na conta; é idempotente e destrutivo para fins de anotação |
 | `save_script` | `false` | Salva somente após confirmação explícita; usa chave idempotente |
 
 ## Verificação de domínio
@@ -152,14 +152,16 @@ Quando o portal fornecer o token:
 2. Confirme que sua função possui `Apps Management: Write`.
 3. Acesse `https://platform.openai.com/plugins`.
 4. Selecione `Create plugin` e depois `With MCP`.
-5. Preencha as informações públicas deste documento.
-6. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
-7. Configure OAuth e as credenciais de revisão.
-8. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
-9. Clique em `Scan Tools`, revise todas as ferramentas e corrija qualquer validação antes de continuar.
-10. Cadastre os prompts e os oito casos de teste.
-11. Selecione apenas Brasil.
-12. Preencha as notas da versão e envie para revisão.
+5. Faça upload de `chatgpt-app-submission.json` na seção `Plugin Info` e revise os campos preenchidos automaticamente.
+6. Envie `public/plugin/data2content-logo-512.png` como ícone do diretório e do composer.
+7. Preencha os campos que não fazem parte do arquivo de importação usando as informações públicas deste documento.
+8. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
+9. Configure OAuth e as credenciais de revisão.
+10. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
+11. Clique em `Scan Tools`, revise todas as ferramentas e corrija qualquer validação antes de continuar.
+12. Revise os prompts e os oito casos de teste importados.
+13. Selecione apenas Brasil.
+14. Preencha as notas da versão e envie para revisão.
 
 ## Verificações prévias
 
