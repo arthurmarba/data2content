@@ -957,3 +957,22 @@
 }
 
 .d2c-v6 .d2c-button--small:hover { background: #4a464d; box-shadow: none; }
+
+/* A palavra que gira. O estado de repouso é VISÍVEL: a animação entra a partir
+   dele, sem `backwards`, então se ela não rodar a palavra continua na frase.
+   A `key` no React remonta o span e reinicia a animação a cada troca. */
+.d2c-v6-hero__rotator-word {
+  animation: d2cV6WordIn 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Parte de uma opacidade ainda legível, nunca de zero: animação estagnada
+   (aba em background, compositor pausado) deixa a palavra esmaecida, não
+   ausente. Ela está no meio da frase que carrega a promessa da página. */
+@keyframes d2cV6WordIn {
+  from { opacity: 0.45; transform: translateY(0.28em); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d2c-v6-hero__rotator-word { animation: none; }
+}

@@ -3,7 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 
 import type { LandingCreatorHighlight } from "@/types/landing";
 
@@ -65,17 +65,14 @@ export function HeroV6({ creators, statLine }: HeroV6Props) {
             <span className="d2c-v6-hero__rotator-ghost" aria-hidden="true">
               {word}
             </span>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={word}
-                initial={reducedMotion ? false : { opacity: 0, y: "0.28em" }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reducedMotion ? undefined : { opacity: 0, y: "-0.2em" }}
-                transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {word}
-              </motion.span>
-            </AnimatePresence>
+            {/* A troca é uma animação CSS reiniciada pela `key`, não um
+                estado inicial invisível: se a animação não rodar (aba em
+                background, rAF estrangulado, JS quebrado), a palavra continua
+                visível. Com `initial={{opacity:0}}` ela sumia — e some no meio
+                da frase que carrega a promessa inteira. */}
+            <span key={word} className="d2c-v6-hero__rotator-word">
+              {word}
+            </span>
           </span>{" "}
           criar
           <br />e <span className="d2c-v6-mark">qual publi fazer</span>.
