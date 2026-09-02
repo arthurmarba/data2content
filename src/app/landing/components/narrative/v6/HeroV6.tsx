@@ -92,7 +92,7 @@ export function HeroV6({ creators, statLines }: HeroV6Props) {
                 background, rAF estrangulado, JS quebrado), a palavra continua
                 visível. Com `initial={{opacity:0}}` ela sumia — e some no meio
                 da frase que carrega a promessa inteira. */}
-            <span key={word} className="d2c-v6-hero__rotator-word">
+            <span key={word} className="d2c-v6-hero__rotator-word d2c-v6-mark">
               {word}
             </span>
           </span>{" "}
