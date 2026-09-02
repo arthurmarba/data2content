@@ -8,10 +8,13 @@ import { useState } from "react";
 import { Brand } from "./Brand";
 import { LandingAuthCta } from "./LandingAuthCta";
 
+/* Âncoras do arco v6. A antiga `#reuniao-semanal` saiu junto com a seção: o
+   ritual agora vive dentro de "quem conduz". */
 const NAV_LINKS = [
-  { href: "#reuniao-semanal", label: "Inteligência semanal" },
-  { href: "#quem-conduz", label: "Quem interpreta" },
-  { href: "#planos", label: "Plano Pro" },
+  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#publis", label: "Publis" },
+  { href: "#quem-conduz", label: "Quem conduz" },
+  { href: "#planos", label: "Planos" },
 ] as const;
 
 export function NarrativeHeader() {

@@ -1,0 +1,959 @@
+/* Landing v6 — o arco novo: herói, como funciona, as duas respostas, no Claude,
+   quem conduz, planos, dúvidas, fechamento.
+   Os tokens seguem o mockup do Claude Design: fundo claro editorial, preto
+   quase-neutro (#1a171e), e o amarelo só como grifo — nunca como preenchimento
+   de área grande. */
+
+.d2c-v6 {
+  --v6-ink: #121014;
+  --v6-ink-dim: rgba(18, 16, 20, 0.6);
+  --v6-ink-faint: rgba(18, 16, 20, 0.42);
+  --v6-ink-line: rgba(18, 16, 20, 0.1);
+  --v6-paper: #fff;
+  --v6-cream: #f7f4f0;
+  --v6-cream-warm: #faf7f4;
+  --v6-dark: #1a171e;
+  --v6-slate: #3a373c;
+  --v6-mark: rgba(245, 179, 1, 0.62);
+  --v6-accent: #f5b301;
+  --v6-shell: min(100% - 2.5rem, 68rem);
+}
+
+.d2c-v6-section {
+  position: relative;
+  overflow: hidden;
+  padding: 7rem 0;
+  background: var(--v6-paper);
+}
+
+.d2c-v6-section--cream { background: var(--v6-cream); }
+.d2c-v6-section--dark { background: var(--v6-dark); color: #fff; }
+.d2c-v6-section--slate { background: var(--v6-slate); color: #fff; }
+.d2c-v6-section--flush { padding-bottom: 0; }
+
+.d2c-v6-shell {
+  position: relative;
+  width: var(--v6-shell);
+  margin: 0 auto;
+}
+
+/* — tipografia — */
+
+.d2c-v6-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--v6-ink-faint);
+}
+
+.d2c-v6-section--dark .d2c-v6-label,
+.d2c-v6-section--slate .d2c-v6-label { color: var(--v6-accent); }
+
+.d2c-v6-title {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  text-wrap: balance;
+}
+
+.d2c-v6-lead {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--v6-ink-dim);
+  text-wrap: pretty;
+}
+
+.d2c-v6-section--dark .d2c-v6-lead,
+.d2c-v6-section--slate .d2c-v6-lead { color: rgba(255, 255, 255, 0.62); }
+
+.d2c-v6-mark {
+  background-image: linear-gradient(
+    transparent 58%,
+    var(--v6-mark) 58%,
+    var(--v6-mark) 92%,
+    transparent 92%
+  );
+}
+
+.d2c-v6-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-bottom: 3rem;
+}
+
+/* — herói — */
+
+.d2c-v6-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 7.5rem 0 0;
+  background: var(--v6-paper);
+}
+
+.d2c-v6-hero__inner {
+  width: var(--v6-shell);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.1rem;
+}
+
+.d2c-v6-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 2.4rem;
+  margin-bottom: 0.9rem;
+  padding: 0 1.1rem;
+  border: 1px solid rgba(18, 16, 20, 0.12);
+  border-radius: 999px;
+  background: var(--v6-cream-warm);
+  font-size: 0.9375rem;
+  color: rgba(18, 16, 20, 0.66);
+}
+
+.d2c-v6-hero__badge i {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #4a464d;
+  flex: none;
+}
+
+.d2c-v6-hero__headline {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.12;
+  font-size: clamp(2.25rem, 6.2vw, 5rem);
+  text-wrap: balance;
+}
+
+.d2c-v6-hero__quiet { color: var(--v6-ink-faint); }
+
+/* A palavra que gira reserva a largura da maior alternativa, senão a linha
+   inteira dança a cada troca. */
+.d2c-v6-hero__rotator {
+  display: inline-grid;
+  vertical-align: baseline;
+  justify-items: center;
+  /* A largura vem do fantasma (a palavra atual) e a transição faz a linha
+     acomodar a troca em vez de saltar. */
+  transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.d2c-v6-hero__rotator > span {
+  grid-area: 1 / 1;
+}
+
+.d2c-v6-hero__rotator-ghost {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.d2c-v6-hero__sub {
+  margin: 0;
+  max-width: 32rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.375rem);
+  line-height: 1.45;
+  color: var(--v6-ink-dim);
+  text-wrap: pretty;
+}
+
+.d2c-v6-hero__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.9rem;
+}
+
+.d2c-v6-hero__note {
+  font-size: 1rem;
+  color: rgba(18, 16, 20, 0.5);
+}
+
+.d2c-v6-hero__note b { font-weight: 600; color: var(--v6-ink); }
+
+.d2c-v6-hero__strips { margin-top: 6rem; }
+
+/* — faixas correndo — */
+
+.d2c-v6-marquee { overflow: hidden; }
+
+.d2c-v6-marquee--creators { padding: 0.5rem 0 2.5rem; }
+
+.d2c-v6-marquee--platforms {
+  height: 110px;
+  display: flex;
+  align-items: center;
+  background: var(--v6-cream-warm);
+  border-top: 1px solid rgba(18, 16, 20, 0.08);
+}
+
+.d2c-v6-marquee__track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  gap: 1rem;
+  animation: d2cV6Marquee 70s linear infinite;
+}
+
+.d2c-v6-marquee__track:hover { animation-play-state: paused; }
+
+.d2c-v6-marquee--platforms .d2c-v6-marquee__track {
+  gap: 3.5rem;
+  animation-name: d2cV6MarqueeRev;
+  animation-duration: 55s;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-size: clamp(1.25rem, 3vw, 2.25rem);
+  color: rgba(18, 16, 20, 0.3);
+}
+
+.d2c-v6-marquee--platforms .d2c-v6-marquee__track span { flex: none; }
+
+@keyframes d2cV6Marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes d2cV6MarqueeRev {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.d2c-v6-chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 84px;
+  padding: 0 1.4rem 0 0.75rem;
+  border: 1px solid var(--v6-ink-line);
+  border-radius: 999px;
+  background: var(--v6-paper);
+  box-shadow: 0 1px 2px rgba(18, 16, 20, 0.05);
+  color: var(--v6-ink);
+  text-decoration: none;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.d2c-v6-chip:hover {
+  border-color: rgba(18, 16, 20, 0.28);
+  box-shadow: 0 6px 18px rgba(18, 16, 20, 0.09);
+  transform: translateY(-2px);
+}
+
+.d2c-v6-chip__avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: none;
+  background: var(--v6-cream);
+}
+
+.d2c-v6-chip__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.d2c-v6-chip__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  white-space: nowrap;
+}
+
+.d2c-v6-chip__text b { font-size: 1rem; font-weight: 600; line-height: 1.1; }
+.d2c-v6-chip__text small { font-size: 0.9375rem; color: rgba(18, 16, 20, 0.5); line-height: 1.1; }
+
+/* — passos numerados — */
+
+.d2c-v6-steps {
+  display: grid;
+  gap: 3rem;
+  border-top: 1px solid var(--v6-ink-line);
+  padding-top: 1.75rem;
+}
+
+.d2c-v6-section--dark .d2c-v6-steps,
+.d2c-v6-section--slate .d2c-v6-steps { border-top-color: rgba(255, 255, 255, 0.16); }
+
+.d2c-v6-steps--two { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+.d2c-v6-steps--three { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+
+.d2c-v6-step { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.d2c-v6-step__n {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--v6-accent);
+}
+
+.d2c-v6-step__t {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.75rem;
+  line-height: 1.1;
+}
+
+.d2c-v6-step__d {
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--v6-ink-dim);
+  text-wrap: pretty;
+}
+
+.d2c-v6-section--dark .d2c-v6-step__d,
+.d2c-v6-section--slate .d2c-v6-step__d { color: rgba(255, 255, 255, 0.6); }
+
+.d2c-v6-step__code {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9375rem;
+  color: #fff;
+  word-break: break-all;
+}
+
+.d2c-v6-section:not(.d2c-v6-section--dark):not(.d2c-v6-section--slate) .d2c-v6-step__code {
+  background: rgba(18, 16, 20, 0.05);
+  border-color: var(--v6-ink-line);
+  color: var(--v6-ink);
+}
+
+/* — círculo decorativo que sangra — */
+
+.d2c-v6-orb {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.d2c-v6-section:not(.d2c-v6-section--dark):not(.d2c-v6-section--slate) .d2c-v6-orb {
+  border-color: rgba(18, 16, 20, 0.1);
+}
+
+/* — entrada por scroll — */
+
+/* O estado escondido é opt-in: só vale depois que o JS marca a raiz. Sem isso
+   uma falha de script deixaria a página inteira invisível. */
+.d2c-v6[data-v6-reveal="on"] .d2c-v6-reveal {
+  opacity: 0;
+  transform: translateY(72px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.d2c-v6[data-v6-reveal="on"] .d2c-v6-reveal.is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .d2c-v6[data-v6-reveal="on"] .d2c-v6-reveal { opacity: 1; transform: none; transition: none; }
+  .d2c-v6-marquee__track { animation: none; }
+}
+
+@media (max-width: 860px) {
+  .d2c-v6-section { padding: 4.5rem 0; }
+  .d2c-v6-hero { padding-top: 5.5rem; }
+  .d2c-v6-hero__strips { margin-top: 3.5rem; }
+  .d2c-v6-head { margin-bottom: 2rem; }
+  .d2c-v6-steps { gap: 2rem; }
+}
+
+/* — 02 como funciona: a cena anotada — */
+
+.d2c-v6-how__orb {
+  left: -14rem;
+  top: 26rem;
+  width: 40rem;
+  height: 40rem;
+}
+
+.d2c-v6-how__quiet {
+  margin-top: 0.3rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.d2c-v6-how__stage {
+  position: relative;
+  width: var(--v6-shell);
+  margin: 4rem auto 0;
+  display: flex;
+  justify-content: center;
+}
+
+.d2c-v6-how__frame {
+  position: relative;
+  margin: 0;
+  width: 420px;
+  max-width: 78vw;
+  aspect-ratio: 420 / 740;
+  border-radius: 26px;
+  overflow: hidden;
+  background: var(--v6-cream);
+  flex: none;
+}
+
+.d2c-v6-how__photo { object-fit: cover; }
+
+.d2c-v6-how__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 16, 20, 0.35) 0%,
+    rgba(18, 16, 20, 0) 26%,
+    rgba(18, 16, 20, 0) 62%,
+    rgba(18, 16, 20, 0.55) 100%
+  );
+}
+
+.d2c-v6-how__grid { position: absolute; inset: 0; }
+.d2c-v6-how__grid i,
+.d2c-v6-how__grid b { position: absolute; background: rgba(255, 255, 255, 0.22); }
+.d2c-v6-how__grid i { top: 0; bottom: 0; width: 1px; }
+.d2c-v6-how__grid i:nth-of-type(1) { left: 33.33%; }
+.d2c-v6-how__grid i:nth-of-type(2) { left: 66.66%; }
+.d2c-v6-how__grid b { left: 0; right: 0; height: 1px; }
+.d2c-v6-how__grid b:nth-of-type(1) { top: 33.33%; }
+.d2c-v6-how__grid b:nth-of-type(2) { top: 66.66%; }
+
+.d2c-v6-how__focus { position: absolute; left: 16%; top: 20%; width: 68%; height: 46%; }
+.d2c-v6-how__focus i { position: absolute; width: 1.5rem; height: 1.5rem; border: 2px solid var(--v6-accent); }
+.d2c-v6-how__focus i:nth-of-type(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.d2c-v6-how__focus i:nth-of-type(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.d2c-v6-how__focus i:nth-of-type(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.d2c-v6-how__focus i:nth-of-type(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+
+.d2c-v6-how__progress {
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  top: 1.25rem;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: hidden;
+}
+
+.d2c-v6-how__progress i { display: block; width: 22%; height: 100%; background: var(--v6-accent); }
+
+.d2c-v6-how__tags { position: absolute; left: 1.25rem; bottom: 1.25rem; display: flex; gap: 0.4rem; }
+
+.d2c-v6-how__tags b {
+  display: inline-flex;
+  align-items: center;
+  height: 1.85rem;
+  padding: 0 0.7rem;
+  border-radius: 8px;
+  background: rgba(18, 16, 20, 0.72);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.d2c-v6-how__notes { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+
+.d2c-v6-how__note {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(22rem, 28vw);
+}
+
+.d2c-v6-how__note--left { right: calc(50% + 190px); flex-direction: row; }
+.d2c-v6-how__note--right { left: calc(50% + 190px); flex-direction: row-reverse; }
+
+.d2c-v6-how__note-label {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.375rem;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  flex: none;
+}
+
+.d2c-v6-how__note-line { flex: 1; min-width: 0; height: 1px; background: rgba(245, 179, 1, 0.5); }
+
+.d2c-v6-how__note-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--v6-accent);
+  flex: none;
+  box-shadow: 0 0 0 3px rgba(245, 179, 1, 0.28);
+}
+
+/* — 03 a pauta — */
+
+.d2c-v6-answer__soft { color: var(--v6-ink-faint); }
+.d2c-v6-section--dark .d2c-v6-answer__soft,
+.d2c-v6-section--slate .d2c-v6-answer__soft { color: rgba(255, 255, 255, 0.45); }
+
+.d2c-v6-pauta {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.d2c-v6-pauta__still { margin: 0; border-radius: 20px; overflow: hidden; background: var(--v6-cream); }
+.d2c-v6-pauta__still img { width: 100%; height: auto; display: block; }
+
+.d2c-v6-pauta__body { display: flex; flex-direction: column; gap: 1rem; }
+
+.d2c-v6-pauta__theme {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-size: clamp(2.25rem, 6vw, 4rem);
+}
+
+/* Os atributos ficam soltos e em pesos diferentes — a coluna rótulo/valor era
+   o que fazia a pauta parecer ficha técnica. */
+.d2c-v6-pauta__details {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.75rem;
+}
+
+.d2c-v6-pauta__detail { display: flex; flex-direction: column; gap: 0.15rem; }
+.d2c-v6-pauta__detail small { font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-ink-faint); }
+.d2c-v6-pauta__detail span { font-size: 1.0625rem; font-weight: 500; }
+
+.d2c-v6-pauta__detail.is-quote { flex-basis: 100%; }
+.d2c-v6-pauta__detail.is-quote span {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.d2c-v6-pauta__verdict {
+  margin: 0.5rem 0 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  max-width: 32rem;
+}
+
+.d2c-v6-multipliers {
+  list-style: none;
+  margin: 3.5rem 0 0;
+  padding: 2rem 0 0;
+  border-top: 1px solid var(--v6-ink-line);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 2rem;
+  align-items: start;
+}
+
+.d2c-v6-multiplier { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.d2c-v6-multiplier b {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-size: 2rem;
+}
+
+.d2c-v6-multiplier.is-lead b { font-size: 3.25rem; }
+.d2c-v6-multiplier small { font-size: 0.9375rem; line-height: 1.4; color: var(--v6-ink-dim); }
+
+/* — 04 a publi — */
+
+.d2c-v6-answer__orb { right: -18rem; top: -6rem; width: 44rem; height: 44rem; }
+
+.d2c-v6-publi {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+}
+
+.d2c-v6-publi__card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  background: linear-gradient(-6deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.d2c-v6-publi__brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.d2c-v6-publi__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8rem;
+  height: 3.5rem;
+  padding: 0 1.25rem;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.d2c-v6-publi__origin { display: flex; flex-direction: column; gap: 0.15rem; font-size: 1rem; color: rgba(255, 255, 255, 0.6); }
+.d2c-v6-publi__origin b {
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.d2c-v6-publi__reqs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.d2c-v6-publi__reqs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 1.0625rem;
+}
+
+.d2c-v6-publi__reqs li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.d2c-v6-publi__reqs b {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(245, 179, 1, 0.16);
+  color: var(--v6-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.d2c-v6-publi__why {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.d2c-v6-publi__delivery { margin-top: 3.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* — 05 no Claude — */
+
+.d2c-v6-claude__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.d2c-v6-claude__chat { display: flex; flex-direction: column; gap: 1rem; }
+
+.d2c-v6-bubble {
+  padding: 1.1rem 1.35rem;
+  border-radius: 18px;
+  border: 1px solid var(--v6-ink-line);
+  background: var(--v6-paper);
+  max-width: 92%;
+}
+
+.d2c-v6-bubble--you { align-self: flex-end; border-bottom-right-radius: 6px; }
+.d2c-v6-bubble--d2c { align-self: flex-start; border-bottom-left-radius: 6px; background: var(--v6-ink); border-color: var(--v6-ink); color: #fff; }
+
+.d2c-v6-bubble__who {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--v6-ink-faint);
+}
+
+.d2c-v6-bubble--d2c .d2c-v6-bubble__who { color: var(--v6-accent); }
+.d2c-v6-bubble p { margin: 0; font-size: 1.0625rem; line-height: 1.5; }
+
+.d2c-v6-claude__more { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.d2c-v6-claude__more ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.d2c-v6-claude__more li {
+  padding: 0.6rem 0.9rem;
+  border: 1px dashed rgba(18, 16, 20, 0.18);
+  border-radius: 12px;
+  font-size: 1rem;
+  color: var(--v6-ink-dim);
+}
+
+.d2c-v6-claude__setup { display: flex; flex-direction: column; gap: 1.25rem; }
+.d2c-v6-claude__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.75rem; }
+.d2c-v6-claude__note { margin: 0; font-size: 0.9375rem; color: var(--v6-ink-faint); }
+
+/* — 06 quem conduz — */
+
+.d2c-v6-sessions {
+  list-style: none;
+  margin: 0 0 3.5rem;
+  padding: 2rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 2rem;
+}
+
+.d2c-v6-session { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.d2c-v6-session__kind {
+  align-self: flex-start;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(245, 179, 1, 0.16);
+  color: var(--v6-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.d2c-v6-session__when {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  font-size: 2rem;
+}
+
+.d2c-v6-session__when span { font-size: 1.25rem; color: rgba(255, 255, 255, 0.62); }
+.d2c-v6-session__detail { font-size: 1rem; line-height: 1.5; color: rgba(255, 255, 255, 0.6); }
+
+.d2c-v6-partners { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 2rem; }
+.d2c-v6-partner { display: flex; gap: 1.25rem; align-items: flex-start; }
+
+.d2c-v6-partner figure {
+  position: relative;
+  margin: 0;
+  width: 120px;
+  height: 150px;
+  flex: none;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.d2c-v6-partner figure img { object-fit: cover; }
+.d2c-v6-partner h3 {
+  margin: 0.35rem 0 0.5rem;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.5rem;
+}
+.d2c-v6-partner p { margin: 0; font-size: 1rem; line-height: 1.5; color: rgba(255, 255, 255, 0.6); }
+
+/* Os encontros sangram pela borda: é o único bloco da página que atravessa o
+   container, e por isso ele carrega o registro presencial. */
+.d2c-v6-meetups {
+  position: relative;
+  margin-top: 4.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 1.5rem;
+  align-items: end;
+  padding-left: max(2.5rem, calc((100% - 68rem) / 2));
+}
+
+.d2c-v6-meetups__copy { padding-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.d2c-v6-meetups__copy p { margin: 0; font-size: 1.125rem; line-height: 1.45; color: rgba(255, 255, 255, 0.72); }
+
+.d2c-v6-meetups__shot { margin: 0; border-radius: 18px 0 0 0; overflow: hidden; }
+.d2c-v6-meetups__shot img { width: 100%; height: auto; display: block; }
+.d2c-v6-meetups__shot--b { margin-right: -8rem; }
+
+/* — 07 planos — */
+
+.d2c-v6-plan__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: start;
+}
+
+.d2c-v6-plan__offer { display: flex; flex-direction: column; gap: 1.1rem; align-items: flex-start; }
+.d2c-v6-plan__note { font-size: 0.9375rem; color: var(--v6-ink-dim); }
+.d2c-v6-plan__note b { font-weight: 600; color: var(--v6-ink); }
+
+.d2c-v6-plan__includes { display: flex; flex-direction: column; gap: 1rem; }
+.d2c-v6-plan__includes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+.d2c-v6-plan__includes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--v6-ink-line);
+  font-size: 1.0625rem;
+}
+.d2c-v6-plan__includes li:last-child { border-bottom: 0; padding-bottom: 0; }
+.d2c-v6-plan__includes svg { margin-top: 0.25rem; flex: none; color: var(--v6-ink-faint); }
+
+/* — 08 dúvidas — */
+
+.d2c-v6-faq__list { display: flex; flex-direction: column; }
+
+.d2c-v6-faq__list details { border-top: 1px solid var(--v6-ink-line); }
+.d2c-v6-faq__list details:last-child { border-bottom: 1px solid var(--v6-ink-line); }
+
+.d2c-v6-faq__list summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1.35rem 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.25rem;
+}
+
+.d2c-v6-faq__list summary::-webkit-details-marker { display: none; }
+.d2c-v6-faq__list p { margin: 0 0 1.35rem; max-width: 46rem; font-size: 1.0625rem; line-height: 1.55; color: var(--v6-ink-dim); }
+
+/* — 09 fechamento — */
+
+.d2c-v6-close__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+.d2c-v6-close__soft { color: rgba(255, 255, 255, 0.45); }
+.d2c-v6-close__note { font-size: 0.9375rem; color: rgba(255, 255, 255, 0.55); }
+.d2c-v6-close__note b { font-weight: 600; color: #fff; }
+
+/* — responsivo — */
+
+@media (max-width: 1180px) {
+  .d2c-v6-how__note { width: min(16rem, 22vw); }
+  .d2c-v6-how__note-label { font-size: 1.125rem; }
+}
+
+@media (max-width: 960px) {
+  /* Abaixo desta largura não sobra margem para as anotações laterais: elas
+     viram legenda embaixo da cena, sem linha de ligação. */
+  .d2c-v6-how__stage { flex-direction: column; align-items: center; gap: 1.5rem; }
+  .d2c-v6-how__notes { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; }
+  .d2c-v6-how__note { position: static !important; width: auto; }
+  .d2c-v6-how__note-line { display: none; }
+  .d2c-v6-how__note-label { font-size: 1rem; }
+
+  .d2c-v6-pauta,
+  .d2c-v6-publi,
+  .d2c-v6-claude__grid,
+  .d2c-v6-plan__inner { grid-template-columns: minmax(0, 1fr); }
+
+  .d2c-v6-pauta__still { max-width: 18rem; }
+  .d2c-v6-bubble { max-width: 100%; }
+
+  .d2c-v6-meetups { grid-template-columns: minmax(0, 1fr); padding-left: 1.25rem; padding-right: 1.25rem; }
+  .d2c-v6-meetups__shot { border-radius: 18px; }
+  .d2c-v6-meetups__shot--b { margin-right: 0; }
+}
+
+@media (max-width: 640px) {
+  .d2c-v6-multiplier.is-lead b { font-size: 2.5rem; }
+  .d2c-v6-publi__reqs li { align-items: flex-start; flex-direction: column; gap: 0.4rem; }
+}
+
+/* — o v6 sobrescreve o tema antigo da landing —
+   O CSS legado pinta a página com o rosa da marca (--d2c-brand) e um papel
+   quente. O mockup v6 é preto sobre branco, com o amarelo só no grifo. Como as
+   duas folhas convivem (o header e o CTA ainda são componentes do tema antigo),
+   a correção fica aqui, no escopo `.d2c-v6`. */
+
+.d2c-landing.d2c-v6 {
+  background: var(--v6-paper);
+  color: var(--v6-ink);
+}
+
+.d2c-v6 .d2c-button--human {
+  min-height: 3.4rem;
+  padding-inline: 2.2rem;
+  border-radius: 12px;
+  background: var(--v6-ink);
+  color: #fff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  box-shadow: none;
+  transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.d2c-v6 .d2c-button--human:hover {
+  background: #4a464d;
+  box-shadow: none;
+}
+
+/* Nas seções escuras o botão inverte, senão preto sobre preto some. */
+.d2c-v6 .d2c-v6-section--dark .d2c-button--human,
+.d2c-v6 .d2c-v6-section--slate .d2c-button--human {
+  background: #fff;
+  color: var(--v6-ink);
+}
+
+.d2c-v6 .d2c-v6-section--dark .d2c-button--human:hover,
+.d2c-v6 .d2c-v6-section--slate .d2c-button--human:hover {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.d2c-v6 .d2c-landing-header { background: var(--v6-paper); border-bottom: 1px solid var(--v6-ink-line); }
+
+/* O CTA do header usa outra classe (--small) e também herda o rosa. */
+.d2c-v6 .d2c-button--small {
+  background: var(--v6-ink);
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.d2c-v6 .d2c-button--small:hover { background: #4a464d; box-shadow: none; }
