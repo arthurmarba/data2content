@@ -10,10 +10,10 @@ import { LandingAuthCta } from "./LandingAuthCta";
 
 /* Âncoras do arco v6. A antiga `#reuniao-semanal` saiu junto com a seção: o
    ritual agora vive dentro de "quem conduz". */
+/* Duas âncoras, como no mockup. A antiga `#reuniao-semanal` saiu junto com a
+   seção: o ritual agora vive dentro de "quem conduz". */
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
-  { href: "#publis", label: "Publis" },
-  { href: "#quem-conduz", label: "Quem conduz" },
   { href: "#planos", label: "Planos" },
 ] as const;
 

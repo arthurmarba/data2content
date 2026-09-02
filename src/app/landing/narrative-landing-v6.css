@@ -398,24 +398,35 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* O palco é a largura cheia do mockup (1440), não o container de texto: as
+   anotações laterais precisam desse espaço para caber fora do quadro. */
 .d2c-v6-how__stage {
   position: relative;
-  width: var(--v6-shell);
+  width: min(100%, 1440px);
   margin: 4rem auto 0;
-  display: flex;
-  justify-content: center;
+  aspect-ratio: 1440 / 740;
 }
 
+.d2c-v6-how__bridge {
+  margin: 4rem auto 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  color: #fff;
+}
+
+/* Mesma caixa do mockup: 420x740 num palco de 1440, começando em 510px. */
 .d2c-v6-how__frame {
-  position: relative;
+  position: absolute;
   margin: 0;
-  width: 420px;
-  max-width: 78vw;
-  aspect-ratio: 420 / 740;
+  left: 35.42%;
+  top: 0;
+  width: 29.17%;
+  height: 100%;
   border-radius: 26px;
   overflow: hidden;
   background: var(--v6-cream);
-  flex: none;
 }
 
 .d2c-v6-how__photo { object-fit: cover; }
@@ -484,11 +495,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  width: min(22rem, 28vw);
 }
-
-.d2c-v6-how__note--left { right: calc(50% + 190px); flex-direction: row; }
-.d2c-v6-how__note--right { left: calc(50% + 190px); flex-direction: row-reverse; }
 
 .d2c-v6-how__note-label {
   font-family: var(--font-d2c-display), system-ui, sans-serif;
@@ -519,55 +526,98 @@
 .d2c-v6-section--slate .d2c-v6-answer__soft { color: rgba(255, 255, 255, 0.45); }
 
 .d2c-v6-pauta {
+  border: 1px solid var(--v6-ink-line);
+  border-radius: 20px;
+  background: var(--v6-cream);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.d2c-v6-pauta__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(18, 16, 20, 0.14);
+}
+
+.d2c-v6-pauta__week {
+  flex: none;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: rgba(18, 16, 20, 0.4);
+}
+
+.d2c-v6-pauta__body {
   display: grid;
-  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
-  gap: clamp(1.5rem, 4vw, 3.5rem);
+  grid-template-columns: minmax(0, 1fr) 13.5rem;
+  gap: 2.5rem;
   align-items: start;
 }
 
-.d2c-v6-pauta__still { margin: 0; border-radius: 20px; overflow: hidden; background: var(--v6-cream); }
-.d2c-v6-pauta__still img { width: 100%; height: auto; display: block; }
-
-.d2c-v6-pauta__body { display: flex; flex-direction: column; gap: 1rem; }
+.d2c-v6-pauta__copy { display: flex; flex-direction: column; gap: 1.75rem; }
 
 .d2c-v6-pauta__theme {
   margin: 0;
   font-family: var(--font-d2c-display), system-ui, sans-serif;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.05em;
   line-height: 1;
-  font-size: clamp(2.25rem, 6vw, 4rem);
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
 }
 
-/* Os atributos ficam soltos e em pesos diferentes — a coluna rótulo/valor era
-   o que fazia a pauta parecer ficha técnica. */
-.d2c-v6-pauta__details {
+/* A barra amarela marca o gancho como a fala literal — é o único atributo com
+   voz do criador, e por isso o único que ganha destaque próprio. */
+.d2c-v6-pauta__hook {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border-left: 2px solid var(--v6-accent);
+  padding-left: 1.1rem;
+}
+
+.d2c-v6-pauta__hook p {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: clamp(1.25rem, 3.4vw, 1.75rem);
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.d2c-v6-pauta__chips {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem 1.75rem;
+  gap: 0.6rem;
 }
 
-.d2c-v6-pauta__detail { display: flex; flex-direction: column; gap: 0.15rem; }
-.d2c-v6-pauta__detail small { font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-ink-faint); }
-.d2c-v6-pauta__detail span { font-size: 1.0625rem; font-weight: 500; }
-
-.d2c-v6-pauta__detail.is-quote { flex-basis: 100%; }
-.d2c-v6-pauta__detail.is-quote span {
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  font-size: clamp(1.25rem, 3vw, 1.75rem);
-  line-height: 1.2;
+.d2c-v6-pauta__chips li {
+  background: var(--v6-paper);
+  border: 1px solid rgba(18, 16, 20, 0.14);
+  border-radius: 12px;
+  padding: 0.7rem 1.05rem;
+  font-size: 1.0625rem;
+  line-height: 1.25;
 }
+
+.d2c-v6-pauta__still { margin: 0; border-radius: 14px; overflow: hidden; background: var(--v6-paper); }
+.d2c-v6-pauta__still img { width: 100%; height: auto; display: block; }
 
 .d2c-v6-pauta__verdict {
-  margin: 0.5rem 0 0;
+  margin: 0;
   font-size: 1.125rem;
   line-height: 1.5;
-  max-width: 32rem;
+  max-width: 34rem;
 }
 
 .d2c-v6-multipliers {
@@ -879,20 +929,34 @@
 }
 
 @media (max-width: 960px) {
-  /* Abaixo desta largura não sobra margem para as anotações laterais: elas
-     viram legenda embaixo da cena, sem linha de ligação. */
-  .d2c-v6-how__stage { flex-direction: column; align-items: center; gap: 1.5rem; }
+  /* Abaixo desta largura não sobra margem para as anotações laterais: o quadro
+     ocupa o palco e elas viram legendas embaixo, sem linha de ligação. */
+  .d2c-v6-how__stage {
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .d2c-v6-how__frame {
+    position: relative;
+    left: auto;
+    width: min(78vw, 420px);
+    height: auto;
+    aspect-ratio: 420 / 740;
+  }
   .d2c-v6-how__notes { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; }
-  .d2c-v6-how__note { position: static !important; width: auto; }
-  .d2c-v6-how__note-line { display: none; }
+  .d2c-v6-how__note { position: static !important; width: auto !important; left: auto !important; top: auto !important; }
+  .d2c-v6-how__note-line,
+  .d2c-v6-how__note-dot { display: none; }
   .d2c-v6-how__note-label { font-size: 1rem; }
 
-  .d2c-v6-pauta,
+  .d2c-v6-pauta__body,
   .d2c-v6-publi,
   .d2c-v6-claude__grid,
   .d2c-v6-plan__inner { grid-template-columns: minmax(0, 1fr); }
 
-  .d2c-v6-pauta__still { max-width: 18rem; }
+  .d2c-v6-pauta__still { max-width: 16rem; }
   .d2c-v6-bubble { max-width: 100%; }
 
   .d2c-v6-meetups { grid-template-columns: minmax(0, 1fr); padding-left: 1.25rem; padding-right: 1.25rem; }

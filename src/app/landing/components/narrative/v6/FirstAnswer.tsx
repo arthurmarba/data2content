@@ -1,24 +1,17 @@
 import Image from "next/image";
 
-/* Seção 03 — a primeira resposta. A pauta aparece como o artefato que chega
-   para o criador, não como frase citada: o tema é tipografia grande e os
-   atributos se distribuem ao redor em pesos diferentes, sem a coluna de
-   rótulo/valor que fazia isso parecer ficha técnica. */
+/* Seção 03 — a primeira resposta. A pauta é o artefato que chega ao criador:
+   tema em tipografia grande, o gancho destacado por uma barra amarela, e os
+   demais atributos como chips soltos. A coluna de rótulo/valor foi justamente
+   o que dava a esta seção cara de ficha técnica. */
 
-type Detail = {
-  label: string;
-  value: string;
-  /** O gancho é a fala literal; ganha aspas e peso maior que os demais. */
-  quote?: boolean;
-};
-
-const DETAILS: Detail[] = [
-  { label: "gancho", value: "Eu não dou açúcar pro meu filho", quote: true },
-  { label: "cena", value: "sentado, em plano médio" },
-  { label: "objeto", value: "com a xícara de café em quadro" },
-  { label: "formato", value: "reels de 15 segundos" },
-  { label: "abertura", value: "abrindo com pergunta direta" },
-  { label: "quando", value: "segunda às 15h" },
+/* Os atributos que acompanham o tema, sem rótulo: eles se explicam. */
+const ATTRIBUTES = [
+  "sentado, em plano médio",
+  "com a xícara de café em quadro",
+  "reels de 15 segundos",
+  "abrindo com pergunta direta",
+  "segunda às 15h",
 ];
 
 const MULTIPLIERS = [
@@ -42,39 +35,44 @@ export function FirstAnswer() {
           </p>
         </div>
 
-        <div className="d2c-v6-pauta d2c-v6-reveal">
-          <figure className="d2c-v6-pauta__still">
-            <Image
-              src="/images/landing/v6/pauta-still.jpg"
-              alt="Frame da pauta sugerida: criador sentado em casa, em plano médio"
-              width={470}
-              height={836}
-              sizes="(max-width: 860px) 70vw, 320px"
-            />
-          </figure>
+        <article className="d2c-v6-pauta d2c-v6-reveal">
+          <header className="d2c-v6-pauta__head">
+            <span className="d2c-v6-label">um exemplo de pauta</span>
+            <span className="d2c-v6-pauta__week">semana [SEMANA]</span>
+          </header>
 
           <div className="d2c-v6-pauta__body">
-            <span className="d2c-v6-label">um exemplo de pauta</span>
-            <p className="d2c-v6-pauta__theme">criar os filhos</p>
+            <div className="d2c-v6-pauta__copy">
+              <p className="d2c-v6-pauta__theme">criar os filhos</p>
 
-            <ul className="d2c-v6-pauta__details">
-              {DETAILS.map((detail) => (
-                <li
-                  key={detail.label}
-                  className={detail.quote ? "d2c-v6-pauta__detail is-quote" : "d2c-v6-pauta__detail"}
-                >
-                  <small>{detail.label}</small>
-                  <span>{detail.quote ? `“${detail.value}”` : detail.value}</span>
-                </li>
-              ))}
-            </ul>
+              <div className="d2c-v6-pauta__hook">
+                <span className="d2c-v6-label">gancho</span>
+                <p>“Eu não dou açúcar pro meu filho”</p>
+              </div>
 
-            <p className="d2c-v6-pauta__verdict">
-              Seus posts recebem <span className="d2c-v6-mark">mais compartilhamento</span> quando
-              você cria conteúdo desse jeito.
-            </p>
+              <ul className="d2c-v6-pauta__chips">
+                {ATTRIBUTES.map((attribute) => (
+                  <li key={attribute}>{attribute}</li>
+                ))}
+              </ul>
+            </div>
+
+            <figure className="d2c-v6-pauta__still">
+              <Image
+                src="/images/landing/v6/pauta-still.jpg"
+                alt="Frame da pauta sugerida: criador sentado em casa, em plano médio"
+                width={470}
+                height={836}
+                sizes="(max-width: 960px) 60vw, 216px"
+              />
+            </figure>
           </div>
-        </div>
+
+          <p className="d2c-v6-pauta__verdict">
+            Seus posts recebem <span className="d2c-v6-mark">mais compartilhamento</span> quando
+            você cria conteúdo desse jeito.
+          </p>
+        </article>
 
         <ul className="d2c-v6-multipliers d2c-v6-reveal">
           {MULTIPLIERS.map((multiplier, position) => (
