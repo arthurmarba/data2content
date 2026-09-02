@@ -976,3 +976,28 @@
 @media (prefers-reduced-motion: reduce) {
   .d2c-v6-hero__rotator-word { animation: none; }
 }
+
+.d2c-v6-how__views {
+  position: absolute;
+  right: 1.25rem;
+  top: 3.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.85rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(18, 16, 20, 0.75);
+  white-space: nowrap;
+}
+
+.d2c-v6-how__views i {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #4a464d;
+  flex: none;
+}

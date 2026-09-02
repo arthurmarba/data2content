@@ -82,6 +82,13 @@ export function HowItWorks() {
             <i />
           </span>
 
+          {/* Selo de alcance no canto do quadro, como no mockup: reforça que o
+              que está sendo lido é um post publicado, não uma ilustração. */}
+          <span className="d2c-v6-how__views" aria-hidden="true">
+            <i />
+            1,2 mil
+          </span>
+
           <span className="d2c-v6-how__tags" aria-hidden="true">
             <b>reels · 0:15</b>
             <b>seg · 15h</b>
