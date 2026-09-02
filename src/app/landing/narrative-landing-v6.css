@@ -1065,3 +1065,13 @@
   background: #4a464d;
   flex: none;
 }
+
+/* Mesma regra da palavra do herói: a animação parte de uma opacidade legível,
+   nunca de zero, para o selo não sumir se ela não rodar. */
+.d2c-v6-hero__badge-text {
+  animation: d2cV6WordIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d2c-v6-hero__badge-text { animation: none; }
+}

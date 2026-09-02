@@ -18,15 +18,19 @@ const ROTATOR_WORDS = ["o que", "como", "quando", "onde", "com quem"] as const;
 
 const ROTATE_MS = 2200;
 
+const STAT_ROTATE_MS = 4200;
+
 type HeroV6Props = {
   creators: LandingCreatorHighlight[];
-  statLine?: string | null;
+  /** Provas agregadas da comunidade; o selo alterna entre elas. */
+  statLines: string[];
 };
 
-export function HeroV6({ creators, statLine }: HeroV6Props) {
+export function HeroV6({ creators, statLines }: HeroV6Props) {
   const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const [index, setIndex] = useState(0);
+  const [statIndex, setStatIndex] = useState(0);
   const loginError = searchParams.get("error");
 
   useEffect(() => {
@@ -42,7 +46,23 @@ export function HeroV6({ creators, statLine }: HeroV6Props) {
     return () => window.clearInterval(timer);
   }, [reducedMotion]);
 
+  /* O selo só alterna se houver mais de uma prova; com uma só ele fica fixo,
+     e com nenhuma nem aparece. */
+  useEffect(() => {
+    if (reducedMotion || statLines.length < 2) {
+      setStatIndex(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setStatIndex((current) => (current + 1) % statLines.length);
+    }, STAT_ROTATE_MS);
+
+    return () => window.clearInterval(timer);
+  }, [reducedMotion, statLines.length]);
+
   const word = ROTATOR_WORDS[index] ?? ROTATOR_WORDS[0];
+  const statLine = statLines[statIndex] ?? statLines[0] ?? null;
 
   return (
     <section className="d2c-v6-hero" data-landing-section="hero">
@@ -50,7 +70,9 @@ export function HeroV6({ creators, statLine }: HeroV6Props) {
         {statLine && (
           <span className="d2c-v6-hero__badge">
             <i aria-hidden="true" />
-            {statLine}
+            <span key={statLine} className="d2c-v6-hero__badge-text">
+              {statLine}
+            </span>
           </span>
         )}
 

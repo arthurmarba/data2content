@@ -17,16 +17,16 @@ export function LandingMobileCta() {
   }, []);
 
   useEffect(() => {
+    /* Seções que já têm CTA próprio à vista: o botão fixo se cala nelas para
+       não competir. Os seletores seguem o arco v6 — as classes antigas
+       (.d2c-human-hero, .d2c-human-final) não existem mais na página, e sem a
+       atualização o botão fixo cobria justamente o CTA do herói e o do
+       fechamento. */
     const blockedSections = Array.from(document.querySelectorAll<HTMLElement>([
-      ".d2c-human-hero",
-      "[data-landing-section='data-proof']",
-      "[data-landing-section='platform']",
-      "[data-landing-section='collabs']",
-      "[data-landing-section='community']",
-      "[data-landing-section='weekly-community']",
+      ".d2c-v6-hero",
       "[data-landing-section='authority']",
       "[data-landing-section='pricing']",
-      ".d2c-human-final",
+      ".d2c-v6-close",
     ].join(",")));
     if (blockedSections.length === 0) return;
 

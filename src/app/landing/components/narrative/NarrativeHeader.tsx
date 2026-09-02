@@ -8,8 +8,6 @@ import { useState } from "react";
 import { Brand } from "./Brand";
 import { LandingAuthCta } from "./LandingAuthCta";
 
-/* Âncoras do arco v6. A antiga `#reuniao-semanal` saiu junto com a seção: o
-   ritual agora vive dentro de "quem conduz". */
 /* Duas âncoras, como no mockup. A antiga `#reuniao-semanal` saiu junto com a
    seção: o ritual agora vive dentro de "quem conduz". */
 const NAV_LINKS = [

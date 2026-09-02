@@ -22,14 +22,25 @@ import { WhoLeads } from "./components/narrative/v6/WhoLeads";
 
 const formatDecimal = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
-/* A linha do selo do herói usa o número real de conteúdos já analisados; sem a
-   métrica, o selo simplesmente não aparece — placeholder inventado aqui seria
-   número falso na primeira dobra. */
-function buildStatLine(proofMetrics: LandingProofMetrics | null) {
-  if (!proofMetrics?.contentAnalyzed) return null;
+/* O selo do herói alterna entre as três provas agregadas da comunidade — são
+   as mesmas que antes ocupavam uma seção inteira e agora cabem na primeira
+   dobra. Tudo sai de número real: se a métrica não vier, aquela linha não
+   entra, e sem nenhuma o selo some. Placeholder aqui seria número falso na
+   primeira coisa que o visitante lê. */
+function buildStatLines(proofMetrics: LandingProofMetrics | null) {
+  if (!proofMetrics) return [];
+
+  const lines: string[] = [];
   const thousands = Math.floor(proofMetrics.contentAnalyzed / 1_000);
-  if (thousands < 1) return null;
-  return `+${formatDecimal(thousands)} mil conteúdos já assistidos pela nossa IA`;
+  if (thousands >= 1) lines.push(`+${formatDecimal(thousands)} mil conteúdos já assistidos pela nossa IA`);
+
+  const millionViews = Math.floor(proofMetrics.viewsAnalyzed / 1_000_000);
+  if (millionViews >= 1) lines.push(`${formatDecimal(millionViews)} mi visualizações compreendidas`);
+
+  const millionInteractions = Math.floor(proofMetrics.interactionsAnalyzed / 1_000_000);
+  if (millionInteractions >= 1) lines.push(`${formatDecimal(millionInteractions)} mi interações que viraram aprendizado`);
+
+  return lines;
 }
 
 const PLAN_INCLUDES = [
@@ -82,7 +93,7 @@ export function NarrativeLandingPage({ proofMetrics, communityCreators }: Narrat
       <RevealOnScroll />
 
       <main>
-        <HeroV6 creators={communityCreators} statLine={buildStatLine(proofMetrics)} />
+        <HeroV6 creators={communityCreators} statLines={buildStatLines(proofMetrics)} />
         <HowItWorks />
         <FirstAnswer />
         <SecondAnswer />
