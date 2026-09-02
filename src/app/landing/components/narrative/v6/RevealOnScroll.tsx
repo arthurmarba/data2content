@@ -70,9 +70,18 @@ export function RevealOnScroll() {
       frame = window.requestAnimationFrame(check);
     };
 
+    /* O evento de scroll é só a via rápida. Quem realmente conduz é este
+       intervalo: há contextos onde o listener nunca dispara (webviews e painéis
+       embutidos, entre outros) e, sem um segundo mecanismo, tudo abaixo da
+       primeira dobra ficaria escondido para sempre. Ler o retângulo de ~20
+       elementos a cada 250 ms é barato, e o intervalo morre assim que o último
+       bloco entra. */
+    const poll = window.setInterval(check, 250);
+
     function detach() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      window.clearInterval(poll);
       if (frame) window.cancelAnimationFrame(frame);
       frame = 0;
     }
