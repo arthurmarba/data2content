@@ -929,27 +929,68 @@
 }
 
 @media (max-width: 960px) {
-  /* Abaixo desta largura não sobra margem para as anotações laterais: o quadro
-     ocupa o palco e elas viram legendas embaixo, sem linha de ligação. */
+  /* Sem margem lateral para as anotações, o mockup mobile muda a forma: o
+     quadro fica mais largo (3/4) e recuado, e cada atributo vira uma pílula
+     com o ponto amarelo dentro, em vez de rótulo ligado por linha. */
   .d2c-v6-how__stage {
     aspect-ratio: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
+    align-items: stretch;
+    gap: 1.25rem;
+    margin-top: 2.5rem;
   }
   .d2c-v6-how__frame {
     position: relative;
     left: auto;
-    width: min(78vw, 420px);
+    margin-inline: 1.25rem;
+    width: auto;
     height: auto;
-    aspect-ratio: 420 / 740;
+    aspect-ratio: 3 / 4;
+    border-radius: 20px;
   }
-  .d2c-v6-how__notes { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; }
-  .d2c-v6-how__note { position: static !important; width: auto !important; left: auto !important; top: auto !important; }
-  .d2c-v6-how__note-line,
-  .d2c-v6-how__note-dot { display: none; }
-  .d2c-v6-how__note-label { font-size: 1rem; }
+
+  .d2c-v6-how__tags b,
+  .d2c-v6-how__views {
+    height: 1.7rem;
+    padding: 0 0.6rem;
+    font-size: 0.8125rem;
+  }
+
+  .d2c-v6-how__notes {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    padding-inline: 1.25rem;
+  }
+
+  .d2c-v6-how__note {
+    position: static !important;
+    width: auto !important;
+    left: auto !important;
+    top: auto !important;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid rgba(245, 179, 1, 0.35);
+    border-radius: 999px;
+  }
+
+  .d2c-v6-how__note-line { display: none; }
+
+  .d2c-v6-how__note-dot {
+    order: -1;
+    width: 0.375rem;
+    height: 0.375rem;
+    box-shadow: none;
+  }
+
+  .d2c-v6-how__note-label {
+    font-size: 0.8125rem;
+    letter-spacing: -0.02em;
+    color: rgba(255, 255, 255, 0.92);
+  }
 
   .d2c-v6-pauta__body,
   .d2c-v6-publi,
