@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "sh -c 'NODE_OPTIONS=\"--dns-result-order=ipv4first --max-old-space-size=4096 ${NODE_OPTIONS:-}\" NEXT_DISABLE_SERVER_IPC=1 NEXTAUTH_URL=\"${NEXTAUTH_URL:-http://localhost:${PORT:-3000}}\" ./scripts/with-preferred-node.sh next dev -H 127.0.0.1 -p ${PORT:-3000}'",
@@ -16,6 +16,7 @@
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "jest --watchAll=false",
     "test:mcp": "jest --watchAll=false --runInBand src/app/lib/mcp",
+    "test:chatgpt-funnel": "jest --watchAll=false --runInBand src/app/lib/mcp/conversationPolicy.test.ts src/app/dashboard/chatgpt/ready/returnUrl.test.ts src/app/dashboard/chatgpt/ready/ChatGptReturnLink.test.tsx src/app/api/dashboard/community/pro-join/route.test.ts src/app/billing/success/page.test.tsx src/app/api/billing/subscribe/route.test.ts src/app/components/CookieConsent.test.tsx src/middleware.test.ts",
     "eval:mcp": "jest --watchAll=false --runInBand src/app/lib/mcp/qualityEvals.test.ts src/app/lib/mcp/server.test.ts",
     "mcp:generate-key": "node scripts/generateMcpOAuthKey.mjs",
     "smoke:mcp-oauth": "tsx scripts/smokeMcpOAuthCrypto.ts",
@@ -34,6 +35,9 @@
     "normalize-format": "tsx --env-file=.env.local ./scripts/normalizeFormatFromMetricType.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
     "audit:perfil-territorio": "tsx --env-file=.env.local ./scripts/auditPerfilTerritoryCoverage.ts",
+    "audit:hook-readiness": "tsx --env-file=.env.local ./scripts/auditHookRecommendationReadiness.ts",
+    "audit:script-adjustment": "tsx --env-file=.env.local ./scripts/auditScriptAdjustmentExperiment.ts",
+    "classification:complete-empty": "tsx --env-file=.env.local ./scripts/completeEmptyClassifications.ts",
     "audit:collabs": "tsx --env-file=.env.local ./scripts/auditCollabsMechanism.ts",
     "seed:brand-narratives": "tsx --env-file=.env.local ./scripts/seedBrandNarrativeProfiles.ts",
     "seed:brand-narratives:dry-run": "npm run seed:brand-narratives -- --dry-run",
@@ -58,8 +62,16 @@
     "cron:refresh-metrics": "tsx --env-file=.env.local ./scripts/cron/refreshMetrics.ts",
     "relatorio:fechar": "tsx --env-file=.env.local ./scripts/relatorio-semanal/closeWeek.ts",
     "relatorio:fechar:dry-run": "npm run relatorio:fechar -- --dry-run",
+    "relatorio:ganchos:backfill": "tsx --env-file=.env.local ./scripts/relatorio-semanal/backfillHookPatterns.ts",
     "relatorio:auditar-mapa": "tsx --env-file=.env.local ./scripts/relatorio-semanal/auditMapRegistry.ts",
     "relatorio:render": "tsx ./scripts/relatorio-semanal/renderSlides.ts",
+    "campaign-radar:collect": "tsx ./scripts/campaign-radar/collect.ts",
+    "campaign-radar:audit-sources": "tsx ./scripts/campaign-radar/auditSources.ts",
+    "campaign-radar:audit-plugin-sources": "tsx ./scripts/campaign-radar/auditPluginDistribution.ts",
+    "campaign-radar:review": "tsx ./scripts/campaign-radar/applyReview.ts",
+    "campaign-radar:import": "tsx --env-file=.env.local ./scripts/campaign-radar/importCatalog.ts",
+    "campaign-radar:report": "python3 ./scripts/campaign-radar/render_report.py",
+    "campaign-radar:validate": "python3 ./scripts/campaign-radar/validate_report.py",
     "relatorio:cenas": "tsx --env-file=.env.local ./scripts/relatorio-semanal/backfillScenes.ts",
     "relatorio:cenas:dry-run": "npm run relatorio:cenas -- --dry-run --limit=5",
     "refresh:metrics:user": "tsx --env-file=.env.local ./scripts/refreshMetricsByUser.ts",

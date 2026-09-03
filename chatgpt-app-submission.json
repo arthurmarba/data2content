@@ -1,9 +1,9 @@
 {
-  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "$schema": "https://developers.openai.com/plugins/schemas/chatgpt-app-submission.v1.json",
   "schema_version": 1,
   "app_info": {
     "display_name": "Data2Content",
-    "subtitle": "Poste com contexto sem achismo",
+    "subtitle": "Poste: contexto, não achismo",
     "description": "A Data2Content não olha só para curtidas e visualizações. Nossa inteligência assiste aos seus vídeos e entende o assunto, o gancho, o roteiro, o cenário, o enquadramento, o tom de voz e a duração. Depois, cruza tudo isso com o dia, o horário e o resultado de cada publicação para mostrar o que costuma funcionar melhor para você. Também aprende com padrões agregados de creators que falam sobre temas parecidos — como maternidade, fitness ou negócios — e identifica assuntos, ganchos e formatos que estão ganhando força, sem copiar ninguém nem expor dados privados. Dentro do ChatGPT, esse contexto ajuda você a decidir o que postar e criar pautas, estratégias e roteiros mais fiéis à sua voz e à resposta da sua audiência. Assinantes também recebem relatórios semanais, participam de reuniões ao vivo e da comunidade Data2Content.",
     "category": "PRODUCTIVITY"
   },

@@ -8,7 +8,7 @@ import { logger } from '@/app/lib/logger';
 import { IMetric, IMetricStats } from '@/app/models/Metric'; // Assegure que IMetric.format usa FormatType
 import { IUser, IUserPreferences } from '@/app/models/User';
 import { ICommunityInspiration, IInternalMetricsSnapshot } from '@/app/models/CommunityInspiration';
-import OpenAI from 'openai';
+import { llmGenerateSafe } from '@/app/lib/llm';
 import {
     VALID_FORMATS,
     VALID_PROPOSALS,
@@ -31,9 +31,9 @@ import {
     DEFAULT_REFERENCE_ENUM
 } from "@/app/lib/constants/communityInspirations.constants";
 
-// Configuração do cliente OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
+// Resumos comunitários usam o provedor central: Gemini principal e sem fallback
+// OpenAI implícito no escopo COMMUNITY.
+const SUMMARY_MODEL = process.env.GEMINI_MODEL_COMMUNITY_SUMMARY || 'gemini-3.5-flash-lite';
 const SUMMARY_MAX_TOKENS = 100;
 const SUMMARY_TEMPERATURE = 0.5;
 
@@ -197,15 +197,18 @@ Resumo Estratégico/Criativo do Post:`;
 
     try {
         logger.debug(`${fnTag} Gerando resumo para descrição: "${description.substring(0, 50)}..."`);
-        const completion = await openai.chat.completions.create({
-            model: SUMMARY_MODEL,
-            messages: [{ role: 'system', content: "Você é um especialista em análise de conteúdo de mídias sociais." }, { role: 'user', content: prompt }],
+        const completion = await llmGenerateSafe({
+            prompt,
+            system: "Você é um especialista em análise de conteúdo de mídias sociais.",
+            providerModels: { gemini: SUMMARY_MODEL },
+            thinkingLevel: "low",
+            intensity: "low",
             temperature: SUMMARY_TEMPERATURE,
-            max_tokens: SUMMARY_MAX_TOKENS,
-            n: 1,
-        });
+            maxTokens: SUMMARY_MAX_TOKENS,
+            usageTag: "community_inspiration_summary",
+        }, { scope: "COMMUNITY" });
 
-        const summary = completion.choices[0]?.message?.content?.trim();
+        const summary = completion?.text?.trim();
         if (summary) {
             logger.info(`${fnTag} Resumo gerado pela IA: "${summary}"`);
             return summary;
@@ -213,7 +216,7 @@ Resumo Estratégico/Criativo do Post:`;
         logger.warn(`${fnTag} IA não retornou resumo. Usando fallback.`);
         return `Post sobre ${proposal || 'tema relevante'} no contexto de ${context || 'abordagem geral'} no formato ${format || 'mídia'}, focado em sua mensagem principal.`;
     } catch (error) {
-        logger.error(`${fnTag} Erro ao chamar OpenAI para gerar resumo:`, error);
+        logger.error(`${fnTag} Erro ao gerar resumo comunitário com o provedor configurado:`, error);
         return `Análise do post sobre ${proposal || 'tema relevante'} no formato ${format || 'mídia'}.`;
     }
 }

@@ -40,7 +40,22 @@ export interface LlmCallOptions {
  */
 const SCOPE_DEFAULT_PROVIDER: Record<string, LlmProviderName> = {
   MAPA: "gemini",
+  SCRIPTS: "gemini",
+  COMMUNITY: "gemini",
 };
+
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value == null || value.trim() === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
+function isFallbackEnabled(scope?: string): boolean {
+  const scoped = scope ? process.env[`LLM_FALLBACK_${scope}`] : undefined;
+  // Roteiros são Gemini-first por decisão de custo. OpenAI só entra quando o
+  // operador habilitar explicitamente LLM_FALLBACK_SCRIPTS=true.
+  const fallbackDefault = scope === "SCRIPTS" || scope === "COMMUNITY" ? false : true;
+  return parseBoolean(scoped ?? process.env.LLM_FALLBACK_ENABLED, fallbackDefault);
+}
 
 /** Resolve a ordem de tentativa [primário, fallback] a partir do env. */
 export function resolveProviderOrder(scope?: string): LlmProviderName[] {
@@ -49,7 +64,9 @@ export function resolveProviderOrder(scope?: string): LlmProviderName[] {
   const pref = (scoped || process.env.LLM_PROVIDER || scopeDefault || "openai")
     .trim()
     .toLowerCase();
-  return pref === "gemini" ? ["gemini", "openai"] : ["openai", "gemini"];
+  const primary: LlmProviderName = pref === "gemini" ? "gemini" : "openai";
+  if (!isFallbackEnabled(scope)) return [primary];
+  return primary === "gemini" ? ["gemini", "openai"] : ["openai", "gemini"];
 }
 
 /** True em ambiente de teste — short-circuita chamadas reais a provider. */

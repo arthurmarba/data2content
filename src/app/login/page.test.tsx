@@ -134,7 +134,14 @@ describe("LoginPage", () => {
 
     render(await LoginPage());
 
-    expect(screen.getByRole("heading", { name: "Entre para conectar sua conta" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Crie ou conecte sua conta Data2Content" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/sua conta gratuita será criada automaticamente/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Termos de Uso" })).toHaveAttribute(
+      "href",
+      "/termos-e-condicoes",
+    );
     expect(submitGoogleSignInFallbackMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Acesso de revisão" }));

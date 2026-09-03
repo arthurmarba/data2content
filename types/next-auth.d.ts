@@ -2,20 +2,19 @@
 
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT as DefaultJWT } from "next-auth/jwt";
-import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
-import type { UserRole, PlanStatus, AgencyPlanType } from '@/types/enums';
+import type { AvailableInstagramAccount } from '@/app/lib/instagram/types';
+import type { UserRole, PlanStatus, AgencyPlanType, PlanType } from '@/types/enums';
 import type { ProTrialState } from '@/types/billing';
+import type { SerializedPostCreationTrial } from '@/app/lib/postCreationTrial/access';
 
 type PostCreationAccountState = 'pre_signup' | 'registered' | 'merged';
-type SerializedPostCreationTrial = {
-  startedAt: string | null;
-  analysisUsedAt: string | null;
-  pautaUsedAt: string | null;
-  firstDraftId: string | null;
-  completedSignupAt: string | null;
-  subscribedAt: string | null;
-  source: string | null;
-};
+type InstagramReconnectState =
+  | 'idle'
+  | 'oauth_in_progress'
+  | 'awaiting_account_selection'
+  | 'finalizing'
+  | 'connected'
+  | 'failed';
 
 /**
  * Estende a interface Session com campos extras que o frontend consome.
@@ -28,7 +27,7 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       provider?: string | null;
-      role?: UserRole;
+      role?: UserRole | null;
       accountState?: PostCreationAccountState | null;
       postCreationTrial?: SerializedPostCreationTrial | null;
 
@@ -39,9 +38,10 @@ declare module "next-auth" {
 
       // Billing (PESSOAL)
       planStatus?: PlanStatus | "non_renewing" | null;
+      planType?: PlanType | string | null;
       planInterval?: "month" | "year" | null;
       planExpiresAt?: string | null; // manter ISO no cliente
-      cancelAtPeriodEnd?: boolean;
+      cancelAtPeriodEnd?: boolean | null;
       stripeCustomerId?: string | null;
       stripeSubscriptionId?: string | null;
       stripePriceId?: string | null;
@@ -50,7 +50,7 @@ declare module "next-auth" {
       proTrialExpiresAt?: string | null;
 
       // Afiliados
-      affiliateCode?: string;
+      affiliateCode?: string | null;
       affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
       affiliateInvites?: number;
@@ -65,15 +65,23 @@ declare module "next-auth" {
       instagramAccountId?: string | null;
       instagramUsername?: string | null;
       igConnectionError?: string | null;
+      igConnectionErrorCode?: string | null;
       availableIgAccounts?: AvailableInstagramAccount[] | null;
       lastInstagramSyncAttempt?: string | null;
       lastInstagramSyncSuccess?: boolean | null;
+      instagramReconnectNotifiedAt?: string | null;
+      instagramDisconnectCount?: number;
+      instagramReconnectState?: InstagramReconnectState | null;
+      instagramReconnectFlowId?: string | null;
 
       // Onboarding
       isNewUserForOnboarding?: boolean;
       onboardingCompletedAt?: string | null;
 
     } & Omit<DefaultSession["user"], "id">;
+
+    affiliateCode?: string | null;
+    affiliateBalances?: Record<string, number>;
   }
 
   /**
@@ -94,9 +102,10 @@ declare module "next-auth" {
 
     // Billing
     planStatus?: PlanStatus | "non_renewing" | null;
+    planType?: PlanType | string | null;
     planInterval?: "month" | "year" | null;
     planExpiresAt?: Date | null;
-    cancelAtPeriodEnd?: boolean;
+    cancelAtPeriodEnd?: boolean | null;
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
@@ -122,9 +131,15 @@ declare module "next-auth" {
     instagramAccessToken?: string | null;
     igUserAccessToken?: string | null;
     igConnectionError?: string | null;
+    instagramSyncErrorMsg?: string | null;
+    instagramSyncErrorCode?: string | null;
     availableIgAccounts?: AvailableInstagramAccount[] | null;
     lastInstagramSyncAttempt?: Date | null;
     lastInstagramSyncSuccess?: boolean | null;
+    instagramReconnectNotifiedAt?: Date | null;
+    instagramDisconnectCount?: number;
+    instagramReconnectState?: InstagramReconnectState | null;
+    instagramReconnectFlowId?: string | null;
   }
 }
 
@@ -147,9 +162,10 @@ declare module "next-auth/jwt" {
 
     // Billing
     planStatus?: PlanStatus | "non_renewing" | null;
+    planType?: PlanType | string | null;
     planInterval?: "month" | "year" | null;
     planExpiresAt?: Date | string | null;
-    cancelAtPeriodEnd?: boolean;
+    cancelAtPeriodEnd?: boolean | null;
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     stripePriceId?: string | null;
@@ -158,6 +174,7 @@ declare module "next-auth/jwt" {
     proTrialExpiresAt?: Date | string | null;
 
     // Afiliados
+    affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
 
     // Onboarding
@@ -169,9 +186,14 @@ declare module "next-auth/jwt" {
     instagramAccountId?: string | null;
     instagramUsername?: string | null;
     igConnectionError?: string | null;
+    igConnectionErrorCode?: string | null;
     availableIgAccounts?: AvailableInstagramAccount[] | null;
     lastInstagramSyncAttempt?: Date | string | null;
     lastInstagramSyncSuccess?: boolean | null;
+    instagramReconnectNotifiedAt?: Date | string | null;
+    instagramDisconnectCount?: number;
+    instagramReconnectState?: InstagramReconnectState | null;
+    instagramReconnectFlowId?: string | null;
 
     // Stripe Connect (payouts)
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;

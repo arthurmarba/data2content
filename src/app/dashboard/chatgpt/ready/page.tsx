@@ -1,16 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Check, Instagram, Sparkles } from "lucide-react";
-
-function getChatGptReturnUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_CHATGPT_PLUGIN_URL?.trim();
-  if (!configured) return "https://chatgpt.com/";
-  try {
-    const url = new URL(configured);
-    return url.protocol === "https:" ? url.toString() : "https://chatgpt.com/";
-  } catch {
-    return "https://chatgpt.com/";
-  }
-}
+import { ChatGptReturnLink } from "./ChatGptReturnLink";
+import { ChatGptFunnelTracker } from "@/app/chatgpt/ChatGptFunnelTracker";
+import { resolveChatGptPluginReturnUrl } from "./returnUrl";
 
 export default async function ChatGptReadyPage({
   searchParams,
@@ -19,9 +11,15 @@ export default async function ChatGptReadyPage({
 }) {
   const params = await searchParams;
   const instagramLinked = params.instagramLinked === "true";
+  const chatGptReturnUrl = resolveChatGptPluginReturnUrl(
+    process.env.NEXT_PUBLIC_CHATGPT_PLUGIN_URL,
+  );
 
   return (
     <main className="min-h-[100dvh] bg-[#f6f7f9] px-5 py-12 text-[#17191d]">
+      {instagramLinked ? (
+        <ChatGptFunnelTracker step="instagram_connected" context="chatgpt_intelligence" />
+      ) : null}
       <section className="mx-auto w-full max-w-xl rounded-[32px] border border-black/10 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)] sm:p-10">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#17191d] text-white">
           {instagramLinked ? <Check aria-hidden size={22} /> : <Sparkles aria-hidden size={22} />}
@@ -35,7 +33,7 @@ export default async function ChatGptReadyPage({
         <p className="mt-4 text-[15px] leading-7 text-black/60">
           {instagramLinked
             ? "O Instagram foi conectado. Agora a Data2Content pode contextualizar seus planejamentos, pautas e roteiros com o que aprende nos seus próprios conteúdos."
-            : "Você pode continuar usando a Data2Content no ChatGPT com o contexto disponível na sua conta."}
+            : "Sua conta PRO está pronta. Você pode continuar no ChatGPT agora e conectar o Instagram quando quiser para incluir o contexto dos seus próprios conteúdos."}
         </p>
 
         {instagramLinked ? (
@@ -46,12 +44,7 @@ export default async function ChatGptReadyPage({
         ) : null}
 
         <div className="mt-8 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <a
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#17191d] px-6 text-sm font-bold text-white transition hover:bg-black"
-            href={getChatGptReturnUrl()}
-          >
-            Voltar ao ChatGPT
-          </a>
+          <ChatGptReturnLink href={chatGptReturnUrl} />
           <Link
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/20 hover:text-black"
             href="/dashboard/profile?source=chatgpt"
@@ -60,6 +53,12 @@ export default async function ChatGptReadyPage({
             Ver perfil
           </Link>
         </div>
+        {!chatGptReturnUrl ? (
+          <p className="mt-3 text-center text-xs leading-5 text-amber-700">
+            O atalho direto ainda não está configurado. Abra o ChatGPT e selecione a
+            Data2Content entre seus plugins instalados.
+          </p>
+        ) : null}
       </section>
     </main>
   );

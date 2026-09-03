@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
@@ -22,26 +23,35 @@ function resolveCommunityUrl(): string {
   }
 }
 
-function resolvePremiumRequiredUrl(): URL {
+function resolvePremiumRequiredUrl(source: "chatgpt" | null): URL {
   const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
   const url = new URL(CREATOR_PROFILE_ROUTE, base);
   url.searchParams.set(PAYWALL_URL_PARAM, "1");
   url.searchParams.set(PAYWALL_CONTEXT_PARAM, "community");
+  if (source === "chatgpt") {
+    url.searchParams.set("source", "chatgpt");
+  }
   return url;
 }
 
-export async function GET() {
+export async function GET(request?: NextRequest) {
+  const source = request?.nextUrl.searchParams.get("source") === "chatgpt"
+    ? "chatgpt"
+    : null;
   const session = await getServerSession(await resolveAuthOptions());
   const userId = (session as { user?: { id?: string } } | null)?.user?.id;
 
   if (!userId) {
-    const callbackUrl = encodeURIComponent("/api/dashboard/community/pro-join");
+    const callbackPath = source
+      ? "/api/dashboard/community/pro-join?source=chatgpt"
+      : "/api/dashboard/community/pro-join";
+    const callbackUrl = encodeURIComponent(callbackPath);
     return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, process.env.NEXTAUTH_URL || "http://localhost:3000"));
   }
 
   const viewer = (session as { user?: { id?: string; role?: string | null } } | null)?.user;
   if (!(await canAccessPremiumContent(viewer))) {
-    return NextResponse.redirect(resolvePremiumRequiredUrl());
+    return NextResponse.redirect(resolvePremiumRequiredUrl(source));
   }
 
   try {
@@ -53,6 +63,10 @@ export async function GET() {
     if (!result.matchedCount) {
       return NextResponse.json({ ok: false, error: "User not found" }, { status: 404 });
     }
+    logger.info("[dashboard.community.pro-join] Community invite opened", {
+      userId,
+      source: source ?? "direct",
+    });
     return NextResponse.redirect(resolveCommunityUrl());
   } catch (error) {
     logger.error("[dashboard.community.pro-join] Failed to register group link open", error);

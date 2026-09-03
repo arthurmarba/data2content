@@ -1,8 +1,16 @@
-/* As plataformas de onde a D2C reúne as publis. Correm no sentido oposto ao da
-   faixa de criadores e ficam em fundo claro: preto encostando no preto da
-   seção seguinte apagaria a fronteira entre as duas. */
+/* Fontes ativas no radar, por coleta pública ou consolidação manual. Correm no
+   sentido oposto ao da faixa de criadores e ficam em fundo claro: preto
+   encostando no preto da seção seguinte apagaria a fronteira entre as duas. */
 
-const PLATFORMS = ["Squid", "Playnest", "MIS", "BrandLovrs", "Influency.me", "Airfluencers"] as const;
+const PLATFORMS = [
+  "Squid",
+  "PlayNest / Play9",
+  "MIS",
+  "Influency.me",
+  "AirFluencers",
+  "99Freelas",
+  "Tijuca Geek Festival",
+] as const;
 
 export function PlatformMarquee() {
   const loop = [...PLATFORMS, ...PLATFORMS, ...PLATFORMS, ...PLATFORMS];

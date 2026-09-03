@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+const campaignRadarAvailable = process.env.NEXT_PUBLIC_CAMPAIGN_RADAR_ENABLED === "1";
+
 /**
  * O convite do Pro, na hora em que ele é a resposta a alguma coisa.
  *
@@ -102,8 +104,9 @@ export function ProfileProSheet({
           Essa leitura é um exemplo. A sua chega toda segunda.
         </h2>
         <p className="mt-2.5 text-[13px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
-          No Pro, a D2C lê os seus posts, separa o que já é regra do que ainda é hipótese e monta a recomendação da
-          semana em cima do que você postou.
+          No Pro, a D2C analisa os seus posts, mostra o que já funciona e monta a recomendação da semana com base no
+          que você publicou. Esse aprendizado também ajuda a criar conteúdos com mais contexto no ChatGPT
+          {campaignRadarAvailable ? " e a encontrar publicidades relacionadas ao seu perfil" : ""}.
         </p>
         <button type="button" onClick={onUpgrade} className="ds-button ds-button--primary ds-button--block mt-[18px]">
           Ativar o Pro

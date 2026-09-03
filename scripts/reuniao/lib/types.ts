@@ -49,6 +49,35 @@ export interface ParticipanteSemana {
   padroes?: PadroesJanela;
   /** Snapshot da semana anterior (da Galileia), se existir — liga o comparativo. */
   anterior: Snapshot | null;
+  /** Dados agregados da audiência. Nunca inclui informação individual. */
+  demografia?: DemografiaAudiencia;
+  /** Assinante ativo sugerido a partir da base completa da d2c. */
+  collabGlobal?: CollabGlobal;
+}
+
+export interface FaixaDemografica { label: string; percentual: number }
+export interface DemografiaAudiencia {
+  cidades: FaixaDemografica[];
+  paises: FaixaDemografica[];
+  idades: FaixaDemografica[];
+  generos: FaixaDemografica[];
+  atualizadoEm?: string;
+}
+
+export interface CollabGlobal {
+  id: string;
+  nome: string;
+  handle: string | null;
+  avatarUrl?: string | null;
+  score?: number;
+  afinidadeTematica?: boolean;
+  afinidades?: string[];
+  categoriasComuns?: string[];
+  temaBase?: string | null;
+  narrativa?: string;
+  territorios?: string[];
+  temas?: string[];
+  tom?: string;
 }
 
 export interface MeetingContext {
@@ -92,7 +121,66 @@ export interface ProximosPassos {
   /** A lacuna que abre as pautas: território que esfriou ou asset do mapa ocioso. */
   lacuna?: string;
   /** 2–3 pautas ESPECÍFICAS (nível "o dia em que…"), derivadas do mapa — nunca trend. */
-  pautas: { titulo: string; porque: string }[];
+  pautas: {
+    tipo?: "solo" | "collab";
+    titulo: string;
+    /** Frase de abertura pronta para gravação. */
+    gancho?: string;
+    /** Cenário, objeto, enquadramento, tom e divisão de papéis. */
+    execucao?: string;
+    /** Melhor dia/horário sugerido quando existe evidência. */
+    publicacao?: string;
+    /** Métrica principal do teste. */
+    metrica?: string;
+    /** Dado que justifica a pauta. */
+    base?: string;
+    /** Mantido para decks legados. */
+    porque?: string;
+    collab?: {
+      nome: string;
+      handle: string | null;
+      avatarUrl?: string | null;
+      modo?: "remoto" | "presencial";
+      porque: string;
+      papelCriador: string;
+      papelParceiro: string;
+    };
+  }[];
+  /** Calendário executável da semana seguinte: uma publicação por dia. */
+  calendario?: {
+    data: string;
+    dia: string;
+    horario: string;
+    fuso: string;
+    tipo: "solo" | "collab";
+    titulo: string;
+    gancho: string;
+    ganchoBase?: string;
+    duracao: string;
+    duracaoBase?: string;
+    roteiro: string;
+    execucao: string;
+    ondeGravar?: string;
+    objetosCena?: string;
+    enquadramento?: string;
+    tom?: string;
+    narrativaVisual?: string;
+    pacoteBase?: string;
+    cta?: string;
+    metrica: string;
+    audiencia: string;
+    base: string;
+    confianca: "forte" | "parcial" | "teste";
+    collab?: {
+      nome: string;
+      handle: string | null;
+      avatarUrl?: string | null;
+      modo?: "remoto" | "presencial";
+      porque: string;
+      papelCriador: string;
+      papelParceiro: string;
+    };
+  }[];
 }
 
 /** O reel que toca DENTRO do slide (PowerPoint/Keynote desktop). O agente aponta
@@ -100,6 +188,8 @@ export interface ProximosPassos {
  *  preenche videoPath/posterUrl. Sem token/vídeo → degrada pro poster estático. */
 export interface ReelEmbed {
   postId: string | null;
+  /** Rótulo opcional quando o player usa um Reel de apoio fora da semana. */
+  label?: string;
   /** Poster do reel (thumb) — preenchido pelo render; vira o cover do vídeo no PPT. */
   posterUrl?: string | null;
   /** Caminho local do mp4 baixado — preenchido pelo render. */
@@ -152,6 +242,7 @@ export interface CriadorSlide {
    *  `resolveDeck` a partir do context.json — o Galisteu NÃO transcreve número aqui,
    *  igual ao Ato 2 da Galileia: o motor calcula, o render exibe. */
   padroes?: PadroesJanela;
+  demografia?: DemografiaAudiencia;
   /** Interpretação opcional por dimensão (chaveada por `PadraoDimensao.chave` ou
    *  "ganchos"/"assuntos"): 1 frase do que o padrão SIGNIFICA. Nunca repita o
    *  número — ele já está na tabela ao lado. */

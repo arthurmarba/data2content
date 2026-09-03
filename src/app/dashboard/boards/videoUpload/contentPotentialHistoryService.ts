@@ -1,6 +1,8 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import type { VideoNarrativePotentialBand } from "./videoNarrativeContentPotentialScan";
+import { structurePatternFromNarrativeForm } from "./creatorStructureEvidence";
+import { sanitizeScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
 
 export type ContentPotentialCalibrationHistory = {
   outcomesLinked: number;
@@ -27,9 +29,38 @@ function avg(values: Array<number | null>): number | null {
   return usable.length > 0 ? usable.reduce((sum, value) => sum + value, 0) / usable.length : null;
 }
 
+function normalizedTokens(value: unknown): Set<string> {
+  if (typeof value !== "string") return new Set();
+  return new Set(value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1));
+}
+
+export function hookOpeningMatchScore(selected: unknown, published: unknown): number | null {
+  const a = normalizedTokens(selected);
+  const b = normalizedTokens(published);
+  if (a.size === 0 || b.size === 0) return null;
+  const overlap = [...a].filter((token) => b.has(token)).length;
+  return Math.round((2 * overlap / (a.size + b.size)) * 100) / 100;
+}
+
+export function scriptStructureMatchScore(selectedPattern: unknown, publishedForms: unknown): number | null {
+  if (typeof selectedPattern !== "string" || !selectedPattern.trim()) return null;
+  const forms = Array.isArray(publishedForms)
+    ? publishedForms.filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+    : typeof publishedForms === "string" && publishedForms.trim() ? [publishedForms] : [];
+  if (forms.length === 0) return null;
+  return forms.some((value) => structurePatternFromNarrativeForm(value) === selectedPattern) ? 1 : 0;
+}
+
 /**
- * Links a pending "Vou postar" scan only when there is exactly one Instagram
- * post in the following seven-day window. Ambiguous matches stay pending.
+ * Resolves an explicit Instagram media link first. Without one, links a pending
+ * "Vou postar" scan only when there is exactly one Reel in the next seven days.
+ * Ambiguous matches stay pending.
  */
 async function reconcilePendingOutcomes(userId: string): Promise<void> {
   const { default: Diagnosis } = await import("@/app/models/CreatorVideoNarrativeDiagnosis");
@@ -39,17 +70,17 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
     userId: userObjectId,
     publishIntent: "yes",
     publishDecisionAt: { $exists: true },
-    linkedInstagramMediaId: { $exists: false },
+    performanceOutcome: { $exists: false },
     contentPotentialScan: { $exists: true },
   })
-    .select("diagnosisId publishDecisionAt")
+    .select("diagnosisId publishDecisionAt linkedInstagramMediaId hookSelection scriptAdjustmentRecommendation scriptAdjustmentSelection videoMetadata.durationSeconds")
     .sort({ publishDecisionAt: -1 })
     .limit(6)
     .lean();
   if (pending.length === 0) return;
 
   const recentMetrics = await Metric.find({ user: userObjectId })
-    .select("instagramMediaId postDate format type stats")
+    .select("instagramMediaId postDate format type narrativeForm stats sceneElements.openingLine")
     .sort({ postDate: -1 })
     .limit(120)
     .lean();
@@ -63,19 +94,39 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
     const start = new Date(diagnosis.publishDecisionAt);
     if (!Number.isFinite(start.getTime())) continue;
     const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const matches = recentMetrics.filter((metric: any) => {
-      const postDate = new Date(metric.postDate);
-      if (!Number.isFinite(postDate.getTime()) || postDate < start || postDate > end) return false;
-      const formats = Array.isArray(metric.format) ? metric.format : [metric.format, metric.type];
-      return formats.some((value: unknown) => /reel|video/i.test(String(value ?? "")));
-    });
+    const explicitlyLinked = diagnosis.linkedInstagramMediaId
+      ? recentMetrics.find((metric: any) => metric.instagramMediaId === diagnosis.linkedInstagramMediaId)
+      : null;
+    const matches = explicitlyLinked ? [explicitlyLinked] : recentMetrics.filter((metric: any) => {
+        const postDate = new Date(metric.postDate);
+        if (!Number.isFinite(postDate.getTime()) || postDate < start || postDate > end) return false;
+        const formats = Array.isArray(metric.format) ? metric.format : [metric.format, metric.type];
+        return formats.some((value: unknown) => /reel|video/i.test(String(value ?? "")));
+      });
     if (matches.length !== 1) continue;
     const metric: any = matches[0];
     if (!metric?.instagramMediaId) continue;
     const stats = readStats(metric);
     const intent = stats.shares !== null || stats.saves !== null ? (stats.shares ?? 0) + (stats.saves ?? 0) : null;
+    const selectedCandidate = diagnosis.hookSelection?.candidate;
+    const openingMatchScore = selectedCandidate
+      ? hookOpeningMatchScore(selectedCandidate.spokenLine, metric.sceneElements?.openingLine)
+      : null;
+    const scriptRecommendation = sanitizeScriptAdjustmentRecommendation(
+      diagnosis.scriptAdjustmentRecommendation,
+      { durationSeconds: diagnosis.videoMetadata?.durationSeconds },
+    );
+    const selectedStepIds = Array.isArray(diagnosis.scriptAdjustmentSelection?.selectedStepIds)
+      ? diagnosis.scriptAdjustmentSelection.selectedStepIds.filter((value: unknown): value is string => typeof value === "string")
+      : [];
+    const publishedForms = Array.isArray(metric.narrativeForm)
+      ? metric.narrativeForm.filter((value: unknown): value is string => typeof value === "string")
+      : typeof metric.narrativeForm === "string" ? [metric.narrativeForm] : [];
+    const publishedStructureMatchScore = scriptRecommendation
+      ? scriptStructureMatchScore(scriptRecommendation.pattern, publishedForms)
+      : null;
     await Diagnosis.updateOne(
-      { _id: diagnosis._id, linkedInstagramMediaId: { $exists: false } },
+      { _id: diagnosis._id, performanceOutcome: { $exists: false } },
       {
         $set: {
           linkedInstagramMediaId: metric.instagramMediaId,
@@ -85,6 +136,31 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
             relativeIntent: intent !== null && baselineIntent ? intent / baselineIntent : null,
             capturedAt: new Date(),
           },
+          learningStatus: "published_matched",
+          ...(selectedCandidate
+            ? {
+                hookOutcome: {
+                  selectedCandidateId: diagnosis.hookSelection.candidateId,
+                  pattern: selectedCandidate.pattern,
+                  strategy: selectedCandidate.strategy,
+                  openingMatchScore,
+                  usedInPublishedOpening: openingMatchScore === null ? null : openingMatchScore >= 0.7,
+                  capturedAt: new Date(),
+                },
+              }
+            : {}),
+          ...(scriptRecommendation && diagnosis.scriptAdjustmentSelection
+            ? {
+                scriptAdjustmentOutcome: {
+                  recommendationVersion: scriptRecommendation.version,
+                  pattern: scriptRecommendation.pattern,
+                  effort: scriptRecommendation.effort,
+                  selectedStepIds,
+                  publishedStructureMatchScore,
+                  capturedAt: new Date(),
+                },
+              }
+            : {}),
         },
       },
     );

@@ -6,6 +6,7 @@ import { getMcpAccountState } from "@/app/lib/mcp/accountState";
 import { getMcpAdminAuthorization } from "@/app/lib/mcp/adminAuthorization";
 import { readMcpConsentRequest } from "@/app/lib/mcp/oauth/service";
 import { readMcpOAuthSessionUserId } from "@/app/lib/mcp/oauth/session";
+import { enforceCurrentLegalAcceptance } from "@/lib/auth/enforceCurrentLegalAcceptance";
 
 export const metadata: Metadata = {
   title: "Conectar Data2Content ao ChatGPT",
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 
 const SCOPE_LABELS: Record<string, string> = {
   "profile:read": "Consultar seu perfil de creator",
+  "profile:write": "Registrar ou atualizar o seu Norte",
   "metrics:read": "Consultar métricas e performance do Instagram",
   "strategy:read": "Consultar análises e inteligência estratégica",
   "content:read": "Consultar posts, pautas e roteiros salvos",
@@ -24,6 +26,7 @@ const SCOPE_LABELS: Record<string, string> = {
   "collabs:read": "Pesquisar criadores e sugestões de colaboração",
   "scripts:generate": "Gerar rascunhos personalizados com sua inteligência",
   "scripts:write": "Salvar roteiros somente após sua confirmação explícita",
+  "campaigns:read": "Consultar oportunidades públicas revisadas para creators",
   "admin:creators:search": "Pesquisar qualquer creator cadastrado na plataforma",
   "admin:creator:read": "Consultar perfil e cobertura de dados de creators",
   "admin:content:read": "Consultar conteúdos, transcrições e classificações disponíveis",
@@ -62,13 +65,15 @@ export default async function McpAuthorizePage({
 
   const userId = await readMcpOAuthSessionUserId(await cookies());
   if (!userId) {
-    const callbackUrl = new URL("/mcp/authorize", getMcpAppBaseUrl());
-    callbackUrl.searchParams.set("request", requestToken);
+    const callbackUrl = `/mcp/authorize?${new URLSearchParams({ request: requestToken }).toString()}`;
     const login = new URL("/login", getMcpAppBaseUrl());
-    login.searchParams.set("callbackUrl", callbackUrl.toString());
+    login.searchParams.set("callbackUrl", callbackUrl);
     login.searchParams.set("mcp", "1");
     redirect(login.toString());
   }
+
+  const legalCallbackUrl = `/mcp/authorize?${new URLSearchParams({ request: requestToken }).toString()}`;
+  await enforceCurrentLegalAcceptance(legalCallbackUrl);
 
   let consent;
   try {

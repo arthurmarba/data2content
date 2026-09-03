@@ -139,8 +139,8 @@ MCP_OAUTH_PRIVATE_JWK=<JWK EC P-256 privada em JSON>
 MCP_OAUTH_USER_ID_CLAIM=d2c_user_id
 MCP_OAUTH_ALLOWED_ALGORITHMS=ES256
 MCP_REQUIRED_SCOPE=profile:read
-MCP_SUPPORTED_SCOPES=profile:read,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write
-MCP_CONNECTION_SCOPES=profile:read,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write
+MCP_SUPPORTED_SCOPES=profile:read,profile:write,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write
+MCP_CONNECTION_SCOPES=profile:read,profile:write,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write
 
 MCP_ADMIN_ENABLED=0
 MCP_ADMIN_SERVER_URL=https://data2content.ai/api/mcp/admin

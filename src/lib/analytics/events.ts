@@ -614,6 +614,33 @@ export const analyticsEventCatalog = {
       link_target: '' as StringMaybe,
     },
   },
+  chatgpt_funnel_event: {
+    group: 'funnel',
+    description: 'A user advanced through the Data2Content acquisition or activation journey started in ChatGPT.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      step: '' as (
+        | 'resources_viewed'
+        | 'profile_viewed'
+        | 'profile_upgrade_clicked'
+        | 'coupon_copied'
+        | 'checkout_started'
+        | 'subscription_activated'
+        | 'instagram_connect_started'
+        | 'instagram_connected'
+        | 'instagram_connect_skipped'
+        | 'instagram_connect_failed'
+        | 'return_to_chatgpt_clicked'
+        | 'return_to_chatgpt_unavailable'
+        | null
+        | undefined
+      ),
+      source: '' as StringMaybe,
+      context: '' as StringMaybe,
+      status: '' as StringMaybe,
+      event_id: '' as StringMaybe,
+    },
+  },
 } satisfies Record<string, EventSpec<Record<string, any>>>;
 
 export type AnalyticsEventCatalog = typeof analyticsEventCatalog;

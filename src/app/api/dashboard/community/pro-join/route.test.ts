@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+import { NextRequest } from "next/server";
 
 import { canAccessPremiumContent } from "@/app/lib/community/recordedMeetingsAccess";
 import UserModel from "@/app/models/User";
@@ -45,21 +46,28 @@ describe("GET /api/dashboard/community/pro-join", () => {
   it("preserva o retorno quando a sessão não existe", async () => {
     (getServerSession as jest.Mock).mockResolvedValue(null);
 
-    const response = await GET();
+    const response = await GET(new NextRequest(
+      "http://localhost/api/dashboard/community/pro-join?source=chatgpt",
+    ));
 
     expect(response.headers.get("location")).toContain("/login?callbackUrl=");
-    expect(response.headers.get("location")).toContain(encodeURIComponent("/api/dashboard/community/pro-join"));
+    expect(response.headers.get("location")).toContain(
+      encodeURIComponent("/api/dashboard/community/pro-join?source=chatgpt"),
+    );
     expect(updateOne).not.toHaveBeenCalled();
   });
 
   it("não revela o convite nem registra abertura para usuário Free", async () => {
     canAccess.mockResolvedValue(false);
 
-    const response = await GET();
+    const response = await GET(new NextRequest(
+      "http://localhost/api/dashboard/community/pro-join?source=chatgpt",
+    ));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/dashboard/profile");
     expect(response.headers.get("location")).toContain("d2c_paywall_context=community");
+    expect(response.headers.get("location")).toContain("source=chatgpt");
     expect(response.headers.get("location")).not.toBe("https://chat.whatsapp.com/pro-test");
     expect(updateOne).not.toHaveBeenCalled();
   });

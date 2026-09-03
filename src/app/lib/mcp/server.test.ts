@@ -4,9 +4,65 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createD2CMcpServer } from "./server";
 import { generateMcpScriptDraft } from "./catalog";
+import { findMcpCampaignOpportunities } from "./campaignRadar";
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock("./campaignRadar", () => ({
+  extractCampaignRadarPrivateSignals: jest.fn(() => ["maternidade"]),
+  findMcpCampaignOpportunities: jest.fn(async () => ({
+    schemaVersion: "campaign_opportunities_v1",
+    access: "weekly_selection",
+    weekStartsOn: "2026-08-31",
+    message: "Esta é a publicidade selecionada para você nesta semana.",
+    accountNotice:
+      "Sua conta permite consultar uma publicidade selecionada por semana no ChatGPT. " +
+      "Outras publicidades não estão disponíveis para esta conta no momento. " +
+      "Você pode conferir as informações da sua conta na plataforma Data2Content.",
+    personalization: {
+      basis: "declared_profile",
+      instagramConnected: false,
+      instagramSignalsUsed: false,
+    },
+    opportunities: [
+      {
+        title: "Campanha de maternidade",
+        brand: "Marca",
+        summary: "Campanha pública ativa.",
+        opportunityType: "open_application",
+        territories: ["Maternidade e família"],
+        platforms: ["Instagram"],
+        formats: ["Reel"],
+        requirements: [],
+        deliverables: ["1 Reel"],
+        compensation: {
+          label: "R$ 1.200",
+          individualPayConfirmed: true,
+          minimum: 1200,
+          maximum: 1200,
+          currency: "BRL",
+        },
+        applicationDeadline: "2026-09-30",
+        sourcePlatform: "Influencer Brasil",
+        sourceUrl: "https://example.test/source",
+        application: {
+          url: "https://example.test/apply",
+          label: "Candidatar-se",
+          requiresAccount: true,
+        },
+        fit: {
+          type: "exact",
+          label: "Atende aos critérios informados",
+          reasons: ["Tem relação com maternidade."],
+          unmetCriteria: [],
+          acceptanceIsNotGuaranteed: true,
+        },
+        lastVerifiedAt: "2026-09-01T12:00:00.000Z",
+      },
+    ],
+  })),
 }));
 
 jest.mock("./catalog", () => ({
@@ -365,8 +421,25 @@ jest.mock("./catalog", () => ({
 
 jest.mock("./config", () => ({
   getInstagramConnectUrl: () => "https://data2content.ai/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
-  getMcpProfileUrl: () => "https://data2content.ai/chatgpt/recursos",
+  getMcpProfileUrl: () => "https://data2content.ai/dashboard/profile?source=chatgpt",
   getMcpCommunityJoinUrl: () => "https://data2content.ai/api/dashboard/community/pro-join?source=chatgpt",
+  getMcpRequiredScope: () => "profile:read",
+  isMcpCampaignRadarEnabled: () => process.env.MCP_CAMPAIGN_RADAR_ENABLED?.trim() === "1",
+  getMcpConnectionScopes: () => [
+    "profile:read",
+    "profile:write",
+    "metrics:read",
+    "strategy:read",
+    "content:read",
+    "intelligence:read",
+    "audience:read",
+    "collabs:read",
+    "scripts:generate",
+    "scripts:write",
+    "campaigns:read",
+  ],
+  getMcpResourceMetadataUrl: () =>
+    "https://data2content.ai/.well-known/oauth-protected-resource",
 }));
 
 jest.mock("./creatorNorth", () => ({
@@ -376,7 +449,7 @@ jest.mock("./creatorNorth", () => ({
     creatorNorth,
     updatedAt: "2026-08-27T12:00:00.000Z",
     seedSignal: null,
-    next: { tool: "research_inspiration_content", instruction: "Pesquise padrões agregados." },
+    next: { tool: "build_creator_radar", instruction: "Pesquise padrões agregados." },
   })),
 }));
 
@@ -401,10 +474,18 @@ function textPayload(result: Awaited<ReturnType<Client["callTool"]>>) {
 }
 
 describe("Data2Content MCP server", () => {
+  const originalCampaignRadarFlag = process.env.MCP_CAMPAIGN_RADAR_ENABLED;
+
+  afterEach(() => {
+    if (originalCampaignRadarFlag === undefined) delete process.env.MCP_CAMPAIGN_RADAR_ENABLED;
+    else process.env.MCP_CAMPAIGN_RADAR_ENABLED = originalCampaignRadarFlag;
+  });
+
   async function connect(
     instagramConnected: boolean,
     scopes = [
       "profile:read",
+      "profile:write",
       "metrics:read",
       "content:read",
       "strategy:read",
@@ -412,6 +493,7 @@ describe("Data2Content MCP server", () => {
       "collabs:read",
       "scripts:generate",
       "scripts:write",
+      "campaigns:read",
     ],
     accessLevel: "free" | "pro" = "pro",
   ) {
@@ -456,6 +538,7 @@ describe("Data2Content MCP server", () => {
   }
 
   it("exposes read tools plus separated script draft and save actions", async () => {
+    delete process.env.MCP_CAMPAIGN_RADAR_ENABLED;
     const { client, server } = await connect(true);
     try {
       const { tools } = await client.listTools();
@@ -494,9 +577,102 @@ describe("Data2Content MCP server", () => {
         idempotentHint: true,
         destructiveHint: false,
       });
-      expect(tools.find((tool) => tool.name === "get_account_state")?._meta).toMatchObject({
+      const accountStateTool = tools.find((tool) => tool.name === "get_account_state");
+      expect(accountStateTool?._meta).toMatchObject({
         securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
       });
+      expect(tools.find((tool) => tool.name === "set_creator_north")?._meta).toMatchObject({
+        securitySchemes: [{ type: "oauth2", scopes: ["profile:read", "profile:write"] }],
+      });
+      expect(tools.find((tool) => tool.name === "generate_script_draft")?._meta).toMatchObject({
+        securitySchemes: [{ type: "oauth2", scopes: ["profile:read", "scripts:generate"] }],
+      });
+
+      const protocol = server.server as unknown as {
+        _requestHandlers: Map<
+          string,
+          (request: { method: string; params: Record<string, never> }, extra: unknown) => Promise<{
+            tools: Array<Record<string, unknown>>;
+          }>
+        >;
+      };
+      const rawListTools = protocol._requestHandlers.get("tools/list");
+      expect(rawListTools).toBeDefined();
+      const rawResult = await rawListTools?.({ method: "tools/list", params: {} }, {});
+      expect(rawResult?.tools.find((tool) => tool.name === "get_account_state")).toMatchObject({
+        securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("adds the read-only campaign tool only when the future rollout flag is enabled", async () => {
+    process.env.MCP_CAMPAIGN_RADAR_ENABLED = "1";
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const { tools } = await client.listTools();
+      expect(tools.find((tool) => tool.name === "find_campaign_opportunities")).toMatchObject({
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        _meta: {
+          securitySchemes: [{ type: "oauth2", scopes: ["profile:read", "campaigns:read"] }],
+        },
+      });
+
+      const result = await client.callTool({
+        name: "find_campaign_opportunities",
+        arguments: {
+          query: "publicidade de maternidade",
+          territories: ["Maternidade e família"],
+          platforms: ["Instagram"],
+          formats: ["Reel"],
+          minimumConfirmedPay: 1000,
+          includePrograms: false,
+          limit: 5,
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        access: "weekly_selection",
+        opportunities: [{ application: { url: "https://example.test/apply" } }],
+      });
+      expect(JSON.stringify(result.structuredContent)).not.toContain("activePublicCatalog");
+      expect(JSON.stringify(result.content)).not.toContain("free_closing_reminder_v1");
+      expect(findMcpCampaignOpportunities).toHaveBeenCalledWith(expect.objectContaining({
+        userId: "507f1f77bcf86cd799439011",
+        search: expect.objectContaining({ minimumConfirmedPay: 1000 }),
+      }));
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("adds analyzed Instagram signals to campaign matching only for an eligible connected account", async () => {
+    process.env.MCP_CAMPAIGN_RADAR_ENABLED = "1";
+    const { client, server } = await connect(true, undefined, "pro");
+    try {
+      await client.callTool({
+        name: "find_campaign_opportunities",
+        arguments: {
+          query: "publicidade de maternidade",
+          territories: [],
+          platforms: [],
+          formats: [],
+          includePrograms: false,
+          limit: 5,
+        },
+      });
+      expect(findMcpCampaignOpportunities).toHaveBeenLastCalledWith(expect.objectContaining({
+        privateContentSignals: ["maternidade"],
+      }));
     } finally {
       await client.close();
       await server.close();
@@ -584,6 +760,37 @@ describe("Data2Content MCP server", () => {
         action: "reauthorize_connector",
         reconnectRequired: true,
       });
+      expect(result._meta).toMatchObject({
+        "mcp/www_authenticate": [
+          expect.stringContaining('error="insufficient_scope"'),
+        ],
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("requests only the baseline and write scopes when an older connection updates the North", async () => {
+    const { client, server } = await connect(false, ["profile:read"], "free");
+    try {
+      const result = await client.callTool({
+        name: "set_creator_north",
+        arguments: { creatorNorth: "Ajudo pequenos negócios a criarem conteúdo com clareza." },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(textPayload(result)).toMatchObject({
+        error: "insufficient_scope",
+        requiredScope: "profile:write",
+        action: "reauthorize_connector",
+      });
+      expect(result._meta).toMatchObject({
+        "mcp/www_authenticate": [
+          expect.stringContaining('scope="profile:read profile:write"'),
+        ],
+      });
+      expect(JSON.stringify(result.content)).not.toContain("free_closing_reminder_v1");
     } finally {
       await client.close();
       await server.close();
@@ -814,7 +1021,7 @@ describe("Data2Content MCP server", () => {
     }
   });
 
-  it("gives free accounts a useful state without promotional footers", async () => {
+  it("gives free accounts a useful state with an informational profile reminder", async () => {
     const { client, server } = await connect(false, undefined, "free");
     try {
       const result = await client.callTool({ name: "get_account_state" });
@@ -823,7 +1030,21 @@ describe("Data2Content MCP server", () => {
         accessLevel: "free",
         northDeclared: true,
         contextDepth: "creator_north_and_aggregate_community",
-        profileUrl: "https://data2content.ai/chatgpt/recursos",
+        profileUrl: "https://data2content.ai/dashboard/profile?source=chatgpt",
+        conversationPolicy: {
+          accountState: "ready_free",
+          availableContext: "north_and_aggregate",
+          closingReminder: {
+            frequency: "every_response",
+            message: expect.stringContaining("perfil personalizado Data2Content"),
+            url: "https://data2content.ai/dashboard/profile?source=chatgpt",
+          },
+          commercialBoundary: {
+            mentionSubscription: false,
+            directToCheckout: false,
+            profileIsInformationalDestination: true,
+          },
+        },
         membership: {
           included: false,
           communityJoinPending: false,
@@ -837,20 +1058,95 @@ describe("Data2Content MCP server", () => {
     }
   });
 
-  it("keeps aggregate research available while protecting private creator data on free accounts", async () => {
+  it("keeps free context aggregate and blocks identifiable community references", async () => {
     const { client, server } = await connect(false, undefined, "free");
     try {
-      const aggregate = await client.callTool({
+      const research = await client.callTool({
         name: "research_inspiration_content",
         arguments: { mode: "by_topic", query: "IA", filters: {}, periodDays: 180, limit: 6 },
       });
-      expect(aggregate.isError).not.toBe(true);
+      expect(research.isError).toBe(true);
+      expect(textPayload(research)).toMatchObject({
+        error: "community_inspiration_unavailable",
+        nextTool: "build_creator_radar",
+        profileUrl: "https://data2content.ai/dashboard/profile?source=chatgpt",
+      });
+
+      const analysis = await client.callTool({
+        name: "analyze_inspiration_content",
+        arguments: { inspirationId: "inspiration:507f1f77bcf86cd799439020" },
+      });
+      expect(analysis.isError).toBe(true);
+      expect(textPayload(analysis)).toMatchObject({ error: "community_inspiration_unavailable" });
+
+      const comparison = await client.callTool({
+        name: "compare_inspiration_contents",
+        arguments: {
+          inspirationIds: [
+            "inspiration:507f1f77bcf86cd799439020",
+            "inspiration:507f1f77bcf86cd799439021",
+          ],
+        },
+      });
+      expect(comparison.isError).toBe(true);
+      expect(textPayload(comparison)).toMatchObject({ error: "community_inspiration_unavailable" });
 
       const privateResult = await client.callTool({ name: "get_performance_summary" });
       expect(privateResult.isError).toBe(true);
       expect(textPayload(privateResult)).toMatchObject({
         error: "private_creator_intelligence_unavailable",
-        profileUrl: "https://data2content.ai/chatgpt/recursos",
+        profileUrl: "https://data2content.ai/dashboard/profile?source=chatgpt",
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("guides PRO users without Instagram only when private context would help", async () => {
+    const { client, server } = await connect(false, undefined, "pro");
+    try {
+      const result = await client.callTool({ name: "get_account_state" });
+
+      expect(result.structuredContent).toMatchObject({
+        accessLevel: "pro",
+        instagramConnected: false,
+        conversationPolicy: {
+          accountState: "ready_pro_without_instagram",
+          closingReminder: {
+            frequency: "when_private_context_would_help",
+            message: expect.stringContaining("cenário, gancho, roteiro, tom de voz"),
+            url:
+              "https://data2content.ai/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
+          },
+          instagram: {
+            requiredForPrivateCreatorAnalysis: true,
+            optionalForOtherMembershipBenefits: true,
+          },
+        },
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("offers the community footer only to PRO users and at most once per conversation", async () => {
+    const { client, server } = await connect(true, undefined, "pro");
+    try {
+      const result = await client.callTool({ name: "get_account_state" });
+
+      expect(result.structuredContent).toMatchObject({
+        conversationPolicy: {
+          closingReminder: { frequency: "none" },
+          community: {
+            included: true,
+            inviteFrequency: "once_per_conversation",
+            inviteMessage: expect.stringContaining("comunidade Data2Content"),
+            joinUrl:
+              "https://data2content.ai/api/dashboard/community/pro-join?source=chatgpt",
+          },
+        },
       });
     } finally {
       await client.close();
@@ -869,8 +1165,32 @@ describe("Data2Content MCP server", () => {
       expect(result.structuredContent).toMatchObject({
         schemaVersion: "creator_north_v1",
         creatorNorth: "Ajudo pequenos negócios a criarem conteúdo com clareza.",
-        next: { tool: "research_inspiration_content" },
+        next: { tool: "build_creator_radar" },
       });
+      expect(JSON.stringify(result.content)).toContain("free_closing_reminder_v1");
+      expect(JSON.stringify(result.content)).toContain(
+        "https://data2content.ai/dashboard/profile?source=chatgpt",
+      );
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("does not append the free profile reminder to successful PRO responses", async () => {
+    const { client, server } = await connect(true, undefined, "pro");
+    try {
+      const result = await client.callTool({
+        name: "generate_script_draft",
+        arguments: {
+          prompt: "Crie um roteiro sobre organização de conteúdo",
+          title: "Organização",
+          lookbackDays: 180,
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(JSON.stringify(result.content)).not.toContain("free_closing_reminder_v1");
     } finally {
       await client.close();
       await server.close();
@@ -913,6 +1233,30 @@ describe("Data2Content MCP server", () => {
         includePrivateIntelligence: false,
         prompt: expect.stringContaining("Norte declarado pelo creator"),
       }));
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("does not let free accounts bypass nominal research with inspiration IDs", async () => {
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({
+        name: "generate_script_draft",
+        arguments: {
+          prompt: "Crie um roteiro inspirado nesta referência",
+          title: "Referência",
+          lookbackDays: 180,
+          inspirationContentIds: ["inspiration:507f1f77bcf86cd799439020"],
+        },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(textPayload(result)).toMatchObject({
+        error: "community_inspiration_unavailable",
+        nextTool: "build_creator_radar",
+      });
     } finally {
       await client.close();
       await server.close();

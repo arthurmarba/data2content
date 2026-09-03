@@ -45,7 +45,10 @@ export const openaiProvider: LlmProvider = {
 
   async generate(params: LlmGenerateParams) {
     const intensity = params.intensity ?? "medium";
-    const model = params.model || resolveModel(intensity);
+    // Overrides Gemini pertencem ao outro provider e não devem vazar para o
+    // fallback OpenAI.
+    const requestedModel = params.providerModels?.openai || params.model;
+    const model = requestedModel?.startsWith("gpt-") ? requestedModel : resolveModel(intensity);
     const temperature = params.temperature ?? TEMPERATURE_BY_INTENSITY[intensity];
     const maxTokens = params.maxTokens ?? DEFAULT_MAX_TOKENS_BY_INTENSITY[intensity];
     const TAG = "[llm][openai]";

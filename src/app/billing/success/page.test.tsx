@@ -6,10 +6,11 @@ import {
   resolveBillingSuccessAttemptId,
   sanitizeBillingSuccessReturnTo,
 } from "./page";
-import { act, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
+import { track } from "@/lib/track";
 
 jest.mock("next/navigation", () => ({
   useSearchParams: jest.fn(),
@@ -32,6 +33,7 @@ describe("billing success postCheckoutIntent helpers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.sessionStorage.clear();
+    document.cookie = "cookie_consent=denied; Path=/";
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams("session_id=cs_test"));
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useSession as jest.Mock).mockReturnValue({
@@ -155,6 +157,7 @@ describe("billing success postCheckoutIntent helpers", () => {
   it("depois do checkout do ChatGPT oferece a conexão opcional e retorna ao plugin", async () => {
     const push = jest.fn();
     (useRouter as jest.Mock).mockReturnValue({ push });
+    document.cookie = "cookie_consent=granted; Path=/";
     window.sessionStorage.setItem(
       "d2c.paywall.return",
       JSON.stringify({
@@ -164,6 +167,55 @@ describe("billing success postCheckoutIntent helpers", () => {
         postCheckoutIntent: "connect_instagram",
       }),
     );
+
+    render(<BillingSuccessPage />);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
+    ));
+    expect(track).toHaveBeenCalledWith(
+      "chatgpt_funnel_event",
+      expect.objectContaining({
+        step: "subscription_activated",
+        event_id: "d2c_subscription_cs_test",
+      }),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/analytics/openai-conversion",
+      expect.objectContaining({
+        method: "POST",
+        keepalive: true,
+        body: JSON.stringify({
+          attemptId: "cs_test",
+          planId: "d2c_pro_monthly",
+        }),
+      }),
+    );
+  });
+
+  it("recupera o retorno ChatGPT do Stripe mesmo sem sessionStorage", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (global.fetch as jest.Mock).mockImplementation(async (input: string) => {
+      if (input.startsWith("/api/billing/checkout-context")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            journey: {
+              context: "chatgpt_intelligence",
+              source: "chatgpt_profile_upgrade",
+              returnTo: "/dashboard/profile?source=chatgpt",
+              postCheckoutIntent: "connect_instagram",
+            },
+          }),
+        } as any;
+      }
+      return {
+        ok: true,
+        json: async () => ({ ok: true, status: "active", instagram: { connected: false } }),
+      } as any;
+    });
 
     render(<BillingSuccessPage />);
 
@@ -212,5 +264,74 @@ describe("billing success postCheckoutIntent helpers", () => {
     await findByRole("heading", { name: /Estamos confirmando seu pagamento/i });
     expect(queryByRole("link", { name: /Conectar meu Instagram/i })).toBeNull();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("mantém o pagamento pendente quando o status do plano está indisponível", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      json: async () => ({ ok: false }),
+    } as any);
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "planning",
+        source: "chatgpt_profile_upgrade",
+        returnTo: "/dashboard/profile?source=chatgpt",
+        postCheckoutIntent: "connect_instagram",
+      }),
+    );
+
+    const { findByRole } = render(<BillingSuccessPage />);
+
+    await findByRole("heading", { name: /Estamos confirmando seu pagamento/i });
+    expect(push).not.toHaveBeenCalled();
+    expect(track).not.toHaveBeenCalledWith(
+      "subscription_activated",
+      expect.anything(),
+    );
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/analytics/openai-conversion",
+      expect.anything(),
+    );
+    expect(window.sessionStorage.getItem("d2c.paywall.return")).not.toBeNull();
+  });
+
+  it("permite verificar novamente e continua o fluxo assim que o plano fica ativo", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    let planChecks = 0;
+    (global.fetch as jest.Mock).mockImplementation(async (input: string) => {
+      if (input.startsWith("/api/billing/checkout-context")) {
+        return { ok: true, json: async () => ({ ok: true, journey: null }) } as any;
+      }
+      planChecks += 1;
+      return {
+        ok: true,
+        json: async () => ({
+          ok: true,
+          status: planChecks === 1 ? "pending" : "active",
+          instagram: { connected: false },
+        }),
+      } as any;
+    });
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "planning",
+        source: "chatgpt_profile_upgrade",
+        returnTo: "/dashboard/profile?source=chatgpt",
+        postCheckoutIntent: "connect_instagram",
+      }),
+    );
+
+    const { findByRole } = render(<BillingSuccessPage />);
+    fireEvent.click(await findByRole("button", { name: /Verificar novamente/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin",
+    ));
+    expect(planChecks).toBe(2);
   });
 });

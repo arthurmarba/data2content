@@ -25,14 +25,14 @@ const execFileP = promisify(execFile);
 import {
   coverSlide,
   aberturaSlide,
-  respiroSlide,
+  aberturaDestaqueIndices,
   criadorSlideA,
-  criadorSlideB,
   criadorSlideC,
+  criadorDemografiaSlide,
+  criadorCalendarioSlide,
   criadorSlidePadroes,
+  criadorSlidePadroesDetalhes,
   criadorSlideGanchos,
-  collabSlide,
-  constelacaoSlide,
   fechamentoSlide,
   SLIDE_W,
   SLIDE_H,
@@ -184,56 +184,28 @@ async function buscarReels(deck: DeckData, assetsDir: string, reelSecs: number, 
   return out;
 }
 
-/** Monta a lista ordenada de slides com metadados de vídeo (índice do criador). */
-function ordenarSlides(deck: DeckData): { html: string; criadorIdx: number | null }[] {
-  const out: { html: string; criadorIdx: number | null }[] = [{ html: coverSlide(deck), criadorIdx: null }];
+/** Monta a lista ordenada de slides com os índices dos vídeos a embutir. */
+function ordenarSlides(deck: DeckData): { html: string; reelIndices: number[] }[] {
+  const out: { html: string; reelIndices: number[] }[] = [{ html: coverSlide(deck), reelIndices: [] }];
   // Abertura (respiro escuro): o fio da semana — reseta o olho antes dos densos.
-  out.push({ html: aberturaSlide(deck), criadorIdx: null });
+  out.push({ html: aberturaSlide(deck), reelIndices: aberturaDestaqueIndices(deck) });
   const total = deck.criadores.length;
-  // Grupo grande (>6): fatia os criadores em blocos de 4 com um respiro "A seguir"
-  // entre eles — evita a parede de documentos numa reunião lotada. <=6 não fatia.
-  const CHUNK = 4;
   deck.criadores.forEach((c, i) => {
-    if (i > 0 && total > 6 && i % CHUNK === 0) {
-      const nomes = deck.criadores.slice(i, i + CHUNK).map((x) => x.nome).join(" · ");
-      out.push({
-        html: respiroSlide({ fundo: "paper", kicker: "A seguir", titulo: nomes }),
-        criadorIdx: null,
-      });
+    // Cada seção termina na decisão editorial: resultado → rankings → pautas.
+    out.push({ html: criadorSlideA(c, i + 1, total), reelIndices: [i] });
+    const demografia = criadorDemografiaSlide(c, i + 1, total);
+    if (demografia) out.push({ html: demografia, reelIndices: [] });
+    for (const html of [criadorSlidePadroes(c, i + 1, total), criadorSlidePadroesDetalhes(c, i + 1, total), criadorSlideGanchos(c, i + 1, total)]) {
+      if (html) out.push({ html, reelIndices: [] });
     }
-    // 3 tempos por criador ativo: evidência → aprendizado → decisão.
-    // Sem-sinal fica em um único slide de retomada pelo mapa.
-    out.push({ html: criadorSlideA(c, i + 1, total), criadorIdx: i });
-    if (!c.semSinal) {
-      out.push({ html: criadorSlideB(c, i + 1, total), criadorIdx: null });
-      out.push({ html: criadorSlideC(c, i + 1, total), criadorIdx: null });
-    }
-    // Ato dos padrões (90 dias): o ranking por cenário/objeto/dia/horário e os
-    // ganchos. Vale TAMBÉM pra quem não postou na semana — quem está parado é
-    // justamente quem precisa ver com o que costuma voltar. Vazio honesto: cada
-    // função devolve "" sem dado, e o slide simplesmente não entra.
-    for (const html of [criadorSlidePadroes(c, i + 1, total), criadorSlideGanchos(c, i + 1, total)]) {
-      if (html) out.push({ html, criadorIdx: null });
+    const calendarPages = ([0, 1, 2, 3] as const).map((page) => criadorCalendarioSlide(c, i + 1, total, page));
+    if (calendarPages.every(Boolean)) {
+      for (const html of calendarPages) out.push({ html, reelIndices: [] });
+    } else {
+      out.push({ html: criadorSlideC(c, i + 1, total), reelIndices: [] });
     }
   });
-  // Todas as collabs escritas entram: com 8+ participantes o deck precisa de mais
-  // de 3 pares pra ninguém ficar sem par (antes o slice(0,3) descartava calado).
-  const collabs = deck.collabs;
-  const temCollabs = collabs.length > 0;
-  const constel = constelacaoSlide(deck);
-  if (temCollabs || constel) {
-    // Divisor (respiro accent): vira pro ato das pontes — quebra a parede de criadores.
-    out.push({
-      html: respiroSlide({ fundo: "accent", kicker: "Ato 2", titulo: "As pontes", sub: "Quem combina com quem — e o mapa de territórios da sala." }),
-      criadorIdx: null,
-    });
-  }
-  // 1 slide rico por collab.
-  collabs.forEach((c, i) =>
-    out.push({ html: collabSlide(c, i + 1, collabs.length, deck.criadores), criadorIdx: null }),
-  );
-  if (constel) out.push({ html: constel, criadorIdx: null });
-  out.push({ html: fechamentoSlide(deck), criadorIdx: null });
+  out.push({ html: fechamentoSlide(deck), reelIndices: [] });
   return out;
 }
 
@@ -263,17 +235,21 @@ async function main() {
   // a about:blank limpa o frame anterior sem abrir dezenas de páginas.
   const browser = await chromium.launch({ args: ["--disable-gpu", "--disable-gpu-compositing"] });
   const page = await browser.newPage({ viewport: { width: SLIDE_W, height: SLIDE_H }, deviceScaleFactor: 2 });
-  type Rendered = { png: string; video?: { path: string; poster: string | null; box: { x: number; y: number; w: number; h: number } } };
+  type VideoRendered = { path: string; poster: string | null; box: { x: number; y: number; w: number; h: number } };
+  type Rendered = { png: string; videos: VideoRendered[] };
   const rendered: Rendered[] = [];
   for (let i = 0; i < slides.length; i++) {
     const htmlFile = path.join(deckDir, `.slide-${i}.html`);
     const png = path.join(deckDir, `slide-${String(i + 1).padStart(2, "0")}.png`);
-    const reel = slides[i].criadorIdx != null ? reels.get(slides[i].criadorIdx!) : undefined;
-    let video: Rendered["video"];
-    if (!assembleOnly || reel) {
+    const slideReels = slides[i].reelIndices.map((idx) => ({ idx, reel: reels.get(idx) })).filter((item) => Boolean(item.reel));
+    const videos: VideoRendered[] = [];
+    if (!assembleOnly || slideReels.length > 0) {
       await page.goto("about:blank");
       await fs.writeFile(htmlFile, slides[i].html);
-      await page.goto(pathToFileURL(htmlFile).href, { waitUntil: "networkidle" });
+      // URLs de avatar/thumbnail do Instagram podem manter conexões pendentes ou
+      // expirar. O HTML e os assets locais já bastam para compor o slide; esperar
+      // `networkidle` fazia um único recurso externo travar o deck inteiro.
+      await page.goto(pathToFileURL(htmlFile).href, { waitUntil: "domcontentloaded" });
       await page.evaluate(async () => {
         // @ts-ignore
         if (document.fonts?.ready) await document.fonts.ready;
@@ -283,20 +259,25 @@ async function main() {
       } else {
         await fs.access(png);
       }
-      if (reel) {
-        const box = await page.evaluate(() => {
-          const el = document.querySelector("[data-vbox]") as HTMLElement | null;
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          return { x: r.x, y: r.y, w: r.width, h: r.height };
+      if (slideReels.length > 0) {
+        const boxes = await page.evaluate(() => {
+          return Array.from(document.querySelectorAll("[data-vbox]")).map((el) => {
+            const r = (el as HTMLElement).getBoundingClientRect();
+            const attr = (el as HTMLElement).dataset.reelIndex;
+            return { x: r.x, y: r.y, w: r.width, h: r.height, reelIndex: attr == null ? null : Number(attr) };
+          });
         });
-        if (box) video = { path: reel.videoPath, poster: reel.posterPath, box };
+        boxes.forEach((box, boxIndex) => {
+          const idx = box.reelIndex ?? slides[i].reelIndices[boxIndex];
+          const reel = idx == null ? undefined : reels.get(idx);
+          if (reel) videos.push({ path: reel.videoPath, poster: reel.posterPath, box });
+        });
       }
       await fs.rm(htmlFile, { force: true });
     } else {
       await fs.access(png);
     }
-    rendered.push({ png, video });
+    rendered.push({ png, videos });
   }
   await browser.close();
   console.error(`✓ ${rendered.length} slides renderizados (${reels.size} com reel)`);
@@ -309,16 +290,17 @@ async function main() {
     const r = rendered[i]!;
     const slide = pptx.addSlide();
     slide.addImage({ path: r.png, x: 0, y: 0, w: PPTX_W, h: PPTX_H });
-    if (r.video) {
+    for (let videoIndex = 0; videoIndex < r.videos.length; videoIndex++) {
+      const video = r.videos[videoIndex]!;
       // O pptxgenjs salva covers em um arquivo .png dentro do pacote, mesmo quando
       // o data URL recebido contém JPEG. PowerPoint Mac rejeita esse mismatch
       // (extensão/MIME PNG com bytes JPEG) e pode invalidar todas as imagens do
       // slide. Normalizamos o poster para PNG real antes de embuti-lo.
       let cover: string | undefined;
-      if (r.video.poster) {
+      if (video.poster) {
         try {
-          const coverPng = path.join(assetsDir, `pptx-cover-${String(i + 1).padStart(2, "0")}.png`);
-          await execFileP("ffmpeg", ["-y", "-i", r.video.poster, "-frames:v", "1", coverPng]);
+          const coverPng = path.join(assetsDir, `pptx-cover-${String(i + 1).padStart(2, "0")}-${videoIndex + 1}.png`);
+          await execFileP("ffmpeg", ["-y", "-i", video.poster, "-frames:v", "1", coverPng]);
           const b64 = (await fs.readFile(coverPng)).toString("base64");
           cover = `data:image/png;base64,${b64}`;
         } catch {
@@ -328,12 +310,12 @@ async function main() {
       }
       slide.addMedia({
         type: "video",
-        path: r.video.path,
+        path: video.path,
         ...(cover ? { cover } : {}),
-        x: r.video.box.x / PX_PER_IN,
-        y: r.video.box.y / PX_PER_IN,
-        w: r.video.box.w / PX_PER_IN,
-        h: r.video.box.h / PX_PER_IN,
+        x: video.box.x / PX_PER_IN,
+        y: video.box.y / PX_PER_IN,
+        w: video.box.w / PX_PER_IN,
+        h: video.box.h / PX_PER_IN,
       });
     }
   }

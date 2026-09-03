@@ -899,6 +899,12 @@ export default function InstagramConnectingPage() {
             >
               Copiar diagnóstico
             </button>
+            <a
+              href="/suporte-plugin"
+              className="ds-button ds-button--quiet ds-button--small ml-2 mt-2"
+            >
+              Abrir suporte Data2Content
+            </a>
             {diagnosticCopyState === "copied" && (
               <p className="mt-1 text-xs font-medium text-[var(--ds-color-success)]">
                 Diagnóstico copiado.

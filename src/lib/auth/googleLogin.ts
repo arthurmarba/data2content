@@ -11,6 +11,26 @@ export function normalizeInternalCallbackUrl(callbackUrl: unknown) {
   return normalizedCallbackUrl;
 }
 
+export function normalizeBrowserInternalCallbackUrl(
+  callbackUrl: unknown,
+  browserOrigin: string,
+) {
+  const relative = normalizeInternalCallbackUrl(callbackUrl);
+  if (relative !== MAIN_DASHBOARD_ROUTE || callbackUrl === MAIN_DASHBOARD_ROUTE) {
+    return relative;
+  }
+  if (typeof callbackUrl !== "string") return relative;
+
+  try {
+    const requested = new URL(callbackUrl.trim());
+    const trustedOrigin = new URL(browserOrigin).origin;
+    if (requested.origin !== trustedOrigin) return MAIN_DASHBOARD_ROUTE;
+    return `${requested.pathname}${requested.search}${requested.hash}`;
+  } catch {
+    return MAIN_DASHBOARD_ROUTE;
+  }
+}
+
 export function buildGoogleConsentLoginUrl(
   callbackUrl: string = MAIN_DASHBOARD_ROUTE,
 ) {
@@ -26,7 +46,11 @@ export function redirectToGoogleConsentLogin(
   callbackUrl: string = MAIN_DASHBOARD_ROUTE,
 ) {
   if (typeof window === "undefined") return;
-  window.location.assign(buildGoogleConsentLoginUrl(callbackUrl));
+  const normalizedCallbackUrl = normalizeBrowserInternalCallbackUrl(
+    callbackUrl,
+    window.location.origin,
+  );
+  window.location.assign(buildGoogleConsentLoginUrl(normalizedCallbackUrl));
 }
 
 export async function submitGoogleSignInFallback(
@@ -34,7 +58,10 @@ export async function submitGoogleSignInFallback(
 ) {
   if (typeof window === "undefined") return;
 
-  const normalizedCallbackUrl = normalizeInternalCallbackUrl(callbackUrl);
+  const normalizedCallbackUrl = normalizeBrowserInternalCallbackUrl(
+    callbackUrl,
+    window.location.origin,
+  );
   const response = await fetch("/api/auth/csrf", {
     credentials: "same-origin",
     headers: { Accept: "application/json" },

@@ -105,24 +105,26 @@ export function WhoLeads() {
             independente de comunicação, entretenimento e experiência de marketing do Brasil.
           </p>
         </div>
-        <figure className="d2c-v6-meetups__shot d2c-v6-meetups__shot--a">
-          <Image
-            src="/images/landing/v6/encontro-1.jpg"
-            alt="Criadores reunidos presencialmente no Dreamers"
-            width={647}
-            height={420}
-            sizes="(max-width: 860px) 90vw, 420px"
-          />
-        </figure>
-        <figure className="d2c-v6-meetups__shot d2c-v6-meetups__shot--b">
-          <Image
-            src="/images/landing/v6/encontro-2.jpg"
-            alt="Encontro presencial da comunidade D2C"
-            width={647}
-            height={574}
-            sizes="(max-width: 860px) 90vw, 360px"
-          />
-        </figure>
+        <div className="d2c-v6-meetups__rail">
+          <figure className="d2c-v6-meetups__shot d2c-v6-meetups__shot--a">
+            <Image
+              src="/images/landing/v6/encontro-1.jpg"
+              alt="Criadores reunidos presencialmente no Dreamers"
+              width={647}
+              height={420}
+              sizes="(max-width: 860px) 256px, 420px"
+            />
+          </figure>
+          <figure className="d2c-v6-meetups__shot d2c-v6-meetups__shot--b">
+            <Image
+              src="/images/landing/v6/encontro-2.jpg"
+              alt="Encontro presencial da comunidade D2C"
+              width={647}
+              height={574}
+              sizes="(max-width: 860px) 256px, 360px"
+            />
+          </figure>
+        </div>
       </div>
     </section>
   );

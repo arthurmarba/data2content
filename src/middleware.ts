@@ -1,6 +1,12 @@
 // middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  normalizeOpenAiOppref,
+  OPENAI_ATTRIBUTION_MAX_AGE_SECONDS,
+  OPENAI_OPPREF_COOKIE_NAME,
+  OPENAI_OPPREF_QUERY_PARAM,
+} from "@/lib/openAiAdsAttribution";
 const AFFILIATE_COOKIE_NAME = "d2c_ref";
 const AFFILIATE_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/i;
 const MEDIA_KIT_PATH_REGEX = /^\/mediakit\/([^/]+)$/i;
@@ -23,6 +29,27 @@ function applyAffiliateCookie(res: NextResponse, refCode: string) {
       60 *
       60,
   });
+}
+
+function applyOpenAiAttributionCookie(res: NextResponse, req: NextRequest) {
+  if (req.cookies.get("cookie_consent")?.value !== "granted") return;
+  const oppref = normalizeOpenAiOppref(
+    req.nextUrl.searchParams.get(OPENAI_OPPREF_QUERY_PARAM),
+  );
+  if (!oppref) return;
+
+  res.cookies.set(OPENAI_OPPREF_COOKIE_NAME, oppref, {
+    path: "/",
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: OPENAI_ATTRIBUTION_MAX_AGE_SECONDS,
+  });
+}
+
+function applyAttributionCookies(res: NextResponse, req: NextRequest, refCode: string) {
+  applyAffiliateCookie(res, refCode);
+  applyOpenAiAttributionCookie(res, req);
 }
 
 function extractMediaKitToken(pathname: string): string | null {
@@ -109,7 +136,7 @@ export async function middleware(req: NextRequest) {
 
   const mobileEntryRedirect = createMobileDashboardEntryRedirect(req);
   if (mobileEntryRedirect) {
-    applyAffiliateCookie(mobileEntryRedirect, refCode);
+    applyAttributionCookies(mobileEntryRedirect, req, refCode);
     return mobileEntryRedirect;
   }
 
@@ -135,7 +162,7 @@ export async function middleware(req: NextRequest) {
             const redirectUrl = req.nextUrl.clone();
             redirectUrl.pathname = `/mediakit/${canonicalSlug}`;
             const redirectResponse = NextResponse.redirect(redirectUrl, 308);
-            applyAffiliateCookie(redirectResponse, refCode);
+            applyAttributionCookies(redirectResponse, req, refCode);
             return redirectResponse;
           }
         }
@@ -150,7 +177,7 @@ export async function middleware(req: NextRequest) {
       headers: createForwardedRequestHeaders(req),
     },
   });
-  applyAffiliateCookie(res, refCode);
+  applyAttributionCookies(res, req, refCode);
   return res;
 }
 

@@ -14,7 +14,14 @@ export const dynamic = "force-dynamic";
 
 function loginRedirect(request: NextRequest): NextResponse {
   const login = new URL("/login", getMcpAppBaseUrl());
-  login.searchParams.set("callbackUrl", request.url);
+  // O login aceita somente destinos internos relativos. Enviar `request.url`
+  // (absoluta) fazia o normalizador de segurança cair no dashboard e quebrava
+  // a continuação do OAuth para usuários ainda deslogados.
+  login.searchParams.set(
+    "callbackUrl",
+    `${request.nextUrl.pathname}${request.nextUrl.search}`,
+  );
+  login.searchParams.set("mcp", "1");
   return NextResponse.redirect(login);
 }
 

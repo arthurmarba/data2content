@@ -51,7 +51,7 @@ describe("videoNarrativeGeminiProviderConfig", () => {
 
   it("max output tokens default comporta o JSON do diagnóstico", () => {
     const result = resolveVideoNarrativeGeminiProviderConfig({});
-    expect(result.config.maxOutputTokens).toBe(4096);
+    expect(result.config.maxOutputTokens).toBe(6144);
   });
 
   it("não expõe API key em issues", () => {

@@ -62,9 +62,9 @@ export async function saveMcpCreatorNorth(userId: string, value: unknown) {
     updatedAt: updatedAt.toISOString(),
     seedSignal,
     next: {
-      tool: "research_inspiration_content" as const,
+      tool: "build_creator_radar" as const,
       instruction:
-        "Use o Norte como tema para buscar padrões agregados da comunidade e então produza a primeira resposta contextualizada.",
+        "Relacione o Norte com padrões agregados e anonimizados da comunidade para produzir a primeira resposta contextualizada.",
     },
   };
 }

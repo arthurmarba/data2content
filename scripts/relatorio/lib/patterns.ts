@@ -269,8 +269,12 @@ export function buildPadroes(
   posts: PostJanela[],
   periodo: { de: string; ate: string },
   semanaDe: Date,
+  baselineMedianas?: { shares: number | null; saved: number | null; views: number | null },
 ): PadroesJanela {
-  const medianas = {
+  // Use a baseline anterior à semana quando ela estiver disponível. Isso
+  // evita que uma semana com muitos posts zerados transforme a mediana em zero
+  // e apague rankings que têm dados válidos (caso real: Glow40 e Camila).
+  const medianas = baselineMedianas ?? {
     shares: medianAll(posts.map((p) => p.stats.shares)),
     saved: medianAll(posts.map((p) => p.stats.saved)),
     views: medianAll(posts.map((p) => p.stats.views)),
@@ -291,7 +295,9 @@ export function buildPadroes(
     medianas,
     dimensoes,
     ganchos: buildExtremos(posts, medianas.shares, (p) => {
-      const t = p.sceneElements?.openingLine;
+      // Gancho pode ser verbal ou visual. Quando o vídeo abre com texto na
+      // tela e não com fala, o screenTitle é a abertura que a audiência viu.
+      const t = p.sceneElements?.openingLine ?? p.sceneElements?.screenTitle;
       return typeof t === "string" && t.trim() ? t.trim() : null;
     }),
     // Um post traz até 4 assuntos específicos; juntamos os dele numa linha só

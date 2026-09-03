@@ -9,6 +9,7 @@ import { InstagramMedia } from '../types';
 import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
 
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
@@ -166,6 +167,7 @@ export async function saveMetricData(
       }
     }
 
+    const hasDescription = Boolean(media.caption?.trim());
     const finalUpdateOperation: any = {
       $set: {
         user: userId,
@@ -184,7 +186,9 @@ export async function saveMetricData(
       },
       $setOnInsert: {
         createdAt: new Date(),
-        classificationStatus: 'pending',
+        classificationStatus: hasDescription ? 'pending' : 'completed',
+        classificationError: null,
+        ...(!hasDescription ? createEmptyMetricClassificationUpdate() : {}),
       }
     };
     if (Object.keys(statsUpdate).length === 0 && finalUpdateOperation.$set.stats) {

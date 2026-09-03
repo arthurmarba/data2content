@@ -27,6 +27,10 @@ import {
 import { TAX_ID_INVALID_MESSAGE, parseTaxId } from "@/app/lib/billing/taxId";
 import { formatChargeDate, resolveFirstChargeDate } from "@/app/lib/billing/firstCharge";
 import { syncTaxIdToStripe } from "@/app/lib/billing/syncTaxIdToStripe";
+import {
+  checkoutJourneyToMetadata,
+  normalizeCheckoutJourney,
+} from "@/app/lib/billing/checkoutJourney";
 
 export const runtime = "nodejs";
 
@@ -102,6 +106,7 @@ function buildIdempotencyKey(params: {
   currency: Currency;
   affiliateCode?: string;
   promotionCode?: string;
+  journeyKey?: string;
 }) {
   const bucket = Math.floor(Date.now() / (1000 * 60 * 5)); // 5 min window
   const raw = [
@@ -112,6 +117,7 @@ function buildIdempotencyKey(params: {
     params.currency,
     params.affiliateCode || "",
     params.promotionCode || "",
+    params.journeyKey || "",
     String(bucket),
   ].join(":");
   return crypto.createHash("sha256").update(raw).digest("hex");
@@ -310,6 +316,15 @@ export async function POST(req: NextRequest) {
     const plan: Plan = String(body.plan || "").toLowerCase() as Plan;
     const currency = String(body.currency || "").toUpperCase() as Currency;
     const requestedPromotionCode = normalizePromotionCode(body.promotionCode);
+    const rawCheckoutContext = body.checkoutContext && typeof body.checkoutContext === "object"
+      ? {
+          ...body.checkoutContext,
+          source: body.checkoutContext.source ?? body.source,
+        }
+      : { source: body.source };
+    const checkoutJourney = normalizeCheckoutJourney(rawCheckoutContext);
+    const checkoutJourneyMetadata = checkoutJourneyToMetadata(checkoutJourney);
+    const checkoutJourneyKey = JSON.stringify(checkoutJourneyMetadata);
 
     if (!["monthly", "annual"].includes(plan) || !["BRL", "USD"].includes(currency)) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
@@ -532,11 +547,11 @@ export async function POST(req: NextRequest) {
     const existingAffiliateCode = normalizeCode(user.affiliateUsed || undefined) || undefined;
     const affiliateCode: string | undefined =
       existingAffiliateCode || normalizeCode(resolved.code || undefined) || undefined;
-    const source: "typed" | "url" | "cookie" | undefined = existingAffiliateCode
+    const affiliateSource: "typed" | "url" | "cookie" | undefined = existingAffiliateCode
       ? undefined
       : (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
 
-    const typedCode = source === "typed" ? affiliateCode : undefined;
+    const typedCode = affiliateSource === "typed" ? affiliateCode : undefined;
     const priceId = getPriceId(plan, currency);
 
     let customerId = await getOrCreateStripeCustomerId(user);
@@ -775,11 +790,15 @@ export async function POST(req: NextRequest) {
       discounts = manual.discounts;
     }
 
-    const metadata: Record<string, string> = { userId: String(user._id), plan };
+    const metadata: Record<string, string> = {
+      userId: String(user._id),
+      plan,
+      ...checkoutJourneyMetadata,
+    };
     if (affiliateOwner && affiliateCode) {
       metadata.affiliateCode = affiliateCode;
       metadata.affiliate_user_id = String(affiliateOwner._id);
-      if (source) metadata.attribution_source = String(source);
+      if (affiliateSource) metadata.attribution_source = String(affiliateSource);
     }
     if (promotionCode) metadata.promotionCode = promotionCode;
 
@@ -821,6 +840,7 @@ export async function POST(req: NextRequest) {
           line_items: [{ price: priceId, quantity: 1 }],
           payment_method_collection: "always",
           discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
+          metadata,
           subscription_data: {
             metadata,
             // Aparece no resumo do pedido, ao lado do preço cheio.
@@ -850,6 +870,7 @@ export async function POST(req: NextRequest) {
             currency,
             affiliateCode,
             promotionCode,
+            journeyKey: checkoutJourneyKey,
           }),
         });
       } catch (error) {
@@ -941,6 +962,7 @@ export async function POST(req: NextRequest) {
         currency,
         affiliateCode,
         promotionCode,
+        journeyKey: checkoutJourneyKey,
       }),
     });
 
@@ -1001,14 +1023,14 @@ export async function POST(req: NextRequest) {
           : {}
         ),
         ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
+        metadata,
         subscription_data: {
           metadata: {
-            userId: String(user._id),
-            plan,
+            ...metadata,
             ...(affiliateOwner && affiliateCode
               ? { affiliateCode, affiliate_user_id: String(affiliateOwner._id) }
               : {}),
-            ...(source ? { attribution_source: String(source) } : {}),
+            ...(affiliateSource ? { attribution_source: String(affiliateSource) } : {}),
             ...(promotionCode ? { promotionCode } : {}),
           },
         },
@@ -1024,6 +1046,7 @@ export async function POST(req: NextRequest) {
           currency,
           affiliateCode,
           promotionCode,
+          journeyKey: checkoutJourneyKey,
         }),
       });
 

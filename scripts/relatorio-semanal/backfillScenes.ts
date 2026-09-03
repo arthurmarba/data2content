@@ -14,6 +14,7 @@
 //   ... --days=90        (janela, default 90; ignorado quando --week é usado)
 //   ... --limit=200      (teto de vídeos nesta execução — TETO DE CUSTO)
 //   ... --user=<id>      (um criador só)
+//   ... --media=<id,id>  (somente Reels específicos; útil para completar um PPT)
 //
 // CUSTO: ~US$ 0,005 por vídeo. 3.300 vídeos (90 dias da base inteira) ≈ US$ 17.
 // O --limit existe para isso: rode em lotes e confira o gasto em GeminiUsageLog
@@ -59,6 +60,10 @@ async function main() {
   const days = Number(arg("days") ?? 90);
   const limit = Number(arg("limit") ?? 25);
   const userId = arg("user");
+  const mediaIds = (arg("media") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   await connectToDatabase();
 
@@ -86,13 +91,17 @@ async function main() {
   const query: Record<string, unknown> = {
     postDate: range,
     instagramMediaId: { $ne: null },
-    "stats.video_duration_seconds": { $gt: 0 },
     // Só o que ainda não foi lido nesta versão do vocabulário.
     $or: [
       { sceneElements: { $exists: false } },
       { "sceneElements.version": { $ne: SCENE_EVALUATION_VERSION } },
     ],
   };
+  if (mediaIds.length > 0) {
+    query.instagramMediaId = { $in: mediaIds };
+  } else {
+    query["stats.video_duration_seconds"] = { $gt: 0 };
+  }
   if (userId) {
     query.user = new Types.ObjectId(userId);
   } else {

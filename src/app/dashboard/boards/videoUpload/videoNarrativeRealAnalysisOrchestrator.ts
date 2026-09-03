@@ -48,6 +48,18 @@ import {
   type ControlledVideoReadingSynthesisSnapshotWriteResult,
 } from "./creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator";
 import { enrichContentPotentialWithCreatorHistory } from "./creatorEngagementPotentialEngine";
+import { buildLegacyHookRecommendation, sanitizeHookRecommendation } from "./hookRecommendation";
+import { groundHookRecommendationWithCreatorEvidence } from "./hookRecommendationRanking";
+import {
+  buildFallbackScriptAdjustmentRecommendation,
+  sanitizeScriptAdjustmentRecommendation,
+} from "./scriptAdjustmentRecommendation";
+import { rankScriptAdjustmentRecommendation } from "./scriptAdjustmentRanking";
+import { isCreatorStructureEvidenceEnabled, isScriptAdjustmentEnabled } from "./scriptAdjustmentFeatureFlag";
+import {
+  resolveScriptAdjustmentExperiment,
+  type ScriptAdjustmentExperimentCohort,
+} from "./scriptAdjustmentExperiment";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -92,6 +104,8 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
         /** Eixo marca do veredito "vale postar?". */
         brandCoherence?: VideoNarrativeAxisCoherence | null;
         contentPotentialScan?: import("./videoNarrativeContentPotentialScan").VideoNarrativeContentPotentialScan | null;
+        hookRecommendation?: import("./hookRecommendation").HookRecommendation | null;
+        scriptAdjustmentRecommendation?: import("./scriptAdjustmentRecommendation").ScriptAdjustmentRecommendation | null;
       };
       cleanupWarning?: string;
     }
@@ -127,6 +141,11 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
   audienceContext?: import("./videoNarrativeAiProviderTypes").VideoNarrativeAudienceContextSummary | null;
   contentPotentialHistory?: import("./contentPotentialHistoryService").ContentPotentialCalibrationHistory | null;
   engagementBaseline?: import("./creatorEngagementBaselineService").CreatorEngagementBaseline | null;
+  /** Anonymous, outcome-ranked opening patterns from the creator's territory. */
+  territoryHookContext?: import("./territoryHookEvidenceService").TerritoryHookContext | null;
+  /** Anonymous, outcome-ranked narrative structures from the creator's territory. */
+  territoryStructureContext?: import("./territoryStructureEvidenceService").TerritoryStructureContext | null;
+  scriptAdjustmentCohort?: ScriptAdjustmentExperimentCohort;
   geminiConfig?: VideoNarrativeGeminiProviderConfig;
   geminiClient?: VideoNarrativeGeminiClientAdapter | null;
   runProvider?: (params: {
@@ -296,6 +315,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
 }): Promise<VideoNarrativeRealAnalysisOrchestratorResult> {
   const deps = params.deps ?? {};
   const env = deps.env ?? process.env;
+  const scriptAdjustmentCohort = deps.scriptAdjustmentCohort
+    ?? resolveScriptAdjustmentExperiment({ userId: params.user.id ?? "anonymous", env });
   const now = deps.now?.() ?? new Date();
   const createdAt = now.toISOString();
   const configResult = deps.geminiConfig
@@ -508,6 +529,14 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
         topPerformingPattern: deps.topPerformingPattern ?? null,
         pastCreatorAnswers: deps.pastCreatorAnswers ?? null,
         audienceContext: deps.audienceContext ?? null,
+        hookEvidence: deps.engagementBaseline?.hookEvidence ?? null,
+        territoryHookContext: deps.territoryHookContext ?? null,
+        structureEvidence: scriptAdjustmentCohort === "personalized" && isCreatorStructureEvidenceEnabled(env)
+          ? deps.engagementBaseline?.structureEvidence ?? null
+          : null,
+        territoryStructureContext: scriptAdjustmentCohort === "personalized"
+          ? deps.territoryStructureContext ?? null
+          : null,
       },
       instagramMetrics: deps.instagramMetrics ?? undefined,
       promptVersion: configResult.config.promptVersion,
@@ -624,6 +653,56 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
+  const parsedHookRecommendation = sanitizeHookRecommendation(providerResult.analysis.hookRecommendation)
+    ?? buildLegacyHookRecommendation({
+      suggestedHook: providerResult.analysis.suggestedHook,
+      whyForThisVideo: providerResult.analysis.contentPotentialScan?.dimensions.openingClarity.evidence
+        ?? providerResult.analysis.recommendedAdjustment,
+      creatorPosts: deps.engagementBaseline?.postsAnalyzed ?? 0,
+      windowDays: deps.engagementBaseline?.windowDays ?? 0,
+    });
+  const hookRecommendation = parsedHookRecommendation
+    ? groundHookRecommendationWithCreatorEvidence({
+        recommendation: parsedHookRecommendation,
+        creatorEvidence: deps.engagementBaseline?.hookEvidence ?? [],
+        creatorPosts: deps.engagementBaseline?.postsAnalyzed ?? 0,
+        windowDays: deps.engagementBaseline?.windowDays ?? 0,
+        territoryContext: deps.territoryHookContext ?? null,
+      })
+    : null;
+  if (hookRecommendation) {
+    providerResult.analysis.hookRecommendation = hookRecommendation;
+    // Legacy diagnosis and map consumers continue to read suggestedHook.
+    providerResult.analysis.suggestedHook = hookRecommendation.primary.spokenLine;
+  }
+
+  const scriptAdjustmentEnabled = isScriptAdjustmentEnabled(env) && scriptAdjustmentCohort !== "control";
+  const parsedScriptAdjustment = scriptAdjustmentEnabled
+    ? sanitizeScriptAdjustmentRecommendation(providerResult.analysis.scriptAdjustmentRecommendation, {
+        durationSeconds: mediaProbe.metadata.durationSeconds,
+      }) ?? buildFallbackScriptAdjustmentRecommendation({
+        suggestedHook: hookRecommendation?.primary.spokenLine ?? providerResult.analysis.suggestedHook,
+        practicalDirection: providerResult.analysis.contentPotentialScan?.practicalDirection ?? null,
+        confidence: providerResult.analysis.contentPotentialScan?.confidence ?? "low",
+      })
+    : null;
+  const scriptAdjustmentRecommendation = parsedScriptAdjustment
+    ? rankScriptAdjustmentRecommendation({
+        recommendation: parsedScriptAdjustment,
+        durationSeconds: mediaProbe.metadata.durationSeconds,
+        creatorEvidence: scriptAdjustmentCohort === "personalized" && isCreatorStructureEvidenceEnabled(env)
+          ? deps.engagementBaseline?.structureEvidence ?? []
+          : [],
+        creatorPosts: scriptAdjustmentCohort === "personalized" ? deps.engagementBaseline?.postsAnalyzed ?? 0 : 0,
+        territoryContext: scriptAdjustmentCohort === "personalized" ? deps.territoryStructureContext ?? null : null,
+      })
+    : null;
+  if (scriptAdjustmentRecommendation) {
+    providerResult.analysis.scriptAdjustmentRecommendation = scriptAdjustmentRecommendation;
+  } else {
+    delete providerResult.analysis.scriptAdjustmentRecommendation;
+  }
+
   const rawContentPotentialScan = providerResult.analysis.contentPotentialScan ??
     buildFallbackVideoNarrativeContentPotentialScan({
       selectedGoalOption: params.payload.selectedGoalOption,
@@ -638,7 +717,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   const contextualizedContentPotentialScan = contextualizeVideoNarrativeContentPotentialScan({
     scan: calibratedContentPotentialScan,
     evidenceAnchors: providerResult.analysis.evidenceAnchors,
-    suggestedHook: providerResult.analysis.suggestedHook,
+    suggestedHook: hookRecommendation?.primary.spokenLine ?? providerResult.analysis.suggestedHook,
     nextActions: providerResult.analysis.nextActions,
   });
   const contentPotentialScan = deps.engagementBaseline
@@ -693,6 +772,9 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       seed: artifacts.seed,
       analyzedAt: now,
       createdAt: now,
+      hookRecommendation,
+      scriptAdjustmentRecommendation,
+      scriptAdjustmentExperimentCohort: scriptAdjustmentCohort,
       ...(params.payload.persistSynthesisSnapshot !== true
         ? {
             analysisLifecycle: {
@@ -794,6 +876,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       audienceCoherence: providerResult.analysis.audienceCoherence ?? null,
       brandCoherence: providerResult.analysis.brandCoherence ?? null,
       contentPotentialScan,
+      hookRecommendation,
+      scriptAdjustmentRecommendation,
     },
     cleanupWarning,
   };

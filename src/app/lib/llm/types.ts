@@ -10,6 +10,12 @@ export type LlmProviderName = "openai" | "gemini";
 
 export interface LlmGenerateParams {
   prompt: string;
+  /** Identificador seguro do fluxo para atribuição de uso/custo (nunca inclui PII). */
+  usageTag?: string;
+  /** Modelo específico por provider, útil quando há fallback entre famílias diferentes. */
+  providerModels?: Partial<Record<LlmProviderName, string>>;
+  /** Nível de raciocínio para modelos Gemini 3.x. */
+  thinkingLevel?: "low" | "medium" | "high";
   /** Instrução de sistema (system prompt / systemInstruction). */
   system?: string;
   /** Controla qualidade × custo. Cada provider mapeia para seu próprio modelo. */

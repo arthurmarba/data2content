@@ -15,6 +15,9 @@ import type {
   VideoNarrativeCoherence,
 } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisTypes";
 import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
+import type { HookRecommendation, HookRecommendationCandidate } from "@/app/dashboard/boards/videoUpload/hookRecommendation";
+import type { ScriptAdjustmentRecommendation } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentRecommendation";
+import type { ScriptAdjustmentExperimentCohort } from "@/app/dashboard/boards/videoUpload/scriptAdjustmentExperiment";
 
 export interface ICreatorVideoNarrativeDiagnosis extends Document {
   userId: Types.ObjectId;
@@ -36,6 +39,19 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   /** Coherence verdict against the creator's confirmed top-performing narrative pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  hookRecommendation?: HookRecommendation;
+  hookSelection?: {
+    candidateId: string;
+    candidate: HookRecommendationCandidate;
+    selectedAt: Date;
+  };
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation;
+  scriptAdjustmentSelection?: {
+    selectedStepIds: string[];
+    recommendationVersion: string;
+    selectedAt: Date;
+  };
+  scriptAdjustmentExperimentCohort?: ScriptAdjustmentExperimentCohort;
   /** Versioned pre-publication analysis surface. */
   analysisVersion?: "v1" | "v2";
   /** V2 analyses stay out of the narrative map until matched to a published post. */
@@ -74,6 +90,22 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
     saves?: number | null;
     relativeReach?: number | null;
     relativeIntent?: number | null;
+    capturedAt: Date;
+  };
+  hookOutcome?: {
+    selectedCandidateId: string;
+    pattern: string;
+    strategy: string;
+    openingMatchScore: number | null;
+    usedInPublishedOpening: boolean | null;
+    capturedAt: Date;
+  };
+  scriptAdjustmentOutcome?: {
+    recommendationVersion: string;
+    pattern: string;
+    effort: string;
+    selectedStepIds: string[];
+    publishedStructureMatchScore: number | null;
     capturedAt: Date;
   };
   schemaVersion: "creator_video_narrative_diagnosis_v1";
@@ -311,6 +343,17 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     contentContext: { type: Schema.Types.Mixed, required: false, default: undefined },
     narrativeCoherence: { type: Schema.Types.Mixed, required: false, default: undefined },
     contentPotentialScan: { type: Schema.Types.Mixed, required: false, default: undefined },
+    hookRecommendation: { type: Schema.Types.Mixed, required: false, default: undefined },
+    hookSelection: { type: Schema.Types.Mixed, required: false, default: undefined },
+    scriptAdjustmentRecommendation: { type: Schema.Types.Mixed, required: false, default: undefined },
+    scriptAdjustmentSelection: { type: Schema.Types.Mixed, required: false, default: undefined },
+    scriptAdjustmentExperimentCohort: {
+      type: String,
+      enum: ["control", "video_only", "personalized"],
+      required: false,
+      default: undefined,
+      index: true,
+    },
     analysisVersion: { type: String, enum: ["v1", "v2"], required: false, default: "v1" },
     learningStatus: {
       type: String,
@@ -341,6 +384,8 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     publishDecisionAt: { type: Date, required: false, default: undefined },
     linkedInstagramMediaId: { type: String, required: false, default: undefined, index: true },
     performanceOutcome: { type: Schema.Types.Mixed, required: false, default: undefined },
+    hookOutcome: { type: Schema.Types.Mixed, required: false, default: undefined },
+    scriptAdjustmentOutcome: { type: Schema.Types.Mixed, required: false, default: undefined },
     safetyFlags: { type: SafetyFlagsSchema, required: true },
     schemaVersion: {
       type: String,

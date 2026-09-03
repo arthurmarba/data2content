@@ -9,6 +9,7 @@ const INSUFFICIENT_QUOTA_PATTERNS = [
   "insufficient balance",
   "saldo insuficiente",
   "saldo da ia",
+  "saldo/quota da ia",
 ];
 
 const RATE_LIMIT_PATTERNS = [

@@ -700,6 +700,7 @@
 }
 
 .d2c-v6-publi__reqs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.d2c-v6-publi__check { display: none; }
 
 .d2c-v6-publi__reqs li {
   display: flex;
@@ -885,6 +886,7 @@
 
 .d2c-v6-meetups__copy { padding-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .d2c-v6-meetups__copy p { margin: 0; font-size: 1.125rem; line-height: 1.45; color: rgba(255, 255, 255, 0.72); }
+.d2c-v6-meetups__rail { display: contents; }
 
 .d2c-v6-meetups__shot { margin: 0; border-radius: 18px 0 0 0; overflow: hidden; }
 .d2c-v6-meetups__shot img { width: 100%; height: auto; display: block; }
@@ -1326,4 +1328,346 @@
 
 @media (prefers-reduced-motion: reduce) {
   .d2c-v6-faq__chevron { transition: none; }
+}
+
+/* Ajustes de fidelidade do artboard mobile v7 (390px). Ficam deliberadamente
+   no fim da folha para vencer as recomposições genéricas sem tocar o desktop. */
+@media (max-width: 720px) {
+  /* 01 — cabeçalho e herói */
+  .d2c-human-landing.d2c-v6 .d2c-landing-header {
+    position: absolute;
+    inset: 0 0 auto;
+    top: 0;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(10px);
+  }
+
+  .d2c-human-landing.d2c-v6 .d2c-landing-header__actions { display: flex; }
+  .d2c-human-landing.d2c-v6 .d2c-menu-button,
+  .d2c-v6 .d2c-landing-header .d2c-brand__mark { display: none; }
+  .d2c-v6 .d2c-landing-header .d2c-brand {
+    font-family: var(--font-d2c-display), system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+  }
+  .d2c-v6 .d2c-landing-header .d2c-button--small {
+    min-height: 2.5rem;
+    padding-inline: 1.05rem;
+    font-size: 0.9375rem;
+  }
+
+  .d2c-v6 .d2c-mobile-conversion { display: none; }
+  .d2c-v6-hero { padding: 6.5rem 0 0; }
+  .d2c-v6-hero__inner { gap: 1rem; }
+  .d2c-v6-hero__badge {
+    min-height: 2.25rem;
+    height: auto;
+    margin-bottom: 0;
+    padding: 0.4rem 0.9rem;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .d2c-v6-hero__headline { margin-top: 0.4rem; line-height: 1.08; }
+  .d2c-v6-hero__sub { font-size: 1rem; line-height: 1.5; }
+  .d2c-v6-hero__cta { width: 100%; gap: 0.85rem; margin-top: 1.25rem; }
+  .d2c-v6-hero__cta .d2c-button--human { width: 100%; }
+  .d2c-v6-hero__cta .d2c-button--human svg,
+  .d2c-v6-plan__offer .d2c-button--human svg,
+  .d2c-v6-close .d2c-button--human svg { display: none; }
+  .d2c-v6-hero__note { font-size: 0.8125rem; line-height: 1.4; }
+  .d2c-v6-hero__strips { margin-top: 2.5rem; }
+  .d2c-v6-marquee--creators { padding: 0.25rem 0 1.5rem; }
+  .d2c-v6-marquee--creators .d2c-v6-marquee__track { gap: 0.6rem; }
+  .d2c-v6-chip { height: 64px; gap: 0.55rem; padding: 0 1rem 0 0.5rem; }
+  .d2c-v6-chip__avatar { width: 46px; height: 46px; }
+  .d2c-v6-chip__text { gap: 0.1rem; }
+  .d2c-v6-chip__text b { font-size: 0.875rem; }
+  .d2c-v6-chip__text small { font-size: 0.8125rem; }
+  .d2c-v6-marquee--platforms { height: 76px; }
+  .d2c-v6-marquee--platforms .d2c-v6-marquee__track {
+    gap: 2.25rem;
+    font-size: 1.5rem;
+  }
+
+  /* 02 — aqui os números são soltos; os selos começam apenas nos blocos de
+     entrega e configuração das seções seguintes. */
+  .d2c-v6-how { padding: 5rem 0 4rem; }
+  .d2c-v6-how .d2c-v6-head { margin-bottom: 2rem; }
+  .d2c-v6-how .d2c-v6-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
+    border-top: 0;
+    padding-top: 0;
+  }
+  .d2c-v6-how .d2c-v6-step {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    padding-top: 1.25rem;
+  }
+  .d2c-v6-how .d2c-v6-step__n {
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: none;
+    font-size: 0.875rem;
+    line-height: normal;
+    text-align: left;
+  }
+  .d2c-v6-how .d2c-v6-step__t { font-size: 1.4375rem; line-height: 1.15; }
+  .d2c-v6-how .d2c-v6-step__d { font-size: 1rem; line-height: 1.5; }
+  .d2c-v6-how .d2c-v6-step__d,
+  .d2c-v6-how .d2c-v6-how__quiet { grid-column: auto; }
+  .d2c-v6-how .d2c-v6-how__quiet { margin-top: 0.2rem; line-height: 1.6; }
+
+  /* 03 — números em trilho estreito, sem a ênfase maior no primeiro. */
+  .d2c-v6-answer--first {
+    padding: 4rem 0;
+    border-top: 1px solid rgba(18, 16, 20, 0.08);
+    background: var(--v6-cream);
+  }
+  .d2c-v6-answer--first .d2c-v6-pauta__verdict { font-size: 1.75rem; }
+  .d2c-v6-multipliers {
+    margin-top: 1.75rem;
+    padding-top: 0;
+    border-top: 0;
+    gap: 1rem;
+  }
+  .d2c-v6-multipliers > .d2c-v6-multiplier {
+    width: 12.5rem;
+    gap: 0.4rem;
+    border-top: 1px solid rgba(18, 16, 20, 0.14);
+    padding-top: 0.85rem;
+  }
+  .d2c-v6-multiplier b,
+  .d2c-v6-multiplier.is-lead b { font-size: 2rem; color: #4a464d; }
+  .d2c-v6-multiplier small { font-size: 0.875rem; line-height: 1.45; }
+
+  /* 04 — requisitos e bloco de entrega */
+  .d2c-v6-answer--second { padding: 5rem 0 0; }
+  .d2c-v6-answer--second .d2c-v6-head { margin-bottom: 2.5rem; }
+  .d2c-v6-label__desktop-prefix { display: none; }
+  .d2c-v6-answer--second .d2c-v6-label { color: rgba(255, 255, 255, 0.7); }
+  .d2c-v6-answer--second .d2c-v6-answer__soft { color: #fff; }
+  .d2c-v6-answer--second .d2c-v6-lead {
+    font-size: 1.125rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.78);
+  }
+  .d2c-v6-publi { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .d2c-v6-publi__card { gap: 0.85rem; }
+  .d2c-v6-publi__card > .d2c-v6-label { display: block; }
+  .d2c-v6-publi__check {
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: var(--v6-accent);
+    color: var(--v6-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .d2c-v6-publi__reqs li {
+    min-height: 9.5rem;
+    gap: 0.75rem;
+    padding: 1.15rem;
+    border-color: rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 1.0625rem;
+    line-height: 1.35;
+  }
+  .d2c-v6-publi__reqs li:last-child { padding-bottom: 1.15rem; }
+  .d2c-v6-publi__reqs b {
+    margin-top: auto;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .d2c-v6-publi__reqs b svg { display: none; }
+  .d2c-v6-publi__why {
+    margin-top: 2rem;
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  .d2c-v6-publi__delivery {
+    margin: 3rem -1.25rem 0;
+    padding: 2.25rem 1.25rem;
+    gap: 1.75rem;
+    background: rgba(18, 16, 20, 0.16);
+  }
+  .d2c-v6-publi__delivery .d2c-v6-steps { gap: 1.75rem; border-top: 0; padding-top: 0; }
+
+  /* 05 — conversa e configuração em dois blocos de largura total. */
+  .d2c-v6-claude { padding: 5rem 0 0; }
+  .d2c-v6-claude .d2c-v6-head { margin-bottom: 2.5rem; }
+  .d2c-v6-claude .d2c-v6-lead { font-size: 1.125rem; line-height: 1.45; }
+  .d2c-v6-claude__grid { display: flex; flex-direction: column; gap: 0; }
+  .d2c-v6-claude__more {
+    margin-top: 1rem;
+    border-top: 1px solid rgba(18, 16, 20, 0.14);
+    padding-top: 1.25rem;
+  }
+  .d2c-v6-claude__more ul { align-items: flex-start; }
+  .d2c-v6-claude__more li {
+    border-style: solid;
+    border-radius: 999px;
+    padding: 0.55rem 0.95rem;
+    font-size: 0.9375rem;
+    line-height: 1.3;
+  }
+  .d2c-v6-claude__setup {
+    margin: 3rem -1.25rem 0;
+    padding: 2.25rem 1.25rem;
+    gap: 1.75rem;
+    border-top: 1px solid rgba(18, 16, 20, 0.1);
+    background: #fff;
+  }
+  .d2c-v6-claude__note { display: none; }
+
+  /* 06 — agenda, sócios e registro dos encontros. */
+  .d2c-v6-leads { padding: 5rem 0 0; }
+  .d2c-v6-leads .d2c-v6-head { margin-bottom: 2.5rem; }
+  .d2c-v6-leads .d2c-v6-answer__soft { color: #fff; }
+  .d2c-v6-sessions {
+    margin-bottom: 3rem;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .d2c-v6-partner > div { display: flex; flex-direction: column; gap: 0.4rem; }
+  .d2c-v6-partner .d2c-v6-label {
+    font-size: 0.875rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .d2c-v6-partner h3 { margin: 0; font-size: 1.625rem; line-height: 1.05; }
+  .d2c-v6-partner p { line-height: 1.45; }
+  .d2c-v6-meetups {
+    margin-top: 3rem;
+    padding: 2.25rem 0 3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.1rem;
+  }
+  .d2c-v6-meetups__copy { display: contents; }
+  .d2c-v6-meetups__copy .d2c-v6-label { order: 1; padding-inline: 1.25rem; }
+  .d2c-v6-meetups__rail {
+    order: 2;
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-inline: 1.25rem;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+  }
+  .d2c-v6-meetups__rail::-webkit-scrollbar { display: none; }
+  .d2c-v6-meetups__copy p {
+    order: 3;
+    padding-inline: 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .d2c-v6-meetups__shot,
+  .d2c-v6-meetups__shot--b {
+    width: 16rem;
+    height: 11rem;
+    flex: none;
+    margin: 0;
+    border-radius: 14px;
+    scroll-snap-align: center;
+  }
+  .d2c-v6-meetups__shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* 07, 08 e 09 — plano, dúvidas e fecho integrado ao rodapé. */
+  .d2c-v6-plan {
+    padding: 5rem 0;
+    border-top: 1px solid rgba(18, 16, 20, 0.1);
+  }
+  .d2c-v6-plan__inner { gap: 2.25rem; }
+  .d2c-v6-plan__offer { gap: 1.25rem; }
+  .d2c-v6-plan__offer .d2c-v6-answer__soft {
+    color: inherit;
+    background-image: linear-gradient(
+      transparent 58%,
+      var(--v6-mark) 58%,
+      var(--v6-mark) 92%,
+      transparent 92%
+    );
+  }
+  .d2c-v6-plan__offer .d2c-button--human { width: 100%; }
+  .d2c-v6-plan__note { line-height: 1.45; }
+  .d2c-v6-plan__includes { gap: 0.5rem; }
+  .d2c-v6-plan__includes ul { gap: 0; }
+  .d2c-v6-plan__includes li {
+    gap: 0;
+    border-top: 0;
+    border-bottom: 1px solid rgba(18, 16, 20, 0.12);
+    line-height: 1.35;
+  }
+  .d2c-v6-plan__includes li:first-child { border-top: 1px solid rgba(18, 16, 20, 0.12); }
+  .d2c-v6-plan__includes li:last-child { border-bottom: 0; }
+  .d2c-v6-plan__includes svg { display: none; }
+
+  .d2c-v6-faq { padding: 5rem 0; }
+  .d2c-v6-faq .d2c-v6-head { gap: 0.75rem; margin-bottom: 2rem; }
+  .d2c-v6-faq__list p { padding-right: 2.75rem; }
+
+  .d2c-v6-close { padding: 5rem 0 0; }
+  .d2c-v6-close__inner { align-items: flex-start; text-align: left; gap: 1.5rem; }
+  .d2c-v6-close__note { margin-top: -0.75rem; line-height: 1.45; }
+
+  .d2c-human-landing.d2c-v6 .d2c-footer {
+    padding: 3rem 0;
+    border-top: 0;
+    background: var(--v6-dark);
+    color: #fff;
+  }
+  .d2c-v6 .d2c-footer__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .d2c-v6 .d2c-footer .d2c-brand {
+    color: #fff;
+    font-family: var(--font-d2c-display), system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+  }
+  .d2c-v6 .d2c-footer .d2c-brand__mark { display: none; }
+  .d2c-human-landing.d2c-v6 .d2c-footer p {
+    order: initial;
+    margin: -0.75rem 0 0;
+    font-size: 1rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .d2c-human-landing.d2c-v6 .d2c-footer nav {
+    order: initial;
+    gap: 1.25rem;
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .d2c-human-landing.d2c-v6 .d2c-footer small {
+    order: initial;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.35);
+  }
 }

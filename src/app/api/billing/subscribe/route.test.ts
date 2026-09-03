@@ -140,6 +140,13 @@ describe("POST /api/billing/subscribe", () => {
       promotionCode: "d2cVIP",
       successUrl: "http://localhost/billing/success",
       cancelUrl: "http://localhost/dashboard/billing",
+      source: "chatgpt_profile_upgrade",
+      checkoutContext: {
+        context: "chatgpt_intelligence",
+        source: "chatgpt_profile_upgrade",
+        returnTo: "/dashboard/profile?source=chatgpt",
+        postCheckoutIntent: "connect_instagram",
+      },
     }));
     const body = await res.json();
 
@@ -155,11 +162,18 @@ describe("POST /api/billing/subscribe", () => {
         success_url: "http://localhost/billing/success?session_id={CHECKOUT_SESSION_ID}",
         payment_method_collection: "always",
         discounts: [{ promotion_code: "promo_d2cvip" }],
+        metadata: expect.objectContaining({
+          d2c_context: "chatgpt_intelligence",
+          d2c_source: "chatgpt_profile_upgrade",
+          d2c_return_to: "/dashboard/profile?source=chatgpt",
+          d2c_post_checkout: "connect_instagram",
+        }),
         subscription_data: expect.objectContaining({
           metadata: expect.objectContaining({
             userId: "vip-monthly",
             plan: "monthly",
             promotionCode: "D2CVIP",
+            d2c_source: "chatgpt_profile_upgrade",
           }),
         }),
       }),

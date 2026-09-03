@@ -9,10 +9,60 @@ import {
   resolveEditorialAnchorTitle,
   sanitizeScriptIdentityLeakage,
   selectScriptModelForPrompt,
+  selectScriptProviderModels,
+  selectScriptThinkingLevel,
   selectScriptTemperature,
   shouldRunQualityPassForAdjustMode,
   TECHNICAL_SCRIPT_MAX_CHARS,
 } from "./ai";
+
+describe("scripts Gemini cost policy", () => {
+  const originalEnv = {
+    GEMINI_MODEL_SCRIPT: process.env.GEMINI_MODEL_SCRIPT,
+    GEMINI_MODEL_SCRIPT_JUDGE: process.env.GEMINI_MODEL_SCRIPT_JUDGE,
+    GEMINI_THINKING_LEVEL_SCRIPTS: process.env.GEMINI_THINKING_LEVEL_SCRIPTS,
+  };
+
+  beforeEach(() => {
+    delete process.env.GEMINI_MODEL_SCRIPT;
+    delete process.env.GEMINI_MODEL_SCRIPT_JUDGE;
+    delete process.env.GEMINI_THINKING_LEVEL_SCRIPTS;
+  });
+
+  afterEach(() => {
+    for (const [name, value] of Object.entries(originalEnv)) {
+      if (value == null) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  it("uses 3.7 for the final draft, Flash-Lite for review, and low thinking", () => {
+    const selection = selectScriptModelForPrompt({
+      userPrompt: "crie um roteiro completo",
+      operation: "generate",
+    });
+
+    expect(selectScriptProviderModels(selection).gemini).toBe("gemini-3.7-flash");
+    expect(selectScriptProviderModels(selection, { judge: true }).gemini).toBe(
+      "gemini-3.5-flash-lite",
+    );
+    expect(selectScriptThinkingLevel()).toBe("low");
+  });
+
+  it("keeps explicit deployment overrides available", () => {
+    process.env.GEMINI_MODEL_SCRIPT = "gemini-custom-generation";
+    process.env.GEMINI_MODEL_SCRIPT_JUDGE = "gemini-custom-judge";
+    process.env.GEMINI_THINKING_LEVEL_SCRIPTS = "medium";
+    const selection = selectScriptModelForPrompt({
+      userPrompt: "crie um roteiro completo",
+      operation: "generate",
+    });
+
+    expect(selectScriptProviderModels(selection).gemini).toBe("gemini-custom-generation");
+    expect(selectScriptProviderModels(selection, { judge: true }).gemini).toBe("gemini-custom-judge");
+    expect(selectScriptThinkingLevel()).toBe("medium");
+  });
+});
 
 describe("scripts/ai identity leakage sanitization", () => {
   it("removes unauthorized mentions and hashtags", () => {
@@ -100,6 +150,46 @@ describe("scripts/ai identity leakage sanitization", () => {
       styleProfileVersion: "scripts_style_profile_v1",
       styleSampleSize: 12,
       engagementTiming: null,
+      audienceIntelligence: {
+        demographics: {
+          topGender: "mulheres",
+          topGenderPct: 62,
+          topAgeRange: "25-34",
+          topAgeRangePct: 48,
+          topLocations: ["São Paulo", "Rio de Janeiro"],
+        },
+        resonance: {
+          periodLabel: "últimos 180 dias",
+          resonantTone: { label: "educacional", avgSaves: 42, postCount: 8 },
+          resonantIntent: null,
+          resonantTerritory: { label: "IA para creators", avgSaves: 55, postCount: 7 },
+          risingTerritory: null,
+          resonantNarrativeForm: null,
+          resonantStance: null,
+          attention: null,
+          propagation: null,
+          rhythm: null,
+          topLifeAsset: null,
+          engagedDivergence: null,
+        },
+      },
+      visualPlaybook: {
+        coverage: { totalPosts: 10, analyzedPosts: 8, ratio: 0.8, interactionsAvailable: 8 },
+        baseline: { avgInteractions: 200 },
+        patterns: {
+          assetRoles: [],
+          tones: [],
+          subjectIds: [],
+          subjects: [{ value: "criação com IA", postCount: 5, shareOfAnalyzed: 0.625, avgInteractions: 280, liftVsAnalyzedBaseline: 1.4, evidencePostIds: ["m1"] }],
+          objects: [{ value: "celular", postCount: 4, shareOfAnalyzed: 0.5, avgInteractions: 260, liftVsAnalyzedBaseline: 1.3, evidencePostIds: ["m1"] }],
+          places: [{ value: "escritório", postCount: 4, shareOfAnalyzed: 0.5, avgInteractions: 240, liftVsAnalyzedBaseline: 1.2, evidencePostIds: ["m1"] }],
+          framings: [{ value: "close", postCount: 6, shareOfAnalyzed: 0.75, avgInteractions: 250, liftVsAnalyzedBaseline: 1.25, evidencePostIds: ["m1"] }],
+          aesthetics: [],
+          screenTitles: [],
+          openingLines: [{ value: "Eu parei de fazer isso", postCount: 3, shareOfAnalyzed: 0.375, avgInteractions: 300, liftVsAnalyzedBaseline: 1.5, evidencePostIds: ["m1"] }],
+        },
+        analysisProviderVersions: [{ providerVersion: "gemini:scene_v1", postCount: 8 }],
+      },
       editorialDecision: {
         postDirective: "Poste um reels mostrando o erro antes da dica, com humor observável e virada útil.",
         narrativeAngle: "diagnóstico direto com cena reconhecível",
@@ -170,6 +260,11 @@ describe("scripts/ai identity leakage sanitization", () => {
     expect(block).toContain("O que postar:");
     expect(block).toContain("diagnóstico concreto + ajuste aplicável + prova");
     expect(block).toContain("Roteiros reais do perfil que performaram bem");
+    expect(block).toContain("Audiência real e sinais de ressonância");
+    expect(block).toContain("IA para creators");
+    expect(block).toContain("Playbook visual baseado na análise das cenas");
+    expect(block).toContain("Objetos de cena: celular");
+    expect(block).toContain("Cobertura: 8/10 posts");
   });
 
   it("keeps the intelligence prompt block within a bounded size", () => {
@@ -300,7 +395,7 @@ describe("scripts/ai identity leakage sanitization", () => {
       },
     });
 
-    expect(block.length).toBeLessThanOrEqual(3400);
+    expect(block.length).toBeLessThanOrEqual(5400);
     expect(block).toContain("Playbook acionável do perfil");
     expect(block).toContain("Decisão editorial recomendada");
   });

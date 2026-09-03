@@ -9,6 +9,16 @@ import { fetchTopCategories } from "@/app/lib/dataService";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import MetricModel from "@/app/models/Metric";
 import ScriptEntry from "@/app/models/ScriptEntry";
+import { buildAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/audienceContextSummaryService";
+import {
+  buildAudienceInsights,
+  type AudienceInsights,
+} from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
+import {
+  buildMcpVisualPlaybook,
+  type McpVisualMetricDocument,
+} from "@/app/lib/mcp/creatorIntelligence";
+import type { VideoNarrativeAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes";
 
 import {
   SCRIPT_CATEGORY_DIMENSIONS,
@@ -139,6 +149,27 @@ export type ScriptEditorialDecision = {
   postingWindow: string | null;
 };
 
+export type ScriptAudienceIntelligence = {
+  demographics: VideoNarrativeAudienceContextSummary | null;
+  resonance: Pick<
+    AudienceInsights,
+    | "periodLabel"
+    | "resonantTone"
+    | "resonantIntent"
+    | "resonantTerritory"
+    | "risingTerritory"
+    | "resonantNarrativeForm"
+    | "resonantStance"
+    | "attention"
+    | "propagation"
+    | "rhythm"
+    | "topLifeAsset"
+    | "engagedDivergence"
+  > | null;
+};
+
+export type ScriptVisualPlaybook = ReturnType<typeof buildMcpVisualPlaybook>;
+
 type WinningScriptExampleCandidate = {
   example: ScriptIntelligenceWinningScriptExample;
   categories?: ScriptCategorySelection;
@@ -162,6 +193,8 @@ export type ScriptIntelligenceContext = {
   captionEvidence: ScriptIntelligenceCaptionEvidence[];
   winningScriptExamples: ScriptIntelligenceWinningScriptExample[];
   engagementTiming: ScriptEngagementTimingInsight | null;
+  audienceIntelligence?: ScriptAudienceIntelligence | null;
+  visualPlaybook?: ScriptVisualPlaybook | null;
   editorialDecision: ScriptEditorialDecision;
   relaxationLevel: number;
   usedFallbackRules: boolean;
@@ -192,6 +225,14 @@ export type ScriptIntelligencePromptSnapshot = {
     count: number;
     scriptIds: string[];
   };
+  audienceSummary?: ScriptAudienceIntelligence | null;
+  visualSummary?: {
+    coverage: ScriptVisualPlaybook["coverage"];
+    topObjects: string[];
+    topPlaces: string[];
+    topFramings: string[];
+    topSubjects: string[];
+  } | null;
   linkedOutcomeSummary?: {
     enabled: boolean;
     sampleSizeLinked: number;
@@ -1522,6 +1563,44 @@ export async function buildScriptIntelligenceContext(params: {
 
     await connectToDatabase();
 
+    const audienceIntelligencePromise = Promise.all([
+      buildAudienceContextSummary(params.userId).catch(() => null),
+      buildAudienceInsights(params.userId, { periodDays: lookbackDays }).catch(() => null),
+    ]).then(([demographics, insights]): ScriptAudienceIntelligence | null => {
+      if (!demographics && !insights?.hasAny) return null;
+      return {
+        demographics,
+        resonance: insights
+          ? {
+              periodLabel: insights.periodLabel,
+              resonantTone: insights.resonantTone,
+              resonantIntent: insights.resonantIntent,
+              resonantTerritory: insights.resonantTerritory,
+              risingTerritory: insights.risingTerritory,
+              resonantNarrativeForm: insights.resonantNarrativeForm,
+              resonantStance: insights.resonantStance,
+              attention: insights.attention,
+              propagation: insights.propagation,
+              rhythm: insights.rhythm,
+              topLifeAsset: insights.topLifeAsset,
+              engagedDivergence: insights.engagedDivergence,
+            }
+          : null,
+      };
+    });
+
+    const visualPlaybookPromise = MetricModel.find({
+      user: params.userId,
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+    })
+      .select("_id postDate stats.total_interactions sceneElements")
+      .sort({ postDate: -1 })
+      .lean()
+      .then((documents) =>
+        buildMcpVisualPlaybook(documents as unknown as McpVisualMetricDocument[]),
+      )
+      .catch(() => null);
+
     const styleProfilePromise = (async () => {
       let styleProfile: ScriptStyleContext | null = null;
       let styleProfileVersion: string | null = null;
@@ -1625,6 +1704,10 @@ export async function buildScriptIntelligenceContext(params: {
       : [];
     recordScriptsStageDuration("intelligence.script_examples", Date.now() - scriptExamplesStartMs);
     const engagementTiming = buildEngagementTimingInsight(finalCaptionEvidence);
+    const [audienceIntelligence, visualPlaybook] = await Promise.all([
+      audienceIntelligencePromise,
+      visualPlaybookPromise,
+    ]);
     const linkedOutcome: ScriptIntelligenceLinkedOutcome | null = linkedOutcomeData.enabled
       ? {
           enabled: true,
@@ -1672,6 +1755,8 @@ export async function buildScriptIntelligenceContext(params: {
       captionEvidence: finalCaptionEvidence,
       winningScriptExamples,
       engagementTiming,
+      audienceIntelligence,
+      visualPlaybook,
       editorialDecision,
       relaxationLevel: captionFetchResult.relaxationLevel,
       usedFallbackRules: captionFetchResult.usedFallbackRules,
@@ -1717,6 +1802,16 @@ export function buildIntelligencePromptSnapshot(
           scriptIds: (context.winningScriptExamples || []).map((item) => item.scriptId),
         }
       : undefined,
+    audienceSummary: context.audienceIntelligence ?? null,
+    visualSummary: context.visualPlaybook
+      ? {
+          coverage: context.visualPlaybook.coverage,
+          topObjects: context.visualPlaybook.patterns.objects.slice(0, 5).map((item) => item.value),
+          topPlaces: context.visualPlaybook.patterns.places.slice(0, 5).map((item) => item.value),
+          topFramings: context.visualPlaybook.patterns.framings.slice(0, 5).map((item) => item.value),
+          topSubjects: context.visualPlaybook.patterns.subjects.slice(0, 5).map((item) => item.value),
+        }
+      : null,
     linkedOutcomeSummary: context.linkedOutcome
       ? {
           enabled: context.linkedOutcome.enabled,

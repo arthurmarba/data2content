@@ -16,6 +16,7 @@ import type {
   VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+import type { ScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
 
 export interface CreatorVideoNarrativeDiagnosisSafeReading {
   userId: string;
@@ -33,6 +34,7 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation;
   analysisVersion?: "v1" | "v2";
   learningStatus?: "analysis_only" | "published_matched";
   historyVisibility?: "visible" | "hidden";
@@ -124,6 +126,7 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     contentContext: (doc as unknown as { contentContext?: VideoNarrativeContentContext }).contentContext,
     narrativeCoherence: (doc as unknown as { narrativeCoherence?: VideoNarrativeCoherence }).narrativeCoherence,
     contentPotentialScan: (doc as unknown as { contentPotentialScan?: VideoNarrativeContentPotentialScan }).contentPotentialScan,
+    scriptAdjustmentRecommendation: (doc as unknown as { scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation }).scriptAdjustmentRecommendation,
     analysisVersion: (doc as unknown as { analysisVersion?: "v1" | "v2" }).analysisVersion,
     learningStatus: (doc as unknown as { learningStatus?: "analysis_only" | "published_matched" }).learningStatus,
     historyVisibility: (doc as unknown as { historyVisibility?: "visible" | "hidden" }).historyVisibility,
@@ -152,6 +155,7 @@ function queryProjection() {
     contentContext: 1,
     narrativeCoherence: 1,
     contentPotentialScan: 1,
+    scriptAdjustmentRecommendation: 1,
     analysisVersion: 1,
     learningStatus: 1,
     historyVisibility: 1,

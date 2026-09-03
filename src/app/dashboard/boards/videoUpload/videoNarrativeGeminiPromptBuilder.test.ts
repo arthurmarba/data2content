@@ -32,13 +32,65 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     expect(prompt.responseSchemaInstruction).toContain("evidenceAnchors");
     expect(prompt.responseSchemaInstruction).toContain("watchedMoments");
     expect(prompt.responseSchemaInstruction).toContain("practicalDirection");
+    expect(prompt.responseSchemaInstruction).toContain("scriptAdjustmentRecommendation");
     expect(prompt.systemInstruction).toContain("JSON válido e estrito");
+  });
+
+  it("pede ajuste temporal em linguagem simples e inclui evidência estrutural", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input({
+      profileContext: {
+        displayName: "Creator Teste",
+        instagramConnected: true,
+        structureEvidence: [{
+          pattern: "problem_demo_explanation_action",
+          label: "Problema, demonstração e correção",
+          sourceForm: "tutorial",
+          posts: 4,
+          performanceIndex: 1.3,
+          outcomeSignals: ["retention"],
+        }],
+      },
+    }));
+    const content = `${prompt.userInstruction}\n${prompt.responseSchemaInstruction}`;
+    expect(content).toContain("padrão=problem_demo_explanation_action");
+    expect(content).toContain("todos os tempos devem estar em milissegundos");
+    expect(content).toContain("compreensíveis para alguém sem experiência em edição");
+    expect(content).toContain("Não use jargões");
   });
 
   it("inclui objetivo e respostas rápidas", () => {
     const prompt = buildVideoNarrativeGeminiPrompt(input());
     expect(prompt.userInstruction).toContain("Quero melhorar retenção.");
     expect(prompt.userInstruction).toContain("represents_current_phase");
+  });
+
+  it("inclui somente padrões agregados do território, sem frases de terceiros", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input({
+      profileContext: {
+        displayName: "Creator Teste",
+        instagramConnected: true,
+        territoryHookContext: {
+          territoryId: "treino",
+          territoryLabel: "Treino",
+          weekKey: "2026-W34",
+          posts: 42,
+          creators: 8,
+          windowDays: 90,
+          patterns: [{
+            pattern: "question",
+            label: "Pergunta direta",
+            performanceIndex: 1.35,
+            posts: 42,
+            creators: 8,
+            evidence: "tendencia",
+          }],
+        },
+      },
+    }));
+
+    expect(prompt.userInstruction).toContain("padrão=question");
+    expect(prompt.userInstruction).toContain("posts=42");
+    expect(prompt.userInstruction).toContain("nunca frases de terceiros");
   });
 
   it("traduz a lente escolhida em vez de vazar o enum interno cru", () => {

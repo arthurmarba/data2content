@@ -1,6 +1,5 @@
-import OpenAI from "openai";
-
 import { getCategoryById } from "@/app/lib/classification";
+import { llmGenerate, type LlmProviderName } from "@/app/lib/llm";
 import { logger } from "@/app/lib/logger";
 import { recordScriptsStageDuration } from "./performanceTelemetry";
 import type { ScriptIntelligenceContext } from "./intelligenceContext";
@@ -82,9 +81,6 @@ export type ScriptModelSelection = {
   | "default_base";
   fallbackModel: string | null;
 };
-
-let openAIClientCache: OpenAI | null = null;
-let openAIClientCacheKey: string | null = null;
 
 const SHORTEN_INTENT_REGEX =
   /(resum|encurt|reduz|compact|mais curto|diminu|simplifi|sintetiz|vers[aã]o curta|menos palavras)/i;
@@ -239,8 +235,8 @@ const TECHNICAL_EDITORIAL_WHY_MAX_CHARS = 135;
 const TECHNICAL_EDITORIAL_WHEN_MAX_CHARS = 72;
 const TECHNICAL_EDITORIAL_HOW_MAX_CHARS = 105;
 const INTELLIGENCE_PROMPT_MAX_CHARS = (() => {
-  const parsed = Number(process.env.SCRIPTS_INTELLIGENCE_PROMPT_MAX_CHARS ?? 3200);
-  return Number.isFinite(parsed) && parsed >= 1200 ? Math.floor(parsed) : 3200;
+  const parsed = Number(process.env.SCRIPTS_INTELLIGENCE_PROMPT_MAX_CHARS ?? 5200);
+  return Number.isFinite(parsed) && parsed >= 1800 ? Math.floor(parsed) : 5200;
 })();
 
 type ScriptSemanticQualityAssessment = {
@@ -1999,6 +1995,103 @@ function resolveCategoryLabel(dimension: keyof NonNullable<ScriptIntelligenceCon
   return `${category.label} (${id})`;
 }
 
+function buildAudiencePromptBlock(context: ScriptIntelligenceContext): string {
+  const audience = context.audienceIntelligence;
+  if (!audience) return "";
+
+  const demographics = audience.demographics;
+  const resonance = audience.resonance;
+  const lines = [
+    demographics?.topAgeRange
+      ? `- Faixa etária predominante: ${demographics.topAgeRange}${demographics.topAgeRangePct != null ? ` (${demographics.topAgeRangePct}%)` : ""}`
+      : null,
+    demographics?.topGender
+      ? `- Gênero predominante: ${demographics.topGender}${demographics.topGenderPct != null ? ` (${demographics.topGenderPct}%)` : ""}`
+      : null,
+    demographics?.topLocations?.length
+      ? `- Localizações predominantes: ${demographics.topLocations.slice(0, 2).join(" | ")}`
+      : null,
+    resonance?.resonantTerritory
+      ? `- Assunto mais guardado: ${resonance.resonantTerritory.label} (${resonance.resonantTerritory.postCount} posts)`
+      : null,
+    resonance?.risingTerritory
+      ? `- Assunto em crescimento: ${resonance.risingTerritory.label}`
+      : null,
+    resonance?.resonantTone
+      ? `- Tom que mais ressoa: ${resonance.resonantTone.label} (${resonance.resonantTone.postCount} posts)`
+      : null,
+    resonance?.resonantIntent
+      ? `- Intenção mais guardada: ${resonance.resonantIntent.label} (${resonance.resonantIntent.postCount} posts)`
+      : null,
+    resonance?.resonantNarrativeForm
+      ? `- Forma narrativa mais guardada: ${resonance.resonantNarrativeForm.label} (${resonance.resonantNarrativeForm.postCount} posts)`
+      : null,
+    resonance?.resonantStance
+      ? `- Postura/voz que mais ressoa: ${resonance.resonantStance.label} (${resonance.resonantStance.postCount} posts)`
+      : null,
+    resonance?.attention
+      ? `- Sinal de atenção: ${resonance.attention.label} (${resonance.attention.postCount} posts)`
+      : null,
+    resonance?.propagation
+      ? `- Sinal de compartilhamento: ${resonance.propagation.label} (${resonance.propagation.postCount} posts)`
+      : null,
+    resonance?.engagedDivergence
+      ? `- Quem mais engaja diverge em ${resonance.engagedDivergence.dimension}: seguidores=${resonance.engagedDivergence.followerLabel}; engajados=${resonance.engagedDivergence.engagedLabel}`
+      : null,
+  ].filter(Boolean);
+
+  if (!lines.length) return "";
+  return [
+    `Audiência real e sinais de ressonância${resonance?.periodLabel ? ` (${resonance.periodLabel})` : ""}:`,
+    ...lines,
+    "- Adapte exemplos, vocabulário, tensão e utilidade a esses sinais; não estereotipe a audiência e não invente persona quando faltar dado.",
+  ].join("\n");
+}
+
+function buildVisualPlaybookPromptBlock(context: ScriptIntelligenceContext): string {
+  const playbook = context.visualPlaybook;
+  if (!playbook || playbook.coverage.analyzedPosts === 0) return "";
+
+  const formatSignals = (
+    values: Array<{
+      value: string;
+      postCount: number;
+      liftVsAnalyzedBaseline: number | null;
+    }>,
+    limit = 3,
+  ) =>
+    values
+      .slice()
+      .sort((left, right) => {
+        const liftDiff = (right.liftVsAnalyzedBaseline ?? -1) - (left.liftVsAnalyzedBaseline ?? -1);
+        return liftDiff || right.postCount - left.postCount;
+      })
+      .slice(0, limit)
+      .map((item) =>
+        `${item.value} (${item.postCount} posts${item.liftVsAnalyzedBaseline != null ? `; lift ${item.liftVsAnalyzedBaseline.toFixed(2)}` : ""})`,
+      )
+      .join(" | ");
+
+  const patterns = playbook.patterns;
+  const lines = [
+    formatSignals(patterns.openingLines, 2) ? `- Aberturas visuais/verbais: ${formatSignals(patterns.openingLines, 2)}` : null,
+    formatSignals(patterns.subjects) ? `- Assuntos vistos em cena: ${formatSignals(patterns.subjects)}` : null,
+    formatSignals(patterns.objects) ? `- Objetos de cena: ${formatSignals(patterns.objects)}` : null,
+    formatSignals(patterns.places) ? `- Cenários: ${formatSignals(patterns.places)}` : null,
+    formatSignals(patterns.framings) ? `- Enquadramentos: ${formatSignals(patterns.framings)}` : null,
+    formatSignals(patterns.aesthetics) ? `- Estéticas: ${formatSignals(patterns.aesthetics)}` : null,
+    formatSignals(patterns.tones) ? `- Tons visuais: ${formatSignals(patterns.tones)}` : null,
+  ].filter(Boolean);
+
+  return [
+    "Playbook visual baseado na análise das cenas:",
+    `- Cobertura: ${playbook.coverage.analyzedPosts}/${playbook.coverage.totalPosts} posts (${Math.round(playbook.coverage.ratio * 100)}%); interações disponíveis em ${playbook.coverage.interactionsAvailable}.`,
+    ...lines,
+    "- Use padrões recorrentes e de lift alto como direção de gravação, sem forçar um elemento sustentado por apenas 1 post.",
+    "- Quando a cobertura for parcial ou o lift estiver ausente, trate como hipótese visual e não como garantia de performance.",
+  ].join("\n");
+}
+
 export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext | null | undefined): string {
   if (!context) return "";
 
@@ -2144,6 +2237,8 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
       `- ${context.engagementTiming.summary}\n` +
       `- Use isso como justificativa de publicação somente quando ajudar; não invente horário se o sinal não existir.`
     : "";
+  const audienceBlock = buildAudiencePromptBlock(context);
+  const visualPlaybookBlock = buildVisualPlaybookPromptBlock(context);
 
   const creatorPlaybookBlock = [
     hookExamples.length ? `- Ganchos que costumam soar naturais aqui: ${hookExamples.join(" | ")}` : null,
@@ -2191,6 +2286,8 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
         `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
         `- Perfil de linguagem:\n${dnaLines}`,
       editorialDecisionBlock,
+      audienceBlock,
+      visualPlaybookBlock,
       `Playbook acionável do perfil:\n${creatorPlaybookBlock}`,
       evidenceBlock,
       styleBlock,
@@ -2290,28 +2387,40 @@ function parseSemanticQualityAssessmentFromResponse(raw: string): ScriptSemantic
   return normalizeSemanticReviewAssessment(parsed);
 }
 
-function getOpenAIClient(): OpenAI | null {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  if (!openAIClientCache || openAIClientCacheKey !== apiKey) {
-    openAIClientCache = new OpenAI({
-      apiKey,
-      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-    });
-    openAIClientCacheKey = apiKey;
+export function selectScriptProviderModels(
+  modelSelection: ScriptModelSelection,
+  options: { fallback?: boolean; judge?: boolean } = {},
+): Partial<Record<LlmProviderName, string>> {
+  if (options.judge) {
+    return {
+      gemini:
+        process.env.GEMINI_MODEL_SCRIPT_JUDGE?.trim() ||
+        "gemini-3.5-flash-lite",
+      openai:
+        process.env.OPENAI_MODEL_SCRIPT_JUDGE?.trim() ||
+        process.env.OPENAI_MODEL_ADVANCED?.trim() ||
+        process.env.OPENAI_MODEL_PREMIUM?.trim() ||
+        process.env.OPENAI_MODEL?.trim() ||
+        "gpt-4o-mini",
+    };
   }
-  return openAIClientCache;
+
+  return {
+    gemini: options.fallback
+      ? process.env.GEMINI_MODEL_SCRIPT_FALLBACK?.trim() || "gemini-3.6-flash"
+      : process.env.GEMINI_MODEL_SCRIPT?.trim() || "gemini-3.7-flash",
+    openai: options.fallback
+      ? modelSelection.fallbackModel || modelSelection.model
+      : modelSelection.model,
+  };
 }
 
-function selectScriptSemanticJudgeModel(): string {
+export function selectScriptThinkingLevel(): "low" | "medium" | "high" {
   const configured = (
-    process.env.OPENAI_MODEL_SCRIPT_JUDGE ||
-    process.env.OPENAI_MODEL_ADVANCED ||
-    process.env.OPENAI_MODEL_PREMIUM ||
-    process.env.OPENAI_MODEL ||
-    "gpt-4o-mini"
-  ).trim();
-  return configured || "gpt-4o-mini";
+    process.env.GEMINI_THINKING_LEVEL_SCRIPTS ||
+    "low"
+  ).trim().toLowerCase();
+  return configured === "medium" || configured === "high" ? configured : "low";
 }
 
 function buildSemanticReviewContextSummary(context: ScriptIntelligenceContext | null | undefined): string {
@@ -2322,6 +2431,15 @@ function buildSemanticReviewContextSummary(context: ScriptIntelligenceContext | 
     context.resolvedCategories.tone ? `- tone: ${context.resolvedCategories.tone}` : null,
     `- DNA captions: ${context.dnaProfile.sampleSize}`,
     `- Style samples: ${context.styleSampleSize}`,
+    context.audienceIntelligence?.demographics?.topAgeRange
+      ? `- Audiência principal: ${context.audienceIntelligence.demographics.topAgeRange}`
+      : null,
+    context.audienceIntelligence?.resonance?.resonantTerritory
+      ? `- Assunto que ressoa: ${context.audienceIntelligence.resonance.resonantTerritory.label}`
+      : null,
+    context.visualPlaybook?.coverage.analyzedPosts
+      ? `- Cobertura visual: ${context.visualPlaybook.coverage.analyzedPosts}/${context.visualPlaybook.coverage.totalPosts} posts`
+      : null,
     context.editorialDecision?.postDirective
       ? `- Decisão editorial: ${compactPromptExample(context.editorialDecision.postDirective, 130)}`
       : null,
@@ -2418,26 +2536,44 @@ function buildSemanticReviewPrompt(params: {
 }
 
 async function requestSemanticQualityAssessmentFromModel(params: {
-  client: OpenAI;
   prompt: string;
-  model: string;
+  providerModels: Partial<Record<LlmProviderName, string>>;
 }): Promise<ScriptSemanticQualityAssessment> {
-  const completion = await params.client.chat.completions.create({
-    model: params.model,
+  const result = await llmGenerate({
+    prompt: params.prompt,
+    system:
+      "Você é editor-chefe de roteiros curtos para creators. Avalie com rigor e responda somente JSON válido.",
+    usageTag: "scripts_review",
+    providerModels: params.providerModels,
+    thinkingLevel: selectScriptThinkingLevel(),
+    intensity: "high",
     temperature: 0.1,
-    response_format: { type: "json_object" } as any,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Você é editor-chefe de roteiros curtos para creators. Avalie com rigor e responda somente JSON válido.",
+    maxTokens: 2048,
+    json: true,
+    jsonSchema: {
+      type: "object",
+      properties: {
+        overall: { type: "number" },
+        passes: { type: "boolean" },
+        adherence: { type: "number" },
+        specificity: { type: "number" },
+        humanity: { type: "number" },
+        titleAlignment: { type: "number" },
+        utility: { type: "number" },
+        creatorFit: { type: "number" },
+        hook: { type: "number" },
+        cta: { type: "number" },
+        issues: { type: "array", items: { type: "string" } },
+        rewriteBrief: { type: "string" },
       },
-      { role: "user", content: params.prompt },
-    ],
-  } as any);
+      required: [
+        "overall", "passes", "adherence", "specificity", "humanity",
+        "titleAlignment", "utility", "creatorFit", "hook", "cta", "issues", "rewriteBrief",
+      ],
+    },
+  }, { scope: "SCRIPTS" });
 
-  const raw = completion.choices?.[0]?.message?.content || "{}";
-  return parseSemanticQualityAssessmentFromResponse(raw);
+  return parseSemanticQualityAssessmentFromResponse(result.text || "{}");
 }
 
 function shouldRunSemanticReview(options: CallModelOptions): boolean {
@@ -2462,32 +2598,35 @@ function buildRetryPromptWithReviewFeedback(basePrompt: string, assessment: Scri
 }
 
 async function requestScriptDraftFromModel(params: {
-  client: OpenAI;
   prompt: string;
-  model: string;
+  providerModels: Partial<Record<LlmProviderName, string>>;
   temperature: number;
 }): Promise<ScriptDraft> {
-  const completion = await params.client.chat.completions.create({
-    model: params.model,
+  const result = await llmGenerate({
+    prompt: params.prompt,
+    system:
+      "Você é especialista em roteiros para creators no Brasil. Responda estritamente JSON com {\"title\": string, \"content\": string}. Não inclua explicações, comentários, markdown ou campos extras.",
+    usageTag: "scripts_generation",
+    providerModels: params.providerModels,
+    thinkingLevel: selectScriptThinkingLevel(),
+    intensity: "high",
     temperature: params.temperature,
-    response_format: { type: "json_object" } as any,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Você é especialista em roteiros para creators no Brasil. Responda estritamente JSON com {\"title\": string, \"content\": string}. Não inclua explicações, comentários, markdown ou campos extras.",
+    maxTokens: 4096,
+    json: true,
+    jsonSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        content: { type: "string" },
       },
-      { role: "user", content: params.prompt },
-    ],
-  } as any);
+      required: ["title", "content"],
+    },
+  }, { scope: "SCRIPTS" });
 
-  const raw = completion.choices?.[0]?.message?.content || "{}";
-  return parseDraftFromResponse(raw);
+  return parseDraftFromResponse(result.text || "{}");
 }
 
 async function callModel(prompt: string, options: CallModelOptions): Promise<ScriptDraft | null> {
-  const client = getOpenAIClient();
-  if (!client) return null;
   const modelSelection = selectScriptModelForPrompt({
     userPrompt: options.userPrompt,
     operation: options.operation,
@@ -2502,9 +2641,8 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
   try {
     try {
       return await requestScriptDraftFromModel({
-        client,
         prompt,
-        model: modelSelection.model,
+        providerModels: selectScriptProviderModels(modelSelection),
         temperature,
       });
     } catch (primaryError) {
@@ -2516,16 +2654,15 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
         logger.warn("[scripts][llm][fallback_model_retry]", {
           operation: options.operation,
           adjustMode: options.adjustMode || null,
-          primaryModel: modelSelection.model,
-          fallbackModel: modelSelection.fallbackModel,
+          primaryModels: selectScriptProviderModels(modelSelection),
+          fallbackModels: selectScriptProviderModels(modelSelection, { fallback: true }),
           temperature,
           reason: modelSelection.reason,
           error: primaryError instanceof Error ? primaryError.message : String(primaryError || ""),
         });
         return requestScriptDraftFromModel({
-          client,
           prompt,
-          model: modelSelection.fallbackModel,
+          providerModels: selectScriptProviderModels(modelSelection, { fallback: true }),
           temperature,
         });
       }
@@ -2543,11 +2680,13 @@ async function assessDraftSemanticQuality(params: {
   editorialAnchorTitle: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
 }): Promise<ScriptSemanticQualityAssessment | null> {
-  const client = getOpenAIClient();
-  if (!client) return null;
   try {
+    const modelSelection = selectScriptModelForPrompt({
+      userPrompt: params.userPrompt,
+      operation: params.options.operation,
+      adjustMode: params.options.adjustMode,
+    });
     return await requestSemanticQualityAssessmentFromModel({
-      client,
       prompt: buildSemanticReviewPrompt({
         userPrompt: params.userPrompt,
         operation: params.options.operation,
@@ -2556,7 +2695,7 @@ async function assessDraftSemanticQuality(params: {
         intelligenceContext: params.intelligenceContext,
         adjustMode: params.options.adjustMode,
       }),
-      model: selectScriptSemanticJudgeModel(),
+      providerModels: selectScriptProviderModels(modelSelection, { judge: true }),
     });
   } catch (error) {
     logger.warn("[scripts][review][semantic_assessment_failed]", {

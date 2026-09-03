@@ -11,6 +11,9 @@ describe("classificationAiErrors", () => {
         "You exceeded your current quota, please check your plan and billing details."
       )
     ).toBe("insufficient_quota");
+    expect(classifyAiFailureMessage(
+      "Classificação adiada: saldo/quota da IA indisponível. Reprocesse quando o saldo for restabelecido.",
+    )).toBe("insufficient_quota");
   });
 
   it("detects rate limit messages", () => {

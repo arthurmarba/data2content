@@ -1,5 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import { normalizeObjectSchema } from "@modelcontextprotocol/sdk/server/zod-compat.js";
+import { toJsonSchemaCompat } from "@modelcontextprotocol/sdk/server/zod-json-schema-compat.js";
+import {
+  ListToolsRequestSchema,
+  type CallToolResult,
+  type ToolAnnotations,
+} from "@modelcontextprotocol/sdk/types.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { logger } from "@/app/lib/logger";
@@ -21,10 +27,22 @@ import {
   saveMcpScript,
   searchMcpKnowledge,
 } from "./catalog";
-import { getInstagramConnectUrl, getMcpCommunityJoinUrl, getMcpProfileUrl } from "./config";
+import {
+  getInstagramConnectUrl,
+  getMcpCommunityJoinUrl,
+  getMcpProfileUrl,
+  getMcpRequiredScope,
+  getMcpResourceMetadataUrl,
+  isMcpCampaignRadarEnabled,
+} from "./config";
 import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNorth";
 import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
+import { buildMcpConversationPolicy } from "./conversationPolicy";
+import {
+  extractCampaignRadarPrivateSignals,
+  findMcpCampaignOpportunities,
+} from "./campaignRadar";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -65,12 +83,24 @@ type D2CToolConfig = {
   inputSchema?: z.ZodTypeAny;
   outputSchema?: z.ZodTypeAny;
   annotations: ToolAnnotations;
+  securitySchemes: D2CSecurityScheme[];
   _meta?: Record<string, unknown>;
+};
+
+type D2CSecurityScheme = {
+  type: "oauth2";
+  scopes: string[];
 };
 
 type D2CRegisterTool = <TArgs = undefined>(
   name: string,
   config: D2CToolConfig,
+  handler: (args: TArgs) => CallToolResult | Promise<CallToolResult>,
+) => unknown;
+
+type D2CRawRegisterTool = <TArgs = undefined>(
+  name: string,
+  config: Omit<D2CToolConfig, "securitySchemes">,
   handler: (args: TArgs) => CallToolResult | Promise<CallToolResult>,
 ) => unknown;
 
@@ -85,10 +115,146 @@ function structuredJsonResult(value: Record<string, unknown>): CallToolResult {
   };
 }
 
+function requiredToolScopes(...scopes: string[]): string[] {
+  return [...new Set([getMcpRequiredScope(), ...scopes])];
+}
+
+function oauthSecuritySchemes(...scopes: string[]): D2CSecurityScheme[] {
+  return [{ type: "oauth2", scopes: requiredToolScopes(...scopes) }];
+}
+
+function buildToolDescriptor(name: string, config: D2CToolConfig) {
+  // Adaptadores estreitos evitam que os tipos condicionais recursivos de Zod 3/4
+  // ultrapassem o limite do TypeScript no typecheck completo da aplicação.
+  const normalizeSchema = normalizeObjectSchema as unknown as (
+    schema: z.ZodTypeAny | undefined,
+  ) => z.ZodTypeAny | undefined;
+  const schemaToJson = toJsonSchemaCompat as unknown as (
+    schema: z.ZodTypeAny,
+    options: { strictUnions: boolean; pipeStrategy: "input" | "output" },
+  ) => Record<string, unknown>;
+  const inputSchema = normalizeSchema(config.inputSchema);
+  const outputSchema = normalizeSchema(config.outputSchema);
+  return {
+    name,
+    title: config.title,
+    description: config.description,
+    inputSchema: inputSchema
+      ? schemaToJson(inputSchema, { strictUnions: true, pipeStrategy: "input" })
+      : { type: "object", properties: {} },
+    ...(outputSchema
+      ? {
+          outputSchema: schemaToJson(outputSchema, {
+            strictUnions: true,
+            pipeStrategy: "output",
+          }),
+        }
+      : {}),
+    annotations: config.annotations,
+    securitySchemes: config.securitySchemes,
+    _meta: {
+      ...config._meta,
+      // Mirror necessário para hosts antigos que ainda leem autenticação só em _meta.
+      securitySchemes: config.securitySchemes,
+    },
+  };
+}
+
+function appendFreeClosingReminder(
+  toolName: string,
+  result: CallToolResult,
+  context: D2CMcpContext,
+): CallToolResult {
+  if (context.accountState.accessLevel !== "free") return result;
+  if (result.isError === true) return result;
+  if (toolName === "get_account_state") return result;
+  if (toolName === "find_campaign_opportunities") return result;
+
+  const serializedContent = JSON.stringify(result.content ?? []);
+  if (serializedContent.includes('"profileUrl"') || serializedContent.includes('"closingReminder"')) {
+    return result;
+  }
+
+  return {
+    ...result,
+    content: [
+      ...(result.content ?? []),
+      {
+        type: "text",
+        text: JSON.stringify({
+          schemaVersion: "free_closing_reminder_v1",
+          closingReminder: {
+            message:
+              "Seu perfil personalizado Data2Content reúne seu Norte e mostra como contextualizar " +
+              "as respostas com seus próprios conteúdos.",
+            url: getMcpProfileUrl(),
+            instruction: "Inclua este lembrete uma única vez, ao final da resposta ao usuário.",
+          },
+        }),
+      },
+    ],
+  };
+}
+
 const coverageSignalSchema = z.object({
   available: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
   ratio: z.number().min(0).max(1),
+});
+
+const campaignOpportunityOutputSchema = z.object({
+  title: z.string(),
+  brand: z.string().nullable(),
+  summary: z.string(),
+  opportunityType: z.string(),
+  territories: z.array(z.string()),
+  platforms: z.array(z.string()),
+  formats: z.array(z.string()),
+  requirements: z.array(z.string()),
+  deliverables: z.array(z.string()),
+  compensation: z.object({
+    label: z.string(),
+    individualPayConfirmed: z.boolean(),
+    minimum: z.number().nullable(),
+    maximum: z.number().nullable(),
+    currency: z.literal("BRL"),
+  }),
+  applicationDeadline: z.string().nullable(),
+  sourcePlatform: z.string(),
+  sourceUrl: z.string(),
+  application: z.object({
+    url: z.string(),
+    label: z.string(),
+    requiresAccount: z.boolean(),
+  }),
+  fit: z.object({
+    type: z.enum(["exact", "closest", "market_signal"]),
+    label: z.string(),
+    reasons: z.array(z.string()),
+    unmetCriteria: z.array(z.string()),
+    acceptanceIsNotGuaranteed: z.literal(true),
+  }),
+  lastVerifiedAt: z.string(),
+});
+
+const campaignRadarOutputSchema = z.object({
+  schemaVersion: z.literal("campaign_opportunities_v1"),
+  access: z.enum(["weekly_selection", "full_catalog"]),
+  weekStartsOn: z.string().optional(),
+  message: z.string(),
+  accountNotice: z.string().optional(),
+  personalization: z.object({
+    basis: z.enum(["declared_profile", "declared_profile_and_instagram_content"]),
+    instagramConnected: z.boolean(),
+    instagramSignalsUsed: z.boolean(),
+  }),
+  opportunities: z.array(campaignOpportunityOutputSchema),
+  coverage: z.object({
+    activePublicCatalog: z.number().int().nonnegative(),
+    exactMatches: z.number().int().nonnegative(),
+    returned: z.number().int().nonnegative(),
+    hasMore: z.boolean(),
+  }).optional(),
 });
 
 const periodAnalysisOutputSchema = z.object({
@@ -459,8 +625,12 @@ function instagramRequiredResult() {
     isError: true,
     content: jsonText({
       error: "instagram_connection_required",
-      message: "Conecte seu Instagram à Data2Content para consultar métricas.",
+      message:
+        "Para analisar seus próprios conteúdos — incluindo métricas, cenário, gancho, roteiro, " +
+        "tom de voz, duração, assunto, dia e horário — conecte seu Instagram à Data2Content. " +
+        "A conexão é opcional para os outros benefícios.",
       connectUrl: getInstagramConnectUrl(),
+      nextAction: "connect_instagram_or_continue_with_aggregate_context",
     }),
   };
 }
@@ -471,9 +641,11 @@ function profileRequiredResult() {
     content: jsonText({
       error: "private_creator_intelligence_unavailable",
       message:
-        "A inteligência dos seus próprios conteúdos não está disponível no estado atual da conta. " +
-        "Consulte seu perfil Data2Content para entender os recursos disponíveis.",
+        "Posso continuar usando seu Norte e padrões agregados da comunidade. Para entender como " +
+        "a Data2Content pode contextualizar as respostas com seus próprios conteúdos, consulte " +
+        "seu perfil personalizado.",
       profileUrl: getMcpProfileUrl(),
+      nextAction: "open_personalized_profile",
     }),
   };
 }
@@ -483,8 +655,27 @@ function membershipRequiredResult() {
     isError: true,
     content: jsonText({
       error: "membership_feature_unavailable",
-      message: "Este recurso da comunidade não está disponível no estado atual da conta.",
+      message:
+        "Este recurso da comunidade não está disponível no estado atual da conta. Consulte seu " +
+        "perfil personalizado para entender os recursos disponíveis.",
       profileUrl: getMcpProfileUrl(),
+      nextAction: "open_personalized_profile",
+    }),
+  };
+}
+
+function communityInspirationRequiredResult() {
+  return {
+    isError: true,
+    content: jsonText({
+      error: "community_inspiration_unavailable",
+      message:
+        "Posso continuar usando seu Norte e padrões agregados da comunidade, sem identificar " +
+        "creators ou expor métricas particulares. Para conhecer os recursos disponíveis para " +
+        "pesquisar referências específicas, consulte seu perfil personalizado.",
+      profileUrl: getMcpProfileUrl(),
+      nextTool: "build_creator_radar",
+      nextAction: "continue_with_aggregate_context_or_open_profile",
     }),
   };
 }
@@ -496,8 +687,16 @@ function privateCreatorContextRequiredResult(context: D2CMcpContext) {
 }
 
 function scopeRequiredResult(requiredScope: string) {
+  const requestedScopes = requiredToolScopes(requiredScope);
+  const challenge =
+    `Bearer resource_metadata="${getMcpResourceMetadataUrl()}", ` +
+    `scope="${requestedScopes.join(" ")}", error="insufficient_scope", ` +
+    `error_description="A conexão precisa autorizar o escopo ${requiredScope}"`;
   return {
     isError: true,
+    _meta: {
+      "mcp/www_authenticate": [challenge],
+    },
     content: jsonText({
       error: "insufficient_scope",
       message:
@@ -519,31 +718,60 @@ function hasAnyScope(context: D2CMcpContext, requiredScopes: string[]): boolean 
 }
 
 export function createD2CMcpServer(context: D2CMcpContext): McpServer {
+  const campaignRadarEnabled = isMcpCampaignRadarEnabled();
   const server = new McpServer(
     {
       name: "data2content",
       title: "Data2Content",
-      version: "0.8.0",
+      version: campaignRadarEnabled ? "0.9.0" : "0.8.0",
       websiteUrl: "https://data2content.ai",
       description:
-        "Planejamento e criação de conteúdo com o Norte do creator, padrões agregados da comunidade e, quando disponível, inteligência privada dos próprios conteúdos.",
+        "Planejamento e criação de conteúdo com o Norte do creator, padrões agregados da comunidade e, quando disponível, inteligência privada dos próprios conteúdos." +
+        (campaignRadarEnabled ? " Também consulta publicidades públicas revisadas." : ""),
     },
     {
       instructions:
-        "No início de uma conversa Data2Content, use get_account_state. Se o Norte estiver ausente, peça ao usuário que o descreva e use set_creator_north; em seguida use build_creator_radar. Contas gratuitas recebem valor com o Norte e padrões agregados da comunidade; nunca promova assinatura, planos ou upgrades. Só mencione limitações de acesso quando o usuário pedir um recurso indisponível, explicando o motivo e oferecendo apenas o link informativo retornado; nunca direcione a checkout. Para pesquisar referências, tendências, ganchos, tons, durações, cenários, objetos ou enquadramentos de outros creators, use research_inspiration_content. Trate 'viral' como desempenho relativo observado, nunca como garantia, e diga que trends representam a comunidade Data2Content. Use IDs de inspiração para aprofundar, comparar ou gerar roteiro; adapte padrões sem copiar. Para períodos do próprio creator, use analyze_creator_period com datas explícitas e nunca estime. Respeite coverage.warnings. generate_script_draft não salva; só use save_script após confirmação explícita. Use apenas a conta autenticada.",
+        "No início de uma conversa Data2Content, use get_account_state e siga conversationPolicy. " +
+        "Se o Norte estiver ausente, faça a pergunta indicada em onboardingPrompt, use " +
+        "set_creator_north e então build_creator_radar. Contas gratuitas recebem valor com o Norte " +
+        "e padrões agregados; depois de entregar cada resposta, inclua uma única linha curta com o " +
+        "closingReminder e seu link. Nunca promova assinatura, plano, preço ou upgrade e nunca " +
+        "direcione a checkout. Para contas PRO sem Instagram, mencione a conexão somente quando a " +
+        "inteligência particular ajudaria e explique que ela é opcional para os outros benefícios. " +
+        "Para contas PRO, mostre o convite da comunidade no máximo uma vez por conversa e apenas " +
+        "quando community.inviteFrequency for once_per_conversation. Só mencione limitações quando " +
+        "o usuário pedir um recurso indisponível. Para pesquisar referências, tendências, ganchos, " +
+        "tons, durações, cenários, objetos ou enquadramentos de outros creators, use " +
+        "research_inspiration_content. Trate 'viral' como desempenho relativo observado, nunca como " +
+        "garantia, e diga que trends representam a comunidade Data2Content. Use IDs de inspiração " +
+        "para aprofundar, comparar ou gerar roteiro; adapte padrões sem copiar. Para períodos do " +
+        "próprio creator, use analyze_creator_period com datas explícitas e nunca estime. Respeite " +
+        "coverage.warnings. Em contas gratuitas, use build_creator_radar para padrões agregados e " +
+        "não use ferramentas de inspiração nominal. generate_script_draft não salva; só use " +
+        "save_script após confirmação " +
+        "explícita. Use apenas a conta autenticada." +
+        (campaignRadarEnabled
+          ? " Para publicidades, use find_campaign_opportunities. Em conta gratuita, mostre apenas " +
+            "a seleção semanal retornada, não revele quantas outras existem e não inclua link de plano, " +
+            "assinatura, perfil comercial ou checkout. Explique critérios não atendidos sem estimar chance de aprovação."
+          : ""),
     },
   );
 
   // The SDK supports Zod 3 and 4. This narrow adapter avoids its recursive
   // compatibility conditional types leaking into the application's compiler.
-  const rawRegisterTool = server.registerTool.bind(server) as unknown as D2CRegisterTool;
+  const rawRegisterTool = server.registerTool.bind(server) as unknown as D2CRawRegisterTool;
   const accountRef = createHash("sha256").update(context.identity.userId).digest("hex").slice(0, 12);
-  const registerTool: D2CRegisterTool = (name, config, handler) =>
-    rawRegisterTool(name, {
-      ...config,
+  const toolDescriptors = new Map<string, D2CToolConfig>();
+  const registerTool: D2CRegisterTool = (name, config, handler) => {
+    const { securitySchemes, ...sdkConfig } = config;
+    toolDescriptors.set(name, config);
+    return rawRegisterTool(name, {
+      ...sdkConfig,
       _meta: {
         ...config._meta,
-        securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
+        // Compatibilidade com clientes que ainda leem autenticação somente em _meta.
+        securitySchemes,
       },
     }, async (args) => {
       const startedAt = Date.now();
@@ -556,7 +784,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           durationMs: Date.now() - startedAt,
           isError: result.isError === true,
         });
-        return result;
+        return appendFreeClosingReminder(name, result, context);
       } catch (error) {
         logger.error("[mcp][tool_call_failed]", {
           tool: name,
@@ -568,6 +796,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         throw error;
       }
     });
+  };
 
   registerTool(
     "get_account_state",
@@ -576,9 +805,18 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       description:
         "Use this at the start of a Data2Content conversation to learn whether the creator has declared a North, which context depth is available, and the correct non-commercial next action.",
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("profile:read"),
     },
     async () => {
       if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
+      const profileUrl = getMcpProfileUrl();
+      const instagramConnectUrl = getInstagramConnectUrl();
+      const communityJoinUrl = getMcpCommunityJoinUrl();
+      const conversationPolicy = buildMcpConversationPolicy(context.accountState, {
+        profileUrl,
+        instagramConnectUrl,
+        communityJoinUrl,
+      });
       return structuredJsonResult({
         schemaVersion: "account_state_v1",
         accessLevel: context.accountState.accessLevel,
@@ -590,17 +828,18 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           : context.accountState.northDeclared
             ? "creator_north_and_aggregate_community"
             : "aggregate_community_only",
-        profileUrl: getMcpProfileUrl(),
+        profileUrl,
+        conversationPolicy,
         membership: {
           included: context.accountState.capabilities.membershipBenefits,
           communityJoinPending: context.accountState.communityInvitePending,
           communityJoinUrl: context.accountState.communityInvitePending
-            ? getMcpCommunityJoinUrl()
+            ? communityJoinUrl
             : null,
         },
         instagramConnectUrl:
           context.accountState.accessLevel === "pro" && !context.accountState.instagramConnected
-            ? getInstagramConnectUrl()
+            ? instagramConnectUrl
             : null,
       });
     },
@@ -621,9 +860,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .describe("Declaração do propósito e da direção de conteúdo do creator"),
       }),
       annotations: DESTRUCTIVE_IDEMPOTENT_WRITE_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("profile:write"),
     },
     async ({ creatorNorth }) => {
-      if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
+      if (!hasScope(context, "profile:write")) return scopeRequiredResult("profile:write");
       try {
         const result = await saveMcpCreatorNorth(context.identity.userId, creatorNorth);
         if (!result) {
@@ -654,6 +894,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         periodDays: z.number().int().min(30).max(365).default(180),
       }),
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
     async ({ periodDays }) => {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
@@ -678,6 +919,84 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
+  if (campaignRadarEnabled) {
+    registerTool<{
+      query: string;
+      territories: string[];
+      platforms: string[];
+      formats: string[];
+      minimumConfirmedPay?: number;
+      deadlineAfter?: string;
+      includePrograms: boolean;
+      limit: number;
+    }>(
+      "find_campaign_opportunities",
+      {
+        title: "Encontrar oportunidades para creators",
+        description:
+          "Use this when the user asks which public creator partnership or advertising opportunities are active and relevant to their profile, topic, platform, format, deadline, or confirmed individual pay. Results come from human-reviewed sources approved for plugin distribution, are ranked only by relevance rather than sponsorship, never treat a total campaign budget as creator pay, and never predict acceptance.",
+        inputSchema: z.object({
+          query: z.string().trim().max(240).default("")
+            .describe("Pedido curto do creator, sem histórico completo da conversa"),
+          territories: z.array(z.string().trim().min(2).max(80)).max(5).default([]),
+          platforms: z.array(z.string().trim().min(2).max(40)).max(5).default([]),
+          formats: z.array(z.string().trim().min(2).max(40)).max(5).default([]),
+          minimumConfirmedPay: z.number().nonnegative().max(1_000_000).optional()
+            .describe("Cachê individual mínimo em BRL; não use orçamento total da campanha"),
+          deadlineAfter: z.string().regex(/^20\d{2}-\d{2}-\d{2}$/).optional(),
+          includePrograms: z.boolean().default(false)
+            .describe("Inclui programas de creators, que não garantem campanha nem pagamento"),
+          limit: z.number().int().min(1).max(10).default(5),
+        }),
+        outputSchema: campaignRadarOutputSchema,
+        annotations: READ_ONLY_ANNOTATIONS,
+        securitySchemes: oauthSecuritySchemes("campaigns:read"),
+      },
+      async ({
+        query,
+        territories,
+        platforms,
+        formats,
+        minimumConfirmedPay,
+        deadlineAfter,
+        includePrograms,
+        limit,
+      }) => {
+        if (!hasScope(context, "campaigns:read")) return scopeRequiredResult("campaigns:read");
+        let privateContentSignals: string[] = [];
+        if (
+          context.accountState.capabilities.privateCreatorIntelligence &&
+          hasAnyScope(context, ["intelligence:read", "strategy:read"])
+        ) {
+          const snapshot = await getMcpCreatorIntelligenceSnapshot({
+            userId: context.identity.userId,
+            focus: query || "Aderência do creator a publicidades ativas",
+            lookbackDays: 180,
+          }).catch(() => null);
+          if (snapshot) {
+            privateContentSignals = extractCampaignRadarPrivateSignals(snapshot);
+          }
+        }
+        const result = await findMcpCampaignOpportunities({
+          userId: context.identity.userId,
+          accountState: context.accountState,
+          search: {
+            query,
+            territories,
+            platforms,
+            formats,
+            minimumConfirmedPay,
+            deadlineAfter,
+            includePrograms,
+            limit,
+          },
+          privateContentSignals,
+        });
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
+      },
+    );
+  }
+
   registerTool<{ query: string }>(
     "search",
     {
@@ -688,6 +1007,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         query: z.string().trim().min(1).max(120).describe("Texto curto a buscar"),
       }),
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("content:read"),
     },
     async ({ query }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
@@ -711,6 +1031,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         id: z.string().trim().min(1).max(80).describe("ID retornado pela ferramenta search"),
       }),
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("content:read"),
     },
     async ({ id }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
@@ -736,6 +1057,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       description:
         "Use this when the user asks about their own Data2Content profile, Instagram connection, audience size, or biography.",
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("profile:read"),
     },
     async () => {
       if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
@@ -786,6 +1108,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: periodAnalysisOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("metrics:read"),
     },
     async ({ startDate, endDate, timeZone, format, evidenceLimit }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
@@ -837,6 +1160,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: creatorIntelligenceOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
     async ({ focus, lookbackDays }) => {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
@@ -870,6 +1194,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: deepContentOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("content:read"),
     },
     async ({ contentId, includeTranscript }) => {
       if (!hasScope(context, "content:read")) return scopeRequiredResult("content:read");
@@ -938,10 +1263,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: inspirationResearchOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
     async ({ mode, query, filters, periodDays, limit }) => {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
+      }
+      if (context.accountState.accessLevel !== "pro") {
+        return communityInspirationRequiredResult();
       }
       if (mode === "similar_to_me") {
         const unavailable = privateCreatorContextRequiredResult(context);
@@ -984,10 +1313,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: inspirationAnalysisOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
     async ({ inspirationId }) => {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
+      }
+      if (context.accountState.accessLevel !== "pro") {
+        return communityInspirationRequiredResult();
       }
       const result = await analyzeMcpInspirationContent({
         userId: context.identity.userId,
@@ -1017,10 +1350,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: inspirationComparisonOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
     async ({ inspirationIds }) => {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
+      }
+      if (context.accountState.accessLevel !== "pro") {
+        return communityInspirationRequiredResult();
       }
       const result = await compareMcpInspirationContents({
         userId: context.identity.userId,
@@ -1062,6 +1399,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: scriptDraftOutputSchema,
       annotations: GENERATIVE_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
     async ({ prompt, title, lookbackDays, inspirationContentIds }) => {
       const hasScriptGenerationScope = hasScope(context, "scripts:generate");
@@ -1078,6 +1416,9 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
             nextTool: "set_creator_north",
           }),
         };
+      }
+      if (context.accountState.accessLevel === "free" && inspirationContentIds.length > 0) {
+        return communityInspirationRequiredResult();
       }
       const contextualPrompt = context.accountState.creatorNorth
         ? `Norte declarado pelo creator: ${context.accountState.creatorNorth}\n\nPedido atual: ${prompt}`
@@ -1117,6 +1458,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: scriptSaveOutputSchema,
       annotations: IDEMPOTENT_WRITE_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("scripts:write"),
     },
     async ({ clientRequestId, title, content, userConfirmed }) => {
       if (!hasAnyScope(context, ["scripts:write", "content:write"])) {
@@ -1170,6 +1512,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }),
       outputSchema: collabSuggestionsOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("collabs:read"),
     },
     async ({ themeKeyword, context: collabContext, periodDays, limit }) => {
       if (!hasAnyScope(context, ["collabs:read", "strategy:read"])) {
@@ -1194,6 +1537,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       description:
         "Use this when the user asks for a strategic summary of their Instagram performance in the current 60-day analysis window.",
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("metrics:read"),
     },
     async () => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
@@ -1230,6 +1574,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         limit: z.number().int().min(1).max(10).default(5),
       }),
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("metrics:read"),
     },
     async ({ metric, format, periodDays, limit }) => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
@@ -1254,6 +1599,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       description:
         "Use this when the user asks whether Reels, carousels, or photos perform better for their own Instagram account.",
       annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("metrics:read"),
     },
     async () => {
       if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
@@ -1274,6 +1620,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       return { content: jsonText(result) };
     },
   );
+
+  // @modelcontextprotocol/sdk 1.30 ainda não inclui securitySchemes no tipo MCP
+  // base. Substituímos apenas tools/list para expor o campo normativo recomendado
+  // pela OpenAI e mantemos o espelho em _meta para clientes anteriores.
+  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: [...toolDescriptors.entries()].map(([name, config]) =>
+      buildToolDescriptor(name, config)),
+  }));
 
   return server;
 }

@@ -154,10 +154,11 @@ function LoginContent() {
             Data2Content + ChatGPT
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-950">
-            Entre para conectar sua conta
+            Crie ou conecte sua conta Data2Content
           </h1>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Use o mesmo login Google da sua conta Data2Content.
+            Continue com Google. Se você já tem uma conta, vamos conectá-la. Se ainda não tem,
+            sua conta gratuita será criada automaticamente.
           </p>
           <button
             type="button"
@@ -166,6 +167,27 @@ function LoginContent() {
           >
             Continuar com Google
           </button>
+          <p className="mt-4 text-xs leading-5 text-zinc-400">
+            Ao continuar, você concorda com os{" "}
+            <a
+              href="/termos-e-condicoes"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-zinc-600 underline underline-offset-2"
+            >
+              Termos de Uso
+            </a>{" "}
+            e a{" "}
+            <a
+              href="/politica-de-privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-zinc-600 underline underline-offset-2"
+            >
+              Política de Privacidade
+            </a>
+            .
+          </p>
           <button
             type="button"
             onClick={() => setShowReviewAccess(true)}

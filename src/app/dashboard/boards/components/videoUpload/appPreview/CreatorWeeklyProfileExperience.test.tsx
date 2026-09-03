@@ -92,7 +92,9 @@ describe("CreatorWeeklyProfileExperience", () => {
     render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
 
     expect(screen.getByRole("button", { name: "Definir minha narrativa" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ative o Pro para a leitura ser dos seus posts." })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Ative o Pro para a Data2Content aprender com os seus posts." }),
+    ).toBeInTheDocument();
   });
 
   it("não perde a confirmação do Instagram por falta de narrativa", () => {
@@ -141,7 +143,9 @@ describe("CreatorWeeklyProfileExperience", () => {
 
     expect(screen.getByText("Ana Criadora")).toBeInTheDocument();
     expect(screen.getByText(/Uma mãe que encontra força na rotina/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ative o Pro para a leitura ser dos seus posts." })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Ative o Pro para a Data2Content aprender com os seus posts." }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Conectar Instagram/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ativar o Pro" }));
     expect(callbacks.onUpgrade).toHaveBeenCalledWith("narrative_map");

@@ -132,6 +132,9 @@ async function gatherParticipante(
     janela.filter((p) => p.postDate >= padroesInicio),
     { de: ymd(padroesInicio), ate: ymd(ate) },
     de,
+    baseline.sufficient
+      ? { shares: baseline.medianShares, saved: baseline.medianSaved, views: baseline.medianViews }
+      : undefined,
   );
 
   // Comparativo: reusa o snapshots.json que a Galileia grava por criador.

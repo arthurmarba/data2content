@@ -12,7 +12,10 @@ import {
   ACTIVATION_JOURNEY_STORAGE_KEY,
   PAYWALL_AUTOSTART_PARAM,
   PAYWALL_CONTEXT_PARAM,
+  PAYWALL_INTENT_PARAM,
+  PAYWALL_RETURN_PARAM,
   PAYWALL_RETURN_STORAGE_KEY,
+  PAYWALL_SOURCE_PARAM,
   PAYWALL_URL_PARAM,
 } from "@/types/paywall";
 
@@ -36,6 +39,7 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
   "community",
   "recorded_meetings",
   "onboarding",
+  "chatgpt_intelligence",
 ];
 
 export default function PaywallModalProvider() {
@@ -46,6 +50,12 @@ export default function PaywallModalProvider() {
   const { enabled: paywallModalEnabled } = useFeatureFlag("paywall.modal_enabled", true);
   const [isOpen, setIsOpen] = useState(false);
   const [context, setContext] = useState<PaywallContext>("default");
+  const [journey, setJourney] = useState<PaywallEventDetail>({
+    context: "default",
+    source: null,
+    returnTo: null,
+    postCheckoutIntent: null,
+  });
   const shouldResumeCheckoutDirect =
     Boolean(paywallModalEnabled) &&
     sessionStatus === "authenticated" &&
@@ -76,6 +86,13 @@ export default function PaywallModalProvider() {
           : null;
 
       setContext(normalizedContext);
+      setJourney({
+        context: normalizedContext,
+        source: typeof detail?.source === "string" ? detail.source : null,
+        returnTo: sanitizedReturn,
+        proposalId,
+        postCheckoutIntent,
+      });
       if (normalizedContext === "narrative_map" || normalizedContext === "mentoria") {
         trackMobileNarrativeEvent("mobile_paywall_opened", {
           route: sanitizedReturn ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
@@ -127,6 +144,7 @@ export default function PaywallModalProvider() {
             (typeof window !== "undefined"
               ? `${window.location.pathname}${window.location.search}${window.location.hash}`
               : "/"),
+          postCheckoutIntent,
         });
         return;
       }
@@ -158,6 +176,24 @@ export default function PaywallModalProvider() {
       : "default";
 
     setContext(normalizedContext);
+    const rawReturn = searchParams.get(PAYWALL_RETURN_PARAM);
+    const sanitizedReturn =
+      rawReturn && rawReturn.startsWith("/") && !rawReturn.startsWith("//")
+        ? rawReturn
+        : null;
+    const intentParam = searchParams.get(PAYWALL_INTENT_PARAM);
+    const postCheckoutIntent =
+      intentParam === "connect_instagram"
+      || intentParam === "join_community"
+      || intentParam === "watch_recorded_meeting"
+        ? intentParam
+        : null;
+    setJourney({
+      context: normalizedContext,
+      source: searchParams.get(PAYWALL_SOURCE_PARAM),
+      returnTo: sanitizedReturn,
+      postCheckoutIntent,
+    });
     if (searchParams.get(PAYWALL_AUTOSTART_PARAM) === "1" && sessionStatus === "authenticated") {
       setIsOpen(false);
       return;
@@ -174,11 +210,27 @@ export default function PaywallModalProvider() {
     return null;
   }
 
+  const returnParam = searchParams?.get(PAYWALL_RETURN_PARAM) ?? null;
+  const initialReturnTo =
+    returnParam && returnParam.startsWith("/") && !returnParam.startsWith("//")
+      ? returnParam
+      : null;
+  const intentParam = searchParams?.get(PAYWALL_INTENT_PARAM) ?? null;
+  const initialPostCheckoutIntent =
+    intentParam === "connect_instagram"
+    || intentParam === "join_community"
+    || intentParam === "watch_recorded_meeting"
+      ? intentParam
+      : null;
+
   return (
     <BillingSubscribeModal
       open={isOpen}
       onClose={() => setIsOpen(false)}
       context={context}
+      source={journey.source ?? searchParams?.get(PAYWALL_SOURCE_PARAM)}
+      returnTo={journey.returnTo ?? initialReturnTo}
+      postCheckoutIntent={journey.postCheckoutIntent ?? initialPostCheckoutIntent}
       resumeCheckoutDirect={shouldResumeCheckoutDirect}
     />
   );

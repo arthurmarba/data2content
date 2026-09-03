@@ -19,7 +19,7 @@ O OAuth aceita contas gratuitas. A assinatura não é mais um requisito para aut
 | Estado | Contexto disponível no ChatGPT | Próxima ação funcional |
 |---|---|---|
 | Gratuito sem Norte | Padrões agregados da comunidade | Declarar o Norte no ChatGPT |
-| Gratuito com Norte | Norte + padrões agregados | Responder ao pedido sem lembrete comercial |
+| Gratuito com Norte | Norte + padrões agregados | Responder e encerrar com o lembrete informativo do perfil personalizado |
 | PRO sem Instagram | Benefícios PRO + contexto gratuito | Oferecer conexão opcional do Instagram |
 | PRO com Instagram | Norte + inteligência privada + comunidade agregada | Usar a profundidade completa |
 
@@ -28,7 +28,8 @@ O OAuth aceita contas gratuitas. A assinatura não é mais um requisito para aut
 - `get_account_state`: deve ser chamada no início da conversa.
 - `set_creator_north`: registra o Norte na conta e semeia o mapa narrativo existente.
 - `build_creator_radar`: correlaciona o Norte com uma amostra agregada de conteúdos autorizados da comunidade, sem identidades ou métricas privadas.
-- `research_inspiration_content`: pesquisa padrões agregados. O modo `similar_to_me` exige PRO + Instagram.
+- `research_inspiration_content`: pesquisa referências autorizadas com atribuição pública; exige PRO. O modo `similar_to_me` também exige Instagram conectado.
+- `analyze_inspiration_content` e `compare_inspiration_contents`: aprofundam referências identificáveis e exigem PRO.
 - `generate_script_draft`: funciona em profundidade gratuita ou PRO; nunca salva automaticamente.
 - `save_script`: exige confirmação explícita, mas não exige Instagram.
 
@@ -36,16 +37,16 @@ As ferramentas privadas de métricas, performance, posts e inteligência individ
 
 ## Mensagens no ChatGPT
 
-- Não adicionar lembretes comerciais ou links em todas as respostas.
-- Se o usuário pedir um recurso indisponível, explicar a limitação e oferecer somente a página informativa `/chatgpt/recursos`.
+- Para contas gratuitas, encerrar cada resposta com uma única linha curta e informativa levando ao perfil personalizado.
+- Se o usuário pedir um recurso indisponível, explicar a limitação e oferecer o perfil personalizado em `/dashboard/profile?source=chatgpt`.
 - Nunca mostrar planos, preço, checkout ou pedido de assinatura.
 - Para contas que já incluem comunidade, `get_account_state` pode informar uma única vez o benefício disponível e o link de entrada.
 
 ## Fluxo web vindo do ChatGPT
 
-1. Quando uma ferramenta solicitada não estiver disponível, o link informativo abre `/chatgpt/recursos`.
-2. A página explica os níveis de contexto sem preço, checkout ou início de assinatura.
-3. O usuário pode abrir a própria conta Data2Content para gerenciar recursos por iniciativa própria.
+1. O lembrete informativo ou uma ferramenta indisponível abre diretamente `/dashboard/profile?source=chatgpt`.
+2. O perfil existente reconhece `source=chatgpt`, apresenta o contexto disponível e os benefícios Data2Content.
+3. O usuário pode ativar o PRO por iniciativa própria no perfil; o plugin não abre checkout nem vende dentro da conversa.
 4. Para uma conta que já possui o recurso, a conexão opcional do Instagram usa `/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin`.
 5. Conexão ou “Agora não” terminam em `/dashboard/chatgpt/ready`.
 6. A tela confirma o contexto disponível e oferece retorno ao ChatGPT.
@@ -56,7 +57,7 @@ Para retornar diretamente à página publicada do plugin, configurar:
 NEXT_PUBLIC_CHATGPT_PLUGIN_URL=https://chatgpt.com/...
 ```
 
-Sem essa variável, o botão usa `https://chatgpt.com/`.
+Sem uma URL HTTPS específica — ou usando apenas `https://chatgpt.com/` — o botão direto fica desabilitado para não abandonar o usuário na página inicial do ChatGPT.
 
 ## Cadastro no painel de Plugins
 
@@ -86,7 +87,7 @@ Sugestões de prompts:
 - Validar Norte → radar → pautas → roteiro.
 - Validar gratuito → perfil → PRO → Instagram opcional → retorno ao ChatGPT.
 - Validar PRO com e sem Instagram.
-- Confirmar que nenhuma mensagem dentro do ChatGPT mostra preço, checkout, convite para assinar ou lembrete comercial repetitivo.
+- Confirmar que nenhuma mensagem dentro do ChatGPT mostra preço, checkout ou convite para assinar; o único lembrete repetido da conta gratuita deve ser a linha informativa para o perfil.
 - Confirmar que a política de privacidade cita explicitamente o uso via ChatGPT e as categorias de dados retornadas.
 - Usar o ícone de listagem em `public/plugin/data2content-logo-512.png` e não enviar screenshots, pois a V1 não possui UI própria no ChatGPT.
 - Usar `docs/chatgpt-plugin-submission.md` para preencher todos os campos e testes do portal.

@@ -7,6 +7,8 @@ import type { PaywallContext } from "@/types/paywall";
 
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
+const campaignRadarAvailable = process.env.NEXT_PUBLIC_CAMPAIGN_RADAR_ENABLED === "1";
+
 /**
  * O campo de próximo passo — um onboarding que roda dentro do produto.
  *
@@ -178,11 +180,13 @@ export function ProfileNextStepField({
         <ProfileSectionHeader title={KICKER.subscribe} />
         <FieldCard>
           <h2 className="text-[21px] font-bold leading-[1.2] tracking-[-0.03em] text-[var(--ds-color-ink)]">
-            Ative o Pro para a leitura ser dos seus posts.
+            Ative o Pro para a Data2Content aprender com os seus posts.
           </h2>
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
-            Toda segunda a D2C lê o que você postou, separa o que já é regra do que ainda é hipótese e recomenda o
-            próximo passo. Por enquanto, o que aparece aqui embaixo é um exemplo.
+            Toda semana, a D2C analisa o que você publicou, mostra o que funciona melhor e recomenda o próximo passo.
+            Esse aprendizado também ajuda a criar conteúdos com mais contexto no ChatGPT
+            {campaignRadarAvailable ? " e a encontrar publicidades relacionadas ao seu perfil" : ""}. Por enquanto,
+            o que aparece aqui embaixo é um exemplo.
           </p>
           <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
             Ativar o Pro

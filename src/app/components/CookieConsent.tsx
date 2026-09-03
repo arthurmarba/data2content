@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import {
+  normalizeOpenAiOppref,
+  OPENAI_ATTRIBUTION_MAX_AGE_SECONDS,
+  OPENAI_OBREF_COOKIE_NAME,
+  OPENAI_OPPREF_COOKIE_NAME,
+  OPENAI_OPPREF_QUERY_PARAM,
+} from "@/lib/openAiAdsAttribution";
 
 const COOKIE_NAME = "cookie_consent";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 ano
@@ -21,6 +28,28 @@ function writeConsentCookie(value: "granted" | "denied") {
       ? "; Secure"
       : "";
   document.cookie = `${COOKIE_NAME}=${value}; Max-Age=${COOKIE_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+}
+
+function writeOpenAiOpprefFromCurrentUrl() {
+  if (typeof window === "undefined") return;
+  const oppref = normalizeOpenAiOppref(
+    new URL(window.location.href).searchParams.get(OPENAI_OPPREF_QUERY_PARAM),
+  );
+  if (!oppref) return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie =
+    `${OPENAI_OPPREF_COOKIE_NAME}=${oppref}; ` +
+    `Max-Age=${OPENAI_ATTRIBUTION_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}`;
+}
+
+function deleteOpenAiAttributionCookies() {
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  for (const cookieName of [OPENAI_OPPREF_COOKIE_NAME, OPENAI_OBREF_COOKIE_NAME]) {
+    document.cookie = `${cookieName}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+  }
 }
 
 const CookieConsent: React.FC = () => {
@@ -78,23 +107,27 @@ const CookieConsent: React.FC = () => {
 
   const acceptCookies = () => {
     writeConsentCookie("granted");
+    writeOpenAiOpprefFromCurrentUrl();
     (window as any).gtag?.("consent", "update", {
       ad_storage: "denied",
       ad_user_data: "denied",
       ad_personalization: "denied",
       analytics_storage: "granted",
     });
+    (window as any).oaiq?.("consent", true);
     dismiss();
   };
 
   const declineCookies = () => {
     writeConsentCookie("denied");
+    deleteOpenAiAttributionCookies();
     (window as any).gtag?.("consent", "update", {
       ad_storage: "denied",
       ad_user_data: "denied",
       ad_personalization: "denied",
       analytics_storage: "denied",
     });
+    (window as any).oaiq?.("consent", false);
     dismiss();
   };
 

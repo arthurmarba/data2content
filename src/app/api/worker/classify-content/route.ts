@@ -193,18 +193,18 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
             return NextResponse.json({ message: "Métrica já classificada." }, { status: 200 });
         }
         if (!metricDoc.description || metricDoc.description.trim() === "") {
-            logger.warn(`${TAG} Métrica ${metricId} não possui descrição. Impossível classificar.`);
+            logger.info(`${TAG} Métrica ${metricId} sem descrição; classificação textual concluída como vazia.`);
             await Metric.updateOne(
                 { _id: metricDoc._id },
                 {
                   $set: {
-                    classificationStatus: 'failed',
-                    classificationError: 'Descrição ausente ou vazia.',
+                    classificationStatus: 'completed',
+                    classificationError: null,
                     ...createEmptyMetricClassificationUpdate(),
                   },
                 }
             );
-            return NextResponse.json({ message: "Métrica sem descrição para classificar." }, { status: 200 });
+            return NextResponse.json({ message: "Classificação textual vazia concluída." }, { status: 200 });
         }
 
         logger.debug(`${TAG} Chamando classifyContent para Metric ${metricId}...`);

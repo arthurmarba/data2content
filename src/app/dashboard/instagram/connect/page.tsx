@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowRight, ChevronDown, Instagram } from "lucide-react";
@@ -14,6 +14,7 @@ import {
 } from "@/app/lib/instagram/client/startInstagramReconnect";
 import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
+import { track } from "@/lib/track";
 
 type QuickItem = {
   title: string;
@@ -25,9 +26,10 @@ type QuickItem = {
 export default function InstagramPreConnectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const generalDetailsRef = useRef<HTMLElement | null>(null);
   const postCreationDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const trackedOauthErrorRef = useRef<string | null>(null);
   const requestedNextTarget = searchParams.get("next");
   const nextTarget: InstagramReconnectNextTarget =
     requestedNextTarget === "calculator" ||
@@ -100,6 +102,19 @@ export default function InstagramPreConnectPage() {
   const oauthErrorMessage =
     oauthErrorCode === "UNKNOWN" ? null : reconnectErrorMessageForCode(oauthErrorCode);
   const displayError = error ?? oauthErrorMessage;
+  useEffect(() => {
+    if (!isChatGptPluginFlow || oauthErrorCode === "UNKNOWN") return;
+    if (trackedOauthErrorRef.current === oauthErrorCode) return;
+    trackedOauthErrorRef.current = oauthErrorCode;
+    track("chatgpt_funnel_event", {
+      creator_id: session?.user?.id ?? null,
+      step: "instagram_connect_failed",
+      source: "chatgpt_post_checkout",
+      context: "chatgpt_intelligence",
+      status: `oauth_${oauthErrorCode.toLowerCase()}`,
+      event_id: null,
+    });
+  }, [isChatGptPluginFlow, oauthErrorCode, session?.user?.id]);
   const showAuthorizationDetails = () => {
     if (postCreationDetailsRef.current) {
       postCreationDetailsRef.current.open = true;
@@ -119,6 +134,16 @@ export default function InstagramPreConnectPage() {
   const startConnect = async () => {
     setLoading(true);
     setError(null);
+    if (isChatGptPluginFlow) {
+      track("chatgpt_funnel_event", {
+        creator_id: session?.user?.id ?? null,
+        step: "instagram_connect_started",
+        source: "chatgpt_post_checkout",
+        context: "chatgpt_intelligence",
+        status: null,
+        event_id: null,
+      });
+    }
     try {
       await startInstagramReconnect({
         nextTarget,
@@ -126,9 +151,33 @@ export default function InstagramPreConnectPage() {
       });
     } catch (e: any) {
       console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);
+      if (isChatGptPluginFlow) {
+        track("chatgpt_funnel_event", {
+          creator_id: session?.user?.id ?? null,
+          step: "instagram_connect_failed",
+          source: "chatgpt_post_checkout",
+          context: "chatgpt_intelligence",
+          status: "authorization_start_failed",
+          event_id: null,
+        });
+      }
       setError(e?.message || "Erro inesperado. Tente novamente.");
       setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    if (isChatGptPluginFlow) {
+      track("chatgpt_funnel_event", {
+        creator_id: session?.user?.id ?? null,
+        step: "instagram_connect_skipped",
+        source: "chatgpt_post_checkout",
+        context: "chatgpt_intelligence",
+        status: null,
+        event_id: null,
+      });
+    }
+    router.push(backTarget);
   };
 
   const connectCopy = (() => {
@@ -310,7 +359,7 @@ export default function InstagramPreConnectPage() {
   return (
     <ProfileSettingsPage
       title="Conectar Instagram"
-      onBack={() => router.push(backTarget)}
+      onBack={handleBack}
       backLabel={connectCopy.backLabel}
       contentClassName="max-w-md"
     >
@@ -347,6 +396,14 @@ export default function InstagramPreConnectPage() {
             >
               <p className="font-semibold">Não conseguimos abrir a autorização.</p>
               <p className="mt-1">{displayError}</p>
+              {isChatGptPluginFlow ? (
+                <a
+                  href="/suporte-plugin"
+                  className="mt-3 inline-flex font-semibold underline underline-offset-2"
+                >
+                  Pedir ajuda à Data2Content
+                </a>
+              ) : null}
             </div>
           )}
 

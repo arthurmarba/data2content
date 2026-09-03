@@ -35,7 +35,10 @@ export function SecondAnswer() {
 
       <div className="d2c-v6-shell">
         <div className="d2c-v6-head d2c-v6-reveal">
-          <span className="d2c-v6-label">02 · a publi</span>
+          <span className="d2c-v6-label">
+            <span className="d2c-v6-label__desktop-prefix">02 · </span>
+            a publi
+          </span>
           <h2 className="d2c-v6-title">
             Qual publi é sua <span className="d2c-v6-answer__soft">nesta semana.</span>
           </h2>
@@ -59,6 +62,9 @@ export function SecondAnswer() {
             <ul className="d2c-v6-publi__reqs">
               {REQUIREMENTS.map((requirement) => (
                 <li key={requirement}>
+                  <span className="d2c-v6-publi__check" aria-hidden="true">
+                    <Check size={12} />
+                  </span>
                   <span>{requirement}</span>
                   <b>
                     <Check size={13} aria-hidden="true" />

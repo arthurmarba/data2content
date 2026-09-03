@@ -159,6 +159,9 @@ async function main() {
     janela.filter((p) => p.postDate >= padroesInicio),
     { de: ymd(padroesInicio), ate: ateStr },
     de,
+    baseline.sufficient
+      ? { shares: baseline.medianShares, saved: baseline.medianSaved, views: baseline.medianViews }
+      : undefined,
   );
 
   const nome = user.name ?? "Criador";

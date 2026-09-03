@@ -9,7 +9,7 @@
 // screenshot por slide e os embrulha num .pptx.
 
 import type { CriadorSlide, CollabSugerida, DeckData, Ponto, Selo } from "./types";
-import type { ExtremoItem, PadraoDimensao } from "../../relatorio/lib/types";
+import type { ExtremoItem, PadraoDimensao, PadroesJanela } from "../../relatorio/lib/types";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -20,7 +20,7 @@ const CIRC = { narrativa: "#E90F4F", audiencia: "#FF8438", marca: "#167A55" } as
 /** Nível de evidência do hábito de 90 dias, em português. Vem CALCULADO do motor
  *  compartilhado com a Galileia (baseline.ts) — o slide nunca decide o peso de um
  *  número, só o exibe. */
-const EVIDENCE_PT = { indicio: "indício", sinal: "sinal", tendencia: "tendência" } as const;
+const EVIDENCE_PT = { indicio: "poucos posts", sinal: "amostra média", tendencia: "amostra consistente" } as const;
 const FORTE = "#167A55"; // verde — ponto forte
 const AJUSTAR = "#B4233D"; // vermelho — ponto a ajustar
 const BRAND_MARK = pathToFileURL(path.resolve("public/images/Colorido-Simbolo.png")).href;
@@ -76,6 +76,14 @@ function splitCoverTitle(title: string): [string, string] {
  *  — normaliza pra Title Case só na exibição, sem alterar o dado de origem. */
 function tituleCase(s: string): string {
   return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+function clearDimensionTitle(value: string): string {
+  return String(value ?? "")
+    .replace(/objeto em cena/gi, "Objeto")
+    .replace(/quem e o que aparece/gi, "Pessoa ou elemento")
+    .replace(/assunto que você repetiu/gi, "Assunto repetido")
+    .replace(/dia da semana/gi, "Dia");
 }
 
 /** Une nomes equivalentes vindos de mapas escritos em épocas diferentes.
@@ -453,7 +461,11 @@ const CSS = `
 
   /* Sem sinal: mapa + retomada em um único slide. */
   .cr--sem-sinal { grid-template-columns:320px 1fr; gap:56px; }
+  .cr--sem-sinal.cr--sem-sinal-reel { grid-template-columns:270px 1fr 240px; gap:38px; }
   .cr--sem-sinal .cr-verdict { display:flex; flex-direction:column; justify-content:center; }
+  .sem-signal-media { display:flex; align-items:center; justify-content:flex-end; }
+  .sem-signal-media .reel { width:240px; height:427px; }
+  .cr--sem-sinal-reel .pt--semsinal .pt-texto { font-size:36px; }
   .pt--semsinal { padding:0 0 22px; border:0; border-bottom:1px solid var(--hair); border-radius:0; background:transparent; box-shadow:none; }
   .pt--semsinal .pt-texto { max-width:20ch; font-family:var(--serif); font-size:38px; line-height:.98; letter-spacing:-.05em; }
   .sem-pautas { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
@@ -612,31 +624,38 @@ const CSS = `
   .venn-leg { display:none; }
 
   /* ── GALISTEU V4 — identidade institucional + narrativa em três tempos ── */
-  .cover-v4 { position:relative; justify-content:center; align-items:center; overflow:hidden; text-align:center; }
-  .cover-v4-copy { width:100%; max-width:1080px; display:flex; flex-direction:column; align-items:center; }
-  .cover-v4 .eyebrow { font-size:15px; letter-spacing:.12em; }
-  .cover-v4-title { max-width:11ch; margin-top:20px; font-family:var(--serif); font-size:116px; font-weight:780; line-height:.82; letter-spacing:-.078em; text-align:center; }
-  .cover-v4-sub { max-width:44ch; margin-top:34px; color:var(--muted); font-size:24px; line-height:1.36; text-align:center; }
-  .cover-v4-meta { margin-top:27px; color:var(--accent); font-size:14px; font-weight:760; letter-spacing:.1em; text-transform:uppercase; text-align:center; }
+  .cover-v4 { position:relative; justify-content:center; align-items:center; overflow:hidden; text-align:center; padding-top:42px; padding-bottom:36px; }
+  .cover-v4-copy { width:100%; max-width:1160px; display:flex; flex-direction:column; align-items:center; }
+  .cover-v4 .eyebrow { font-size:14px; letter-spacing:.12em; }
+  .cover-v4-title { max-width:19ch; margin-top:15px; font-family:var(--serif); font-size:68px; font-weight:780; line-height:.91; letter-spacing:-.058em; text-align:center; }
+  .cover-v4-sub { margin-top:15px; color:var(--muted); font-size:17px; line-height:1.36; text-align:center; }
+  .cover-v4-meta { margin-top:18px; color:var(--accent); font-size:12px; font-weight:760; letter-spacing:.1em; text-transform:uppercase; text-align:center; }
+  .cover-v4-roster { width:100%; margin-top:22px; padding-top:18px; border-top:1px solid var(--hair); display:flex; flex-direction:column; gap:13px; }
+  .cover-v4-row { display:flex; justify-content:center; align-items:flex-start; gap:18px; }
+  .cover-v4-person { width:70px; display:flex; flex-direction:column; align-items:center; }
+  .cover-v4-person .avatar { width:40px; height:40px; border-width:2px; box-shadow:0 7px 18px rgba(18,16,20,.09); }
+  .cover-v4-name { max-width:70px; margin-top:5px; font-size:9px; font-weight:680; line-height:1.12; text-align:center; }
 
-  .opening-v4 { position:relative; justify-content:center; overflow:hidden; }
-  .opening-v4::after { content:''; position:absolute; right:-140px; bottom:-280px; width:720px; height:720px; border:2px solid rgba(233,15,79,.22); border-radius:50%; }
-  .opening-v4 .abertura-content { width:100%; max-width:none; display:grid; grid-template-columns:1.08fr .92fr; gap:92px; align-items:center; }
-  /* Sem !important: o fio da semana vem do deck e varia de comprimento, então o
-     tamanho é calculado inline por claimEscala. O 72px aqui é só o padrão de
-     frase curta — o inline manda quando o fio é mais longo. */
-  .opening-v4 .r-title { max-width:16ch; font-size:72px; line-height:.94; }
-  .opening-left { position:relative; z-index:2; }
-  .opening-proofs { position:relative; z-index:2; border-top:1px solid rgba(255,255,255,.2); }
-  .opening-proof { display:grid; grid-template-columns:142px 1fr; gap:22px; align-items:center; padding:20px 0; border-bottom:1px solid rgba(255,255,255,.2); }
-  .opening-proof strong { color:#fff9f5; font-family:var(--serif); font-size:45px; line-height:1; letter-spacing:-.05em; }
-  .opening-proof-meta { color:rgba(255,249,245,.67); font-size:15px; line-height:1.3; }
-  .opening-proof-meta b { display:block; color:#ff3f75; font-size:14px; letter-spacing:.04em; text-transform:uppercase; }
-  .opening-owner { display:block; margin-top:4px; color:#fff9f5; font-size:18px; font-weight:760; }
-  .opening-case { display:block; color:rgba(255,249,245,.58); }
-  .opening-counts { display:flex; gap:34px; margin-top:42px; padding-top:22px; border-top:1px solid rgba(255,255,255,.18); }
-  .opening-count { color:rgba(255,249,245,.66); font-size:16px; }
-  .opening-count b { display:block; color:#fff9f5; font-family:var(--serif); font-size:34px; line-height:1; }
+  .opening-v4 { position:relative; justify-content:flex-start; overflow:hidden; padding:38px 48px 34px; }
+  .opening-v4::after { content:''; position:absolute; right:-170px; bottom:-410px; width:720px; height:720px; border:2px solid rgba(233,15,79,.16); border-radius:50%; }
+  .opening-v4-head { position:relative; z-index:2; display:flex; justify-content:space-between; align-items:flex-end; gap:42px; padding-bottom:17px; border-bottom:1px solid rgba(255,255,255,.18); }
+  .opening-v4-title { margin-top:5px; color:#fff9f5; font-family:var(--serif); font-size:43px; font-weight:780; line-height:.98; letter-spacing:-.045em; }
+  .opening-v4-note { max-width:390px; color:rgba(255,249,245,.62); font-size:14px; line-height:1.4; text-align:right; }
+  .opening-highlights { position:relative; z-index:2; display:grid; grid-template-columns:repeat(3,1fr); gap:24px; flex:1; min-height:0; padding-top:22px; }
+  .opening-highlight { min-width:0; display:grid; grid-template-columns:184px 1fr; gap:18px; align-items:center; }
+  .opening-reel-wrap { position:relative; width:184px; }
+  .opening-reel-wrap .reel { width:184px; height:327px; border-radius:16px; box-shadow:0 20px 44px rgba(0,0,0,.34); }
+  .opening-reel-wrap .reel::after { background:linear-gradient(180deg,rgba(18,16,20,.02),rgba(18,16,20,.24)); }
+  .opening-reel-wrap .reel-badge { top:12px; left:12px; padding:6px 10px; background:var(--accent); color:white; font-size:10px; }
+  .opening-rank { position:absolute; right:-8px; top:-10px; z-index:3; width:31px; height:31px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#fff9f5; color:var(--ink); font-size:13px; font-weight:800; box-shadow:0 7px 20px rgba(0,0,0,.26); }
+  .opening-highlight-copy { min-width:0; }
+  .opening-creator { color:#fff9f5; font-size:20px; font-weight:780; line-height:1.08; }
+  .opening-handle { margin-top:4px; color:rgba(255,249,245,.5); font-size:12px; }
+  .opening-result { margin-top:22px; color:#ff3f75; font-family:var(--serif); font-size:42px; font-weight:800; line-height:.9; letter-spacing:-.05em; }
+  .opening-metric { margin-top:7px; color:rgba(255,249,245,.68); font-size:11px; font-weight:720; line-height:1.25; text-transform:uppercase; letter-spacing:.045em; }
+  .opening-secondary { margin-top:8px; color:rgba(255,249,245,.52); font-size:12px; line-height:1.25; }
+  .opening-why { margin-top:22px; padding-top:15px; border-top:1px solid rgba(255,255,255,.16); color:rgba(255,249,245,.72); font-size:13px; line-height:1.42; }
+  .opening-why b { display:block; margin-bottom:5px; color:#fff9f5; font-size:11px; letter-spacing:.065em; text-transform:uppercase; }
 
   /* Tempo 1: evidência. O reel e o acerto são os únicos protagonistas. */
   .beatA { display:grid; grid-template-columns:340px 1fr; gap:58px; flex:1; min-height:0; }
@@ -732,6 +751,122 @@ const CSS = `
   .territory-cluster { background:transparent; }
   .territory-names { margin-top:13px; color:var(--muted); font-size:15px; line-height:1.45; }
   .territory-links { display:none; }
+
+  /* Refino V5: pautas como plano executável; rankings como lista editorial. */
+  .pautas-board { display:flex; flex-direction:column; flex:1; min-height:0; border-top:2px solid var(--ink); }
+  .pauta-row { display:grid; grid-template-columns:62px 1.28fr 1fr .78fr; gap:22px; align-items:start; flex:1; min-height:0; padding:16px 0 13px; border-bottom:1px solid var(--hair); }
+  .pauta-row--collab { border-bottom:0; }
+  .pauta-rank b { display:block; font-family:var(--serif); color:var(--accent); font-size:24px; line-height:1; }
+  .pauta-rank span { display:block; margin-top:7px; color:var(--muted); font-size:10px; font-weight:780; letter-spacing:.1em; }
+  .pauta-core h2 { margin:0; max-width:32ch; font-family:var(--serif); font-size:22px; line-height:1.06; letter-spacing:-.035em; }
+  .pauta-hook { margin-top:8px; color:var(--accent); font-size:13px; line-height:1.32; }
+  .pauta-plan, .pauta-proof { padding-left:20px; border-left:1px solid var(--hair); }
+  .pauta-plan p, .pauta-proof p { color:var(--muted); font-size:12px; line-height:1.34; }
+  .pauta-plan p + p, .pauta-proof p + p { margin-top:7px; }
+  .pauta-plan b { display:block; margin-bottom:2px; color:var(--ink); font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+  .pauta-proof .pauta-metric { color:var(--ink); font-weight:760; }
+  .pauta-partner { display:flex; align-items:center; gap:9px; margin-top:9px; }
+  .pauta-partner .pauta-avatar { width:29px; height:29px; border-width:1px; box-shadow:none; }
+  .pauta-partner b, .pauta-partner span { display:block; }
+  .pauta-partner b { font-size:11.5px; }
+  .pauta-partner span { margin-top:1px; color:var(--muted); font-size:10px; }
+  .pautas-board--dense .pauta-row { grid-template-columns:52px 1.22fr 1fr .82fr; gap:17px; padding:8px 0 7px; }
+  .pautas-board--dense .pauta-rank b { font-size:20px; }
+  .pautas-board--dense .pauta-rank span { margin-top:4px; font-size:8.5px; }
+  .pautas-board--dense .pauta-core h2 { max-width:35ch; font-size:18px; line-height:1.04; }
+  .pautas-board--dense .pauta-hook { margin-top:4px; font-size:10.5px; line-height:1.22; }
+  .pautas-board--dense .pauta-plan, .pautas-board--dense .pauta-proof { padding-left:15px; }
+  .pautas-board--dense .pauta-plan p, .pautas-board--dense .pauta-proof p { font-size:10px; line-height:1.22; }
+  .pautas-board--dense .pauta-plan p + p, .pautas-board--dense .pauta-proof p + p { margin-top:4px; }
+  .pautas-board--dense .pauta-plan b { margin-bottom:1px; font-size:8.5px; }
+  .pautas-board--dense .pauta-partner { gap:6px; margin-top:4px; }
+  .pautas-board--dense .pauta-partner .pauta-avatar { width:20px; height:20px; }
+  .pautas-board--dense .pauta-partner b { font-size:9px; }
+  .pautas-board--dense .pauta-partner span { font-size:8px; }
+
+  /* Calendário semanal: no máximo duas pautas por página, sem repetir contexto. */
+  .calendar-board { display:flex; flex-direction:column; flex:1; min-height:0; margin-top:18px; border-top:2px solid var(--ink); }
+  .calendar-row { display:grid; grid-template-columns:118px 1.12fr 1.08fr 1.08fr; gap:28px; align-items:start; flex:1; min-height:0; padding:27px 0 23px; border-bottom:1px solid var(--hair); }
+  .calendar-row:last-child { border-bottom:0; }
+  .calendar-when strong { display:block; color:var(--accent); font-size:14px; font-weight:820; letter-spacing:.06em; line-height:1; }
+  .calendar-date { display:block; margin-top:5px; font-family:var(--serif); color:var(--accent); font-size:28px; font-weight:780; line-height:1; }
+  .calendar-when time { display:block; margin-top:19px; color:var(--ink); font-size:31px; font-weight:820; }
+  .calendar-badges { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+  .calendar-badge { padding:4px 7px; border:1px solid var(--hair); border-radius:999px; color:var(--muted); font-size:8.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+  .calendar-badge--collab { border-color:var(--accent); color:var(--accent); }
+  .calendar-badge--forte { border-color:var(--marca); color:var(--marca); }
+  .calendar-core h2 { margin:0; font-family:var(--serif); font-size:28px; line-height:1.03; letter-spacing:-.035em; }
+  .calendar-hook { margin-top:12px; color:var(--accent); font-size:16px; line-height:1.3; }
+  .calendar-collab-with { margin-bottom:7px; color:var(--accent); font-size:9.5px; font-weight:820; letter-spacing:.075em; text-transform:uppercase; }
+  .calendar-action { margin-top:16px; padding-top:12px; border-top:1px solid var(--hair); color:var(--muted); font-size:12px; line-height:1.3; }
+  .calendar-action b { display:block; margin-bottom:4px; color:var(--ink); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; }
+  .calendar-partner { display:flex; align-items:center; gap:9px; margin-top:11px; }
+  .calendar-partner .pauta-avatar { width:30px; height:30px; border-width:1px; box-shadow:none; }
+  .calendar-partner b { font-size:12px; }
+  .calendar-partner span { display:block; color:var(--muted); font-size:10px; }
+  .calendar-production, .calendar-why { padding-left:23px; border-left:1px solid var(--hair); }
+  .calendar-production p, .calendar-why p { color:var(--muted); font-size:11.5px; line-height:1.24; }
+  .calendar-production p + p, .calendar-why p + p { margin-top:8px; }
+  .calendar-production b, .calendar-why b { color:var(--ink); font-size:9.5px; letter-spacing:.065em; text-transform:uppercase; }
+  .calendar-why .calendar-metric { color:var(--ink); font-weight:750; }
+  .calendar-duration { color:var(--ink) !important; font-family:var(--serif); font-size:25px !important; font-weight:780; }
+  .calendar-duration small { display:block; margin-bottom:2px; color:var(--muted); font-family:var(--sans); font-size:9px; font-weight:780; letter-spacing:.06em; text-transform:uppercase; }
+  .calendar-stat { padding-top:6px; border-top:1px solid var(--hair); }
+  .calendar-row--dense { gap:24px; padding-top:23px; padding-bottom:19px; }
+  .calendar-row--dense .calendar-core h2 { font-size:24px; line-height:1.01; }
+  .calendar-row--dense .calendar-hook { margin-top:9px; font-size:14.5px; }
+  .calendar-row--dense .calendar-action { margin-top:11px; padding-top:9px; font-size:10.8px; line-height:1.24; }
+  .calendar-row--dense .calendar-production, .calendar-row--dense .calendar-why { padding-left:19px; }
+  .calendar-row--dense .calendar-production p, .calendar-row--dense .calendar-why p { font-size:10.5px; line-height:1.18; }
+  .calendar-row--dense .calendar-production p + p, .calendar-row--dense .calendar-why p + p { margin-top:6px; }
+  .calendar-row--collab .calendar-core h2 { font-size:25px; }
+  .calendar-row--collab .calendar-production p, .calendar-row--collab .calendar-why p { line-height:1.16; }
+  .calendar-board--1 .calendar-row { flex:1; padding-top:46px; }
+  .calendar-board--1 .calendar-core h2 { font-size:32px; }
+  .calendar-board--1 .calendar-production p, .calendar-board--1 .calendar-why p { font-size:13px; }
+
+  /* Demografia tem um slide próprio: contexto de audiência antes dos rankings. */
+  .demo-page { display:flex; flex-direction:column; flex:1; min-height:0; }
+  .demo-hero { display:grid; grid-template-columns:92px 1fr; gap:25px; align-items:center; padding:38px 0 31px; border-bottom:2px solid var(--ink); }
+  .demo-hero .avatar { width:82px; height:82px; box-shadow:none; }
+  .demo-eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+  .demo-hero h2 { max-width:31ch; margin-top:9px; font-family:var(--serif); font-size:41px; line-height:.98; letter-spacing:-.047em; }
+  .demo-columns { display:grid; grid-template-columns:.9fr .9fr 1.2fr; gap:40px; flex:1; min-height:0; padding-top:30px; }
+  .demo-column { min-width:0; }
+  .demo-column + .demo-column { padding-left:40px; border-left:1px solid var(--hair); }
+  .demo-column h3 { padding-bottom:10px; border-bottom:2px solid var(--accent); font-family:var(--serif); font-size:22px; letter-spacing:-.03em; }
+  .demo-row { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline; padding:13px 0 10px; border-bottom:1px solid var(--hair); }
+  .demo-row span { color:var(--ink); font-size:15px; line-height:1.2; }
+  .demo-row b { font-family:var(--serif); font-size:24px; letter-spacing:-.035em; }
+  .demo-bar { grid-column:1 / 3; height:3px; margin-top:1px; background:var(--hair); }
+  .demo-bar i { display:block; height:100%; background:var(--accent); }
+  .demo-country { margin-top:19px; color:var(--muted); font-size:13px; line-height:1.4; }
+  .demo-country b { color:var(--ink); }
+  .demo-updated { margin-top:18px; color:var(--muted); font-size:10px; }
+  .rank-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:34px; flex:1; min-height:0; margin-top:10px; }
+  .rank-grid--2 { grid-template-columns:repeat(2,minmax(0,1fr)); max-width:820px; }
+  .rank-grid--1 { grid-template-columns:minmax(0,560px); }
+  .rank-group { min-width:0; }
+  .rank-group h3 { padding-bottom:7px; border-bottom:2px solid var(--accent); font-family:var(--serif); font-size:18px; line-height:1; letter-spacing:-.025em; }
+  .rank-list { display:flex; flex-direction:column; }
+  .rank-item { display:grid; grid-template-columns:26px 1fr 62px; gap:8px; align-items:center; min-height:73px; border-bottom:1px solid var(--hair); }
+  .rank-num { color:var(--accent); font-size:10px; font-weight:800; }
+  .rank-copy { min-width:0; }
+  .rank-copy b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+  .rank-copy span { display:block; margin-top:3px; color:var(--muted); font-size:9.5px; line-height:1.25; }
+  .rank-score { text-align:right; }
+  .rank-score b { display:block; font-family:var(--serif); font-size:16px; }
+  .rank-score span { display:block; color:var(--muted); font-size:8px; line-height:1.1; overflow-wrap:anywhere; }
+
+  .ext-grid { gap:40px; }
+  .ext-block .pad-head { padding-bottom:8px; }
+  .ext-block ul { gap:0; margin-top:5px; }
+  .ext-block li { grid-template-columns:26px 1fr 88px; gap:10px; align-items:center; min-height:76px; border-bottom:1px solid var(--hair); font-size:13px; line-height:1.26; }
+  .ext-rank { color:var(--accent); font-size:10px; font-weight:800; }
+  .ext-result { text-align:right; }
+  .ext-result b, .ext-result small { display:block; }
+  .ext-result b { font-family:var(--serif); font-size:16px; }
+  .ext-result small { color:var(--muted); font-size:8px; }
 `;
 
 function shell(inner: string): string {
@@ -742,7 +877,7 @@ function shell(inner: string): string {
  *  só na primeira ocorrência (ponto forte) do slide, pra não duplicar no ajustar. */
 function miniVennLegendaInline(): string {
   return `<div class="mv-legenda">
-    <span style="color:${CIRC.narrativa}">●</span> Narrativa
+    <span style="color:${CIRC.narrativa}">●</span> Tema
     <span style="color:${CIRC.audiencia}">●</span> Audiência
     <span style="color:${CIRC.marca}">●</span> Marca
   </div>`;
@@ -763,7 +898,7 @@ function videoWindow(c: CriadorSlide): string {
   const poster = c.reel?.posterUrl ?? c.pontoForte?.thumbnailUrl ?? null;
   const style = poster ? ` style="background-image:url('${esc(poster)}')"` : "";
   return `<div class="reel" data-vbox${style}>
-    <div class="reel-badge">▶ REEL</div>
+    <div class="reel-badge">▶ ${esc(c.reel?.label ?? "REEL")}</div>
   </div>`;
 }
 
@@ -771,12 +906,18 @@ function videoWindow(c: CriadorSlide): string {
 
 export function coverSlide(d: DeckData): string {
   const ps = d.criadores;
+  const roster = linhasBalanceadas(ps, 13).map((linha) =>
+    `<div class="cover-v4-row">${linha.map((p) =>
+      `<div class="cover-v4-person">${avatar(p.nome, p.profilePictureUrl)}<div class="cover-v4-name">${esc(p.nome)}</div></div>`
+    ).join("")}</div>`
+  ).join("");
   return shell(`<div class="slide cover-v4">
     <div class="cover-v4-copy">
       <div class="eyebrow">Reunião da comunidade · ${esc(formatData(d.reuniao.data))}</div>
-      <h1 class="cover-v4-title">A pauta forte tem dono.</h1>
-      <div class="cover-v4-sub">${esc(d.reuniao.titulo ?? "Uma semana lida em conjunto")}</div>
-      <div class="cover-v4-meta">${ps.length} criador${ps.length === 1 ? "" : "es"} · leitura editorial data2content</div>
+      <h1 class="cover-v4-title">${esc(d.reuniao.titulo ?? "Uma semana lida em conjunto")}</h1>
+      <div class="cover-v4-sub">Resultados da semana, ajustes e sugestões de colaboração</div>
+      <div class="cover-v4-meta">${ps.length} criador${ps.length === 1 ? "" : "es"} · análise data2content</div>
+      <div class="cover-v4-roster">${roster}</div>
     </div>
   </div>`);
 }
@@ -785,9 +926,9 @@ export function coverSlide(d: DeckData): string {
 function coerenciaBanner(c: CriadorSlide): string {
   if (!c.coerencia) return "";
   const m: Record<string, [string, string]> = {
-    "no-mapa": ["A história apareceu", "ok"],
-    parcial: ["Mistura de assuntos", "mid"],
-    automatico: ["A voz ficou em segundo plano", "alert"],
+    "no-mapa": ["Conteúdo alinhado aos temas do perfil", "ok"],
+    parcial: ["Resultados abaixo da mediana do perfil", "mid"],
+    automatico: ["Tema principal pouco presente", "alert"],
   };
   const [label, cls] = m[c.coerencia.status] ?? ["", "mid"];
   return `<div class="coer coer--${cls}"><span class="coer-dot"></span><b>${label}</b> — ${rich(c.coerencia.resumo)}</div>`;
@@ -804,15 +945,11 @@ function crHead(c: CriadorSlide, idx: number, total: number, kick: string): stri
  *  Só o diagnóstico, objetivo. Sem pautas, sem marca, sem gráfico (vão no Tempo B). */
 export function criadorSlideA(c: CriadorSlide, idx: number, total: number): string {
   const narr = c.narrativaCentral
-    ? `<div class="cr-narr">“${esc(c.narrativaCentral)}”</div>`
-    : `<div class="cr-narr">Mapa em construção: primeiro vamos definir a história que só este perfil pode contar.</div>`;
-  const semPautas = c.semSinal && c.proximosPassos?.pautas?.length
-    ? `<div class="sem-pautas ${c.proximosPassos.pautas.length < 3 ? "sem-pautas--2" : ""}">${c.proximosPassos.pautas.slice(0, 3).map((p) =>
-        `<div class="sem-pauta"><b>${rich(p.titulo)}</b><span>${rich(p.porque)}</span></div>`).join("")}</div>`
-    : "";
+    ? `<div class="cr-narr">${esc(c.narrativaCentral)}</div>`
+    : `<div class="cr-narr">Os temas principais do perfil ainda não foram definidos.</div>`;
   const verdict = c.semSinal
     ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Situação dos dados</div>
-        <div class="pt-texto">${rich(c.falaSugerida ?? "Não houve publicação nesta semana. A retomada começa pelo mapa.")}</div></div>${semPautas}`
+        <div class="pt-texto">${rich(c.falaSugerida ?? "Não houve publicação nesta semana. As recomendações usam o histórico do perfil.")}</div></div>`
     : "";
   const temReel = !!(c.reel && c.reel.postId);
   // Handle às vezes vem preenchido com o próprio nome (criador sem @ real, ex.: sem Instagram
@@ -820,13 +957,13 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
   const normaliza = (s: string) => s.toLowerCase().replace(/^dra?\.?\s+/, "").replace(/[^a-z0-9]/g, "");
   const handleRedundante = !c.handle || normaliza(c.handle) === normaliza(c.nome);
   const retomadaKick = c.retomadaFonte === "historico"
-    ? "Retomada pelo histórico"
+    ? "Análise do histórico"
     : c.retomadaFonte === "cadastro"
-      ? "Ponto de partida"
-      : "Retomada pelo mapa";
+      ? "Cadastro incompleto"
+      : "Sem posts na semana";
   if (c.semSinal) return shell(`<div class="slide">
     ${crHead(c, idx, total, retomadaKick)}
-    <div class="cr cr--sem-sinal">
+    <div class="cr cr--sem-sinal${temReel ? " cr--sem-sinal-reel" : ""}">
       <div class="cr-id">
         ${avatar(c.nome, c.profilePictureUrl)}
         <div class="cr-name">${esc(c.nome)}</div>
@@ -836,6 +973,7 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
         ${numerosStrip(c)}
       </div>
       <div class="cr-verdict">${verdict}</div>
+      ${temReel ? `<div class="sem-signal-media">${videoWindow(c)}</div>` : ""}
     </div>
   </div>`);
   const stat = c.pontoForte.stat
@@ -850,7 +988,7 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
           ${avatar(c.nome, c.profilePictureUrl)}
           <div><div class="cr-name">${esc(c.nome)}</div>${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle ?? "")}</div>`}</div>
         </div>
-        <div class="beatA-narr">${c.narrativaCentral ? `“${esc(c.narrativaCentral)}”` : "Mapa ainda sem narrativa central definida."}</div>
+        <div class="beatA-narr">${c.narrativaCentral ? esc(c.narrativaCentral) : "Os temas principais do perfil ainda não foram definidos."}</div>
         <div class="beatA-terr">${c.territorios.slice(0, 3).map(tituleCase).map(esc).join(" · ")}</div>
         <div class="beatA-strong">
           <span class="beat-label">Ponto forte</span>${stat}
@@ -900,21 +1038,49 @@ export function criadorSlideB(c: CriadorSlide, idx: number, total: number): stri
 /** Tempo C — uma decisão editorial clara, com alternativa e encaixe de marca discretos. */
 export function criadorSlideC(c: CriadorSlide, idx: number, total: number): string {
   const pautas = c.proximosPassos?.pautas ?? [];
-  const principal = pautas[0];
-  const alternativas = pautas.slice(1, 3);
-  const marca = c.ganchoMarca;
   const fallback = c.falaSugerida ?? "Transformar o aprendizado da semana em uma nova publicação.";
+  const visiblePautas = (pautas.length ? pautas : [{ titulo: fallback }]).slice(0, 5);
+  const dense = visiblePautas.length > 3;
+  const rows = visiblePautas.map((p, i) => {
+    const tag = p.tipo === "collab" ? "COLLAB" : "SOLO";
+    const partner = p.collab
+      ? `<div class="pauta-partner">${avatar(p.collab.nome, p.collab.avatarUrl, "pauta-avatar")}<div><b>${esc(p.collab.nome)}</b><span>${esc(p.collab.handle ?? "assinante d2c")} · ${esc(p.collab.modo ?? "remoto")}</span></div></div>`
+      : "";
+    return `<div class="pauta-row pauta-row--${p.tipo === "collab" ? "collab" : "solo"}">
+      <div class="pauta-rank"><b>${String(i + 1).padStart(2, "0")}</b><span>${tag}</span></div>
+      <div class="pauta-core"><h2>${rich(p.titulo)}</h2>${p.gancho ? `<p class="pauta-hook">${rich(p.gancho)}</p>` : ""}${partner}</div>
+      <div class="pauta-plan">${p.execucao ? `<p><b>Como gravar</b>${rich(p.execucao)}</p>` : ""}${p.publicacao ? `<p><b>Publicação</b>${rich(p.publicacao)}</p>` : ""}</div>
+      <div class="pauta-proof">${p.metrica ? `<p class="pauta-metric">${rich(p.metrica)}</p>` : ""}<p>${rich(p.base ?? p.porque ?? "Teste editorial sem histórico suficiente.")}</p></div>
+    </div>`;
+  }).join("");
   return shell(`<div class="slide">
     ${crHead(c, idx, total, "Pautas para a próxima semana")}
-    <div class="beatC">
-      <div class="next-main">
-        <span class="beat-label">01 · Começar por aqui</span>
-        <h2 style="font-size:${claimEscala(principal?.titulo ?? fallback, 52, 46, 39)}px">${rich(principal?.titulo ?? fallback)}</h2>
-        ${principal?.porque ? `<p>${rich(principal.porque)}</p>` : ""}
-      </div>
-      <div class="next-alts">${(alternativas.length ? alternativas : [{ titulo: "Outra forma de contar a mesma verdade", porque: "" }]).map((p, i) => `<div class="next-alt"><span class="beat-label">${String(i + 2).padStart(2, "0")} · Outra pauta</span><h3>${rich(p.titulo)}</h3>${p.porque ? `<p>${rich(p.porque)}</p>` : ""}</div>`).join("")}</div>
-      <div class="next-brand"><span class="beat-label">Marca que pode entrar</span><div><b>${marca?.exemplo ? esc(marca.exemplo) : "Categoria aderente ao território"}</b>${marca?.categoria ? ` · ${rich(marca.categoria)}` : ""}</div></div>
-    </div>
+    <div class="pautas-board${dense ? " pautas-board--dense" : ""}">${rows}</div>
+  </div>`);
+}
+
+/** Calendário diário da semana seguinte. No máximo duas pautas por página. */
+export function criadorCalendarioSlide(c: CriadorSlide, idx: number, total: number, page: 0 | 1 | 2 | 3): string {
+  const all = c.proximosPassos?.calendario ?? [];
+  if (all.length !== 7) return "";
+  const entries = all.slice(page * 2, page * 2 + 2);
+  const ranges = ["segunda e terça", "quarta e quinta", "sexta e sábado", "domingo"];
+  const rows = entries.map((p) => {
+    const date = p.data.split("-").reverse().slice(0, 2).join("/");
+    const isCollab = p.tipo === "collab";
+    const visibleLength = [p.titulo, p.gancho, p.execucao, p.ondeGravar, p.objetosCena, p.enquadramento, p.tom, p.narrativaVisual, p.duracaoBase, p.base, p.pacoteBase, p.metrica].join(" ").length;
+    const dense = visibleLength > 950 || p.titulo.length > 80;
+    const collabWith = isCollab ? `<p class="calendar-collab-with">Collab remota com ${esc(p.collab?.handle ?? p.collab?.nome ?? "outro criador")}</p>` : "";
+    return `<div class="calendar-row${dense ? " calendar-row--dense" : ""}${isCollab ? " calendar-row--collab" : ""}">
+      <div class="calendar-when"><strong>${esc(p.dia)}</strong><span class="calendar-date">${date}</span><time>${esc(p.horario)}</time></div>
+      <div class="calendar-core">${collabWith}<h2>${rich(p.titulo)}</h2><p class="calendar-hook">${rich(p.gancho)}</p><p class="calendar-action"><b>${isCollab ? "Papel de cada um" : "O que fazer"}</b>${rich(p.execucao)}</p></div>
+      <div class="calendar-production"><p><b>${isCollab ? "Como os dois gravam" : "Cenário"}</b><br>${rich(p.ondeGravar ?? "Ambiente ligado à situação.")}</p><p><b>${isCollab ? "O que aparece em cada vídeo" : "Objetos em cena"}</b><br>${rich(p.objetosCena ?? "Objeto principal da ação.")}</p><p><b>${isCollab ? "Enquadramento dos dois" : "Enquadramento"}</b><br>${rich(p.enquadramento ?? "Plano médio fixo.")}</p><p><b>Tom</b><br>${rich(p.tom ?? "Direto e conversado.")}</p><p><b>${isCollab ? "Vídeo final" : "Narrativa visual"}</b><br>${rich(p.narrativaVisual ?? p.roteiro)}</p></div>
+      <div class="calendar-why"><p class="calendar-metric">${rich(p.metrica)}</p><p class="calendar-duration"><small>Duração-alvo</small>${rich(p.duracao)}</p>${p.duracaoBase ? `<p><b>Por que esta duração</b><br>${rich(p.duracaoBase)}</p>` : ""}<p class="calendar-stat"><b>Base estatística</b><br>${rich(`${p.base}${p.pacoteBase ? ` ${p.pacoteBase}` : ""}`)}</p></div>
+    </div>`;
+  }).join("");
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, `Calendário · ${ranges[page]} · horário de Brasília`)}
+    <div class="calendar-board calendar-board--${entries.length}">${rows}</div>
   </div>`);
 }
 
@@ -928,32 +1094,56 @@ const fmtIndice = (v: number | null): string =>
 /** Uma tabela de ranking (cenário, objeto, dia, horário…). Cada linha traz o
  *  índice contra a mediana do criador, o tamanho da amostra, o nível de evidência
  *  e se aquele padrão apareceu na semana — é o que separa hábito de acaso. */
-function padraoTabela(d: PadraoDimensao, leitura?: string): string {
-  const linhas = d.linhas.slice(0, PAD_LINHAS);
-  const maxIdx = Math.max(1.2, ...linhas.map((l) => l.indexShares ?? 0));
-  const corpo = linhas
-    .map((l) => {
-      const idx = l.indexShares;
-      const pct = idx == null ? 0 : Math.min(100, (idx / maxIdx) * 100);
-      const acima = (idx ?? 1) >= 1;
-      const cls = idx == null ? "na" : acima ? "up" : "down";
-      const semana = l.semana
-        ? `<span class="sem">${l.semana.nPosts}× na semana</span>`
-        : "não saiu na semana";
-      return `<div class="pad-row">
-        <div class="pad-top"><span class="pad-lab">${esc(l.label)}</span><span class="pad-idx pad-idx--${cls}">${fmtIndice(idx)}</span></div>
-        ${idx == null ? "" : `<div class="pad-bar"><i class="${acima ? "up" : "down"}" style="width:${pct.toFixed(1)}%"></i></div>`}
-        <div class="pad-meta">${l.nPosts} post${l.nPosts === 1 ? "" : "s"} · ${EVIDENCE_PT[l.evidence]} · ${semana}</div>
-      </div>`;
-    })
-    .join("");
-  const resto = d.linhas.length - linhas.length;
-  return `<div class="pad-block">
-    <div class="pad-head"><b>${esc(d.titulo)}</b><span>${esc(d.subtitulo)}</span></div>
-    ${corpo}
-    ${resto > 0 ? `<div class="pad-mais">+${resto} ${resto === 1 ? "item" : "itens"} fora do top ${PAD_LINHAS}</div>` : ""}
-    ${leitura ? `<p class="pad-leitura">${rich(leitura)}</p>` : ""}
-  </div>`;
+const bestMetric = (line: any) => [
+  { label: "compartilhamentos", value: line.indexShares },
+  { label: "salvamentos", value: line.indexSaved },
+  { label: "visualizações", value: line.indexViews },
+].filter((item) => item.value != null && Number.isFinite(item.value)).sort((a, b) => b.value - a.value)[0] ?? { label: "resultado", value: null };
+
+function demographicRanking(items: { label: string; percentual: number }[] | undefined, limit = 4): string {
+  return (items ?? []).slice(0, limit).map((item) => `<div class="demo-row"><span>${esc(item.label.replace(/\s*\(state\)/gi, "").trim())}</span><b>${item.percentual}%</b><div class="demo-bar"><i style="width:${Math.max(2, Math.min(100, item.percentual))}%"></i></div></div>`).join("");
+}
+
+export function criadorDemografiaSlide(c: CriadorSlide, idx: number, total: number): string {
+  const d = c.demografia;
+  if (!d) return "";
+  const age = d.idades?.[0];
+  const gender = d.generos?.[0];
+  const city = d.cidades?.[0];
+  const lead = [
+    gender ? `${gender.label} representam ${gender.percentual}%` : null,
+    age ? `${age.percentual}% têm ${age.label} anos` : null,
+    city ? `${city.label.replace(/, .*$/, "")} concentra ${city.percentual}%` : null,
+  ].filter(Boolean).join("; ");
+  const countryNames: Record<string, string> = { BR: "Brasil", PT: "Portugal", US: "Estados Unidos", ES: "Espanha" };
+  const countries = d.paises?.slice(0, 3).map((item) => `${esc(countryNames[item.label] ?? item.label)} <b>${item.percentual}%</b>`).join(" · ");
+  const updated = d.atualizadoEm ? `Dados atualizados em ${esc(String(d.atualizadoEm).slice(0, 10).split("-").reverse().join("/"))}.` : "Dados agregados da audiência do Instagram.";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "Quem compõe a audiência")}
+    <div class="demo-page">
+      <div class="demo-hero">${avatar(c.nome, c.profilePictureUrl)}<div><div class="demo-eyebrow">Maior concentração da audiência</div><h2>${rich(lead || "Dados demográficos agregados disponíveis no perfil.")}</h2></div></div>
+      <div class="demo-columns">
+        <section class="demo-column"><h3>Faixa etária</h3>${demographicRanking(d.idades)}</section>
+        <section class="demo-column"><h3>Gênero</h3>${demographicRanking(d.generos)}</section>
+        <section class="demo-column"><h3>Principais cidades</h3>${demographicRanking(d.cidades)}${countries ? `<p class="demo-country">Países: ${countries}</p>` : ""}<p class="demo-updated">${updated}</p></section>
+      </div>
+    </div>
+  </div>`);
+}
+
+function rankingGroup(pad: PadroesJanela, title: string, keys: string[]): string {
+  const keySet = new Set(keys);
+  const items = pad.dimensoes.flatMap((dimension: PadraoDimensao) =>
+    keySet.has(dimension.chave)
+      ? dimension.linhas.slice(0, PAD_LINHAS).map((line) => ({ dimension, line, metric: bestMetric(line) }))
+      : [],
+  ).sort((a, b) => (b.metric.value ?? 0) - (a.metric.value ?? 0)).slice(0, 4);
+  if (!items.length) return "";
+  return `<section class="rank-group"><h3>${esc(title)}</h3><div class="rank-list">${items.map((item, i) => `<div class="rank-item">
+    <span class="rank-num">${String(i + 1).padStart(2, "0")}</span>
+    <div class="rank-copy"><b>${esc(item.line.label)}</b><span>${esc(clearDimensionTitle(item.dimension.titulo))} · ${item.line.nPosts} post${item.line.nPosts === 1 ? "" : "s"} · ${EVIDENCE_PT[item.line.evidence]}</span></div>
+    <div class="rank-score"><b>${fmtIndice(item.metric.value)}</b><span>${esc(item.metric.label)}</span></div>
+  </div>`).join("")}</div></section>`;
 }
 
 /** Ato dos padrões — as tabelas de ranking dos 90 dias. Slide de CONSULTA: o
@@ -962,15 +1152,38 @@ function padraoTabela(d: PadraoDimensao, leitura?: string): string {
 export function criadorSlidePadroes(c: CriadorSlide, idx: number, total: number): string {
   const pad = c.padroes;
   if (!pad || pad.dimensoes.length === 0) return "";
-  const leituras = c.padroesLeitura ?? {};
   const cobertura =
-    pad.nComCena < pad.nPosts ? ` · leitura de cena em ${pad.nComCena} de ${pad.nPosts}` : "";
+    pad.nComCena > 0 && pad.nComCena < pad.nPosts ? ` · análise visual em ${pad.nComCena} de ${pad.nPosts}` : "";
+  const groups = [
+    rankingGroup(pad, "Quando publicar", ["dia", "horario"]),
+    rankingGroup(pad, "Onde gravar", ["cenario"]),
+    rankingGroup(pad, "O que fazer", ["assuntoRepetido"]),
+  ].filter(Boolean);
   return shell(`<div class="slide">
     ${crHead(c, idx, total, "O que costuma funcionar")}
     <div class="padroes">
-      <div class="pad-lead">Cada item comparado com a <b>mediana dela nos 90 dias</b> — <b>1,0× é o normal dela</b>, não do grupo.
-        ${pad.nPosts} posts${cobertura}. Nada é descartado por amostra pequena: o rótulo ao lado diz o quanto dá pra confiar.</div>
-      <div class="pad-grid">${pad.dimensoes.map((d) => padraoTabela(d, leituras[d.chave])).join("")}</div>
+      <div class="pad-lead">Ranking baseado em ${pad.nPosts} posts dos últimos 90 dias${cobertura}. <b>1,0× é a mediana do próprio perfil.</b> O índice mostra a métrica em que cada item teve melhor resultado.</div>
+      <div class="rank-grid rank-grid--${groups.length}">${groups.join("")}</div>
+    </div>
+  </div>`);
+}
+
+/** Continuação do ranking: recupera enquadramento, elenco, objetos e tom sem
+ * misturar essas decisões com o local da gravação. */
+export function criadorSlidePadroesDetalhes(c: CriadorSlide, idx: number, total: number): string {
+  const pad = c.padroes;
+  if (!pad || pad.dimensoes.length === 0) return "";
+  const groups = [
+    rankingGroup(pad, "Como enquadrar", ["enquadramento"]),
+    rankingGroup(pad, "Quem e o que aparece", ["elenco", "objeto"]),
+    rankingGroup(pad, "Tom de fala", ["tom"]),
+  ].filter(Boolean);
+  if (!groups.length) return "";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "Como executar")}
+    <div class="padroes">
+      <div class="pad-lead">Ranking dos últimos 90 dias. <b>1,0× é a mediana do próprio perfil.</b> Use os itens com amostra consistente como referência; itens com poucos posts continuam sendo testes.</div>
+      <div class="rank-grid rank-grid--${groups.length}">${groups.join("")}</div>
     </div>
   </div>`);
 }
@@ -987,16 +1200,11 @@ function extremosBloco(
 ): string {
   if (!ext.melhores.length) return "";
   const N = 5;
-  const item = (x: ExtremoItem) =>
-    `<li><span class="ext-idx">${fmtIndice(x.indexShares)}</span><span class="ext-txt">${
-      aspas ? `“${esc(x.texto)}”` : esc(x.texto)
-    }</span></li>`;
+  const item = (x: ExtremoItem, i: number) =>
+    `<li><span class="ext-rank">${String(i + 1).padStart(2, "0")}</span><span class="ext-txt">${aspas ? `“${esc(x.texto)}”` : esc(x.texto)}</span><span class="ext-result"><b>${fmtIndice(x.indexShares)}</b><small>compartilhamentos</small></span></li>`;
   return `<div class="ext-block">
     <div class="pad-head"><b>${esc(titulo)}</b><span>${esc(subtitulo)}</span></div>
-    <div class="ext-cols">
-      <div><div class="ext-cap ext-cap--up">Os que mais renderam</div><ul>${ext.melhores.slice(0, N).map(item).join("")}</ul></div>
-      <div><div class="ext-cap ext-cap--down">Os que menos renderam</div><ul>${ext.piores.slice(0, N).map(item).join("")}</ul></div>
-    </div>
+    <ul>${ext.melhores.slice(0, N).map(item).join("")}</ul>
     ${leitura ? `<p class="pad-leitura">${rich(leitura)}</p>` : ""}
   </div>`;
 }
@@ -1008,14 +1216,14 @@ export function criadorSlideGanchos(c: CriadorSlide, idx: number, total: number)
   if (!pad) return "";
   const leituras = c.padroesLeitura ?? {};
   const blocos = [
-    extremosBloco(pad.assuntos, "Assunto específico", "do que o vídeo tratava de fato — não o tópico guarda-chuva", leituras["assuntos"], false),
+    extremosBloco(pad.assuntos, "Assunto específico", "tema tratado diretamente no vídeo", leituras["assuntos"], false),
     extremosBloco(pad.ganchos, "Ganchos", "a frase que abre o vídeo — texto exato, sem agrupar", leituras["ganchos"]),
   ].filter(Boolean);
   if (blocos.length === 0) return "";
   return shell(`<div class="slide">
-    ${crHead(c, idx, total, "As frases que abrem e o assunto")}
+    ${crHead(c, idx, total, "Ganchos e assuntos com melhor resultado")}
     <div class="padroes">
-      <div class="pad-lead">O texto exato do vídeo, com o quanto cada um rendeu <b>contra a mediana dela</b>. As duas pontas juntas mostram o que os de cima têm que os de baixo não têm.</div>
+      <div class="pad-lead">Ranking dos itens com maior índice de <b>compartilhamentos</b> nos últimos 90 dias. <b>1,0× é a mediana do próprio perfil.</b></div>
       <div class="ext-grid">${blocos.join("")}</div>
     </div>
   </div>`);
@@ -1048,18 +1256,18 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
   return shell(`<div class="slide">
     <div class="head">
       <span class="idx">Collab ${idx} / ${total}</span>
-      <span class="kick">Quem combina com quem</span>
+      <span class="kick">Sugestão de colaboração</span>
     </div>
     <div class="collabX">
       <div class="cx-left">
         <div class="cx-pair">${person(c.a, c.aTraz)}<div class="cx-x">×</div>${person(c.b, c.bTraz)}</div>
         <span class="collab-terr">${esc(c.territorioComum)}</span>
         <div class="cx-pauta">${rich(c.pautaIdeia)}</div>
-        ${c.porQueFunciona ? `<div class="cx-pq"><b>Por que funciona pros dois:</b> ${rich(c.porQueFunciona)}</div>` : ""}
+        ${c.porQueFunciona ? `<div class="cx-pq"><b>Por que os perfis combinam:</b> ${rich(c.porQueFunciona)}</div>` : ""}
       </div>
       <div class="cx-right">
         <div class="cx-grava-lab">Como gravar à distância</div>
-        <div class="cx-grava-sub">Cada pessoa grava a sua parte; o formato conecta as duas casas.</div>
+        <div class="cx-grava-sub">Cada pessoa grava sua parte separadamente. A edição alterna os vídeos.</div>
         ${passos}
       </div>
     </div>
@@ -1074,9 +1282,9 @@ export function constelacaoSlide(d: DeckData): string {
   for (const c of d.criadores) {
     const territorios = c.territorios.length
       ? [...new Set(c.territorios.map(territorioCanonico))]
-      : ["Mapa em construção"];
+      : ["Temas ainda não definidos"];
     for (const territorio of territorios) {
-      const key = territorio.trim() || "Mapa em construção";
+      const key = territorio.trim() || "Temas ainda não definidos";
       const bucket = grupos.get(key) ?? [];
       if (!bucket.includes(c)) bucket.push(c);
       grupos.set(key, bucket);
@@ -1088,9 +1296,9 @@ export function constelacaoSlide(d: DeckData): string {
     <div class="territory-names">${people.map((c) => esc(c.nome)).join(" · ")}</div>
   </article>`).join("");
   return shell(`<div class="slide">
-    <div class="eyebrow">A comunidade da semana</div>
-    <h2 class="sec-title">Quem ocupa qual território</h2>
-    <div class="sec-lead">Quando alguém domina um assunto, outra pessoa da sala já sabe quem chamar.</div>
+    <div class="eyebrow">Temas dos participantes</div>
+    <h2 class="sec-title">Principais temas do grupo</h2>
+    <div class="sec-lead">Use esta lista para identificar participantes que publicam sobre assuntos semelhantes.</div>
     <div class="territory-grid">${clusterHtml}</div>
   </div>`);
 }
@@ -1139,39 +1347,95 @@ function vennLegenda(): string {
   const item = (cor: string, label: string) =>
     `<span class="vl-item"><i class="vl-dot" style="background:${cor}"></i>${label}</span>`;
   return `<div class="venn-leg">
-    <span class="vl-pre">Como ler o sinal de cada post:</span>
-    ${item(CIRC.narrativa, "Narrativa")} ${item(CIRC.audiencia, "Audiência")} ${item(CIRC.marca, "Marca")}
-    <span class="vl-note">— círculo cheio = acertou · vazio = não</span>
+    <span class="vl-pre">Como interpretar cada post:</span>
+    ${item(CIRC.narrativa, "Tema")} ${item(CIRC.audiencia, "Audiência")} ${item(CIRC.marca, "Marca")}
+    <span class="vl-note">— círculo cheio = resultado positivo · vazio = resultado insuficiente</span>
   </div>`;
 }
 
-/** Abertura: o fio da semana, em escala, fundo escuro + a legenda do Venn. */
-export function aberturaSlide(d: DeckData): string {
-  // O fio VEM DO DECK — é a tese que o agente escreveu depois de ler todos juntos.
-  // (Já esteve hardcoded aqui, virando a mesma frase toda semana: exatamente o que
-  // o teste anti-genérico do skill proíbe.)
-  const regra = d.fechamento.fioComum;
+/** Índices dos três Reels que podem comprovar o resultado exibido. Priorizamos
+ *  posts cujo player aponta para o mesmo post que ancora o ponto forte; isso
+ *  impede que a abertura mostre um vídeo e atribua a ele o resultado de outro. */
+export function aberturaDestaqueIndices(d: DeckData): number[] {
   const numero = (s: string): number => {
     const limpo = s.replace(/\./g, "").replace(",", ".");
     return Number(limpo.match(/[\d.]+/)?.[0] ?? 0);
   };
-  const provas = d.criadores
-    .filter((c) => !c.semSinal && c.pontoForte?.stat?.valor)
-    .map((c) => ({
-      valor: c.pontoForte.stat!.valor,
-      metrica: c.pontoForte.stat!.label,
-      dono: c.nome,
-      // Identificação real do criador, não rótulo adivinhado por palavra-chave.
-      caso: c.handle && c.handle.startsWith("@") ? c.handle : "",
-      ordem: numero(c.pontoForte.stat!.valor),
-    }))
+  return d.criadores
+    .map((c, index) => ({ c, index, ordem: numero(c.pontoForte?.stat?.valor ?? "0") }))
+    .filter(({ c }) => !c.semSinal && Boolean(c.pontoForte?.stat?.valor) && Boolean(c.reel?.postId) && c.reel?.postId === c.pontoForte?.postId)
     .sort((a, b) => b.ordem - a.ordem)
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(({ index }) => index);
+}
+
+function destaquePorque(c: CriadorSlide): string {
+  const texto = `${c.pontoForte.texto} ${c.pontoForte.evidencia}`.toLowerCase();
+  if (texto.includes("viagem") || texto.includes("viajar") || texto.includes("destino")) {
+    return "Destino específico e informação útil para planejar a viagem.";
+  }
+  if (texto.includes("filhos") || texto.includes("família") || texto.includes("maternidade")) {
+    return "Situação familiar específica, com reconhecimento imediato.";
+  }
+  if (texto.includes("lembram") || texto.includes("fez sucesso")) {
+    return "Retoma um conteúdo reconhecido pela audiência e mostra o resultado.";
+  }
+  if (texto.includes("?") || texto.includes("pergunta")) {
+    return "Pergunta direta sobre uma situação comum, respondida no vídeo.";
+  }
+  if (texto.includes("make") || texto.includes("maquiagem") || texto.includes("tutorial")) {
+    return "Tutorial específico e fácil de consultar depois.";
+  }
+  if (texto.includes("descoberta") || texto.includes("entender que")) {
+    return "Relato pessoal com uma descoberta clara logo na abertura.";
+  }
+  if (texto.includes("não esperava") || texto.includes("surpresa")) {
+    return "O gancho de surpresa cria uma pergunta que o vídeo responde.";
+  }
+  return c.audienciaPede?.replace(/^O melhor post teve mais [^.]+\.\s*/i, "") ?? "Assunto claro e fácil de compartilhar ou salvar.";
+}
+
+function destaqueMetricas(c: CriadorSlide): { principal: string; secundaria: string } {
+  const evidencia = c.pontoForte.evidencia;
+  const m = evidencia.match(/([\d.,]+×) em compartilhamentos e ([\d.,]+×) em salvamentos/i);
+  if (!m) return { principal: "resultado vs. mediana", secundaria: "" };
+  const compartilhamentos = m[1]!;
+  const salvamentos = m[2]!;
+  const valor = c.pontoForte.stat?.valor ?? "";
+  if (valor === salvamentos) {
+    return { principal: "salvamentos vs. mediana", secundaria: `Compartilhamentos ${compartilhamentos}` };
+  }
+  return { principal: "compartilhamentos vs. mediana", secundaria: `Salvamentos ${salvamentos}` };
+}
+
+/** Abertura: três Reels que comprovam os destaques da semana, todos tocáveis. */
+export function aberturaSlide(d: DeckData): string {
+  const destaques = aberturaDestaqueIndices(d).map((index, rank) => {
+    const c = d.criadores[index]!;
+    const metricas = destaqueMetricas(c);
+    const poster = c.reel?.posterUrl ?? c.pontoForte?.thumbnailUrl ?? null;
+    const style = poster ? ` style="background-image:url('${esc(poster)}')"` : "";
+    return `<div class="opening-highlight">
+      <div class="opening-reel-wrap">
+        <div class="reel" data-vbox data-reel-index="${index}"${style}><div class="reel-badge">▶ REEL</div></div>
+        <div class="opening-rank">${rank + 1}</div>
+      </div>
+      <div class="opening-highlight-copy">
+        <div class="opening-creator">${esc(c.nome)}</div>
+        ${c.handle ? `<div class="opening-handle">${esc(c.handle)}</div>` : ""}
+        <div class="opening-result">${esc(c.pontoForte.stat?.valor ?? "")}</div>
+        <div class="opening-metric">${esc(metricas.principal)}</div>
+        ${metricas.secundaria ? `<div class="opening-secondary">${esc(metricas.secundaria)} vs. mediana</div>` : ""}
+        <div class="opening-why"><b>O que funcionou</b>${esc(destaquePorque(c))}</div>
+      </div>
+    </div>`;
+  }).join("");
   return shell(`<div class="slide respiro slide--dark opening-v4">
-    <div class="abertura-content">
-      <div class="opening-left"><div class="r-kicker">O fio da semana</div><div class="r-title" style="font-size:${claimEscala(regra, 52, 42, 34)}px">${rich(regra)}</div></div>
-      <div class="opening-proofs">${provas.map((p) => `<div class="opening-proof"><strong>${esc(p.valor)}</strong><div class="opening-proof-meta"><b>${esc(p.metrica)}</b><span class="opening-owner">${esc(p.dono)}</span>${p.caso ? `<span class="opening-case">${esc(p.caso)}</span>` : ""}</div></div>`).join("")}</div>
+    <div class="opening-v4-head">
+      <div><div class="r-kicker">Destaques da semana</div><div class="opening-v4-title">3 Reels em destaque</div></div>
+      <div class="opening-v4-note">Resultados comparados à mediana de cada criador. Clique no vídeo para dar play no PowerPoint.</div>
     </div>
+    <div class="opening-highlights">${destaques}</div>
   </div>`);
 }
 
@@ -1179,8 +1443,8 @@ export function aberturaSlide(d: DeckData): string {
 export function fechamentoSlide(d: DeckData): string {
   return respiroSlide({
     fundo: "dark",
-    kicker: "A comunidade",
+    kicker: "Próxima ação",
     titulo: d.fechamento.lembreteComunidade,
-    tag: "Você não cria sozinho",
+    tag: "Defina a pauta e a métrica antes de publicar",
   });
 }

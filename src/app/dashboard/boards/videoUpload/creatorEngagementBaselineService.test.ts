@@ -5,6 +5,7 @@ describe("creatorEngagementBaselineService", () => {
     const baseline = buildCreatorEngagementBaselineFromMetrics([
       {
         stats: { reach: 1_000, likes: 100, comments: 20, saved: 30, shares: 50 },
+        narrativeForm: ["tutorial"],
         sceneElements: {
           framingIds: ["close_up"],
           aestheticIds: ["minimalista"],
@@ -16,6 +17,7 @@ describe("creatorEngagementBaselineService", () => {
       },
       {
         stats: { reach: 1_000, likes: 40, comments: 4, saved: 6, shares: 10 },
+        narrativeForm: ["review"],
         sceneElements: { framingIds: ["plano_medio"], subjects: ["rotina"] },
       },
       { stats: { reach: 0, likes: 999 }, sceneElements: { subjects: ["ignorar"] } },
@@ -26,5 +28,12 @@ describe("creatorEngagementBaselineService", () => {
     expect(baseline.patterns.subject).toEqual(expect.objectContaining({ key: "bastidores", count: 1 }));
     expect(baseline.openingSpeechRate).toBe(1);
     expect(baseline.confidence).toBe("low");
+    expect(baseline.hookEvidence[0]).toMatchObject({
+      spokenLine: "Você também trava aqui?",
+      pattern: "question",
+    });
+    expect(baseline.structureEvidence[0]).toMatchObject({
+      pattern: "problem_demo_explanation_action",
+    });
   });
 });

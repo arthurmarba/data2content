@@ -455,7 +455,7 @@ export async function getMcpCreatorProfile(userId: string) {
     mediaCount: typeof user.media_count === "number" ? user.media_count : null,
     instagramConnected: Boolean(user.isInstagramConnected),
     creatorNorth: user.onboardingAnswers?.creatorPurpose?.trim() || null,
-    profileUrl: appUrl("/chatgpt/recursos"),
+    profileUrl: appUrl("/dashboard/profile?source=chatgpt"),
   };
 }
 

@@ -6,6 +6,12 @@ import type {
   VideoNarrativeAxisCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+import type { CreatorHookEvidence } from "./creatorHookEvidence";
+import type { HookRecommendation } from "./hookRecommendation";
+import type { TerritoryHookContext } from "./territoryHookEvidenceService";
+import type { CreatorStructureEvidence } from "./creatorStructureEvidence";
+import type { ScriptAdjustmentRecommendation } from "./scriptAdjustmentRecommendation";
+import type { TerritoryStructureContext } from "./territoryStructureEvidenceService";
 
 export type { VideoNarrativeContentContext, VideoNarrativeCoherence, VideoNarrativeAxisCoherence };
 
@@ -89,6 +95,14 @@ export type VideoNarrativeAiProviderInput = {
     pastCreatorAnswers?: Array<{ questionText: string; answerValue: string }> | null;
     /** Real audience composition (demographics), used to anchor the audiência axis of the verdict. */
     audienceContext?: VideoNarrativeAudienceContextSummary | null;
+    /** Creator-owned openings ranked by hook-relevant outcomes. */
+    hookEvidence?: CreatorHookEvidence[] | null;
+    /** Aggregated, anonymous hook patterns from the creator's territory. */
+    territoryHookContext?: TerritoryHookContext | null;
+    /** Creator-owned narrative structures ranked by relative outcomes. */
+    structureEvidence?: CreatorStructureEvidence[] | null;
+    /** Aggregated, anonymous narrative structures from the creator's territory. */
+    territoryStructureContext?: TerritoryStructureContext | null;
   };
   /** Real Instagram metrics from the creator's stored analytics. Optional — omitted for mock/free flows. */
   instagramMetrics?: VideoNarrativeInstagramMetricsSummary | null;
@@ -113,6 +127,10 @@ export type VideoNarrativeAiAnalysis = {
   attentionPoint: string;
   recommendedAdjustment: string;
   suggestedHook: string;
+  /** Versioned hook recommendation; optional while legacy fixtures roll over. */
+  hookRecommendation?: HookRecommendation;
+  /** Concrete edit plan grounded in moments observed in this upload. */
+  scriptAdjustmentRecommendation?: ScriptAdjustmentRecommendation;
   commercialPotential: string;
   nextActions: string[];
   creatorSignals: string[];

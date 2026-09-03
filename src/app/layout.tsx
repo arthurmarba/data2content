@@ -23,6 +23,8 @@ import { Toaster as HotToaster } from "react-hot-toast";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://data2content.ai";
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const serializedGaId = JSON.stringify(GA_ID);
+const OPENAI_ADS_PIXEL_ID = process.env.NEXT_PUBLIC_OPENAI_ADS_PIXEL_ID?.trim();
+const serializedOpenAiAdsPixelId = JSON.stringify(OPENAI_ADS_PIXEL_ID);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -87,6 +89,32 @@ export default async function RootLayout({
             src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`}
             strategy="afterInteractive"
           />
+        )}
+        {OPENAI_ADS_PIXEL_ID && (
+          <Script id="openai-ads-pixel-init" strategy="afterInteractive">
+            {`
+              (function (w, d, s, u) {
+                if (w.oaiq) return;
+                var q = function () { q.q.push(arguments); };
+                q.q = [];
+                w.oaiq = q;
+                var js = d.createElement(s);
+                js.async = true;
+                js.src = u;
+                var f = d.getElementsByTagName(s)[0];
+                f.parentNode.insertBefore(js, f);
+              })(window, document, "script", "https://bzrcdn.openai.com/sdk/oaiq.min.js");
+
+              var openAiMeasurementConsent = document.cookie
+                .split('; ')
+                .some(function(cookie) { return cookie === 'cookie_consent=granted'; });
+              window.oaiq("consent", openAiMeasurementConsent);
+              window.oaiq("init", {
+                pixelId: ${serializedOpenAiAdsPixelId},
+                debug: ${process.env.NODE_ENV !== "production" ? "true" : "false"}
+              });
+            `}
+          </Script>
         )}
       </head>
       <body

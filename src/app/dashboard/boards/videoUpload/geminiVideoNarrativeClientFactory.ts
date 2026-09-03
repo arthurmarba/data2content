@@ -155,6 +155,7 @@ async function uploadBytesToGeminiFile(params: {
 const shortStringSchema = { type: "string", maxLength: 260 };
 const narrativeLabelStringSchema = { type: "string", maxLength: 80 };
 const nullableShortStringSchema = { anyOf: [{ type: "string" }, { type: "null" }] };
+const nullableIntegerSchema = { anyOf: [{ type: "integer", minimum: 0 }, { type: "null" }] };
 
 function shortStringArraySchema(maxItems = 5) {
   return {
@@ -163,6 +164,106 @@ function shortStringArraySchema(maxItems = 5) {
     items: shortStringSchema,
   };
 }
+
+const hookCandidateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id",
+    "spokenLine",
+    "onScreenText",
+    "firstFrameDirection",
+    "deliveryDirection",
+    "strategy",
+    "pattern",
+    "whyForThisVideo",
+  ],
+  properties: {
+    id: shortStringSchema,
+    spokenLine: shortStringSchema,
+    onScreenText: nullableShortStringSchema,
+    firstFrameDirection: nullableShortStringSchema,
+    deliveryDirection: nullableShortStringSchema,
+    strategy: { type: "string", enum: ["creator_first", "territory_first", "hybrid"] },
+    pattern: { type: "string", maxLength: 80 },
+    whyForThisVideo: shortStringSchema,
+  },
+};
+
+const structureBlockSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "role", "label", "sourceStartMs", "sourceEndMs"],
+  properties: {
+    id: shortStringSchema,
+    role: { type: "string", enum: ["hook", "context", "problem", "demonstration", "proof", "explanation", "delivery", "closing"] },
+    label: { type: "string", maxLength: 60 },
+    sourceStartMs: nullableIntegerSchema,
+    sourceEndMs: nullableIntegerSchema,
+  },
+};
+
+const scriptAdjustmentStepSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "id", "action", "sourceStartMs", "sourceEndMs", "targetStartMs", "targetEndMs",
+    "targetOrder", "title", "instruction", "suggestedCopy", "reason", "confidence",
+  ],
+  properties: {
+    id: shortStringSchema,
+    action: { type: "string", enum: ["keep", "cut", "shorten", "move", "overlay", "rerecord"] },
+    sourceStartMs: nullableIntegerSchema,
+    sourceEndMs: nullableIntegerSchema,
+    targetStartMs: nullableIntegerSchema,
+    targetEndMs: nullableIntegerSchema,
+    targetOrder: { type: "integer", minimum: 1, maximum: 12 },
+    title: { type: "string", maxLength: 90 },
+    instruction: { type: "string", maxLength: 280 },
+    suggestedCopy: nullableShortStringSchema,
+    reason: { type: "string", maxLength: 220 },
+    confidence: { type: "string", enum: ["low", "medium", "high"] },
+  },
+};
+
+const scriptAdjustmentRecommendationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "version", "pattern", "summary", "effort", "canUseExistingFootage", "currentStructure",
+    "recommendedStructure", "steps", "rationale", "basis",
+  ],
+  properties: {
+    version: { type: "string", maxLength: 60 },
+    pattern: {
+      type: "string",
+      enum: [
+        "problem_demo_explanation_action", "result_process_explanation", "question_proof_answer",
+        "before_after_reason_guidance", "claim_test_verdict", "scene_tension_turn",
+        "context_process_result", "direct_explanation",
+      ],
+    },
+    summary: { type: "string", maxLength: 240 },
+    effort: { type: "string", enum: ["no_rerecord", "one_pickup", "new_version"] },
+    canUseExistingFootage: { type: "boolean" },
+    currentStructure: { type: "array", minItems: 1, maxItems: 8, items: structureBlockSchema },
+    recommendedStructure: { type: "array", minItems: 1, maxItems: 8, items: structureBlockSchema },
+    steps: { type: "array", minItems: 1, maxItems: 6, items: scriptAdjustmentStepSchema },
+    rationale: { type: "string", maxLength: 320 },
+    basis: {
+      type: "object",
+      additionalProperties: false,
+      required: ["video", "creatorPosts", "territoryPosts", "territoryCreators", "confidence"],
+      properties: {
+        video: { type: "boolean" },
+        creatorPosts: { type: "integer", minimum: 0 },
+        territoryPosts: { type: "integer", minimum: 0 },
+        territoryCreators: { type: "integer", minimum: 0 },
+        confidence: { type: "string", enum: ["low", "medium", "high"] },
+      },
+    },
+  },
+};
 
 const videoNarrativeResponseJsonSchema = {
   type: "object",
@@ -177,6 +278,8 @@ const videoNarrativeResponseJsonSchema = {
     "attentionPoint",
     "recommendedAdjustment",
     "suggestedHook",
+    "hookRecommendation",
+    "scriptAdjustmentRecommendation",
     "commercialPotential",
     "nextActions",
     "creatorSignals",
@@ -197,6 +300,8 @@ const videoNarrativeResponseJsonSchema = {
     "attentionPoint",
     "recommendedAdjustment",
     "suggestedHook",
+    "hookRecommendation",
+    "scriptAdjustmentRecommendation",
     "commercialPotential",
     "nextActions",
     "creatorSignals",
@@ -217,6 +322,34 @@ const videoNarrativeResponseJsonSchema = {
     attentionPoint: shortStringSchema,
     recommendedAdjustment: shortStringSchema,
     suggestedHook: shortStringSchema,
+    hookRecommendation: {
+      type: "object",
+      additionalProperties: false,
+      required: ["version", "primary", "alternatives", "basis"],
+      properties: {
+        version: { type: "string", maxLength: 60 },
+        primary: hookCandidateSchema,
+        alternatives: {
+          type: "array",
+          minItems: 2,
+          maxItems: 2,
+          items: hookCandidateSchema,
+        },
+        basis: {
+          type: "object",
+          additionalProperties: false,
+          required: ["creatorPosts", "territoryPosts", "territoryCreators", "windowDays", "confidence"],
+          properties: {
+            creatorPosts: { type: "integer", minimum: 0 },
+            territoryPosts: { type: "integer", minimum: 0 },
+            territoryCreators: { type: "integer", minimum: 0 },
+            windowDays: { type: "integer", minimum: 0, maximum: 365 },
+            confidence: { type: "string", enum: ["low", "medium", "high"] },
+          },
+        },
+      },
+    },
+    scriptAdjustmentRecommendation: scriptAdjustmentRecommendationSchema,
     commercialPotential: shortStringSchema,
     nextActions: shortStringArraySchema(),
     creatorSignals: shortStringArraySchema(),

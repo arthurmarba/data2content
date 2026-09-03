@@ -88,7 +88,8 @@ export type ElementKind =
   | "fala"
   | "local"
   | "enquadramento"
-  | "estetica";
+  | "estetica"
+  | "gancho";
 
 /**
  * Uma linha de qualquer tabela de ranking do relatório. Carrega os sete padrões

@@ -33,6 +33,28 @@ describe('affiliate code cookie', () => {
   });
 });
 
+describe('OpenAI Ads attribution cookie', () => {
+  it('preserves oppref when analytics consent was already granted', async () => {
+    const res = await middleware(createRequest('/?oppref=oai_AbC-123.x_y', {
+      cookie: 'cookie_consent=granted',
+    }));
+
+    expect(res.cookies.get('__oppref')?.value).toBe('oai_AbC-123.x_y');
+  });
+
+  it('does not persist oppref before consent', async () => {
+    const res = await middleware(createRequest('/?oppref=oai_AbC-123.x_y'));
+    expect(res.cookies.get('__oppref')).toBeUndefined();
+  });
+
+  it('rejects unsafe oppref values', async () => {
+    const res = await middleware(createRequest('/?oppref=with%20space', {
+      cookie: 'cookie_consent=granted',
+    }));
+    expect(res.cookies.get('__oppref')).toBeUndefined();
+  });
+});
+
 describe('mobile strategic profile entry redirect', () => {
   const iphoneHeaders = new Headers({
     'user-agent':

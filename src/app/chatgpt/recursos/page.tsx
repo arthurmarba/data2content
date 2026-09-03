@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Instagram, LockKeyhole, Sparkles } from "lucide-react";
+import { ChatGptFunnelTracker } from "@/app/chatgpt/ChatGptFunnelTracker";
 
 export const metadata: Metadata = {
   title: "Data2Content no ChatGPT",
@@ -32,6 +33,7 @@ const contextLevels = [
 export default function ChatGptResourcesPage() {
   return (
     <main className="min-h-[100dvh] bg-[#f6f7f9] px-5 py-10 text-[#17191d] sm:py-16">
+      <ChatGptFunnelTracker step="resources_viewed" context="informational_bridge" />
       <section className="mx-auto w-full max-w-3xl overflow-hidden rounded-[32px] border border-black/10 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
         <header className="border-b border-black/10 px-6 py-8 sm:px-10 sm:py-10">
           <Link href="/" className="inline-flex items-center gap-3 text-sm font-bold">
@@ -77,7 +79,7 @@ export default function ChatGptResourcesPage() {
               disponíveis para você.
             </p>
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/profile?source=chatgpt"
               className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#17191d] px-6 text-sm font-bold text-white transition hover:bg-black"
             >
               Abrir minha conta

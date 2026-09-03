@@ -7,6 +7,7 @@ import {
   collectTimeGrid,
   collectTopVideos,
   durationObservations,
+  hookPatternObservations,
   intensityOf,
   observationsFor,
   timeObservations,
@@ -91,6 +92,29 @@ describe("timeObservations / durationObservations", () => {
   it("post sem duração fica fora do ranking de duração", () => {
     const posts = [makePost({ durationSeconds: 0, durationBucket: null })];
     expect(durationObservations(posts, () => true)).toEqual([]);
+  });
+});
+
+describe("hookPatternObservations", () => {
+  it("agrega somente o padrão e descarta a frase original", () => {
+    const observations = hookPatternObservations([
+      makePost({ creatorId: "a", openingLine: "Você também sente a lombar no agachamento?" }),
+      makePost({ creatorId: "b", screenTitle: "3 erros no agachamento" }),
+    ], () => true);
+
+    expect(observations.map((item) => item.key)).toEqual(["question", "diagnostic"]);
+    expect(observations.map((item) => item.label)).toEqual([
+      "Pergunta direta",
+      "Diagnóstico de um problema",
+    ]);
+    expect(JSON.stringify(observations)).not.toContain("agachamento");
+  });
+
+  it("usa no máximo um padrão por post e ignora abertura ausente", () => {
+    expect(hookPatternObservations([
+      makePost({ openingLine: "Eu quase desisti", screenTitle: "3 aprendizados" }),
+      makePost(),
+    ], () => true)).toHaveLength(1);
   });
 });
 

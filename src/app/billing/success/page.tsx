@@ -9,14 +9,25 @@ import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mo
 import { PAYWALL_RETURN_STORAGE_KEY, type PostCheckoutIntent } from "@/types/paywall";
 import { CREATOR_PROFILE_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 import { ProWelcome } from "./ProWelcome";
+import {
+  normalizeCheckoutJourney,
+  type CheckoutJourney,
+} from "@/app/lib/billing/checkoutJourney";
+import {
+  buildOpenAiSubscriptionEventId,
+  hasOpenAiMeasurementConsent,
+} from "@/lib/openAiAdsEvent";
 
 type PlanSnapshot = {
   instagramConnected: boolean | null;
-  /** null = não conseguimos confirmar; usamos o token como fallback. */
+  /** null = não conseguimos confirmar; nunca deve liberar o pós-checkout. */
   planActive: boolean | null;
   /** Data real da próxima cobrança, vinda do Stripe. */
   nextChargeAt: Date | null;
 };
+
+const PAYMENT_CONFIRMATION_RETRY_DELAY_MS = 2_500;
+const MAX_AUTOMATIC_PAYMENT_RETRIES = 3;
 
 async function fetchPlanSnapshot(force = false): Promise<PlanSnapshot> {
   try {
@@ -30,15 +41,36 @@ async function fetchPlanSnapshot(force = false): Promise<PlanSnapshot> {
       return { instagramConnected: null, planActive: null, nextChargeAt: null };
     }
     const status = typeof payload?.status === "string" ? payload.status : null;
+    const hasPremiumAccess = payload?.extras?.hasPremiumAccess;
     const parsedNextCharge = payload?.planExpiresAt ? new Date(payload.planExpiresAt) : null;
     return {
       instagramConnected: Boolean(payload?.instagram?.connected),
-      planActive: status ? status === "active" || status === "non_renewing" : null,
+      planActive:
+        typeof hasPremiumAccess === "boolean"
+          ? hasPremiumAccess
+          : status
+            ? status === "active" || status === "non_renewing"
+            : null,
       nextChargeAt:
         parsedNextCharge && !Number.isNaN(parsedNextCharge.getTime()) ? parsedNextCharge : null,
     };
   } catch {
     return { instagramConnected: null, planActive: null, nextChargeAt: null };
+  }
+}
+
+async function fetchCheckoutJourney(attemptId: string | null): Promise<CheckoutJourney | null> {
+  if (!attemptId) return null;
+  try {
+    const response = await fetch(
+      `/api/billing/checkout-context?attempt_id=${encodeURIComponent(attemptId)}`,
+      { cache: "no-store", credentials: "include" },
+    );
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok || !payload?.journey) return null;
+    return normalizeCheckoutJourney(payload.journey);
+  } catch {
+    return null;
   }
 }
 
@@ -129,23 +161,16 @@ export default function BillingSuccessPage() {
     continueHref: CREATOR_PROFILE_ROUTE,
     nextChargeAt: null,
   });
-  // Guarda o trabalho async dentro desta instância (cobre o double-invoke do
-  // StrictMode sem depender do sessionStorage para o estado de UI).
-  const startedRef = useRef(false);
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
+  // Evita repetir a mesma tentativa no double-invoke do StrictMode, sem impedir
+  // as novas consultas disparadas pelo retry automático ou pelo botão manual.
+  const startedRunKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (startedRef.current) return;
-    startedRef.current = true;
-
-    const onceKey = sid ? `billing-success:${sid}` : "billing-success";
-    if (sessionStorage.getItem(onceKey)) {
-      // Reload/revisita com o mesmo session_id — o trabalho já rodou numa visita
-      // anterior. Nenhum redirect vai disparar daqui, então mostra a confirmação.
-      setPhase("settled");
-      return;
-    }
-    sessionStorage.setItem(onceKey, "1");
+    const runKey = `${sid ?? "no-attempt-id"}:${verificationAttempt}`;
+    if (startedRunKeyRef.current === runKey) return;
+    startedRunKeyRef.current = runKey;
 
     (async () => {
       try {
@@ -158,83 +183,88 @@ export default function BillingSuccessPage() {
           planInterval?: string | null;
           instagramConnected?: boolean;
         } | null | undefined;
-        const snapshot = await fetchPlanSnapshot(true);
+        const [snapshot, persistedJourney] = await Promise.all([
+          fetchPlanSnapshot(true),
+          fetchCheckoutJourney(sid),
+        ]);
         const instagramConnected =
           snapshot.instagramConnected ?? Boolean(user?.instagramConnected);
-        // Só tratamos como "não pago" quando a origem responde explicitamente que
-        // o plano não está ativo. Indisponibilidade da rota não pode travar quem pagou.
-        const paymentUnconfirmed = snapshot.planActive === false;
-        let resolvedContext: string | null = null;
+        // O pós-checkout só avança com confirmação positiva. Estado negativo ou
+        // indisponível permanece pendente para não liberar Pro nem medir conversão
+        // antes de a Stripe/rota de plano confirmar o acesso.
+        const paymentConfirmed = snapshot.planActive === true;
+        const paymentUnconfirmed = !paymentConfirmed;
+        let resolvedContext: string | null = persistedJourney?.context ?? null;
         let redirectHref: string | null = null;
         let keepPaywallReturnState = false;
-        let resolvedReturnTo: string | null = null;
+        let resolvedReturnTo: string | null = persistedJourney?.returnTo ?? null;
+        let resolvedSource: string | null = persistedJourney?.source ?? null;
+        let resolvedPostCheckoutIntent = persistedJourney?.postCheckoutIntent ?? null;
         const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
         if (stored) {
           try {
             const data = JSON.parse(stored);
-            if (typeof data?.context === "string") {
+            if (!resolvedContext && typeof data?.context === "string") {
               resolvedContext = data.context;
             }
             const returnTo = sanitizeBillingSuccessReturnTo(data?.returnTo);
-            resolvedReturnTo = returnTo;
-            const postCheckoutIntent = normalizeBillingSuccessPostCheckoutIntent(data?.postCheckoutIntent);
-            const source =
+            if (!resolvedReturnTo) resolvedReturnTo = returnTo;
+            const storedPostCheckoutIntent = normalizeBillingSuccessPostCheckoutIntent(data?.postCheckoutIntent);
+            if (!resolvedPostCheckoutIntent) resolvedPostCheckoutIntent = storedPostCheckoutIntent;
+            const storedSource =
               typeof data?.source === "string" && data.source.trim().length > 0
                 ? data.source.trim().toLowerCase()
                 : null;
-            if (postCheckoutIntent) {
-              trackMobileNarrativeEvent("mobile_post_checkout_intent_seen", {
-                route: returnTo ?? "/billing/success",
-                paywallContext: resolvedContext ?? undefined,
-                postCheckoutIntent,
-                actionType: "billing_success_seen",
-              });
-            }
-            if (postCheckoutIntent === "join_community" && !paymentUnconfirmed) {
-              redirectHref = buildProfileActivationHref(returnTo, "whatsapp");
-              keepPaywallReturnState = false;
-            } else if (postCheckoutIntent === "connect_instagram" && !paymentUnconfirmed) {
-              redirectHref = isChatGptCheckoutFlow(returnTo, source)
-                ? "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin"
-                : buildProfileActivationHref(returnTo, "instagram");
-              keepPaywallReturnState = false;
-            } else if (postCheckoutIntent === "watch_recorded_meeting" && !paymentUnconfirmed) {
-              redirectHref = returnTo ?? RECORDED_MEETINGS_ROUTE;
-              keepPaywallReturnState = false;
-            }
-            const instagramNextTarget =
-              !redirectHref && !instagramConnected && !paymentUnconfirmed
-                ? resolveInstagramNextTarget(resolvedContext, source)
-                : null;
-            if (instagramNextTarget) {
-              redirectHref = `/dashboard/instagram/connect?next=${encodeURIComponent(instagramNextTarget)}`;
-              keepPaywallReturnState = true;
-            } else if (!redirectHref && returnTo && !paymentUnconfirmed) {
-              const current = `${window.location.pathname}${window.location.search || ""}`;
-              if (current !== returnTo) {
-                redirectHref = returnTo;
-              }
-            }
-            if (postCheckoutIntent) {
-              const consumedKey = sid
-                ? `mobile-post-checkout-intent-consumed:${sid}:${postCheckoutIntent}`
-                : `mobile-post-checkout-intent-consumed:${postCheckoutIntent}`;
-              if (!sessionStorage.getItem(consumedKey)) {
-                sessionStorage.setItem(consumedKey, "1");
-                trackMobileNarrativeEvent("mobile_post_checkout_intent_consumed", {
-                  route: redirectHref ?? returnTo ?? "/billing/success",
-                  paywallContext: resolvedContext ?? undefined,
-                  postCheckoutIntent,
-                  actionType: "billing_success_consumed",
-                });
-              }
-            }
+            if (!resolvedSource) resolvedSource = storedSource;
           } catch {
             sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
           }
         }
 
-        if (user?.id) {
+        if (resolvedPostCheckoutIntent) {
+          trackMobileNarrativeEvent("mobile_post_checkout_intent_seen", {
+            route: resolvedReturnTo ?? "/billing/success",
+            paywallContext: resolvedContext ?? undefined,
+            postCheckoutIntent: resolvedPostCheckoutIntent,
+            actionType: "billing_success_seen",
+          });
+        }
+        if (resolvedPostCheckoutIntent === "join_community" && paymentConfirmed) {
+          redirectHref = buildProfileActivationHref(resolvedReturnTo, "whatsapp");
+        } else if (resolvedPostCheckoutIntent === "connect_instagram" && paymentConfirmed) {
+          redirectHref = isChatGptCheckoutFlow(resolvedReturnTo, resolvedSource)
+            ? "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin"
+            : buildProfileActivationHref(resolvedReturnTo, "instagram");
+        } else if (resolvedPostCheckoutIntent === "watch_recorded_meeting" && paymentConfirmed) {
+          redirectHref = resolvedReturnTo ?? RECORDED_MEETINGS_ROUTE;
+        }
+        const instagramNextTarget =
+          !redirectHref && !instagramConnected && paymentConfirmed
+            ? resolveInstagramNextTarget(resolvedContext, resolvedSource)
+            : null;
+        if (instagramNextTarget) {
+          redirectHref = `/dashboard/instagram/connect?next=${encodeURIComponent(instagramNextTarget)}`;
+          keepPaywallReturnState = true;
+        } else if (!redirectHref && resolvedReturnTo && paymentConfirmed) {
+          const current = `${window.location.pathname}${window.location.search || ""}`;
+          if (current !== resolvedReturnTo) redirectHref = resolvedReturnTo;
+        }
+        if (resolvedPostCheckoutIntent && paymentConfirmed) {
+          const consumedKey = sid
+            ? `mobile-post-checkout-intent-consumed:${sid}:${resolvedPostCheckoutIntent}`
+            : `mobile-post-checkout-intent-consumed:${resolvedPostCheckoutIntent}`;
+          if (!sessionStorage.getItem(consumedKey)) {
+            sessionStorage.setItem(consumedKey, "1");
+            trackMobileNarrativeEvent("mobile_post_checkout_intent_consumed", {
+              route: redirectHref ?? resolvedReturnTo ?? "/billing/success",
+              paywallContext: resolvedContext ?? undefined,
+              postCheckoutIntent: resolvedPostCheckoutIntent,
+              actionType: "billing_success_consumed",
+            });
+          }
+        }
+
+        if (user?.id && paymentConfirmed) {
           const interval = user.planInterval === "year" ? "anual" : "mensal";
           track("paywall_subscribed", {
             creator_id: user.id,
@@ -247,9 +277,38 @@ export default function BillingSuccessPage() {
             currency: null,
             value: null,
           });
+          if (
+            isChatGptCheckoutFlow(resolvedReturnTo, resolvedSource)
+          ) {
+            const openAiEventId = buildOpenAiSubscriptionEventId(sid);
+            track("chatgpt_funnel_event", {
+              creator_id: user.id,
+              step: "subscription_activated",
+              source: resolvedSource ?? "chatgpt",
+              context: resolvedContext ?? "chatgpt_intelligence",
+              status: interval,
+              event_id: openAiEventId,
+            });
+            if (
+              sid
+              && openAiEventId
+              && hasOpenAiMeasurementConsent(document.cookie)
+            ) {
+              void fetch("/api/analytics/openai-conversion", {
+                method: "POST",
+                credentials: "include",
+                keepalive: true,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  attemptId: sid,
+                  planId: interval === "anual" ? "d2c_pro_annual" : "d2c_pro_monthly",
+                }),
+              });
+            }
+          }
         }
 
-        if (!keepPaywallReturnState) {
+        if (paymentConfirmed && !keepPaywallReturnState) {
           sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
         }
 
@@ -270,13 +329,28 @@ export default function BillingSuccessPage() {
         setWelcome({ instagramConnected, continueHref, nextChargeAt: snapshot.nextChargeAt });
         setPhase("pro_welcome");
       } catch {
-        // Erro não bloqueia a tela: revela a confirmação (a assinatura já foi
-        // ativada no Stripe; o usuário não fica preso num spinner).
-        setPhase("settled");
+        // Erro de confirmação nunca equivale a assinatura ativa.
+        setPhase("payment_pending");
       }
     })();
-  // dependemos só do sid para a chave de "uma vez"
-  }, [sid, update, router]);
+  }, [sid, update, router, verificationAttempt]);
+
+  useEffect(() => {
+    if (phase !== "payment_pending") return;
+    if (verificationAttempt >= MAX_AUTOMATIC_PAYMENT_RETRIES) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setPhase("activating");
+      setVerificationAttempt((attempt) => attempt + 1);
+    }, PAYMENT_CONFIRMATION_RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [phase, verificationAttempt]);
+
+  const retryPaymentVerification = () => {
+    setPhase("activating");
+    setVerificationAttempt((attempt) => attempt + 1);
+  };
 
   // Estado de transição — mostrado enquanto resolvemos para onde encaminhar.
   // Calmo e neutro: a esmagadora maioria dos usuários é redirecionada (conectar
@@ -307,15 +381,24 @@ export default function BillingSuccessPage() {
           Estamos confirmando seu pagamento
         </h1>
         <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-zinc-500">
-          Assim que a Stripe confirmar, o Pro é liberado automaticamente. Você pode continuar no app
-          enquanto isso — o catálogo continua visível e a reprodução será liberada com o Pro.
+          Assim que a Stripe confirmar, o Pro é liberado automaticamente. Vamos verificar novamente
+          por alguns instantes; se preferir, você também pode tentar agora.
         </p>
-        <a
-          href={welcome.continueHref}
-          className="mt-8 inline-flex items-center justify-center rounded-full border border-zinc-300 px-7 py-3.5 text-[15px] font-semibold text-zinc-900"
-        >
-          Continuar no app
-        </a>
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={retryPaymentVerification}
+            className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-7 py-3.5 text-[15px] font-semibold text-white"
+          >
+            Verificar novamente
+          </button>
+          <a
+            href={welcome.continueHref}
+            className="inline-flex items-center justify-center px-4 py-2 text-[14px] font-medium text-zinc-500 underline underline-offset-4"
+          >
+            Continuar no app
+          </a>
+        </div>
       </main>
     );
   }

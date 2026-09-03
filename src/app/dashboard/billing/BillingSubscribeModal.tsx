@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Check, ArrowRight, Loader2 } from "lucide-react";
+import { X, Check, ArrowRight, Copy, Loader2 } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
-import type { PaywallContext } from "@/types/paywall";
+import type { PaywallContext, PostCheckoutIntent } from "@/types/paywall";
 import { track } from "@/lib/track";
 import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
@@ -19,13 +19,17 @@ import {
   PAYWALL_COUPON_PARAM,
   PAYWALL_CONTEXT_PARAM,
   PAYWALL_CURRENCY_PARAM,
+  PAYWALL_INTENT_PARAM,
   PAYWALL_PERIOD_PARAM,
+  PAYWALL_RETURN_PARAM,
   PAYWALL_RETURN_STORAGE_KEY,
+  PAYWALL_SOURCE_PARAM,
   PAYWALL_URL_PARAM,
 } from "@/types/paywall";
 import {
   D2C_VIP_DISPLAY_CODE,
   isD2cVipPromotionCode,
+  isD2cVipPromotionEffective,
 } from "@/app/lib/billing/d2cVipPromotion";
 import { buildFreeMonthNotice } from "@/app/lib/billing/firstCharge";
 
@@ -33,6 +37,9 @@ interface BillingSubscribeModalProps {
   open: boolean;
   onClose: () => void;
   context?: PaywallContext;
+  source?: string | null;
+  returnTo?: string | null;
+  postCheckoutIntent?: PostCheckoutIntent | null;
   resumeCheckoutDirect?: boolean;
 }
 
@@ -149,12 +156,26 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Reuniões novas adicionadas toda semana",
     ],
   },
+  chatgpt_intelligence: {
+    title: "Leve o contexto dos seus conteúdos para o ChatGPT.",
+    subtitle:
+      "A Data2Content assiste ao que você publica e cruza assunto, gancho, roteiro, cenário, voz, duração e momento da postagem com a resposta da sua audiência.",
+    ctaLabel: "Ativar a inteligência PRO",
+    benefits: [
+      "Estratégias, pautas e roteiros com o contexto dos seus conteúdos",
+      "Consultoria ao vivo e direção toda semana",
+      "Comunidade, networking e oportunidades de collab",
+    ],
+  },
 };
 
 export default function BillingSubscribeModal({
   open,
   onClose,
   context,
+  source = null,
+  returnTo = null,
+  postCheckoutIntent = null,
   resumeCheckoutDirect = false,
 }: BillingSubscribeModalProps) {
   const router = useRouter();
@@ -172,7 +193,14 @@ export default function BillingSubscribeModal({
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponCopied, setCouponCopied] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+  const typedCouponIsVip = isD2cVipPromotionCode(couponCode);
+  const couponIsEffective = isD2cVipPromotionEffective({
+    value: couponCode,
+    explicitlyApplied: couponApplied,
+    period,
+  });
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const trackedOpenRef = useRef(false);
@@ -216,6 +244,9 @@ export default function BillingSubscribeModal({
     next.searchParams.delete(PAYWALL_PERIOD_PARAM);
     next.searchParams.delete(PAYWALL_CURRENCY_PARAM);
     next.searchParams.delete(PAYWALL_COUPON_PARAM);
+    next.searchParams.delete(PAYWALL_SOURCE_PARAM);
+    next.searchParams.delete(PAYWALL_RETURN_PARAM);
+    next.searchParams.delete(PAYWALL_INTENT_PARAM);
     const target =
       next.pathname +
       (next.search ? next.search : "") +
@@ -231,11 +262,16 @@ export default function BillingSubscribeModal({
     callbackUrl.searchParams.set(PAYWALL_AUTOSTART_PARAM, "1");
     callbackUrl.searchParams.set(PAYWALL_PERIOD_PARAM, period);
     callbackUrl.searchParams.set(PAYWALL_CURRENCY_PARAM, currency);
-    if (couponApplied) {
+    if (source) callbackUrl.searchParams.set(PAYWALL_SOURCE_PARAM, source);
+    if (returnTo) callbackUrl.searchParams.set(PAYWALL_RETURN_PARAM, returnTo);
+    if (postCheckoutIntent) {
+      callbackUrl.searchParams.set(PAYWALL_INTENT_PARAM, postCheckoutIntent);
+    }
+    if (couponIsEffective) {
       callbackUrl.searchParams.set(PAYWALL_COUPON_PARAM, D2C_VIP_DISPLAY_CODE);
     }
     redirectToGoogleConsentLogin(callbackUrl.toString());
-  }, [couponApplied, currency, effectiveContext, period]);
+  }, [couponIsEffective, currency, effectiveContext, period, postCheckoutIntent, returnTo, source]);
 
   const resolveCheckoutCancelUrl = useCallback(() => {
     if (typeof window === "undefined") return "/dashboard/billing";
@@ -264,6 +300,9 @@ export default function BillingSubscribeModal({
     fallback.searchParams.delete(PAYWALL_PERIOD_PARAM);
     fallback.searchParams.delete(PAYWALL_CURRENCY_PARAM);
     fallback.searchParams.delete(PAYWALL_COUPON_PARAM);
+    fallback.searchParams.delete(PAYWALL_SOURCE_PARAM);
+    fallback.searchParams.delete(PAYWALL_RETURN_PARAM);
+    fallback.searchParams.delete(PAYWALL_INTENT_PARAM);
     const fallbackPath =
       fallback.pathname +
       (fallback.search ? fallback.search : "") +
@@ -545,10 +584,6 @@ export default function BillingSubscribeModal({
    * cobrança cheia. O botão continua ali como confirmação visual, mas não é
    * mais o que decide se o desconto existe.
    */
-  const typedCouponIsVip = isD2cVipPromotionCode(couponCode);
-  const couponIsEffective =
-    (couponApplied || typedCouponIsVip) && period === "monthly";
-
   const resolvedPrimaryCtaLabel =
     sessionStatus === "authenticated"
       ? couponIsEffective ? "Começar meu mês grátis" : primaryCtaLabel
@@ -570,15 +605,34 @@ export default function BillingSubscribeModal({
     setCouponError(null);
   }, [couponCode, period]);
 
+  const handleCopyChatGptCoupon = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(D2C_VIP_DISPLAY_CODE);
+      setCouponCopied(true);
+      window.setTimeout(() => setCouponCopied(false), 2500);
+    } catch {
+      setCouponCode(D2C_VIP_DISPLAY_CODE);
+      setCouponCopied(true);
+    }
+    track("chatgpt_funnel_event", {
+      creator_id: null,
+      step: "coupon_copied",
+      source: source || "chatgpt_paywall",
+      context: "chatgpt_intelligence",
+      status: null,
+      event_id: null,
+    });
+  }, [source]);
+
   const handlePeriodChange = useCallback((nextPeriod: "monthly" | "annual") => {
     setPeriod(nextPeriod);
-    if (nextPeriod === "annual" && couponApplied) {
+    if (nextPeriod === "annual" && (couponApplied || typedCouponIsVip)) {
       setCouponApplied(false);
-      setCouponError(`O cupom ${D2C_VIP_DISPLAY_CODE} foi removido porque vale apenas no plano mensal.`);
+      setCouponError(`O cupom ${D2C_VIP_DISPLAY_CODE} é válido apenas no plano mensal.`);
     } else {
       setCouponError(null);
     }
-  }, [couponApplied]);
+  }, [couponApplied, typedCouponIsVip]);
 
   /** Dispara o fluxo de assinatura (Checkout hospedado ou Payment Element). */
   const handleSubscribe = useCallback(async (options?: { hiddenResume?: boolean }) => {
@@ -589,6 +643,16 @@ export default function BillingSubscribeModal({
       surface: "upsell_block",
       context: effectiveContext === "default" ? "paywall" : effectiveContext,
     });
+    if (effectiveContext === "chatgpt_intelligence") {
+      track("chatgpt_funnel_event", {
+        creator_id: null,
+        step: "checkout_started",
+        source: source || "chatgpt_paywall",
+        context: effectiveContext,
+        status: couponIsEffective ? "coupon_applied" : "no_coupon",
+        event_id: null,
+      });
+    }
     setError(null);
     setErrorAction(null);
     setLoadingRedirect(true);
@@ -615,7 +679,13 @@ export default function BillingSubscribeModal({
         mode: "subscription",
         successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: resolveCheckoutCancelUrl(),
-        source: "modal",
+        source: source || "modal",
+        checkoutContext: {
+          context: effectiveContext,
+          source: source || "modal",
+          returnTo,
+          postCheckoutIntent,
+        },
         ...(couponIsEffective || isD2cVipPromotionCode(searchParams?.get(PAYWALL_COUPON_PARAM))
           ? { promotionCode: D2C_VIP_DISPLAY_CODE }
           : {}),
@@ -678,10 +748,13 @@ export default function BillingSubscribeModal({
     needsPaymentUpdate,
     period,
     resolveCheckoutCancelUrl,
+    returnTo,
     router,
     searchParams,
     sessionStatus,
+    source,
     startGoogleCheckoutFlow,
+    postCheckoutIntent,
   ]);
 
   useEffect(() => {
@@ -873,18 +946,30 @@ export default function BillingSubscribeModal({
                 ))}
               </ul>
 
+              {effectiveContext === "chatgpt_intelligence" ? (
+                <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-950">
+                  <p className="font-bold">Instagram é opcional.</p>
+                  <p className="mt-1 text-violet-900/75">
+                    Para analisar seus próprios conteúdos no ChatGPT, você poderá conectar depois um
+                    Instagram profissional ou de criador vinculado a uma Página do Facebook. A conexão
+                    é somente de leitura; comunidade, consultorias e os demais benefícios continuam
+                    disponíveis sem ela.
+                  </p>
+                </div>
+              ) : null}
+
               <section aria-label="Escolha do plano" className="mt-6">
                 <div className="flex items-start justify-between gap-3">
-                  <div key={`${period}-${currency}-${couponApplied}`} className="flex animate-[priceShift_180ms_ease-out] items-baseline gap-1.5">
+                  <div key={`${period}-${currency}-${couponIsEffective}`} className="flex animate-[priceShift_180ms_ease-out] items-baseline gap-1.5">
                       <span className="font-display text-[2.75rem] font-bold leading-none tracking-[-0.055em] text-zinc-950">
-                        {couponApplied && period === "monthly"
+                        {couponIsEffective
                           ? formatMoney(0)
                           : period === "annual"
                             ? formatMoney(monthlyEquivalent)
                             : formatMoney(activePrice)}
                       </span>
                       <span className="text-xs font-semibold text-zinc-400">
-                        {couponApplied && period === "monthly" ? "no 1º mês" : "/mês"}
+                        {couponIsEffective ? "no 1º mês" : "/mês"}
                       </span>
                   </div>
                   <button
@@ -898,7 +983,7 @@ export default function BillingSubscribeModal({
                 </div>
 
                 <div className="mt-1.5 min-h-5 text-[11px] font-medium text-zinc-500">
-                  {couponApplied && period === "monthly"
+                  {couponIsEffective
                     ? `Depois, ${formatMoney(prices.monthly[currency])}/mês. Cancele quando quiser.`
                     : period === "annual"
                       ? `Cobrado anualmente: ${formatMoney(activePrice)}/ano.`
@@ -930,6 +1015,22 @@ export default function BillingSubscribeModal({
               </section>
 
               <div className="mt-4">
+                {effectiveContext === "chatgpt_intelligence" ? (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-950">
+                    <p className="text-xs leading-5">
+                      <span className="font-bold">Primeiro mês grátis no plano mensal.</span>{" "}
+                      Use o cupom <span className="font-black">{D2C_VIP_DISPLAY_CODE}</span>.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyChatGptCoupon()}
+                      className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-bold text-emerald-800 shadow-sm"
+                    >
+                      <Copy aria-hidden className="h-3.5 w-3.5" />
+                      {couponCopied ? "Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                ) : null}
                 <label htmlFor="d2c-promotion-code" className="text-[11px] font-bold text-zinc-700">
                   Tem um cupom?
                 </label>
@@ -953,20 +1054,20 @@ export default function BillingSubscribeModal({
                     autoComplete="off"
                     disabled={loadingRedirect}
                     aria-invalid={Boolean(couponError)}
-                    aria-describedby={couponError ? "d2c-promotion-error" : couponApplied ? "d2c-promotion-success" : undefined}
+                    aria-describedby={couponError ? "d2c-promotion-error" : couponIsEffective ? "d2c-promotion-success" : undefined}
                     className="min-h-11 min-w-0 flex-1 rounded-xl border border-transparent bg-zinc-100 px-3 text-sm font-semibold text-zinc-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--ds-color-brand-soft)] disabled:opacity-50"
                   />
                   <button
                     type="button"
                     onClick={handleApplyCoupon}
-                    disabled={loadingRedirect || !couponCode.trim() || couponApplied}
+                    disabled={loadingRedirect || !couponCode.trim() || couponIsEffective}
                     className="min-h-11 px-2 text-xs font-bold text-[var(--ds-color-brand-strong)] transition hover:text-zinc-950 disabled:opacity-60"
                   >
-                    {couponApplied ? "Aplicado" : "Aplicar"}
+                    {couponIsEffective ? "Aplicado" : "Aplicar"}
                   </button>
                 </div>
-                {couponApplied ? (
-                  <p id="d2c-promotion-success" role="status" className="sr-only">
+                {couponIsEffective ? (
+                  <p id="d2c-promotion-success" role="status" className="mt-2 text-xs font-semibold text-emerald-700">
                     Primeiro mês gratuito aplicado. {freeMonthNotice}
                   </p>
                 ) : couponError ? (

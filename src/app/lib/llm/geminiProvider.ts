@@ -29,19 +29,28 @@ function resolveModel(_intensity: LlmIntensity, override?: string): string {
   // Só honra override se for um modelo Gemini — nomes gpt-* de call-sites legados
   // não fazem sentido aqui e caem no Flash default.
   if (override && override.startsWith("gemini")) return override;
-  return process.env.GEMINI_MAPA_MODEL || "gemini-2.5-flash";
+  return process.env.GEMINI_MODEL || process.env.GEMINI_MAPA_MODEL || "gemini-3.7-flash";
 }
 
-// gemini-2.5-flash é um modelo "thinking": os tokens de raciocínio consomem o
-// maxOutputTokens, podendo TRUNCAR a saída em JSONs grandes (ex.: o mapa).
-// Para nossas tarefas (extração/síntese estruturada, não raciocínio aberto)
-// desligamos o thinking por padrão → orçamento de saída previsível, mais rápido
-// e mais barato. Ajustável por env (-1 = automático/ligado; 0 = desligado).
-function resolveThinkingBudget(): number {
+// Gemini 2.5 usa o orçamento numérico legado. Gemini 3 usa thinkingLevel e não
+// deve receber os parâmetros antigos de sampling.
+function resolveLegacyThinkingBudget(): number {
   const raw = process.env.GEMINI_THINKING_BUDGET;
   if (raw == null || raw.trim() === "") return 0;
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
+}
+
+function resolveThinkingLevel(
+  intensity: LlmIntensity,
+  override?: "low" | "medium" | "high",
+): "low" | "medium" | "high" {
+  if (override) return override;
+  const configured = process.env.GEMINI_THINKING_LEVEL?.trim().toLowerCase();
+  if (configured === "low" || configured === "medium" || configured === "high") {
+    return configured;
+  }
+  return intensity === "high" ? "medium" : "low";
 }
 
 export const geminiProvider: LlmProvider = {
@@ -56,34 +65,44 @@ export const geminiProvider: LlmProvider = {
     if (!apiKey) throw new Error("gemini_api_key_missing");
 
     const intensity = params.intensity ?? "medium";
-    const model = resolveModel(intensity, params.model);
+    const model = resolveModel(intensity, params.providerModels?.gemini || params.model);
     const temperature = params.temperature ?? TEMPERATURE_BY_INTENSITY[intensity];
     const maxOutputTokens = params.maxTokens ?? DEFAULT_MAX_TOKENS_BY_INTENSITY[intensity];
     const TAG = "[llm][gemini]";
 
     // Import dinâmico — evita carregar o ESM no Jest.
-    const { GoogleGenAI, createUserContent } = await import("@google/genai");
+    const { GoogleGenAI, ThinkingLevel, createUserContent } = await import("@google/genai");
     const genAI = new GoogleGenAI({ apiKey });
 
     logger.debug(`${TAG} model=${model} intensity=${intensity} json=${!!params.json}`);
 
-    const thinkingBudget = resolveThinkingBudget();
+    const isGemini3 = /^gemini-3(?:\.|-|$)/.test(model);
+    const thinkingBudget = resolveLegacyThinkingBudget();
+    const configuredThinkingLevel = resolveThinkingLevel(intensity, params.thinkingLevel);
+    const thinkingLevel = configuredThinkingLevel === "high"
+      ? ThinkingLevel.HIGH
+      : configuredThinkingLevel === "medium"
+        ? ThinkingLevel.MEDIUM
+        : ThinkingLevel.LOW;
 
     const response = await genAI.models.generateContent({
       model,
       contents: createUserContent([{ text: params.prompt }]),
       config: {
         ...(params.system ? { systemInstruction: params.system } : {}),
-        temperature,
+        ...(!isGemini3 ? { temperature } : {}),
         maxOutputTokens,
-        // Desliga (ou ajusta) o thinking para não consumir o orçamento de saída.
-        ...(thinkingBudget >= 0 ? { thinkingConfig: { thinkingBudget } } : {}),
+        ...(isGemini3
+          ? { thinkingConfig: { thinkingLevel } }
+          : thinkingBudget >= 0
+            ? { thinkingConfig: { thinkingBudget } }
+            : {}),
         ...(params.json || params.jsonSchema ? { responseMimeType: "application/json" } : {}),
         ...(params.jsonSchema ? { responseSchema: params.jsonSchema } : {}),
       },
     });
 
-    logGeminiUsage("mapa", model, response);
+    logGeminiUsage(params.usageTag?.trim() || "llm", model, response);
 
     const text = (response.text ?? "").trim();
     return { text, provider: "gemini" as const, model };

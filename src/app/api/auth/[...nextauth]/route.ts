@@ -6,8 +6,6 @@
 
 import NextAuth from "next-auth";
 import type {
-  DefaultSession,
-  DefaultUser,
   NextAuthOptions,
   Session,
   User as NextAuthUserArg,
@@ -26,7 +24,6 @@ import { Types } from "mongoose";
 import bcrypt from "bcryptjs";
 import type {
   JWT,
-  DefaultJWT,
   JWTEncodeParams,
   JWTDecodeParams,
 } from "next-auth/jwt";
@@ -55,187 +52,14 @@ import {
   PRIVACY_POLICY_VERSION,
   SERVICE_TERMS_VERSION,
 } from "@/lib/auth/legalConsent";
-import { serializePostCreationTrial, type SerializedPostCreationTrial } from "@/app/lib/postCreationTrial/access";
+import { serializePostCreationTrial } from "@/app/lib/postCreationTrial/access";
 import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
-
-// --- AUGMENT NEXT-AUTH TYPES ---
-declare module "next-auth" {
-  interface User extends DefaultUser {
-    id: string;
-    role?: string | null;
-    provider?: string | null;
-    accountState?: "pre_signup" | "registered" | "merged" | null;
-    postCreationTrial?: SerializedPostCreationTrial | null;
-    agency?: string | null;
-    isNewUserForOnboarding?: boolean;
-    onboardingCompletedAt?: Date | null;
-    isInstagramConnected?: boolean | null;
-    instagramAccountId?: string | null;
-    instagramUsername?: string | null;
-    igConnectionError?: string | null;
-    instagramSyncErrorMsg?: string | null;
-    instagramSyncErrorCode?: string | null;
-    availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-    lastInstagramSyncAttempt?: Date | null;
-    lastInstagramSyncSuccess?: boolean | null;
-    instagramReconnectNotifiedAt?: Date | null;
-    instagramDisconnectCount?: number;
-    instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
-    instagramReconnectFlowId?: string | null;
-
-    // Billing
-    planStatus?: string | null;
-    planType?: string | null;
-    planInterval?: string | null;
-    planExpiresAt?: Date | null;
-    cancelAtPeriodEnd?: boolean | null;
-    // Stripe IDs
-    stripeCustomerId?: string | null;
-    stripeSubscriptionId?: string | null;
-    stripePriceId?: string | null;
-
-    // Trial (Plano Pro)
-    proTrialStatus?: ProTrialState | null;
-    proTrialActivatedAt?: Date | null;
-    proTrialExpiresAt?: Date | null;
-
-    // Afiliados
-    affiliateCode?: string | null;
-    affiliateBalances?: Record<string, number>;
-
-    facebookProviderAccountId?: string | null;
-    providerAccountId?: string | null;
-
-    // Stripe Connect (payouts)
-    stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
-    stripeAccountDefaultCurrency?: string | null;
-  }
-
-  interface Session {
-    user?: {
-      id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      provider?: string | null;
-      role?: string | null;
-      accountState?: "pre_signup" | "registered" | "merged" | null;
-      postCreationTrial?: SerializedPostCreationTrial | null;
-
-      // Parceiro
-      agencyId?: string | null;
-      agencyPlanStatus?: string | null;
-      agencyPlanType?: string | null;
-
-      // Billing
-      planStatus?: string | null;
-      planType?: string | null;
-      planInterval?: string | null;
-      planExpiresAt?: string | null;
-      cancelAtPeriodEnd?: boolean | null;
-      // Stripe IDs também no client
-      stripeCustomerId?: string | null;
-      stripeSubscriptionId?: string | null;
-      stripePriceId?: string | null;
-      // Trial (Plano Pro)
-      proTrialStatus?: ProTrialState | null;
-      proTrialActivatedAt?: string | null;
-      proTrialExpiresAt?: string | null;
-
-      // Afiliados
-      affiliateCode?: string | null;
-      affiliateBalances?: Record<string, number>;
-      affiliateRank?: number;
-      affiliateInvites?: number;
-
-      // Instagram
-      instagramConnected?: boolean;
-      instagramAccountId?: string | null;
-      instagramUsername?: string | null;
-      igConnectionError?: string | null;
-      igConnectionErrorCode?: string | null;
-      availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-      lastInstagramSyncAttempt?: string | null;
-      lastInstagramSyncSuccess?: boolean | null;
-      instagramReconnectNotifiedAt?: string | null;
-      instagramDisconnectCount?: number;
-      instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
-      instagramReconnectFlowId?: string | null;
-
-      // Onboarding
-      isNewUserForOnboarding?: boolean;
-      onboardingCompletedAt?: string | null;
-
-      // Stripe Connect (payouts)
-      stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
-      stripeAccountDefaultCurrency?: string | null;
-    } & Omit<DefaultSession["user"], "id" | "name" | "email" | "image">;
-
-    affiliateCode?: string | null;
-    affiliateBalances?: Record<string, number>;
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT extends DefaultJWT {
-    id: string;
-    role?: string | null;
-    agencyId?: string | null;
-    agencyPlanStatus?: string | null;
-    agencyPlanType?: string | null;
-    provider?: string | null;
-    accountState?: "pre_signup" | "registered" | "merged" | null;
-    postCreationTrial?: SerializedPostCreationTrial | null;
-
-    // Onboarding
-    isNewUserForOnboarding?: boolean;
-    onboardingCompletedAt?: Date | string | null;
-
-    // Instagram
-    isInstagramConnected?: boolean | null;
-    instagramAccountId?: string | null;
-    instagramUsername?: string | null;
-    igConnectionError?: string | null;
-    igConnectionErrorCode?: string | null;
-    availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-    lastInstagramSyncAttempt?: Date | string | null;
-    lastInstagramSyncSuccess?: boolean | null;
-    instagramReconnectNotifiedAt?: Date | string | null;
-    instagramDisconnectCount?: number;
-    instagramReconnectState?: "idle" | "oauth_in_progress" | "awaiting_account_selection" | "finalizing" | "connected" | "failed" | null;
-    instagramReconnectFlowId?: string | null;
-
-    // Billing
-    planStatus?: string | null;
-    planType?: string | null;
-    planInterval?: string | null;
-    planExpiresAt?: Date | string | null;
-    cancelAtPeriodEnd?: boolean | null;
-    proTrialStatus?: ProTrialState | null;
-    proTrialActivatedAt?: Date | string | null;
-    proTrialExpiresAt?: Date | string | null;
-    // Stripe IDs
-    stripeCustomerId?: string | null;
-    stripeSubscriptionId?: string | null;
-    stripePriceId?: string | null;
-
-    // Afiliados
-    affiliateCode?: string | null;
-    affiliateBalances?: Record<string, number>;
-
-    image?: string | null;
-
-    // Stripe Connect (payouts)
-    stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
-    stripeAccountDefaultCurrency?: string | null;
-  }
-}
-// --- END AUGMENT NEXT-AUTH TYPES ---
+import { PLAN_STATUSES, type PlanStatus, type UserRole } from "@/types/enums";
 
 type SessionRevalidationSnapshot = {
-  planStatus?: string | null;
+  planStatus?: PlanStatus | null;
   planType?: string | null;
-  planInterval?: string | null;
+  planInterval?: "month" | "year" | null;
   planExpiresAt?: Date | string | null;
   cancelAtPeriodEnd?: boolean | null;
   stripeCustomerId?: string | null;
@@ -245,7 +69,7 @@ type SessionRevalidationSnapshot = {
   proTrialActivatedAt?: Date | string | null;
   proTrialExpiresAt?: Date | string | null;
   name?: string | null;
-  role?: string | null;
+  role?: UserRole | null;
   image?: string | null;
 };
 
@@ -496,12 +320,12 @@ function isNonRenewing(v: unknown): boolean {
 }
 
 // Normaliza valores legados de plano
-function normalizePlanStatusValue(v: unknown): string | null {
+function normalizePlanStatusValue(v: unknown): PlanStatus | null {
   if (!v) return null;
   const s = String(v).toLowerCase().trim();
   if (s === "trialing" || s === "trial") return "trial";
   if (isNonRenewing(s)) return "active"; // acesso liberado até o fim do ciclo
-  return s;
+  return PLAN_STATUSES.includes(s as PlanStatus) ? (s as PlanStatus) : null;
 }
 
 function normalizeBalances(input: unknown): Record<string, number> {

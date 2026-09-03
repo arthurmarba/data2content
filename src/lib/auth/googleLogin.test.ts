@@ -1,5 +1,6 @@
 import {
   buildGoogleConsentLoginUrl,
+  normalizeBrowserInternalCallbackUrl,
   normalizeInternalCallbackUrl,
   submitGoogleSignInFallback,
 } from "./googleLogin";
@@ -18,6 +19,26 @@ describe("normalizeInternalCallbackUrl", () => {
       expect(buildGoogleConsentLoginUrl(callbackUrl)).toBe("/login?callbackUrl=%2Fdashboard");
     },
   );
+});
+
+describe("normalizeBrowserInternalCallbackUrl", () => {
+  it("converte uma URL absoluta da própria aplicação em destino relativo", () => {
+    expect(
+      normalizeBrowserInternalCallbackUrl(
+        "https://data2content.ai/dashboard/profile?source=chatgpt#pro",
+        "https://data2content.ai",
+      ),
+    ).toBe("/dashboard/profile?source=chatgpt#pro");
+  });
+
+  it("rejeita URL absoluta de outra origem", () => {
+    expect(
+      normalizeBrowserInternalCallbackUrl(
+        "https://example.com/dashboard/profile",
+        "https://data2content.ai",
+      ),
+    ).toBe("/dashboard");
+  });
 });
 
 describe("submitGoogleSignInFallback", () => {

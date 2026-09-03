@@ -8,3 +8,12 @@ export function normalizePromotionCode(value: unknown): string {
 export function isD2cVipPromotionCode(value: unknown): boolean {
   return normalizePromotionCode(value) === D2C_VIP_PROMOTION_CODE;
 }
+
+export function isD2cVipPromotionEffective(options: {
+  value: unknown;
+  explicitlyApplied: boolean;
+  period: "monthly" | "annual";
+}): boolean {
+  return options.period === "monthly"
+    && (options.explicitlyApplied || isD2cVipPromotionCode(options.value));
+}

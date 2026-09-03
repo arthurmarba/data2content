@@ -33,6 +33,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# python caches
+__pycache__/
+*.py[cod]
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example

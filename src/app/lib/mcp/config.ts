@@ -1,5 +1,6 @@
 const DEFAULT_MCP_SCOPES = [
   "profile:read",
+  "profile:write",
   "metrics:read",
   "strategy:read",
   "content:read",
@@ -9,6 +10,8 @@ const DEFAULT_MCP_SCOPES = [
   "scripts:generate",
   "scripts:write",
 ] as const;
+
+const CAMPAIGN_RADAR_SCOPE = "campaigns:read";
 
 const DEFAULT_MCP_ADMIN_SCOPES = [
   "admin:creators:search",
@@ -83,11 +86,14 @@ export function getMcpAppBaseUrl(): string {
 
 export function getMcpSupportedScopes(): string[] {
   const configured = process.env.MCP_SUPPORTED_SCOPES?.trim();
-  if (!configured) return [...DEFAULT_MCP_SCOPES];
-  return configured
-    .split(/[\s,]+/)
-    .map((scope) => scope.trim())
-    .filter(Boolean);
+  const scopes = configured
+    ? configured
+        .split(/[\s,]+/)
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+    : [...DEFAULT_MCP_SCOPES];
+  if (isMcpCampaignRadarEnabled()) scopes.push(CAMPAIGN_RADAR_SCOPE);
+  return [...new Set(scopes)];
 }
 
 export function getMcpAdminSupportedScopes(): string[] {
@@ -115,6 +121,9 @@ export function getMcpConnectionScopes(): string[] {
   const requested = [...new Set(
     configured.split(/[\s,]+/).map((scope) => scope.trim()).filter(Boolean),
   )];
+  if (isMcpCampaignRadarEnabled() && !requested.includes(CAMPAIGN_RADAR_SCOPE)) {
+    requested.push(CAMPAIGN_RADAR_SCOPE);
+  }
   const unsupported = requested.filter((scope) => !supported.includes(scope));
   if (unsupported.length) {
     throw new Error(`MCP_CONNECTION_SCOPES contém scopes não suportados: ${unsupported.join(", ")}.`);
@@ -155,6 +164,10 @@ export function isMcpAdminResource(resource: string): boolean {
 
 export function isMcpAdminEnabled(): boolean {
   return process.env.MCP_ADMIN_ENABLED?.trim() === "1";
+}
+
+export function isMcpCampaignRadarEnabled(): boolean {
+  return process.env.MCP_CAMPAIGN_RADAR_ENABLED?.trim() === "1";
 }
 
 export function getMcpOAuthIssuer(): string {
@@ -198,7 +211,7 @@ export function getMcpAdminAuditRetentionDays(): number {
 }
 
 export function getMcpProfileUrl(): string {
-  return `${getMcpAppBaseUrl()}/chatgpt/recursos`;
+  return `${getMcpAppBaseUrl()}/dashboard/profile?source=chatgpt`;
 }
 
 export function getInstagramConnectUrl(): string {

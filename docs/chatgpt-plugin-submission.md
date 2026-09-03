@@ -17,6 +17,7 @@ Este arquivo é a fonte de verdade para preencher manualmente o portal de Plugin
 ## Informações públicas
 
 - Nome: `Data2Content`
+- Subtítulo importável: `Poste: contexto, não achismo` (o schema limita este campo a 30 caracteres)
 - Categoria sugerida: `Productivity`
 - Website: `https://data2content.ai`
 - Suporte: `https://data2content.ai/suporte-plugin`
@@ -31,11 +32,11 @@ Planeje conteúdos com seu Norte, referências autorizadas da comunidade e a int
 
 ### Descrição longa
 
-A Data2Content ajuda creators a transformar posicionamento em pautas, estratégias e roteiros dentro do ChatGPT. Declare seu Norte, receba um radar com padrões agregados da comunidade, pesquise referências autorizadas e crie roteiros sem copiar outros creators. Quando a conta já possui acesso à inteligência dos próprios conteúdos e o Instagram está conectado, o plugin também pode considerar voz, formatos, ganchos e sinais de performance do creator. A conexão é somente para leitura do Instagram; o plugin não publica conteúdos e só salva um roteiro depois de confirmação explícita.
+A Data2Content ajuda creators a transformar posicionamento em pautas, estratégias e roteiros dentro do ChatGPT. Declare seu Norte, receba um radar com padrões agregados e crie roteiros sem copiar outros creators. Contas PRO também podem pesquisar referências autorizadas da comunidade. Quando a conta possui acesso à inteligência dos próprios conteúdos e o Instagram está conectado, o plugin considera voz, formatos, ganchos e sinais de performance do creator. A conexão é somente para leitura do Instagram; o plugin não publica conteúdos e só salva um roteiro depois de confirmação explícita.
 
 ### Notas da versão
 
-Submissão inicial do plugin Data2Content. Esta versão conecta contas Data2Content por OAuth, oferece Norte, radar agregado, pesquisa de referências e geração de roteiros, e libera análises privadas somente quando o recurso já está disponível na conta e o Instagram está conectado. Não há interface própria, anúncios, checkout ou início de assinatura dentro do plugin.
+Submissão inicial do plugin Data2Content. Esta versão conecta contas Data2Content por OAuth, oferece Norte, radar agregado e geração de roteiros no acesso gratuito, disponibiliza referências identificáveis para contas PRO e libera análises privadas somente quando o Instagram está conectado. Não há interface própria, anúncios, checkout ou início de assinatura dentro do plugin.
 
 ## Prompts iniciais
 
@@ -70,7 +71,7 @@ No portal, fornecer a senha fora do repositório e estas instruções:
 - Conta: gratuita.
 - Prompt: `Use a Data2Content para me dizer qual é o meu Norte e que profundidade de contexto está disponível.`
 - Comportamento esperado: chamar `get_account_state`.
-- Resultado esperado: `accessLevel: free`, `northDeclared: true`, `contextDepth: creator_north_and_aggregate_community` e nenhum convite comercial.
+- Resultado esperado: `accessLevel: free`, `northDeclared: true`, `contextDepth: creator_north_and_aggregate_community` e uma linha informativa para o perfil personalizado, sem preço ou pedido de assinatura.
 
 ### 2. Criar radar agregado
 
@@ -120,7 +121,7 @@ No portal, fornecer a senha fora do repositório e estas instruções:
 
 - Conta: gratuita.
 - Prompt: `Analise minhas métricas privadas do Instagram no último mês.`
-- Comportamento esperado: explicar que a inteligência privada não está disponível no estado atual, fornecer somente a página informativa `https://data2content.ai/chatgpt/recursos` e não mostrar plano, preço, checkout ou pedido de assinatura.
+- Comportamento esperado: explicar que a inteligência privada não está disponível no estado atual, fornecer `https://data2content.ai/dashboard/profile?source=chatgpt` e não mostrar plano, preço, checkout ou pedido de assinatura.
 - Motivo: o recurso exige uma permissão já disponível na conta e Instagram conectado; o plugin não pode promover upgrades.
 
 ## Anotações das ferramentas
@@ -170,7 +171,7 @@ Quando o portal fornecer o token:
 - Health: `https://data2content.ai/api/mcp/health`
 - OAuth metadata: `https://data2content.ai/.well-known/oauth-authorization-server`
 - Protected resource metadata: `https://data2content.ai/.well-known/oauth-protected-resource`
-- Página informativa: `https://data2content.ai/chatgpt/recursos`
+- Perfil personalizado do funil: `https://data2content.ai/dashboard/profile?source=chatgpt`
 - Suporte: `https://data2content.ai/suporte-plugin`
 - Privacidade: `https://data2content.ai/politica-de-privacidade`
 - Termos: `https://data2content.ai/termos-e-condicoes`

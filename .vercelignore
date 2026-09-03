@@ -1,4 +1,6 @@
 output/
+.playwright-cli/
+tmp/
 .next/
 node_modules/
 coverage/

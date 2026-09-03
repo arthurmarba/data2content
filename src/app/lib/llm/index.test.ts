@@ -49,6 +49,36 @@ describe("resolveProviderOrder", () => {
     expect(resolveProviderOrder("AI")).toEqual(["openai", "gemini"]);
   });
 
+  it("default do escopo SCRIPTS: somente Gemini, sem gasto OpenAI implícito", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_SCRIPTS;
+    delete process.env.LLM_FALLBACK_SCRIPTS;
+    delete process.env.LLM_FALLBACK_ENABLED;
+    expect(resolveProviderOrder("SCRIPTS")).toEqual(["gemini"]);
+  });
+
+  it("habilita OpenAI como fallback de SCRIPTS apenas por configuração explícita", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_SCRIPTS;
+    process.env.LLM_FALLBACK_SCRIPTS = "true";
+    expect(resolveProviderOrder("SCRIPTS")).toEqual(["gemini", "openai"]);
+  });
+
+  it("default do escopo COMMUNITY: Gemini sem gasto OpenAI implícito", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_COMMUNITY;
+    delete process.env.LLM_FALLBACK_COMMUNITY;
+    delete process.env.LLM_FALLBACK_ENABLED;
+    expect(resolveProviderOrder("COMMUNITY")).toEqual(["gemini"]);
+  });
+
+  it("habilita fallback comunitário somente por configuração explícita", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_COMMUNITY;
+    process.env.LLM_FALLBACK_COMMUNITY = "true";
+    expect(resolveProviderOrder("COMMUNITY")).toEqual(["gemini", "openai"]);
+  });
+
   it("default sem escopo: openai primário", () => {
     delete process.env.LLM_PROVIDER;
     expect(resolveProviderOrder()).toEqual(["openai", "gemini"]);
