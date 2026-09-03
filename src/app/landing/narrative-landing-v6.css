@@ -909,11 +909,11 @@
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--v6-ink-line);
+  padding: 0.95rem 0;
+  border-top: 1px solid rgba(18, 16, 20, 0.12);
   font-size: 1.0625rem;
 }
-.d2c-v6-plan__includes li:last-child { border-bottom: 0; padding-bottom: 0; }
+.d2c-v6-plan__includes li:last-child { border-bottom: 1px solid rgba(18, 16, 20, 0.12); }
 .d2c-v6-plan__includes svg { margin-top: 0.25rem; flex: none; color: var(--v6-ink-faint); }
 
 /* — 08 dúvidas — */
@@ -939,7 +939,18 @@
 /* — 09 fechamento — */
 
 .d2c-v6-close__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
-.d2c-v6-close__soft { color: rgba(255, 255, 255, 0.45); }
+/* O fecho é o único lugar onde o amarelo deixa de ser grifo e vira a cor da
+   frase e do botão — é o último empurrão da página. */
+.d2c-v6-close__soft { color: var(--v6-accent); }
+
+/* Especificidade acima da regra genérica de seção escura, que pinta o botão
+   de branco — aqui ele é amarelo de propósito. */
+.d2c-v6 .d2c-v6-section--dark.d2c-v6-close .d2c-button--human {
+  background: var(--v6-accent);
+  color: var(--v6-ink);
+}
+
+.d2c-v6 .d2c-v6-section--dark.d2c-v6-close .d2c-button--human:hover { background: #fff; }
 .d2c-v6-close__note { font-size: 0.9375rem; color: rgba(255, 255, 255, 0.55); }
 .d2c-v6-close__note b { font-weight: 600; color: #fff; }
 
@@ -1200,8 +1211,16 @@
     grid-template-columns: none;
   }
 
-  .d2c-v6-partner { flex-direction: column; }
-  .d2c-v6-partner figure { width: 100%; height: 11rem; }
+  .d2c-v6-partner { flex-direction: column; gap: 0.9rem; }
+  .d2c-v6-partner figure { width: 100%; height: 14rem; border-radius: 14px; }
+  .d2c-v6-partners > .d2c-v6-partner { width: 16.5rem; scroll-snap-align: center; }
+
+  .d2c-v6-faq .d2c-v6-title { font-size: 2rem; }
+  .d2c-v6-faq__list summary { align-items: flex-start; padding: 1.3rem 0; min-height: 3.25rem; }
+  .d2c-v6-faq__list summary > :first-child { font-size: 1.1875rem; line-height: 1.2; }
+
+  /* O botão do fecho ocupa a largura toda no mobile. */
+  .d2c-v6-close .d2c-button--human { width: 100%; }
 
   /* A agenda vira cartões: sem a moldura os dias ficavam soltos no trilho. */
   .d2c-v6-sessions > .d2c-v6-session {
@@ -1294,8 +1313,13 @@
 
 .d2c-v6-faq__chevron {
   flex: none;
+  width: 1.875rem;
+  height: 1.875rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(18, 16, 20, 0.18);
+  border-radius: 999px;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  color: var(--v6-ink-faint);
+  color: var(--v6-ink);
 }
 
 .d2c-v6-faq__list details[open] .d2c-v6-faq__chevron { transform: rotate(180deg); }
