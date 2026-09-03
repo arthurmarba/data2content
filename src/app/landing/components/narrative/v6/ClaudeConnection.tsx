@@ -50,14 +50,16 @@ export function ClaudeConnection() {
 
         <div className="d2c-v6-claude__grid">
           <div className="d2c-v6-claude__chat d2c-v6-reveal">
-            <div className="d2c-v6-bubble d2c-v6-bubble--you">
-              <span className="d2c-v6-bubble__who">você · planejamento</span>
-              <p>monta meu plano de postagem do mês olhando meus horários</p>
+            {/* Rótulo fora do balão e cauda no canto de quem fala: é o que faz
+                a troca ler como conversa em vez de dois cartões empilhados. */}
+            <div className="d2c-v6-turn d2c-v6-turn--you">
+              <span className="d2c-v6-turn__who">você · planejamento</span>
+              <p className="d2c-v6-bubble">monta meu plano de postagem do mês olhando meus horários</p>
             </div>
 
-            <div className="d2c-v6-bubble d2c-v6-bubble--d2c">
-              <span className="d2c-v6-bubble__who">data2content</span>
-              <p>
+            <div className="d2c-v6-turn d2c-v6-turn--d2c">
+              <span className="d2c-v6-turn__who">data2content</span>
+              <p className="d2c-v6-bubble">
                 Montei um calendário com [N] posts, nos dias e horários em que o seu público
                 costuma responder melhor. Quer que eu ajuste para postar menos vezes por semana?
               </p>

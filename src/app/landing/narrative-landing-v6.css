@@ -750,20 +750,19 @@
 
 .d2c-v6-claude__chat { display: flex; flex-direction: column; gap: 1rem; }
 
-.d2c-v6-bubble {
-  padding: 1.1rem 1.35rem;
-  border-radius: 18px;
-  border: 1px solid var(--v6-ink-line);
-  background: var(--v6-paper);
-  max-width: 92%;
+/* Uma troca: rótulo fora, balão com a cauda no canto de quem fala. O do
+   criador é escuro e encosta à direita; o da D2C é claro e encosta à
+   esquerda — é a inversão que faz ler como conversa. */
+.d2c-v6-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.d2c-v6-bubble--you { align-self: flex-end; border-bottom-right-radius: 6px; }
-.d2c-v6-bubble--d2c { align-self: flex-start; border-bottom-left-radius: 6px; background: var(--v6-ink); border-color: var(--v6-ink); color: #fff; }
+.d2c-v6-turn--you { align-self: flex-end; align-items: flex-end; max-width: 17rem; }
+.d2c-v6-turn--d2c { align-self: flex-start; max-width: 19rem; }
 
-.d2c-v6-bubble__who {
-  display: block;
-  margin-bottom: 0.4rem;
+.d2c-v6-turn__who {
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -771,8 +770,31 @@
   color: var(--v6-ink-faint);
 }
 
-.d2c-v6-bubble--d2c .d2c-v6-bubble__who { color: var(--v6-accent); }
-.d2c-v6-bubble p { margin: 0; font-size: 1.0625rem; line-height: 1.5; }
+.d2c-v6-turn--d2c .d2c-v6-turn__who { color: #4a464d; }
+
+.d2c-v6-bubble {
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  text-wrap: pretty;
+}
+
+.d2c-v6-turn--you .d2c-v6-bubble {
+  background: var(--v6-ink);
+  color: #fff;
+  border-radius: 18px 18px 5px 18px;
+}
+
+.d2c-v6-turn--d2c .d2c-v6-bubble {
+  background: var(--v6-paper);
+  border: 1px solid var(--v6-ink-line);
+  border-radius: 18px 18px 18px 5px;
+  padding: 1rem 1.15rem;
+}
 
 .d2c-v6-claude__more { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .d2c-v6-claude__more ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1181,6 +1203,23 @@
   .d2c-v6-partner { flex-direction: column; }
   .d2c-v6-partner figure { width: 100%; height: 11rem; }
 
+  /* A agenda vira cartões: sem a moldura os dias ficavam soltos no trilho. */
+  .d2c-v6-sessions > .d2c-v6-session {
+    width: 15rem;
+    gap: 0.35rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 16px;
+    padding: 1.15rem;
+  }
+
+  .d2c-v6-session__when { font-size: 2rem; }
+  .d2c-v6-session__when span { font-size: 1.25rem; color: var(--v6-accent); }
+
+  /* Os balões já são estreitos; no mobile o trilho do chat não se aplica. */
+  .d2c-v6-turn--you { max-width: 17rem; }
+  .d2c-v6-turn--d2c { max-width: 19rem; }
+
   /* Passos numerados: o número vira selo redondo na coluna da esquerda e o
      texto ocupa a coluna 2, em vez de empilhar tudo. */
   .d2c-v6-step {
@@ -1202,7 +1241,8 @@
 
   .d2c-v6-step__t { font-size: 1.25rem; line-height: 1.35; letter-spacing: -0.025em; }
   .d2c-v6-step__d,
-  .d2c-v6-step__code { grid-column: 2; font-size: 0.9375rem; }
+  .d2c-v6-step__code,
+  .d2c-v6-how__quiet { grid-column: 2; font-size: 0.9375rem; }
 
   /* Nas seções claras o selo do número precisa de fundo escuro. */
   .d2c-v6-section:not(.d2c-v6-section--dark):not(.d2c-v6-section--slate) .d2c-v6-step__n {
