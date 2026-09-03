@@ -96,9 +96,9 @@ export interface IMetricEntityTarget {
 }
 
 /**
- * Elementos do MAPA do criador que apareceram neste vídeo. Ver IMetric.sceneElements.
+ * Elementos do MAPA do criador que apareceram neste post publicado.
  *
- * Não é classificação aberta: é o resultado de conferir, contra o vídeo publicado,
+ * Não é classificação aberta: é o resultado de conferir, contra Reel, foto ou carrossel,
  * quais dos assets e tons que o criador declarou no card "Seu Mapa" se realizaram.
  * Os valores são PAPÉIS canônicos do registro (relatorio/mapRegistry.ts) — nunca o
  * rótulo pessoal do criador, que nomearia indivíduos e violaria a Regra 3.
@@ -190,6 +190,7 @@ export interface IMetric extends Document {
   source: 'manual' | 'api' | 'document_ai';
   classificationStatus: 'pending' | 'completed' | 'failed';
   classificationError?: string | null;
+  classificationLastQueuedAt?: Date | null;
   dailySnapshots?: ISnapshot[];
   rawData: unknown[];
   stats: IMetricStats;
@@ -203,13 +204,13 @@ export interface IMetric extends Document {
    */
   lifeAssets?: string[];
   /**
-   * Elementos de CENA extraídos do vídeo publicado pelo worker multimodal
+   * Elementos visuais extraídos do post publicado pelo worker multimodal
    * (src/app/api/worker/classify-published-video). Diferente de `lifeAssets`, que só
    * chega quando o criador sobe um vídeo antes de postar: isto é lido do reel que
    * está no ar, para toda a base.
    *
    * É o que sustenta o ranking de assets de vida e o tom do Relatório Semanal — a
-   * classificação por legenda não vê "a esposa em cena" nem "cena sem fala". Os valores
+   * classificação por legenda não vê "a esposa em cena" nem o gancho da primeira tela. Os valores
    * são papéis canônicos do registro do mapa (relatorio/mapRegistry.ts).
    */
   sceneElements?: IMetricSceneElements | null;
@@ -537,6 +538,7 @@ const metricSchema = new Schema<IMetric>(
     source: { type: String, enum: ['manual', 'api', 'document_ai'], required: true, default: 'manual', index: true },
     classificationStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending', index: true },
     classificationError: { type: String, default: null },
+    classificationLastQueuedAt: { type: Date, default: null, index: true },
     dailySnapshots: { type: Array, default: [] },
     rawData: { type: Array, default: [] },
     stats: { type: Schema.Types.Mixed, default: { total_interactions: 0, engagement: 0 } },

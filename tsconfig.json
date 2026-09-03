@@ -61,7 +61,11 @@
     "scripts/reuniao/**/*",
     "scripts/revista/**/*",
     "src/tests/**/*",
-    "src/app/lib/mcp/**/*.test.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "tests/**/*",
     "playwright/**/*",
     ".playwright-cli/**/*",
     "tmp/**/*"

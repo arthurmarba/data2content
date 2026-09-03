@@ -14,7 +14,7 @@ async function loadAuthOptions() {
 
 export async function GET(request: NextRequest) {
   const authOptions = await loadAuthOptions();
-  const session = await getServerSession(authOptions as any);
+  const session = (await getServerSession(authOptions as any)) as any;
   const userId = session?.user?.id;
   if (!userId) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });

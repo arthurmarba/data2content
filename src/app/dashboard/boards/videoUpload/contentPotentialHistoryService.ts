@@ -62,7 +62,7 @@ export function scriptStructureMatchScore(selectedPattern: unknown, publishedFor
  * "Vou postar" scan only when there is exactly one Reel in the next seven days.
  * Ambiguous matches stay pending.
  */
-async function reconcilePendingOutcomes(userId: string): Promise<void> {
+export async function reconcilePendingContentPotentialOutcomes(userId: string): Promise<number> {
   const { default: Diagnosis } = await import("@/app/models/CreatorVideoNarrativeDiagnosis");
   const { default: Metric } = await import("@/app/models/Metric");
   const userObjectId = new Types.ObjectId(userId);
@@ -77,7 +77,8 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
     .sort({ publishDecisionAt: -1 })
     .limit(6)
     .lean();
-  if (pending.length === 0) return;
+  if (pending.length === 0) return 0;
+  let linked = 0;
 
   const recentMetrics = await Metric.find({ user: userObjectId })
     .select("instagramMediaId postDate format type narrativeForm stats sceneElements.openingLine")
@@ -125,7 +126,7 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
     const publishedStructureMatchScore = scriptRecommendation
       ? scriptStructureMatchScore(scriptRecommendation.pattern, publishedForms)
       : null;
-    await Diagnosis.updateOne(
+    const update = await Diagnosis.updateOne(
       { _id: diagnosis._id, performanceOutcome: { $exists: false } },
       {
         $set: {
@@ -164,7 +165,9 @@ async function reconcilePendingOutcomes(userId: string): Promise<void> {
         },
       },
     );
+    linked += update.modifiedCount;
   }
+  return linked;
 }
 
 export async function buildContentPotentialCalibrationHistory(
@@ -173,7 +176,7 @@ export async function buildContentPotentialCalibrationHistory(
   if (!Types.ObjectId.isValid(userId)) return { outcomesLinked: 0, bandOutcomes: {} };
   try {
     await connectToDatabase();
-    await reconcilePendingOutcomes(userId);
+    await reconcilePendingContentPotentialOutcomes(userId);
     const { default: Diagnosis } = await import("@/app/models/CreatorVideoNarrativeDiagnosis");
     const docs = await Diagnosis.find({
       userId: new Types.ObjectId(userId),

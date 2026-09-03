@@ -10,6 +10,7 @@ import Metric from "@/app/models/Metric";
 import CampaignLink from "@/app/models/CampaignLink";
 import BrandProposal from "@/app/models/BrandProposal";
 import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
+import { generateCreatorScriptV3 } from "@/app/lib/scripts/creatorScriptGenerationV3";
 import { applyScriptToPlannerSlot, normalizeToMondayInTZ } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
@@ -274,6 +275,15 @@ function normalizeCreateBody(body: any) {
     typeof body?.clientRequestId === "string" || body?.clientRequestId === null
       ? body.clientRequestId
       : undefined;
+  const scriptGoal = ["attention", "depth", "conversation", "conversion", "authority"].includes(body?.scriptGoal)
+    ? body.scriptGoal as "attention" | "depth" | "conversation" | "conversion" | "authority"
+    : undefined;
+  const targetDurationSeconds = typeof body?.targetDurationSeconds === "number"
+    && Number.isFinite(body.targetDurationSeconds)
+    && body.targetDurationSeconds >= 8
+    && body.targetDurationSeconds <= 180
+      ? Math.round(body.targetDurationSeconds)
+      : undefined;
   return {
     mode,
     title,
@@ -288,6 +298,8 @@ function normalizeCreateBody(body: any) {
     isPosted,
     postedContentId,
     clientRequestId,
+    scriptGoal,
+    targetDurationSeconds,
   };
 }
 
@@ -847,6 +859,8 @@ export async function POST(request: Request) {
       isPosted,
       postedContentId,
       clientRequestId,
+      scriptGoal,
+      targetDurationSeconds,
     } = normalizeCreateBody(body);
     const targetResolution = resolveTargetScriptsUser({ session: session as any, targetUserId });
     if (!targetResolution.ok) {
@@ -871,6 +885,7 @@ export async function POST(request: Request) {
     let aiVersionId: string | null = null;
     let intelligenceContext: ScriptIntelligenceContext | null = null;
     let diagnostics: ScriptOutputDiagnostics | null = null;
+    let generationV3Meta: Record<string, unknown> | null = null;
 
     if (mode === "ai") {
       if (!prompt && !reuseGeneratedDraft) {
@@ -905,7 +920,30 @@ export async function POST(request: Request) {
           }
         }
 
-        const generated = await generateScriptFromPrompt({ prompt, title, intelligenceContext });
+        const useGenerationV3 = process.env.SCRIPTS_GENERATION_V3_ENABLED !== "false";
+        let generated: Awaited<ReturnType<typeof generateScriptFromPrompt>>;
+        if (useGenerationV3) {
+          const generatedV3 = await generateCreatorScriptV3({
+            userId: effectiveUserId,
+            prompt,
+            title,
+            goal: scriptGoal,
+            targetDurationSeconds,
+            intelligenceContext,
+          });
+          generated = generatedV3;
+          generationV3Meta = {
+            generationVersion: generatedV3.generationVersion,
+            provider: generatedV3.provider,
+            model: generatedV3.model,
+            estimatedDurationSeconds: generatedV3.estimatedDurationSeconds,
+            targetDurationSeconds: generatedV3.targetDurationSeconds,
+            validation: generatedV3.validation,
+            evidenceReceipt: generatedV3.evidenceReceipt,
+          };
+        } else {
+          generated = await generateScriptFromPrompt({ prompt, title, intelligenceContext });
+        }
         nextTitle = generated.title;
         nextContent = generated.content;
         diagnostics = buildScriptOutputDiagnostics({
@@ -936,6 +974,7 @@ export async function POST(request: Request) {
           title: finalTitle,
           content: finalContent,
         },
+        intelligence: generationV3Meta,
       });
     }
 
@@ -1000,6 +1039,7 @@ export async function POST(request: Request) {
               }
             : null,
           intelligence: buildIntelligencePromptSnapshot(intelligenceContext),
+          creatorScriptV3: generationV3Meta,
           diagnostics,
         },
         strategy: "my_scripts_create",

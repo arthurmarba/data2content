@@ -42,6 +42,7 @@ const SCOPE_DEFAULT_PROVIDER: Record<string, LlmProviderName> = {
   MAPA: "gemini",
   SCRIPTS: "gemini",
   COMMUNITY: "gemini",
+  CLASSIFICATION: "gemini",
 };
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {

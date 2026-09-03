@@ -253,6 +253,7 @@ export const analyticsEventCatalog = {
         | 'community'
         | 'instagram_report'
         | 'recorded_meetings'
+        | 'chatgpt_intelligence'
         | 'other'
         | null
         | undefined

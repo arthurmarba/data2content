@@ -43,6 +43,12 @@ describe("resolveProviderOrder", () => {
     expect(resolveProviderOrder("MAPA")).toEqual(["gemini", "openai"]);
   });
 
+  it("default do escopo CLASSIFICATION: gemini primário", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_CLASSIFICATION;
+    expect(resolveProviderOrder("CLASSIFICATION")).toEqual(["gemini", "openai"]);
+  });
+
   it("default de escopo sem override específico: openai primário", () => {
     delete process.env.LLM_PROVIDER;
     delete process.env.LLM_PROVIDER_AI;
