@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 
 const REQUIREMENTS = [
   "procura quem fala de maternidade",
-  "a partir de 100 mil seguidores",
+  "a partir de 10 mil seguidores",
   "um reels com stories de apoio",
 ];
 
@@ -62,7 +62,7 @@ export function SecondAnswer() {
                   <span>{requirement}</span>
                   <b>
                     <Check size={13} aria-hidden="true" />
-                    você bate
+                    elegível
                   </b>
                 </li>
               ))}
@@ -70,7 +70,7 @@ export function SecondAnswer() {
           </article>
 
           <p className="d2c-v6-publi__why">
-            E aparece pra você porque é justamente sobre isso que o seu público mais responde.
+            E aparece pra você porque é justamente sobre isso que o seu público mais engaja.
           </p>
         </div>
 

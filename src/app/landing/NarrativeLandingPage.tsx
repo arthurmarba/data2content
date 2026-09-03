@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, ChevronDown } from "lucide-react";
 
 import { bricolageGrotesque, instrumentSans } from "@/app/fonts/d2cFonts";
 import type { LandingCreatorHighlight, LandingProofMetrics } from "@/types/landing";
@@ -143,7 +143,10 @@ export function NarrativeLandingPage({ proofMetrics, communityCreators }: Narrat
             <div className="d2c-v6-faq__list d2c-v6-reveal">
               {FAQ.map((item) => (
                 <details key={item.q}>
-                  <summary>{item.q}</summary>
+                  <summary>
+                    {item.q}
+                    <ChevronDown size={18} aria-hidden="true" className="d2c-v6-faq__chevron" />
+                  </summary>
                   <p>{item.a}</p>
                 </details>
               ))}

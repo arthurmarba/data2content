@@ -68,13 +68,16 @@ export function FirstAnswer() {
             </figure>
           </div>
 
-          <p className="d2c-v6-pauta__verdict">
-            Seus posts recebem <span className="d2c-v6-mark">mais compartilhamento</span> quando
-            você cria conteúdo desse jeito.
-          </p>
         </article>
 
-        <ul className="d2c-v6-multipliers d2c-v6-reveal">
+        {/* O veredito vive fora do cartão porque no mobile ele abre a seção
+            sozinho — lá o cartão inteiro sai e a pauta entra pelos números. */}
+        <p className="d2c-v6-pauta__verdict d2c-v6-reveal">
+          Seus posts recebem <span className="d2c-v6-mark">mais compartilhamento</span> quando
+          você cria conteúdo desse jeito.
+        </p>
+
+        <ul className="d2c-v6-multipliers d2c-v6-rail d2c-v6-reveal">
           {MULTIPLIERS.map((multiplier, position) => (
             <li
               key={multiplier.value}

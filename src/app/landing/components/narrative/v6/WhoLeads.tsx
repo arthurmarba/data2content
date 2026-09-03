@@ -62,7 +62,7 @@ export function WhoLeads() {
           </p>
         </div>
 
-        <ul className="d2c-v6-sessions d2c-v6-reveal">
+        <ul className="d2c-v6-sessions d2c-v6-rail d2c-v6-reveal">
           {SESSIONS.map((session) => (
             <li className="d2c-v6-session" key={session.day + session.time}>
               <span className="d2c-v6-session__kind">{session.kind}</span>
@@ -75,7 +75,7 @@ export function WhoLeads() {
           ))}
         </ul>
 
-        <div className="d2c-v6-partners d2c-v6-reveal">
+        <div className="d2c-v6-partners d2c-v6-rail d2c-v6-reveal">
           {PARTNERS.map((partner) => (
             <article className="d2c-v6-partner" key={partner.name}>
               <figure>
@@ -99,7 +99,11 @@ export function WhoLeads() {
       <div className="d2c-v6-meetups d2c-v6-reveal">
         <div className="d2c-v6-meetups__copy">
           <span className="d2c-v6-label">os encontros</span>
-          <p>Uma vez por mês, presencialmente no Dreamers, no Rio de Janeiro.</p>
+          <p>
+            Uma vez por mês, presencialmente no Dreamers, no Rio de Janeiro. É o grupo de
+            agências dos eventos Rock in Rio, Lollapalooza e The Town, considerado o maior grupo
+            independente de comunicação, entretenimento e experiência de marketing do Brasil.
+          </p>
         </div>
         <figure className="d2c-v6-meetups__shot d2c-v6-meetups__shot--a">
           <Image

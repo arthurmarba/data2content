@@ -1075,3 +1075,88 @@
 @media (prefers-reduced-motion: reduce) {
   .d2c-v6-hero__badge-text { animation: none; }
 }
+
+/* ————————————————————————————————————————————————————————————
+   Mobile v7 — não é só recomposição.
+   O mockup mobile enxuga deliberadamente: a pauta entra direto pelos
+   números (sem o cartão), a publi perde o bloco da marca, e dados,
+   agenda e sócios viram carrosséis que sangram de borda a borda.
+   ———————————————————————————————————————————————————————————— */
+
+/* Trilho horizontal com encaixe. As margens negativas fazem o carrossel
+   sangrar até a borda da tela enquanto o primeiro item segue alinhado
+   ao texto da seção. */
+.d2c-v6-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 1.25rem;
+}
+
+.d2c-v6-rail::-webkit-scrollbar { display: none; }
+.d2c-v6-rail > * { scroll-snap-align: start; }
+
+@media (max-width: 720px) {
+  .d2c-v6-rail {
+    margin-inline: -1.25rem;
+    padding-inline: 1.25rem;
+  }
+
+  .d2c-v6-rail > * { flex: none; width: min(72vw, 17rem); }
+
+  /* 03 — a pauta entra pelos números: o cabeçalho e o cartão saem, o
+     veredito abre a seção. */
+  .d2c-v6-answer--first .d2c-v6-head,
+  .d2c-v6-answer--first .d2c-v6-pauta { display: none; }
+
+  .d2c-v6-answer--first .d2c-v6-pauta__verdict {
+    font-family: var(--font-d2c-display), system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+    max-width: none;
+  }
+
+  /* 04 — a ficha da publi fica só nos requisitos. */
+  .d2c-v6-publi__brand,
+  .d2c-v6-publi__card > .d2c-v6-label { display: none; }
+
+  .d2c-v6-publi__card { border: 0; background: none; padding: 0; }
+
+  /* 02 — a ponte para as duas respostas é desktop-only. */
+  .d2c-v6-how__bridge { display: none; }
+
+  .d2c-v6-multipliers,
+  .d2c-v6-sessions,
+  .d2c-v6-partners {
+    display: flex;
+    grid-template-columns: none;
+  }
+
+  .d2c-v6-partner { flex-direction: column; }
+  .d2c-v6-partner figure { width: 100%; height: 11rem; }
+}
+
+/* Acordeão das dúvidas: a seta gira ao abrir. */
+.d2c-v6-faq__list summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.d2c-v6-faq__chevron {
+  flex: none;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--v6-ink-faint);
+}
+
+.d2c-v6-faq__list details[open] .d2c-v6-faq__chevron { transform: rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .d2c-v6-faq__chevron { transition: none; }
+}
