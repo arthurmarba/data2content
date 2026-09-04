@@ -5,6 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createD2CMcpServer } from "./server";
 import { generateMcpScriptDraft } from "./catalog";
 import { findMcpCampaignOpportunities } from "./campaignRadar";
+import { critiqueMcpCreatorScript, getMcpCreatorContentDna } from "./scriptIntelligence";
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -467,6 +468,22 @@ jest.mock("./creatorRadar", () => ({
   })),
 }));
 
+jest.mock("./scriptIntelligence", () => ({
+  getMcpCreatorContentDna: jest.fn(async () => ({
+    schemaVersion: "creator_script_dna_v3",
+    confidence: "medium",
+    sampleSize: 18,
+    voice: { tone: ["direto"] },
+    winners: [],
+    coverage: { status: "partial" },
+  })),
+  critiqueMcpCreatorScript: jest.fn(async () => ({
+    schemaVersion: "creator_script_critique_v3",
+    validation: { passed: true, durationWithinTolerance: true, warnings: [] },
+    evidenceReceipt: { status: "complete" },
+  })),
+}));
+
 function textPayload(result: Awaited<ReturnType<Client["callTool"]>>) {
   const textPart = result.content.find((part) => part.type === "text");
   if (!textPart || textPart.type !== "text") throw new Error("Expected an MCP text result");
@@ -555,7 +572,9 @@ describe("Data2Content MCP server", () => {
         "research_inspiration_content",
         "analyze_inspiration_content",
         "compare_inspiration_contents",
+        "get_creator_content_dna",
         "generate_script_draft",
+        "critique_script_against_creator_dna",
         "save_script",
         "recommend_collab_creators",
         "get_performance_summary",
@@ -601,6 +620,62 @@ describe("Data2Content MCP server", () => {
       const rawResult = await rawListTools?.({ method: "tools/list", params: {} }, {});
       expect(rawResult?.tools.find((tool) => tool.name === "get_account_state")).toMatchObject({
         securitySchemes: [{ type: "oauth2", scopes: ["profile:read"] }],
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("returns the creator content DNA to a pro account with Instagram connected", async () => {
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({ name: "get_creator_content_dna", arguments: {} });
+      expect(result.isError).toBeFalsy();
+      expect(textPayload(result)).toMatchObject({
+        schemaVersion: "creator_script_dna_v3",
+        sampleSize: 18,
+      });
+      expect(getMcpCreatorContentDna).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("keeps the content DNA out of accounts without private creator intelligence", async () => {
+    (getMcpCreatorContentDna as jest.Mock).mockClear();
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const result = await client.callTool({ name: "get_creator_content_dna", arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(textPayload(result)).toMatchObject({
+        error: "private_creator_intelligence_unavailable",
+      });
+      expect(getMcpCreatorContentDna).not.toHaveBeenCalled();
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("critiques a script against the creator's own published evidence", async () => {
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({
+        name: "critique_script_against_creator_dna",
+        arguments: { content: "Gancho forte. Desenvolvimento. Fecho.", targetDurationSeconds: 45 },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(textPayload(result)).toMatchObject({
+        schemaVersion: "creator_script_critique_v3",
+        validation: { passed: true },
+      });
+      expect(critiqueMcpCreatorScript).toHaveBeenCalledWith({
+        userId: "507f1f77bcf86cd799439011",
+        content: "Gancho forte. Desenvolvimento. Fecho.",
+        prompt: undefined,
+        targetDurationSeconds: 45,
       });
     } finally {
       await client.close();

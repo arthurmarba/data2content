@@ -43,6 +43,7 @@ import {
   extractCampaignRadarPrivateSignals,
   findMcpCampaignOpportunities,
 } from "./campaignRadar";
+import { critiqueMcpCreatorScript, getMcpCreatorContentDna } from "./scriptIntelligence";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -1376,6 +1377,33 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
+  registerTool(
+    "get_creator_content_dna",
+    {
+      title: "Consultar o DNA de conteúdo do creator",
+      description:
+        "Use this before writing or judging a script when the user asks what their own voice, recurring subjects, visual patterns, winning durations, or audience look like according to their published history. It returns the creator's own content DNA with confidence and sample size; treat every pattern as historical correlation, never as a guarantee, and say so when confidence is low.",
+      annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
+    },
+    async () => {
+      if (!hasScope(context, "intelligence:read")) return scopeRequiredResult("intelligence:read");
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
+      const dna = await getMcpCreatorContentDna(context.identity.userId);
+      if (!dna) {
+        return {
+          isError: true,
+          content: jsonText({
+            error: "creator_script_dna_not_found",
+            message: "Ainda não há conteúdo publicado suficiente para montar o DNA deste creator.",
+          }),
+        };
+      }
+      return structuredJsonResult(dna as unknown as Record<string, unknown>);
+    },
+  );
+
   registerTool<{
     prompt: string;
     title: string;
@@ -1430,6 +1458,54 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         lookbackDays,
         inspirationContentIds,
         includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
+      });
+      return structuredJsonResult(result as unknown as Record<string, unknown>);
+    },
+  );
+
+  registerTool<{
+    content: string;
+    prompt: string;
+    targetDurationSeconds: number | null;
+  }>(
+    "critique_script_against_creator_dna",
+    {
+      title: "Criticar roteiro contra o DNA do creator",
+      description:
+        "Use this when the user has a script — written by them, by you, or elsewhere — and asks whether it fits their own style, history, or target duration. It compares the text against the creator's published evidence and returns adherence signals, duration checks and warnings. It never rewrites the script and never saves it: report the diagnosis and let the user decide. Present it as adherence to their own history, not as a performance guarantee.",
+      inputSchema: z.object({
+        content: z.string().trim().min(1).max(20_000).describe("Texto completo do roteiro a ser avaliado"),
+        prompt: z
+          .string()
+          .trim()
+          .max(2000)
+          .default("")
+          .describe("Briefing ou intenção original do roteiro, quando o usuário informar"),
+        targetDurationSeconds: z
+          .number()
+          .int()
+          .min(5)
+          .max(600)
+          .nullable()
+          .default(null)
+          .describe("Duração alvo em segundos, quando o usuário informar"),
+      }),
+      annotations: GENERATIVE_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("scripts:generate"),
+    },
+    async ({ content, prompt, targetDurationSeconds }) => {
+      const hasScriptGenerationScope = hasScope(context, "scripts:generate");
+      const hasLegacyGenerationScopes = hasScope(context, "strategy:read") && hasScope(context, "content:read");
+      if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
+        return scopeRequiredResult("scripts:generate");
+      }
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
+      const result = await critiqueMcpCreatorScript({
+        userId: context.identity.userId,
+        content,
+        prompt: prompt || undefined,
+        targetDurationSeconds,
       });
       return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
