@@ -132,6 +132,21 @@ jest.mock("./catalog", () => ({
     schemaVersion: "script_draft_v1",
     clientRequestId: "mcp-11111111-1111-4111-8111-111111111111",
     draft: { title: "Roteiro personalizado", content: "[ROTEIRO COPY-FIRST V1]\nCena de teste" },
+    generation: {
+      version: "creator_script_generation_v3",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      estimatedDurationSeconds: 42,
+      targetDurationSeconds: 45,
+      validation: {
+        passed: true,
+        durationWithinTolerance: true,
+        verbatimOverlapDetected: false,
+        technicalScore: 0.82,
+        warnings: [],
+      },
+      evidenceReceipt: { status: "partial", fullExemplarsUsed: 1 },
+    },
     intelligence: { intelligenceVersion: "scripts_intelligence_v2" },
     inspirationReferences: {
       requestedIds: params.inspirationContentIds ?? [],

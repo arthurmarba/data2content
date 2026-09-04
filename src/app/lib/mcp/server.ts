@@ -402,6 +402,23 @@ const scriptDraftOutputSchema = z.object({
     title: z.string(),
     content: z.string(),
   }),
+  generation: z
+    .object({
+      version: z.string(),
+      provider: z.string(),
+      model: z.string(),
+      estimatedDurationSeconds: z.number(),
+      targetDurationSeconds: z.number(),
+      validation: z.object({
+        passed: z.boolean(),
+        durationWithinTolerance: z.boolean(),
+        verbatimOverlapDetected: z.boolean(),
+        technicalScore: z.number(),
+        warnings: z.array(z.string()),
+      }),
+      evidenceReceipt: z.record(z.unknown()),
+    })
+    .nullable(),
   intelligence: z.record(z.unknown()).nullable(),
   inspirationReferences: z.object({
     requestedIds: z.array(z.string()),
@@ -1408,17 +1425,26 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     prompt: string;
     title: string;
     lookbackDays: number;
+    targetDurationSeconds: number | null;
     inspirationContentIds: string[];
   }>(
     "generate_script_draft",
     {
       title: "Gerar rascunho de roteiro personalizado",
       description:
-        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. This tool only generates a draft and never saves it. Show the complete draft before asking whether to save it.",
+        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. When generation is grounded in the creator's own published evidence, the result carries a generation block with the estimated duration, validation warnings and an evidence receipt: report those limits instead of hiding them. This tool only generates a draft and never saves it. Show the complete draft before asking whether to save it.",
       inputSchema: z.object({
         prompt: z.string().trim().min(3).max(2000).describe("Briefing completo do roteiro desejado"),
         title: z.string().trim().max(180).default("").describe("Título opcional pedido pelo usuário"),
         lookbackDays: z.number().int().min(30).max(365).default(180),
+        targetDurationSeconds: z
+          .number()
+          .int()
+          .min(5)
+          .max(600)
+          .nullable()
+          .default(null)
+          .describe("Duração alvo em segundos, quando o usuário pedir um roteiro de tamanho específico"),
         inspirationContentIds: z
           .array(z.string().trim().regex(/^inspiration:[a-f0-9]{24}$/i))
           .max(5)
@@ -1429,7 +1455,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       annotations: GENERATIVE_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
-    async ({ prompt, title, lookbackDays, inspirationContentIds }) => {
+    async ({ prompt, title, lookbackDays, targetDurationSeconds, inspirationContentIds }) => {
       const hasScriptGenerationScope = hasScope(context, "scripts:generate");
       const hasLegacyGenerationScopes = hasScope(context, "strategy:read") && hasScope(context, "content:read");
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
@@ -1456,6 +1482,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         prompt: contextualPrompt,
         title: title || null,
         lookbackDays,
+        targetDurationSeconds,
         inspirationContentIds,
         includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
       });

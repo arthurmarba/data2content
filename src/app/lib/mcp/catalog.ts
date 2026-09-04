@@ -11,6 +11,8 @@ import {
   buildScriptIntelligenceContext,
 } from "@/app/lib/scripts/intelligenceContext";
 import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
+import { generateCreatorScriptV3 } from "@/app/lib/scripts/creatorScriptGenerationV3";
+import { logger } from "@/app/lib/logger";
 import { buildCollabCreatorSuggestions } from "@/app/lib/planner/collabCreatorSuggestionsService";
 import { getMcpAppBaseUrl } from "./config";
 import {
@@ -68,6 +70,65 @@ const TOP_CONTENT_METRICS = [
 export type McpTopContentMetric = (typeof TOP_CONTENT_METRICS)[number];
 export type McpContentFormat = "all" | "reel" | "carousel" | "photo";
 
+/**
+ * Motor de geração do rascunho no MCP. O V3 é o mesmo que a plataforma já usa
+ * em `/api/scripts`: ele monta um pacote de evidências do próprio creator,
+ * confere a duração estimada e acusa sobreposição literal com o histórico.
+ * Se ele falhar por qualquer motivo, caímos no gerador anterior — um assinante
+ * nunca deve ficar sem rascunho por causa da troca de motor.
+ */
+async function generateScriptDraftContent(params: {
+  userId: string;
+  prompt: string;
+  title?: string;
+  targetDurationSeconds?: number | null;
+  intelligenceContext: Awaited<ReturnType<typeof buildScriptIntelligenceContext>> | null;
+}) {
+  try {
+    const result = await generateCreatorScriptV3({
+      userId: params.userId,
+      prompt: params.prompt,
+      title: params.title,
+      targetDurationSeconds: params.targetDurationSeconds,
+      intelligenceContext: params.intelligenceContext ?? undefined,
+    });
+    return {
+      title: result.title,
+      content: result.content,
+      generation: {
+        version: result.generationVersion,
+        provider: result.provider,
+        model: result.model,
+        estimatedDurationSeconds: result.estimatedDurationSeconds,
+        targetDurationSeconds: result.targetDurationSeconds,
+        validation: {
+          passed: result.validation.passed,
+          durationWithinTolerance: result.validation.durationWithinTolerance,
+          verbatimOverlapDetected: Boolean(result.validation.verbatimOverlap),
+          technicalScore: result.validation.technicalScore,
+          warnings: result.validation.warnings,
+        },
+        evidenceReceipt: result.evidenceReceipt as unknown as Record<string, unknown>,
+      },
+    };
+  } catch (error) {
+    logger.warn("[mcp][script_draft][v3_failed_using_legacy_engine]", {
+      userId: params.userId,
+      error: error instanceof Error ? error.message : String(error || ""),
+    });
+    const generated = await generateScriptFromPrompt({
+      prompt: params.prompt,
+      title: params.title,
+      intelligenceContext: params.intelligenceContext,
+    });
+    return {
+      title: generated.title,
+      content: generated.content,
+      generation: null,
+    };
+  }
+}
+
 export async function generateMcpScriptDraft(params: {
   userId: string;
   prompt: string;
@@ -75,6 +136,7 @@ export async function generateMcpScriptDraft(params: {
   lookbackDays: number;
   inspirationContentIds?: string[];
   includePrivateIntelligence?: boolean;
+  targetDurationSeconds?: number | null;
 }) {
   const [intelligenceContext, inspirationReferences] = await Promise.all([
     params.includePrivateIntelligence === false
@@ -94,9 +156,11 @@ export async function generateMcpScriptDraft(params: {
   const generationPrompt = inspirationReferences.promptContext
     ? `${params.prompt}\n\n${inspirationReferences.promptContext}`
     : params.prompt;
-  const generated = await generateScriptFromPrompt({
+  const generated = await generateScriptDraftContent({
+    userId: params.userId,
     prompt: generationPrompt,
     title: params.title?.trim() || undefined,
+    targetDurationSeconds: params.targetDurationSeconds ?? null,
     intelligenceContext,
   });
   const clientRequestId = `mcp-${randomUUID()}`;
@@ -108,6 +172,7 @@ export async function generateMcpScriptDraft(params: {
       title: generated.title,
       content: generated.content,
     },
+    generation: generated.generation,
     intelligence: buildIntelligencePromptSnapshot(intelligenceContext) ?? null,
     inspirationReferences: {
       requestedIds: (params.inspirationContentIds ?? []).slice(0, 5),
