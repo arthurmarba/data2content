@@ -25,8 +25,12 @@ export function NarrativeHeader() {
         <nav className="d2c-landing-header__nav" aria-label="Navegação principal">
           {NAV_LINKS.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
         </nav>
+        {/* "Entrar" e não "Criar conta grátis": o botão do herói já é esse
+            convite, com o mesmo destino (o login Google leva os dois). Repetir
+            a frase no topo dava dois primeiros passos concorrentes na mesma
+            tela; aqui o topo vira a porta de quem já é de casa. */}
         <div className="d2c-landing-header__actions">
-          <LandingAuthCta className="d2c-button d2c-button--small" guestLabel="Criar conta grátis" authenticatedLabel="Acessar a D2C" trackingLocation="header" />
+          <LandingAuthCta className="d2c-button d2c-button--small" guestLabel="Entrar" authenticatedLabel="Acessar a D2C" trackingLocation="header" />
         </div>
         <button
           className="d2c-menu-button"

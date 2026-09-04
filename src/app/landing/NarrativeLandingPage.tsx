@@ -26,16 +26,20 @@ const formatDecimal = (value: number) => value.toLocaleString("pt-BR", { maximum
    as mesmas que antes ocupavam uma seção inteira e agora cabem na primeira
    dobra. Tudo sai de número real: se a métrica não vier, aquela linha não
    entra, e sem nenhuma o selo some. Placeholder aqui seria número falso na
-   primeira coisa que o visitante lê. */
+   primeira coisa que o visitante lê.
+
+   A ordem importa: no celular o selo não gira (ver HeroV6), então a primeira
+   linha é a única que a maioria vai ler. Ela é a das visualizações — o número
+   maior, e o único que não repete o verbo "assistir" que já abre o título. */
 function buildStatLines(proofMetrics: LandingProofMetrics | null) {
   if (!proofMetrics) return [];
 
   const lines: string[] = [];
-  const thousands = Math.floor(proofMetrics.contentAnalyzed / 1_000);
-  if (thousands >= 1) lines.push(`+${formatDecimal(thousands)} mil conteúdos já assistidos pela nossa IA`);
-
   const millionViews = Math.floor(proofMetrics.viewsAnalyzed / 1_000_000);
   if (millionViews >= 1) lines.push(`${formatDecimal(millionViews)} mi visualizações compreendidas`);
+
+  const thousands = Math.floor(proofMetrics.contentAnalyzed / 1_000);
+  if (thousands >= 1) lines.push(`+${formatDecimal(thousands)} mil conteúdos já assistidos pela nossa IA`);
 
   const millionInteractions = Math.floor(proofMetrics.interactionsAnalyzed / 1_000_000);
   if (millionInteractions >= 1) lines.push(`${formatDecimal(millionInteractions)} mi interações que viraram aprendizado`);
