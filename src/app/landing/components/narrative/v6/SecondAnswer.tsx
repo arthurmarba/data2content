@@ -10,6 +10,19 @@ const REQUIREMENTS = [
   "um reels com stories de apoio",
 ];
 
+/* As fontes que a D2C varre, convergindo para o centro. Só aparece no celular
+   (ver CSS): no desktop a mesma ideia é contada pela ficha de campanha, que
+   continua lá. As posições são as do mockup de 390x300, em porcentagem para
+   acompanharem telas mais estreitas. */
+const SOURCES = [
+  { label: "Squid", left: "17.95%", top: "16.67%" },
+  { label: "PlayNest / Play9", left: "80.77%", top: "18.33%" },
+  { label: "MIS", left: "14.87%", top: "50%" },
+  { label: "Influency.me", left: "82.05%", top: "50%" },
+  { label: "AirFluencers", left: "19.23%", top: "83.33%" },
+  { label: "99Freelas", left: "80%", top: "82.67%" },
+];
+
 const DELIVERY = [
   {
     n: "01",
@@ -40,7 +53,7 @@ export function SecondAnswer() {
             a publi
           </span>
           <h2 className="d2c-v6-title">
-            Qual publi é sua <span className="d2c-v6-answer__soft">nesta semana.</span>
+            Qual publi <span className="d2c-v6-answer__soft">é a sua cara.</span>
           </h2>
           <p className="d2c-v6-lead">
             As marcas abrem campanhas em várias plataformas diferentes. A D2C junta todas num só
@@ -78,6 +91,30 @@ export function SecondAnswer() {
           <p className="d2c-v6-publi__why">
             E aparece pra você porque é justamente sobre isso que o seu público mais engaja.
           </p>
+
+          <div className="d2c-v6-publi__constellation">
+            <svg viewBox="0 0 390 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <circle cx="195" cy="150" r="112" fill="none" stroke="rgba(255,255,255,.14)" strokeDasharray="3 6" />
+              <g stroke="rgba(245,179,1,.45)" strokeWidth="1">
+                <line x1="70" y1="50" x2="195" y2="150" />
+                <line x1="315" y1="55" x2="195" y2="150" />
+                <line x1="58" y1="150" x2="195" y2="150" />
+                <line x1="320" y1="150" x2="195" y2="150" />
+                <line x1="75" y1="250" x2="195" y2="150" />
+                <line x1="312" y1="248" x2="195" y2="150" />
+              </g>
+            </svg>
+            {SOURCES.map((source) => (
+              <span
+                key={source.label}
+                className="d2c-v6-publi__source"
+                style={{ left: source.left, top: source.top }}
+              >
+                {source.label}
+              </span>
+            ))}
+            <span className="d2c-v6-publi__hub" aria-hidden="true">D2C</span>
+          </div>
         </div>
 
         <div className="d2c-v6-publi__delivery d2c-v6-reveal">

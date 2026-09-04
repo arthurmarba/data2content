@@ -4,6 +4,10 @@
    Uma troca só, e sobre algo que as seções 03 e 04 não entregaram — repetir a
    pauta e a publi aqui era dizer a mesma coisa três vezes na mesma página. */
 
+import type { ReactNode } from "react";
+
+import { ClaudeAnswer } from "./ClaudeAnswer";
+
 const MCP_URL = "https://data2content.ai/api/mcp";
 
 const OTHER_PROMPTS = [
@@ -11,7 +15,15 @@ const OTHER_PROMPTS = [
   "me dá o roteiro da pauta dessa semana no meu tom",
 ];
 
-const STEPS = [
+type Step = {
+  n: string;
+  title: string;
+  detail: string;
+  bullets?: ReactNode[];
+  code?: string;
+};
+
+const STEPS: Step[] = [
   {
     n: "01",
     title: "Tenha sua assinatura ativa.",
@@ -22,6 +34,14 @@ const STEPS = [
     title: "Adicione o conector no Claude.",
     detail:
       "No Claude, entre em Configurações, abra Conectores e escolha adicionar um conector personalizado. Cole este endereço:",
+    /* A mesma receita quebrada em passos curtos: no celular a frase corrida
+       vira quatro linhas do que fazer, na ordem em que se faz. */
+    bullets: [
+      <>No Claude, abra <b>Configurações › Conectores</b>.</>,
+      <>Escolha <b>adicionar conector personalizado</b>.</>,
+      <>Em nome, escreva <b>data2content</b>.</>,
+      <>Em URL, cole o endereço abaixo.</>,
+    ],
     code: MCP_URL,
   },
   {
@@ -53,8 +73,10 @@ export function ClaudeConnection() {
             {/* Rótulo fora do balão e cauda no canto de quem fala: é o que faz
                 a troca ler como conversa em vez de dois cartões empilhados. */}
             <div className="d2c-v6-turn d2c-v6-turn--you">
-              <span className="d2c-v6-turn__who">você · planejamento</span>
-              <p className="d2c-v6-bubble">monta meu plano de postagem do mês olhando meus horários</p>
+              <span className="d2c-v6-turn__who">você</span>
+              <p className="d2c-v6-bubble">
+                monta meu plano de postagem do mês olhando o que mais funciona pra mim
+              </p>
             </div>
 
             <div className="d2c-v6-turn d2c-v6-turn--d2c">
@@ -64,6 +86,8 @@ export function ClaudeConnection() {
                 costuma responder melhor. Quer que eu ajuste para postar menos vezes por semana?
               </p>
             </div>
+
+            <ClaudeAnswer />
 
             <div className="d2c-v6-claude__more">
               <span className="d2c-v6-label">e também</span>
@@ -82,7 +106,20 @@ export function ClaudeConnection() {
                 <li className="d2c-v6-step" key={step.n}>
                   <span className="d2c-v6-step__n">{step.n}</span>
                   <span className="d2c-v6-step__t">{step.title}</span>
-                  <span className="d2c-v6-step__d">{step.detail}</span>
+                  <span
+                    className={
+                      step.bullets ? "d2c-v6-step__d d2c-v6-step__d--has-bullets" : "d2c-v6-step__d"
+                    }
+                  >
+                    {step.detail}
+                  </span>
+                  {step.bullets && (
+                    <ul className="d2c-v6-step__bullets">
+                      {step.bullets.map((bullet, position) => (
+                        <li key={position}>{bullet}</li>
+                      ))}
+                    </ul>
+                  )}
                   {step.code && <code className="d2c-v6-step__code">{step.code}</code>}
                 </li>
               ))}

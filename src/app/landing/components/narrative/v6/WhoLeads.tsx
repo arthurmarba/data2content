@@ -49,7 +49,7 @@ export function WhoLeads() {
       data-landing-section="authority"
     >
       <div className="d2c-v6-shell">
-        <div className="d2c-v6-head d2c-v6-reveal">
+        <div className="d2c-v6-head d2c-v6-reveal" data-leads-block="head">
           <span className="d2c-v6-label">a reunião da semana</span>
           <h2 className="d2c-v6-title">
             Alguém senta com você <span className="d2c-v6-answer__soft">para entender sua narrativa.</span>
@@ -62,7 +62,7 @@ export function WhoLeads() {
           </p>
         </div>
 
-        <ul className="d2c-v6-sessions d2c-v6-rail d2c-v6-reveal">
+        <ul className="d2c-v6-sessions d2c-v6-rail d2c-v6-reveal" data-leads-block="days">
           {SESSIONS.map((session) => (
             <li className="d2c-v6-session" key={session.day + session.time}>
               <span className="d2c-v6-session__kind">{session.kind}</span>
@@ -75,7 +75,7 @@ export function WhoLeads() {
           ))}
         </ul>
 
-        <div className="d2c-v6-partners d2c-v6-rail d2c-v6-reveal">
+        <div className="d2c-v6-partners d2c-v6-rail d2c-v6-reveal" data-leads-block="people">
           {PARTNERS.map((partner) => (
             <article className="d2c-v6-partner" key={partner.name}>
               <figure>
