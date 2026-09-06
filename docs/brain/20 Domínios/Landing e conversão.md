@@ -8,7 +8,11 @@ tipo: domínio
 
 `src/app/page.tsx` → renderiza **`NarrativeLandingPage`** (`src/app/landing/`).
 
-> Qualquer componente de landing **fora** de `src/app/landing/` é código morto. `LandingPageClient` e vizinhos não estão no ar.
+> A landing viva importa **só** de `landing/components/narrative/` e `narrative/v6/`. Os componentes soltos direto em `landing/components/` são de landings antigas.
+
+Em 06/09/2026, 38 componentes órfãos (4.462 linhas que ninguém importava) foram removidos, junto com 3 testes que testavam código morto. Sobraram 15 arquivos soltos em `components/`, todos com uso real em alguma tela — mais a pasta `narrative/`, que é a landing de verdade.
+
+A rota `/landing` existe mas só redireciona para `/`. `LandingPageClient` não existe mais.
 
 | Peça | Caminho |
 | --- | --- |

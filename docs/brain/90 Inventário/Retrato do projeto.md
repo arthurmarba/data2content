@@ -12,9 +12,9 @@ Os números crus, pra dar noção de escala antes de mexer em qualquer coisa.
 
 | | |
 | --- | --- |
-| Arquivos de código | 2064 |
-| Arquivos de teste | 681 |
-| Componentes de tela (.tsx) | 717 |
+| Arquivos de código | 2026 |
+| Arquivos de teste | 678 |
+| Componentes de tela (.tsx) | 679 |
 | Rotas de API | 419 |
 | Documentos em `docs/` | 159 |
 

@@ -68,3 +68,19 @@ keys/
 /lint_output.txt
 /fix_output*.json
 /part1.tmp
+/tsconfig.tsbuildinfo
+/test-results/
+
+# resultados gerados: ficam no disco, não no repositório.
+# os .json de output/ CONTINUAM versionados — os snapshots de semana fechada
+# são irrecuperáveis (ver docs/brain/20 Domínios/Relatório Semanal.md).
+/output/**/*.png
+/output/**/*.jpg
+/output/**/*.jpeg
+/output/**/*.webp
+/output/**/*.gif
+/output/**/*.mp4
+/output/**/*.mov
+/output/**/*.pdf
+/output/**/*.pptx
+/output/**/*.zip
