@@ -57,3 +57,14 @@ keys/
 # Relatório Semanal gerado: JSON, PNGs e PDF com dado e nome de criador real.
 # O artefato é reprodutível a partir do snapshot no banco — não versionar.
 /output/relatorio-semanal/
+
+# lixo de depuração e de sessões de teste (não carregar no repositório)
+/.playwright-cli/
+/tmp/
+/tmp-home/
+/tsc_*.txt
+/build_output*.txt
+/build_attempt_output.txt
+/lint_output.txt
+/fix_output*.json
+/part1.tmp
