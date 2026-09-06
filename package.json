@@ -12,6 +12,7 @@
     "start": "sh -c 'NODE_OPTIONS=\"--dns-result-order=ipv4first ${NODE_OPTIONS:-}\" NEXTAUTH_URL=\"${NEXTAUTH_URL:-http://localhost:${PORT:-3000}}\" ./scripts/with-preferred-node.sh next start -H 127.0.0.1 -p ${PORT:-3000}'",
     "playwright:install-chromium": "node scripts/install-playwright-chromium.mjs",
     "lint": "eslint src --quiet",
+    "brain": "node scripts/brain/gerar-inventario.mjs",
     "typecheck": "npm run smoke:types",
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "jest --watchAll=false",
