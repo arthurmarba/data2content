@@ -32,7 +32,9 @@ O mesmo banco de dados aparece de quatro jeitos diferentes. Confundi-los é a ca
 Mora em `src/app/page.tsx`, que renderiza `NarrativeLandingPage` (`src/app/landing/`). É a landing de verdade — qualquer componente de landing fora dessa pasta é código morto. Ver [[Landing e conversão]].
 
 ### 2. Aplicativo no computador — os *boards*
-`src/app/dashboard/` e `src/app/(dashboard)/`. A home é um mural de blocos que o criador prende e desprende; o cadastro deles está em `src/app/dashboard/boards/boardRegistry.ts` (Seu Mapa, Collabs, Campanhas, Reuniões gravadas, Descobrir, Perfil, Mídia Kit, Afiliados, Criação de post).
+`src/app/dashboard/`. A pasta `src/app/(dashboard)/` **não é um segundo painel**: são cascas finas que dão endereço curto (`/media-kit`, `/campaigns`, `/pro`) conferindo a sessão e renderizando a tela real implementada em `dashboard/`. Duas delas — `reuniao` e `reunioes-gravadas` — têm conteúdo próprio.
+
+A home é um mural de blocos que o criador prende e desprende; o cadastro deles está em `src/app/dashboard/boards/boardRegistry.ts` (Seu Mapa, Collabs, Campanhas, Reuniões gravadas, Descobrir, Perfil, Mídia Kit, Afiliados, Criação de post).
 
 ### 3. Aplicativo no celular — a casca única
 `src/app/dashboard/boards/mobile-strategic-profile/`. O `src/middleware.ts` detecta celular pelo navegador e redireciona `/dashboard` pra essa rota. É uma experiência separada, não uma versão estreita da de computador — e ela **proíbe guardar coisas no navegador** por design (ver [[Vídeo não pode guardar nada no navegador]]).

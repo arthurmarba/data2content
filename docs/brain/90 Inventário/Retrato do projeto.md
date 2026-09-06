@@ -16,6 +16,6 @@ Os números crus, pra dar noção de escala antes de mexer em qualquer coisa.
 | Arquivos de teste | 681 |
 | Componentes de tela (.tsx) | 717 |
 | Rotas de API | 419 |
-| Documentos em `docs/` | 122 |
+| Documentos em `docs/` | 159 |
 
 Um projeto deste tamanho não cabe na cabeça de ninguém — nem na da IA. Por isso o cérebro existe: [[00 Comece por aqui]].

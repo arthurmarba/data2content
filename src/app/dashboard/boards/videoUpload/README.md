@@ -2686,3 +2686,19 @@ MM88 conecta o endpoint real gated ao pipeline seguro de leitura documentada. Co
 O response do beta retorna apenas `videoReadingPersistence`, `synthesisSnapshotWrite` e `e2eBetaAudit`; não retorna snapshot completo, leitura completa, raw response, transcrição, vídeo, thumbnail, signed URL, upload URL, objectKey, localPath ou metadata de storage. O cleanup temporário e os usage limits existentes permanecem no caminho real.
 
 Runbook operacional: `MM88_GATED_REAL_ENDPOINT_E2E_BETA_RUNBOOK.md`.
+
+---
+
+## Onde foi parar a documentação de planejamento
+
+Em 06/09/2026, os 30 documentos de planejamento e QA que moravam aqui (a série `MM74`–`MM91`, os planos de vídeo e os de perfil no celular) foram para **`docs/video-narrativa/`**. Planejamento não mora junto do código.
+
+**Ficaram aqui de propósito** os 12 documentos de contrato que os testes leem — mover quebraria a suíte:
+
+`VIDEO_NARRATIVE_*_CONTRACT.md` · `VIDEO_NARRATIVE_*_CHECKLIST.md` · `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` · `MOBILE_STRATEGIC_PROFILE_UX_QA.md` · `GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md`
+
+Esses são contrato executável, não planejamento: o teste lê o arquivo e confere o conteúdo.
+
+## Aviso sobre o nome desta pasta
+
+O nome mente. Além do upload de vídeo, esta pasta guarda o match de collabs, a geração de pautas, a leitura de audiência e o perfil do celular inteiro — cerca de 169 arquivos. Ver `docs/brain/30 Armadilhas/A pasta videoUpload é uma gaveta de bagunça.md`.
