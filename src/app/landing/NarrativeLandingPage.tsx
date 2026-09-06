@@ -13,7 +13,6 @@ import { LandingMobileCta } from "./components/narrative/LandingMobileCta";
 import { LandingSectionTracker } from "./components/narrative/LandingSectionTracker";
 import { NarrativeHeader } from "./components/narrative/NarrativeHeader";
 import { ClaudeConnection } from "./components/narrative/v6/ClaudeConnection";
-import { FirstAnswer } from "./components/narrative/v6/FirstAnswer";
 import { HeroV6 } from "./components/narrative/v6/HeroV6";
 import { HowItWorks } from "./components/narrative/v6/HowItWorks";
 import { RevealOnScroll } from "./components/narrative/v6/RevealOnScroll";
@@ -99,7 +98,6 @@ export function NarrativeLandingPage({ proofMetrics, communityCreators }: Narrat
       <main>
         <HeroV6 creators={communityCreators} statLines={buildStatLines(proofMetrics)} />
         <HowItWorks />
-        <FirstAnswer />
         <SecondAnswer />
         <ClaudeConnection />
         <WhoLeads />

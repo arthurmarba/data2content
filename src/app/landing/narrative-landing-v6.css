@@ -16,7 +16,10 @@
   --v6-slate: #3a373c;
   --v6-mark: rgba(245, 179, 1, 0.62);
   --v6-accent: #f5b301;
-  --v6-shell: min(100% - 2.5rem, 68rem);
+  /* O desktop revisado alinha tudo por uma margem de 4rem, não por um
+     container estreito: 1440 - 128 = 1312, que é a largura do palco. Abaixo de
+     960px a margem volta a ser a de celular (20px de cada lado). */
+  --v6-shell: min(100% - 8rem, 1312px);
 }
 
 .d2c-v6-section {
@@ -92,10 +95,173 @@
 /* Blocos que existem SÓ na versão mobile da landing. Ficam desligados por
    padrão e são acesos no bloco de 720px — assim o desktop nunca os vê, mesmo
    que uma regra nova esqueça de escondê-los. */
-.d2c-v6-how__readings,
-.d2c-v6-publi__constellation,
-.d2c-v6-claude__long,
-.d2c-v6-step__bullets { display: none; }
+
+
+/* — constelação das fontes de publi (04) — */
+
+.d2c-v6-publi__constellation {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1440 / 470;
+}
+
+.d2c-v6-publi__rays {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.d2c-v6-publi__rays--mobile { display: none; }
+
+.d2c-v6-publi__source {
+  position: absolute;
+  left: var(--src-left);
+  top: var(--src-top);
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+}
+
+.d2c-v6-publi__hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10.42%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--v6-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  font-size: 2.25rem;
+  box-shadow: 0 14px 40px rgba(18, 16, 20, 0.35);
+}
+
+/* Cabeçalho em duas colunas: título à esquerda, texto de apoio à direita
+   alinhado pela base. Vale para as seções que o mockup desenha assim. */
+.d2c-v6-head--split {
+  margin-bottom: 3.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 5rem;
+  grid-template-rows: auto auto;
+  align-items: start;
+}
+
+.d2c-v6-head--split > .d2c-v6-label { grid-column: 1; grid-row: 1; }
+.d2c-v6-head--split > .d2c-v6-title { grid-column: 1; grid-row: 2; }
+.d2c-v6-head--split > .d2c-v6-lead {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
+  margin-bottom: 0.5rem;
+}
+
+.d2c-v6-answer--second .d2c-v6-title { max-width: 16ch; }
+
+/* — 06 quem conduz, no desktop — */
+
+.d2c-v6-leads .d2c-v6-title { max-width: 20ch; }
+
+.d2c-v6-meetups {
+  width: var(--v6-shell);
+  margin: 3.5rem auto 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.d2c-v6-meetups__copy { display: contents; }
+.d2c-v6-meetups__copy .d2c-v6-label { order: 1; }
+.d2c-v6-meetups__rail {
+  order: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.d2c-v6-meetups__copy p {
+  order: 3;
+  margin: 0;
+  max-width: 80ch;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+}
+.d2c-v6-meetups__shot {
+  margin: 0;
+  height: 22rem;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.d2c-v6-meetups__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.d2c-v6-partners {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.d2c-v6-partner {
+  display: grid;
+  grid-template-columns: 14rem 1fr;
+  column-gap: 1.75rem;
+  align-items: start;
+}
+
+.d2c-v6-partner figure {
+  position: relative;
+  margin: 0;
+  height: 17rem;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.d2c-v6-partner figure img { object-fit: cover; }
+.d2c-v6-partner > div { display: flex; flex-direction: column; gap: 0.5rem; }
+.d2c-v6-partner h3 {
+  margin: 0;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+.d2c-v6-partner p { margin: 0; font-size: 1.0625rem; line-height: 1.55; color: rgba(255, 255, 255, 0.6); }
+
+.d2c-v6-sessions {
+  list-style: none;
+  margin: 4rem 0 0;
+  padding: 2.5rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* A entrega ocupa a largura cheia, com o respiro por dentro. */
+.d2c-v6-publi__delivery {
+  margin: 3.5rem -4rem 0;
+  padding: 3rem 4rem;
+  background: rgba(18, 16, 20, 0.16);
+}
 
 /* — herói — */
 
@@ -143,11 +309,11 @@
   font-family: var(--font-d2c-display), system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.045em;
-  line-height: 1.12;
-  /* O teto caiu de 5rem para caber a variante mais longa ("e te direciona com
-     quem criar") numa linha só. Com 5rem só ela estourava, e a frase inteira
-     saltava uma linha a cada volta do rotador. */
-  font-size: clamp(2.25rem, 6.2vw, 4.6rem);
+  line-height: 1.02;
+  /* O teto acompanha o mockup revisado; o `max-width` em ch é o que governa a
+     quebra, então a variante mais longa não estoura a linha. */
+  font-size: clamp(2.25rem, 5.4vw, 4.75rem);
+  max-width: 20ch;
   text-wrap: balance;
 }
 
@@ -178,8 +344,8 @@
 
 .d2c-v6-hero__sub {
   margin: 0;
-  max-width: 32rem;
-  font-size: clamp(1.05rem, 2.2vw, 1.375rem);
+  max-width: 42rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
   line-height: 1.45;
   color: var(--v6-ink-dim);
   text-wrap: pretty;
@@ -189,9 +355,40 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  margin-top: 1.9rem;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
 }
+
+.d2c-v6-hero__buttons { display: flex; align-items: center; gap: 0.75rem; }
+
+/* A segunda porta é de contorno: convida sem competir com o preto. */
+.d2c-v6 .d2c-v6-hero__secondary {
+  min-height: 3.5rem;
+  padding-inline: 1.75rem;
+  border: 1px solid rgba(18, 16, 20, 0.2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--v6-ink);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.d2c-v6 .d2c-v6-hero__secondary:hover {
+  background: rgba(18, 16, 20, 0.05);
+  color: var(--v6-ink);
+  box-shadow: none;
+}
+
+/* O botão de contorno do cabeçalho, ao lado do cheio. */
+.d2c-v6 .d2c-landing-header .d2c-button--ghost {
+  background: transparent;
+  color: var(--v6-ink);
+  border: 1px solid rgba(18, 16, 20, 0.24);
+}
+
+.d2c-v6 .d2c-landing-header .d2c-button--ghost:hover { background: rgba(18, 16, 20, 0.06); }
+.d2c-v6 .d2c-landing-header__actions { display: flex; align-items: center; gap: 0.75rem; }
 
 .d2c-v6-hero__note {
   font-size: 1rem;
@@ -405,39 +602,36 @@
   height: 40rem;
 }
 
-.d2c-v6-how__quiet {
-  margin-top: 0.3rem;
-  font-size: 1rem;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* O palco é a largura cheia do mockup (1440), não o container de texto: as
-   anotações laterais precisam desse espaço para caber fora do quadro. */
+/* O palco: 1312x520 no desktop (a largura útil dentro dos 4rem de respiro),
+   390x420 no celular. Em ambos o quadro fica no meio e as anotações nas
+   laterais, ligadas por fios. */
 .d2c-v6-how__stage {
   position: relative;
-  width: min(100%, 1440px);
+  width: var(--v6-shell);
   margin: 4rem auto 0;
-  aspect-ratio: 1440 / 740;
+  aspect-ratio: 1312 / 520;
 }
 
-.d2c-v6-how__bridge {
-  margin: 4rem auto 0;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  font-size: clamp(1.25rem, 3vw, 1.75rem);
-  color: #fff;
+/* Cada largura tem o seu desenho de fios: as diagonais mudam de ângulo com a
+   proporção do palco, então escalar o mesmo SVG entortaria as ligações. */
+.d2c-v6-how__wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-/* Mesma caixa do mockup: 420x740 num palco de 1440, começando em 510px. */
+.d2c-v6-how__wires--mobile { display: none; }
+
+/* O quadro do mockup: 280x373 começando em (516, 74) num palco de 1312x520. */
 .d2c-v6-how__frame {
   position: absolute;
   margin: 0;
-  left: 35.42%;
-  top: 0;
-  width: 29.17%;
-  height: 100%;
+  left: 39.33%;
+  top: 14.23%;
+  width: 21.34%;
+  height: 71.73%;
   border-radius: 26px;
   overflow: hidden;
   background: var(--v6-cream);
@@ -504,39 +698,81 @@
 
 .d2c-v6-how__notes { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
 
-.d2c-v6-how__wires { display: none; }
-
+/* A anotação é a pílula inteira; o ponto onde o fio morre é do SVG, que é quem
+   sabe a geometria. */
 .d2c-v6-how__note {
-  top: var(--note-top);
-  left: var(--note-left);
-  width: var(--note-width);
   position: absolute;
-  display: flex;
+  left: var(--note-left);
+  top: var(--note-top);
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(245, 179, 1, 0.35);
+  border-radius: 999px;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
 }
 
-.d2c-v6-how__note-label {
+/* Título e passos lado a lado no desktop. */
+.d2c-v6-how__intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 5rem;
+  align-items: start;
+}
+
+.d2c-v6-how__intro .d2c-v6-head { margin-bottom: 0; gap: 1.25rem; }
+.d2c-v6-how__intro .d2c-v6-steps { grid-template-columns: minmax(0, 1fr); padding-top: 1rem; gap: 2.5rem; }
+
+/* As leituras do post: grade de três no desktop. */
+.d2c-v6-how__readings {
+  width: var(--v6-shell);
+  margin: 3.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.d2c-v6-how__readings-rail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.d2c-v6-how__readings-rail > li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.d2c-v6-how__readings-rail b {
   font-family: var(--font-d2c-display), system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.03em;
-  font-size: 1.375rem;
-  line-height: 1;
+  line-height: 1.15;
+  font-size: 1.25rem;
   color: #fff;
-  white-space: nowrap;
-  flex: none;
 }
 
-.d2c-v6-how__note-line { flex: 1; min-width: 0; height: 1px; background: rgba(245, 179, 1, 0.5); }
-
-.d2c-v6-how__note-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--v6-accent);
-  flex: none;
-  box-shadow: 0 0 0 3px rgba(245, 179, 1, 0.28);
+.d2c-v6-how__readings-rail small {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.6);
 }
+
+.d2c-v6-how__readings-rail small span { color: var(--v6-accent); font-weight: 600; }
 
 /* — 03 a pauta — */
 
@@ -544,124 +780,14 @@
 .d2c-v6-section--dark .d2c-v6-answer__soft,
 .d2c-v6-section--slate .d2c-v6-answer__soft { color: rgba(255, 255, 255, 0.45); }
 
-.d2c-v6-pauta {
-  border: 1px solid var(--v6-ink-line);
-  border-radius: 20px;
-  background: var(--v6-cream);
-  padding: clamp(1.5rem, 3vw, 2.25rem);
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-}
-
-.d2c-v6-pauta__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(18, 16, 20, 0.14);
-}
-
-.d2c-v6-pauta__week {
-  flex: none;
-  white-space: nowrap;
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: rgba(18, 16, 20, 0.4);
-}
-
-.d2c-v6-pauta__body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 13.5rem;
-  gap: 2.5rem;
-  align-items: start;
-}
-
-.d2c-v6-pauta__copy { display: flex; flex-direction: column; gap: 1.75rem; }
-
-.d2c-v6-pauta__theme {
-  margin: 0;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.05em;
-  line-height: 1;
-  font-size: clamp(2.5rem, 7vw, 4.5rem);
-}
+/* Na 04 e na 06 a segunda metade do título é branca, não esmaecida: sobre o
+   fundo escuro o contraste já faz o trabalho que o cinza faria no claro. */
+.d2c-v6-answer--second .d2c-v6-answer__soft,
+.d2c-v6-leads .d2c-v6-answer__soft { color: #fff; }
 
 /* A barra amarela marca o gancho como a fala literal — é o único atributo com
    voz do criador, e por isso o único que ganha destaque próprio. */
-.d2c-v6-pauta__hook {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  border-left: 2px solid var(--v6-accent);
-  padding-left: 1.1rem;
-}
 
-.d2c-v6-pauta__hook p {
-  margin: 0;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  font-size: clamp(1.25rem, 3.4vw, 1.75rem);
-  line-height: 1.2;
-  text-wrap: pretty;
-}
-
-.d2c-v6-pauta__chips {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.d2c-v6-pauta__chips li {
-  background: var(--v6-paper);
-  border: 1px solid rgba(18, 16, 20, 0.14);
-  border-radius: 12px;
-  padding: 0.7rem 1.05rem;
-  font-size: 1.0625rem;
-  line-height: 1.25;
-}
-
-.d2c-v6-pauta__still { margin: 0; border-radius: 14px; overflow: hidden; background: var(--v6-paper); }
-.d2c-v6-pauta__still img { width: 100%; height: auto; display: block; }
-
-.d2c-v6-pauta__verdict {
-  margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.5;
-  max-width: 34rem;
-}
-
-.d2c-v6-multipliers {
-  list-style: none;
-  margin: 3.5rem 0 0;
-  padding: 2rem 0 0;
-  border-top: 1px solid var(--v6-ink-line);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 2rem;
-  align-items: start;
-}
-
-.d2c-v6-multiplier { display: flex; flex-direction: column; gap: 0.3rem; }
-
-.d2c-v6-multiplier b {
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  font-size: 2rem;
-}
-
-.d2c-v6-multiplier.is-lead b { font-size: 3.25rem; }
-.d2c-v6-multiplier small { font-size: 0.9375rem; line-height: 1.4; color: var(--v6-ink-dim); }
 
 /* — 04 a publi — */
 
@@ -674,173 +800,248 @@
   align-items: center;
 }
 
-.d2c-v6-publi__card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: clamp(1.5rem, 3vw, 2.25rem);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20px;
-  background: linear-gradient(-6deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-}
-
-.d2c-v6-publi__brand {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.d2c-v6-publi__logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 8rem;
-  height: 3.5rem;
-  padding: 0 1.25rem;
-  border: 1px dashed rgba(255, 255, 255, 0.35);
-  border-radius: 12px;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-size: 1.125rem;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.d2c-v6-publi__origin { display: flex; flex-direction: column; gap: 0.15rem; font-size: 1rem; color: rgba(255, 255, 255, 0.6); }
-.d2c-v6-publi__origin b {
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  font-size: 1.5rem;
-  color: #fff;
-}
-
-.d2c-v6-publi__reqs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-.d2c-v6-publi__check { display: none; }
-
-.d2c-v6-publi__reqs li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 1.0625rem;
-}
-
-.d2c-v6-publi__reqs li:last-child { border-bottom: 0; padding-bottom: 0; }
-
-.d2c-v6-publi__reqs b {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(245, 179, 1, 0.16);
-  color: var(--v6-accent);
-  font-size: 0.875rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.d2c-v6-publi__why {
-  margin: 0;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.25;
-  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
-  color: rgba(255, 255, 255, 0.85);
-}
 
 .d2c-v6-publi__delivery { margin-top: 3.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
 /* — 05 no Claude — */
 
+/* A conversa é o centro da seção e o "como conectar" é uma faixa abaixo dela.
+   O que era duas colunas virou uma coluna larga: a resposta da D2C passou a ser
+   longa, e ela precisa de linha inteira para ser lida. */
 .d2c-v6-claude__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: clamp(1.5rem, 4vw, 3.5rem);
-  align-items: start;
-}
-
-.d2c-v6-claude__chat { display: flex; flex-direction: column; gap: 1rem; }
-
-/* Uma troca: rótulo fora, balão com a cauda no canto de quem fala. O do
-   criador é escuro e encosta à direita; o da D2C é claro e encosta à
-   esquerda — é a inversão que faz ler como conversa. */
-.d2c-v6-turn {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  align-items: center;
 }
 
-.d2c-v6-turn--you { align-self: flex-end; align-items: flex-end; max-width: 17rem; }
-.d2c-v6-turn--d2c { align-self: flex-start; max-width: 19rem; }
+.d2c-v6-claude__chat {
+  width: 100%;
+  max-width: 62rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.d2c-v6-turn {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.35rem;
+}
+
+/* Quem fala vai embaixo do balão, como em qualquer app de conversa. */
+.d2c-v6-turn--you { align-self: flex-end; align-items: flex-end; max-width: 32rem; }
 
 .d2c-v6-turn__who {
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--v6-ink-faint);
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--v6-ink-dim);
 }
-
-.d2c-v6-turn--d2c .d2c-v6-turn__who { color: #4a464d; }
 
 .d2c-v6-bubble {
   margin: 0;
-  padding: 0.9rem 1.1rem;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  font-size: 1.125rem;
-  line-height: 1.25;
+  padding: 0.85rem 1.15rem;
+  font-size: 1.0625rem;
+  line-height: 1.45;
   text-wrap: pretty;
 }
 
 .d2c-v6-turn--you .d2c-v6-bubble {
   background: var(--v6-ink);
   color: #fff;
-  border-radius: 18px 18px 5px 18px;
+  border-radius: 20px 20px 4px 20px;
 }
 
-.d2c-v6-turn--d2c .d2c-v6-bubble {
+/* A resposta longa: nasce dobrada porque a íntegra passa de uma tela. */
+.d2c-v6-claude__long {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 46rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.d2c-v6-claude__long-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(18, 16, 20, 0.08);
+  border-radius: 20px 20px 20px 4px;
   background: var(--v6-paper);
-  border: 1px solid var(--v6-ink-line);
-  border-radius: 18px 18px 18px 5px;
-  padding: 1rem 1.15rem;
+  box-shadow: 0 1px 3px rgba(18, 16, 20, 0.05);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: rgba(18, 16, 20, 0.82);
 }
 
-.d2c-v6-claude__more { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.d2c-v6-claude__more ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.d2c-v6-claude__more li {
-  padding: 0.6rem 0.9rem;
-  border: 1px dashed rgba(18, 16, 20, 0.18);
+.d2c-v6-claude__long-body {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 16rem;
+}
+
+.d2c-v6-claude__long[data-open="on"] .d2c-v6-claude__long-body { max-height: none; }
+.d2c-v6-claude__long-body p { margin: 0; text-wrap: pretty; }
+
+.d2c-v6-claude__findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.d2c-v6-claude__findings li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  column-gap: 0.6rem;
+}
+
+.d2c-v6-claude__findings b { font-weight: 600; color: var(--v6-ink); }
+
+.d2c-v6-claude__works {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem;
   border-radius: 12px;
-  font-size: 1rem;
+  background: var(--v6-cream-warm);
+}
+
+.d2c-v6-claude__works .d2c-v6-label { font-size: 0.75rem; letter-spacing: 0.06em; }
+
+.d2c-v6-claude__works ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.d2c-v6-claude__works li {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  column-gap: 0.6rem;
+}
+
+.d2c-v6-claude__works b { font-weight: 600; color: var(--v6-ink); }
+.d2c-v6-claude__caveat { font-size: 0.875rem; color: var(--v6-ink-dim); }
+
+.d2c-v6-claude__veil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 78%);
+  pointer-events: none;
+}
+
+.d2c-v6-claude__toggle {
+  align-self: flex-start;
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(18, 16, 20, 0.18);
+  border-radius: 999px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--v6-ink);
+  cursor: pointer;
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.d2c-v6-claude__toggle:hover { background: rgba(18, 16, 20, 0.05); }
+.d2c-v6-claude__who { font-size: 0.8125rem; color: var(--v6-ink-dim); }
+
+/* As sugestões seguem o lado de quem pergunta. */
+.d2c-v6-claude__more {
+  align-self: flex-end;
+  width: 32rem;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.d2c-v6-claude__more ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.d2c-v6-claude__more li {
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 1rem;
+  border: 1px solid rgba(18, 16, 20, 0.2);
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  color: rgba(18, 16, 20, 0.68);
+}
+
+/* O "como conectar" é uma faixa clara de largura cheia, em três colunas. */
+.d2c-v6-claude__setup {
+  margin: 4.5rem -4rem 0;
+  padding: 3.5rem 4rem;
+  border-top: 1px solid var(--v6-ink-line);
+  background: var(--v6-paper);
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.d2c-v6-claude__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.d2c-v6-claude__steps .d2c-v6-step { align-content: start; }
+
+/* A receita do passo 02 em ações curtas; a frase corrida só sobra onde a lista
+   não cabe. */
+.d2c-v6-step__bullets {
+  display: flex;
+  grid-column: 2;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 1.0625rem;
+  line-height: 1.5;
   color: var(--v6-ink-dim);
 }
 
-.d2c-v6-claude__setup { display: flex; flex-direction: column; gap: 1.25rem; }
-.d2c-v6-claude__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.75rem; }
-.d2c-v6-claude__note { margin: 0; font-size: 0.9375rem; color: var(--v6-ink-faint); }
+.d2c-v6-step__bullets b { font-weight: 600; color: var(--v6-ink); }
+.d2c-v6-step__d--has-bullets { display: none; }
 
 /* — 06 quem conduz — */
-
-.d2c-v6-sessions {
-  list-style: none;
-  margin: 0 0 3.5rem;
-  padding: 2rem 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 2rem;
-}
 
 .d2c-v6-session { display: flex; flex-direction: column; gap: 0.5rem; }
 
@@ -854,90 +1055,87 @@
   font-weight: 600;
 }
 
+.d2c-v6-session {
+  gap: 0.35rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .d2c-v6-session__when {
   display: flex;
-  flex-direction: column;
-  font-family: var(--font-d2c-display), system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  font-size: 2rem;
-}
-
-.d2c-v6-session__when span { font-size: 1.25rem; color: rgba(255, 255, 255, 0.62); }
-.d2c-v6-session__detail { font-size: 1rem; line-height: 1.5; color: rgba(255, 255, 255, 0.6); }
-
-.d2c-v6-partners { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 2rem; }
-.d2c-v6-partner { display: flex; gap: 1.25rem; align-items: flex-start; }
-
-.d2c-v6-partner figure {
-  position: relative;
-  margin: 0;
-  width: 120px;
-  height: 150px;
-  flex: none;
-  border-radius: 14px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.d2c-v6-partner figure img { object-fit: cover; }
-.d2c-v6-partner h3 {
-  margin: 0.35rem 0 0.5rem;
+  align-items: baseline;
+  gap: 0.6rem;
   font-family: var(--font-d2c-display), system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.15;
   font-size: 1.5rem;
 }
-.d2c-v6-partner p { margin: 0; font-size: 1rem; line-height: 1.5; color: rgba(255, 255, 255, 0.6); }
 
-/* Os encontros sangram pela borda: é o único bloco da página que atravessa o
-   container, e por isso ele carrega o registro presencial. */
-.d2c-v6-meetups {
-  position: relative;
-  margin-top: 4.5rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 1.5rem;
-  align-items: end;
-  padding-left: max(2.5rem, calc((100% - 68rem) / 2));
-}
-
-.d2c-v6-meetups__copy { padding-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.d2c-v6-meetups__copy p { margin: 0; font-size: 1.125rem; line-height: 1.45; color: rgba(255, 255, 255, 0.72); }
-.d2c-v6-meetups__rail { display: contents; }
-
-.d2c-v6-meetups__shot { margin: 0; border-radius: 18px 0 0 0; overflow: hidden; }
-.d2c-v6-meetups__shot img { width: 100%; height: auto; display: block; }
-.d2c-v6-meetups__shot--b { margin-right: -8rem; }
+.d2c-v6-session__when span { font-size: 1rem; color: var(--v6-accent); }
+.d2c-v6-session__detail { font-size: 0.9375rem; line-height: 1.5; color: rgba(255, 255, 255, 0.6); }
 
 /* — 07 planos — */
 
 .d2c-v6-plan__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: clamp(2rem, 5vw, 4rem);
+  grid-template-columns: 1fr 1fr;
+  column-gap: 5rem;
   align-items: start;
 }
 
-.d2c-v6-plan__offer { display: flex; flex-direction: column; gap: 1.1rem; align-items: flex-start; }
+.d2c-v6-plan__offer { display: flex; flex-direction: column; gap: 1.5rem; align-items: flex-start; }
+.d2c-v6-plan__offer .d2c-v6-title { max-width: 20ch; }
+
+/* No plano o "R$ 97 por mês" é grifo, não texto esmaecido: é a informação que
+   a seção existe para dar. */
+.d2c-v6-plan__offer .d2c-v6-answer__soft {
+  color: inherit;
+  background-image: linear-gradient(
+    transparent 58%,
+    var(--v6-mark) 58%,
+    var(--v6-mark) 92%,
+    transparent 92%
+  );
+}
+.d2c-v6-plan__note { font-size: 1rem; line-height: 1.5; }
 .d2c-v6-plan__note { font-size: 0.9375rem; color: var(--v6-ink-dim); }
 .d2c-v6-plan__note b { font-weight: 600; color: var(--v6-ink); }
 
-.d2c-v6-plan__includes { display: flex; flex-direction: column; gap: 1rem; }
-.d2c-v6-plan__includes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+.d2c-v6-plan__includes { display: flex; flex-direction: column; gap: 0.75rem; }
+.d2c-v6-plan__includes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
 .d2c-v6-plan__includes li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.95rem 0;
-  border-top: 1px solid rgba(18, 16, 20, 0.12);
-  font-size: 1.0625rem;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid rgba(18, 16, 20, 0.12);
+  font-size: 1.125rem;
+  line-height: 1.4;
 }
-.d2c-v6-plan__includes li:last-child { border-bottom: 1px solid rgba(18, 16, 20, 0.12); }
-.d2c-v6-plan__includes svg { margin-top: 0.25rem; flex: none; color: var(--v6-ink-faint); }
+.d2c-v6-plan__includes li:first-child { border-top: 1px solid rgba(18, 16, 20, 0.12); }
+.d2c-v6-plan__includes li:last-child { border-bottom: 0; }
+/* A lista fala por si: o ícone de confirmação só repetia o que a linha diz. */
+.d2c-v6-plan__includes svg { display: none; }
 
 /* — 08 dúvidas — */
+
+/* O título fica parado enquanto as respostas correm ao lado: a pergunta que
+   organiza a seção continua à vista. */
+.d2c-v6-faq .d2c-v6-shell {
+  display: grid;
+  grid-template-columns: 24rem 1fr;
+  column-gap: 5rem;
+  align-items: start;
+}
+
+.d2c-v6-faq .d2c-v6-head {
+  position: sticky;
+  top: 2rem;
+  gap: 1rem;
+  margin-bottom: 0;
+}
+
+.d2c-v6-faq .d2c-v6-title { font-size: 2.75rem; line-height: 1.05; }
 
 .d2c-v6-faq__list { display: flex; flex-direction: column; }
 
@@ -947,19 +1145,81 @@
 .d2c-v6-faq__list summary {
   list-style: none;
   cursor: pointer;
-  padding: 1.35rem 0;
+  padding: 1.5rem 0;
+  min-height: 3.5rem;
   font-family: var(--font-d2c-display), system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
+  line-height: 1.25;
 }
 
 .d2c-v6-faq__list summary::-webkit-details-marker { display: none; }
-.d2c-v6-faq__list p { margin: 0 0 1.35rem; max-width: 46rem; font-size: 1.0625rem; line-height: 1.55; color: var(--v6-ink-dim); }
+.d2c-v6-faq__list p { margin: 0 0 1.5rem; max-width: 70ch; font-size: 1.125rem; line-height: 1.6; color: var(--v6-ink-dim); }
 
 /* — 09 fechamento — */
 
-.d2c-v6-close__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem; }
+/* — rodapé —
+   O rodapé fecha a seção escura, então herda o fundo dela: no mockup os dois
+   são um bloco só. A marca e o que ela diz ficam numa coluna à esquerda; os
+   links legais encostam na direita, alinhados pela base. */
+
+.d2c-human-landing.d2c-v6 .d2c-footer {
+  border-top: 0;
+  background: var(--v6-dark);
+  color: #fff;
+}
+
+.d2c-v6 .d2c-footer__inner {
+  margin-top: 5rem;
+  padding: 2.5rem 0 3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem 3rem;
+  align-items: end;
+}
+
+.d2c-v6 .d2c-footer .d2c-brand {
+  grid-column: 1;
+  grid-row: 1;
+  color: #fff;
+  font-family: var(--font-d2c-display), system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.d2c-v6 .d2c-footer .d2c-brand__mark { display: none; }
+
+.d2c-human-landing.d2c-v6 .d2c-footer p {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.d2c-human-landing.d2c-v6 .d2c-footer small {
+  grid-column: 1;
+  grid-row: 3;
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.d2c-human-landing.d2c-v6 .d2c-footer nav {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  gap: 2rem;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.d2c-v6-close__inner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.75rem; }
+.d2c-v6-close .d2c-v6-title { max-width: 24ch; font-size: 4rem; }
+.d2c-v6-close__note { font-size: 1rem; line-height: 1.5; }
 /* O fecho é o único lugar onde o amarelo deixa de ser grifo e vira a cor da
    frase e do botão — é o último empurrão da página. */
 .d2c-v6-close__soft { color: var(--v6-accent); }
@@ -978,15 +1238,17 @@
 /* — responsivo — */
 
 @media (max-width: 1180px) {
-  .d2c-v6-how__note { width: min(16rem, 22vw); }
-  .d2c-v6-how__note-label { font-size: 1.125rem; }
+  .d2c-v6-how__note { font-size: 0.875rem; padding: 0.3rem 0.65rem; }
 }
 
 @media (max-width: 960px) {
+  .d2c-v6 { --v6-shell: min(100% - 2.5rem, 68rem); }
+
   /* Sem margem lateral para as anotações, o mockup mobile muda a forma: o
      quadro fica mais largo (3/4) e recuado, e cada atributo vira uma pílula
      com o ponto amarelo dentro, em vez de rótulo ligado por linha. */
   .d2c-v6-how__stage {
+    width: auto;
     aspect-ratio: auto;
     display: flex;
     flex-direction: column;
@@ -997,6 +1259,7 @@
   .d2c-v6-how__frame {
     position: relative;
     left: auto;
+    top: auto;
     margin-inline: 1.25rem;
     width: auto;
     height: auto;
@@ -1011,6 +1274,10 @@
     font-size: 0.8125rem;
   }
 
+  /* Entre 721 e 960px não há margem lateral para as anotações: os fios saem e
+     elas viram pílulas empilhadas sob o quadro. */
+  .d2c-v6-how__wires { display: none; }
+
   .d2c-v6-how__notes {
     position: static;
     display: flex;
@@ -1021,37 +1288,59 @@
   }
 
   .d2c-v6-how__note {
-    position: static !important;
-    width: auto !important;
-    left: auto !important;
-    top: auto !important;
-    gap: 0.35rem;
+    position: static;
     padding: 0.3rem 0.65rem;
-    border: 1px solid rgba(245, 179, 1, 0.35);
-    border-radius: 999px;
-  }
-
-  .d2c-v6-how__note-line { display: none; }
-
-  .d2c-v6-how__note-dot {
-    order: -1;
-    width: 0.375rem;
-    height: 0.375rem;
-    box-shadow: none;
-  }
-
-  .d2c-v6-how__note-label {
     font-size: 0.8125rem;
-    letter-spacing: -0.02em;
-    color: rgba(255, 255, 255, 0.92);
   }
 
-  .d2c-v6-pauta__body,
-  .d2c-v6-publi,
-  .d2c-v6-claude__grid,
-  .d2c-v6-plan__inner { grid-template-columns: minmax(0, 1fr); }
+  .d2c-v6-how__intro { grid-template-columns: minmax(0, 1fr); row-gap: 2rem; }
 
-  .d2c-v6-pauta__still { max-width: 16rem; }
+  .d2c-v6-how__readings { width: auto; margin-inline: 1.25rem; }
+  .d2c-v6-how__readings-rail { grid-template-columns: repeat(2, 1fr); }
+
+  /* Todas as grades de duas ou três colunas do desktop viram coluna única:
+     abaixo de 960px não há largura para nenhuma delas. */
+  .d2c-v6-head--split,
+  .d2c-v6-how__intro,
+  .d2c-v6-claude__grid,
+  .d2c-v6-claude__steps,
+  .d2c-v6-plan__inner,
+  .d2c-v6-partners,
+  .d2c-v6-sessions,
+  .d2c-v6-meetups__rail,
+  .d2c-v6-faq .d2c-v6-shell,
+  .d2c-v6 .d2c-footer__inner { grid-template-columns: minmax(0, 1fr); }
+
+  .d2c-v6-head--split { margin-bottom: 2.5rem; row-gap: 1.1rem; }
+  .d2c-v6-head--split > .d2c-v6-label,
+  .d2c-v6-head--split > .d2c-v6-title,
+  .d2c-v6-head--split > .d2c-v6-lead {
+    grid-column: 1;
+    grid-row: auto;
+    align-self: auto;
+    margin-bottom: 0;
+  }
+
+  /* O título das dúvidas para de ser fixo: numa coluna só ele viraria um
+     cabeçalho grudado na tela. */
+  .d2c-v6-faq .d2c-v6-head { position: static; }
+
+  .d2c-v6-meetups { width: auto; }
+
+  .d2c-v6 .d2c-footer__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .d2c-v6 .d2c-footer .d2c-brand,
+  .d2c-human-landing.d2c-v6 .d2c-footer p,
+  .d2c-human-landing.d2c-v6 .d2c-footer small,
+  .d2c-human-landing.d2c-v6 .d2c-footer nav {
+    grid-column: auto;
+    grid-row: auto;
+    margin-left: 0;
+  }
+
   .d2c-v6-bubble { max-width: 100%; }
 
   .d2c-v6-meetups { grid-template-columns: minmax(0, 1fr); padding-left: 1.25rem; padding-right: 1.25rem; }
@@ -1060,8 +1349,6 @@
 }
 
 @media (max-width: 640px) {
-  .d2c-v6-multiplier.is-lead b { font-size: 2.5rem; }
-  .d2c-v6-publi__reqs li { align-items: flex-start; flex-direction: column; gap: 0.4rem; }
 }
 
 /* — o v6 sobrescreve o tema antigo da landing —
@@ -1204,36 +1491,28 @@
 
   /* 03 — a pauta entra pelos números: o cabeçalho e o cartão saem, o
      veredito abre a seção. */
-  .d2c-v6-answer--first .d2c-v6-head,
-  .d2c-v6-answer--first .d2c-v6-pauta { display: none; }
 
-  .d2c-v6-answer--first .d2c-v6-pauta__verdict {
-    font-family: var(--font-d2c-display), system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.035em;
-    line-height: 1.15;
-    font-size: clamp(1.75rem, 8vw, 2.5rem);
-    max-width: none;
-  }
 
   /* 04 — a ficha da publi fica só nos requisitos. */
-  .d2c-v6-publi__brand,
-  .d2c-v6-publi__card > .d2c-v6-label { display: none; }
 
-  .d2c-v6-publi__card { border: 0; background: none; padding: 0; }
 
   /* 02 — a ponte para as duas respostas é desktop-only. */
-  .d2c-v6-how__bridge { display: none; }
 
-  .d2c-v6-multipliers,
   .d2c-v6-sessions,
   .d2c-v6-partners {
     display: flex;
     grid-template-columns: none;
   }
 
-  .d2c-v6-partner { flex-direction: column; gap: 0.9rem; }
+  /* O cartão do sócio empilha: a foto ao lado do texto só cabe no desktop. */
+  .d2c-v6-partner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
   .d2c-v6-partner figure { width: 100%; height: 14rem; border-radius: 14px; }
+  .d2c-v6-partner h3 { font-size: 1.625rem; }
+  .d2c-v6-partner p { font-size: 1rem; line-height: 1.45; }
   .d2c-v6-partners > .d2c-v6-partner { width: 16.5rem; scroll-snap-align: center; }
 
   .d2c-v6-faq .d2c-v6-title { font-size: 2rem; }
@@ -1253,12 +1532,12 @@
     padding: 1.15rem;
   }
 
-  .d2c-v6-session__when { font-size: 2rem; }
+  /* No cartão estreito o horário desce para a linha de baixo. */
+  .d2c-v6-session__when { flex-direction: column; align-items: flex-start; gap: 0; font-size: 2rem; }
   .d2c-v6-session__when span { font-size: 1.25rem; color: var(--v6-accent); }
 
   /* Os balões já são estreitos; no mobile o trilho do chat não se aplica. */
   .d2c-v6-turn--you { max-width: 17rem; }
-  .d2c-v6-turn--d2c { max-width: 19rem; }
 
   /* Passos numerados: o número vira selo redondo na coluna da esquerda e o
      texto ocupa a coluna 2, em vez de empilhar tudo. */
@@ -1282,7 +1561,7 @@
   .d2c-v6-step__t { font-size: 1.25rem; line-height: 1.35; letter-spacing: -0.025em; }
   .d2c-v6-step__d,
   .d2c-v6-step__code,
-  .d2c-v6-how__quiet { grid-column: 2; font-size: 0.9375rem; }
+  .d2c-v6-step__bullets { grid-column: 2; font-size: 0.9375rem; }
 
   /* Nas seções claras o selo do número precisa de fundo escuro. */
   .d2c-v6-section:not(.d2c-v6-section--dark):not(.d2c-v6-section--slate) .d2c-v6-step__n {
@@ -1290,33 +1569,7 @@
   }
 
   /* Os requisitos da campanha viram cartões num trilho. */
-  .d2c-v6-publi__reqs {
-    display: flex;
-    flex-direction: row;
-    gap: 0.75rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    scroll-padding-left: 1.25rem;
-    margin-inline: -1.25rem;
-    padding-inline: 1.25rem;
-  }
 
-  .d2c-v6-publi__reqs::-webkit-scrollbar { display: none; }
-
-  .d2c-v6-publi__reqs li {
-    flex: none;
-    width: 14rem;
-    scroll-snap-align: start;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.6rem;
-    padding: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 14px;
-  }
-
-  .d2c-v6-publi__reqs li:last-child { padding-bottom: 1rem; }
 
   /* Escala tipográfica do mockup mobile. */
   .d2c-v6-hero__headline { font-size: 2.5rem; }
@@ -1371,10 +1624,14 @@
     font-weight: 700;
     letter-spacing: -0.045em;
   }
-  /* Uma dobra, um botão preto. O CTA do header repetia a mesma frase e o mesmo
-     peso do botão principal a 400px de distância — os dois disputavam o clique
-     e nenhum dos dois lia como "o" próximo passo. Aqui ele vira contorno:
-     continua à mão, sem competir. */
+  /* Uma dobra, um botão preto. No celular o cabeçalho fica só com "Entrar" em
+     contorno: o botão do herói já é o convite a criar conta, e dois pretos a
+     400px de distância disputavam o clique sem que nenhum lesse como "o"
+     próximo passo. */
+  .d2c-v6 .d2c-landing-header .d2c-header-cta--solid { display: none; }
+  .d2c-v6-hero__secondary { display: none; }
+  .d2c-v6-hero__buttons { width: 100%; }
+
   .d2c-v6 .d2c-landing-header .d2c-button--small {
     min-height: 2.5rem;
     padding-inline: 1.05rem;
@@ -1453,16 +1710,11 @@
     display: block;
     position: relative;
     width: 100%;
+    margin: 2.25rem 0 0;
     aspect-ratio: 390 / 420;
-    margin-top: 2.25rem;
   }
-  .d2c-v6-how__wires {
-    display: block;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
+  .d2c-v6-how__wires--desktop { display: none; }
+  .d2c-v6-how__wires--mobile { display: block; }
   .d2c-v6-how__frame {
     position: absolute;
     left: 50%;
@@ -1481,16 +1733,14 @@
     padding: 0;
   }
   .d2c-v6-how__note {
-    position: absolute !important;
-    width: auto !important;
-    top: var(--note-m-top) !important;
-    gap: 0;
+    position: absolute;
+    top: var(--note-m-top);
     padding: 0.25rem 0.55rem;
-    border: 1px solid rgba(245, 179, 1, 0.35);
-    border-radius: 999px;
+    font-size: 0.6875rem;
+    line-height: 1.5;
   }
-  .d2c-v6-how__note[data-m-side="left"] { left: var(--note-m-edge) !important; right: auto; }
-  .d2c-v6-how__note[data-m-side="right"] { left: auto !important; right: var(--note-m-edge); }
+  .d2c-v6-how__note[data-m-side="left"] { left: var(--note-m-edge); right: auto; }
+  .d2c-v6-how__note[data-m-side="right"] { left: auto; right: var(--note-m-edge); }
   /* Os selos do quadro acompanham a escala: o quadro caiu para 190px e eles
      continuavam no tamanho do tablet, tomando a cena. */
   .d2c-v6-how__views {
@@ -1511,16 +1761,6 @@
   }
   .d2c-v6-how__progress { left: 1.25rem; right: 1.25rem; top: 1.25rem; height: 4px; }
 
-  /* Na cena o ponto é do SVG, que sabe onde a linha termina. */
-  .d2c-v6-how__note-dot { display: none; }
-  .d2c-v6-how__note-label {
-    font-family: var(--font-d2c-display), system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 0.6875rem;
-    letter-spacing: -0.02em;
-    line-height: 1.5;
-    white-space: nowrap;
-  }
 
   /* Aqui os números são soltos; os selos começam apenas nos blocos de
      entrega e configuração das seções seguintes. */
@@ -1554,25 +1794,21 @@
   .d2c-v6-how .d2c-v6-step__d { grid-column: auto; }
   /* A lista de sinais some: o palco logo abaixo mostra os mesmos oito, e lê-los
      duas vezes seguidas só empilha texto. */
-  .d2c-v6-how .d2c-v6-how__quiet { display: none; }
   /* Dia e hora saem da etiqueta do quadro; o que importa aqui é o formato. */
   .d2c-v6-how__tags b.d2c-v6-how__tag-when { display: none; }
 
   /* O que a leitura do post rendeu — os números que no desktop abrem a seção da
      pauta. No celular aquela seção sai inteira, e eles fecham esta. */
   .d2c-v6-how__readings {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    width: auto;
+    margin: 1.25rem 0 0;
     gap: 0.85rem;
-    margin-top: 1.25rem;
   }
   .d2c-v6-how__readings > .d2c-v6-label { padding-inline: 1.25rem; }
   .d2c-v6-how__readings-rail {
-    list-style: none;
-    margin: 0;
     padding: 0 1.25rem;
     display: flex;
+    grid-template-columns: none;
     align-items: stretch;
     gap: 0.65rem;
     overflow-x: auto;
@@ -1610,134 +1846,36 @@
 
   /* 03 — a pauta sai por inteiro no celular: o cartão já não aparecia e os
      números que restavam subiram para a seção 02, junto do post que os gerou. */
-  .d2c-v6-answer--first { display: none; }
 
   /* 03 — números em trilho estreito, sem a ênfase maior no primeiro. */
-  .d2c-v6-answer--first {
-    padding: 4rem 0;
-    border-top: 1px solid rgba(18, 16, 20, 0.08);
-    background: var(--v6-cream);
-  }
-  .d2c-v6-answer--first .d2c-v6-pauta__verdict { font-size: 1.75rem; }
-  .d2c-v6-multipliers {
-    margin-top: 1.75rem;
-    padding-top: 0;
-    border-top: 0;
-    gap: 1rem;
-  }
-  .d2c-v6-multipliers > .d2c-v6-multiplier {
-    width: 12.5rem;
-    gap: 0.4rem;
-    border-top: 1px solid rgba(18, 16, 20, 0.14);
-    padding-top: 0.85rem;
-  }
-  .d2c-v6-multiplier b,
-  .d2c-v6-multiplier.is-lead b { font-size: 2rem; color: #4a464d; }
-  .d2c-v6-multiplier small { font-size: 0.875rem; line-height: 1.45; }
 
   /* 04 — requisitos e bloco de entrega */
   .d2c-v6-answer--second { padding: 5rem 0 0; }
   .d2c-v6-answer--second .d2c-v6-head { margin-bottom: 2.5rem; }
   .d2c-v6-label__desktop-prefix { display: none; }
   .d2c-v6-answer--second .d2c-v6-label { color: rgba(255, 255, 255, 0.7); }
-  .d2c-v6-answer--second .d2c-v6-answer__soft { color: #fff; }
   .d2c-v6-answer--second .d2c-v6-lead {
     font-size: 1.125rem;
     line-height: 1.45;
     color: rgba(255, 255, 255, 0.78);
   }
   .d2c-v6-publi { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
-  /* A ficha de campanha e a frase que a justificava saem: no celular a seção
-     conta a mesma coisa pela constelação, que mostra de onde vêm as publis. */
-  .d2c-v6-publi__card,
-  .d2c-v6-publi__why { display: none; }
-  .d2c-v6-publi__card > .d2c-v6-label { display: block; }
-  .d2c-v6-publi__check {
-    width: 1.3rem;
-    height: 1.3rem;
-    border-radius: 999px;
-    background: var(--v6-accent);
-    color: var(--v6-ink);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-  }
-  .d2c-v6-publi__reqs li {
-    min-height: 9.5rem;
-    gap: 0.75rem;
-    padding: 1.15rem;
-    border-color: rgba(255, 255, 255, 0.18);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.07);
-    font-size: 1.0625rem;
-    line-height: 1.35;
-  }
-  .d2c-v6-publi__reqs li:last-child { padding-bottom: 1.15rem; }
-  .d2c-v6-publi__reqs b {
-    margin-top: auto;
-    padding: 0;
-    border-radius: 0;
-    background: none;
-    font-size: 0.625rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .d2c-v6-publi__reqs b svg { display: none; }
-  .d2c-v6-publi__why {
-    margin-top: 2rem;
-    font-size: 1.75rem;
-    line-height: 1.2;
-  }
-  /* As fontes convergindo para o centro. O palco guarda a proporção do mockup
-     (390x300) para que os pontos das linhas e as etiquetas não se descolem. */
+  /* No celular a constelação perde a ponta de cima (não há folga vertical) e
+     ganha a proporção mais quadrada do mockup. */
   .d2c-v6-publi__constellation {
-    display: block;
-    position: relative;
-    width: 100%;
     aspect-ratio: 390 / 300;
     margin-top: 0.85rem;
   }
-  .d2c-v6-publi__constellation svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
+  .d2c-v6-publi__rays--desktop { display: none; }
+  .d2c-v6-publi__rays--mobile { display: block; }
+  .d2c-v6-publi__source[data-desktop-only] { display: none; }
   .d2c-v6-publi__source {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    display: inline-flex;
-    align-items: center;
+    left: var(--src-m-left);
+    top: var(--src-m-top);
     padding: 0.3rem 0.55rem;
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
     font-size: clamp(0.5625rem, 2.9vw, 0.6875rem);
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.82);
-    white-space: nowrap;
   }
-  .d2c-v6-publi__hub {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 24.6%;
-    aspect-ratio: 1;
-    border-radius: 999px;
-    background: #fff;
-    color: var(--v6-ink);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-d2c-display), system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.045em;
-    font-size: 1.5rem;
-    box-shadow: 0 10px 28px rgba(18, 16, 20, 0.35);
-  }
+  .d2c-v6-publi__hub { width: 24.6%; font-size: 1.5rem; }
 
   .d2c-v6-publi__delivery {
     margin: 3rem -1.25rem 0;
@@ -1751,20 +1889,31 @@
   .d2c-v6-claude { padding: 5rem 0 0; }
   .d2c-v6-claude .d2c-v6-head { margin-bottom: 2.5rem; }
   .d2c-v6-claude .d2c-v6-lead { font-size: 1.125rem; line-height: 1.45; }
-  .d2c-v6-claude__grid { display: flex; flex-direction: column; gap: 0; }
+  /* No celular a conversa ocupa a coluna toda e as sugestões voltam para a
+     esquerda: não há largura para o recuo do lado de quem pergunta. */
+  .d2c-v6-claude__chat { max-width: none; }
+  .d2c-v6-turn--you { max-width: 17rem; }
+  .d2c-v6-claude__long { max-width: 18rem; }
+  .d2c-v6-claude__long-bubble { padding: 0.9rem 1rem; font-size: 0.9375rem; line-height: 1.5; gap: 0.6rem; }
+  .d2c-v6-claude__long-body { max-height: 13rem; gap: 0.6rem; }
+  .d2c-v6-claude__findings li { grid-template-columns: 1rem 1fr; column-gap: 0.5rem; }
+  .d2c-v6-claude__works { padding: 0.7rem 0.8rem; }
+  .d2c-v6-claude__works li { grid-template-columns: 4.5rem 1fr; column-gap: 0.5rem; }
+  .d2c-v6-claude__works ul { font-size: 0.875rem; line-height: 1.45; }
+  .d2c-v6-claude__caveat { font-size: 0.8125rem; }
+  .d2c-v6-claude__veil { height: 4.5rem; }
+  .d2c-v6-claude__toggle { min-height: 2.25rem; padding: 0 0.85rem; font-size: 0.8125rem; }
+  .d2c-v6-claude__who { font-size: 0.6875rem; color: rgba(18, 16, 20, 0.38); }
   .d2c-v6-claude__more {
+    align-self: stretch;
+    width: auto;
     margin-top: 1rem;
     border-top: 1px solid rgba(18, 16, 20, 0.14);
     padding-top: 1.25rem;
   }
   .d2c-v6-claude__more ul { align-items: flex-start; }
-  .d2c-v6-claude__more li {
-    border-style: solid;
-    border-radius: 999px;
-    padding: 0.55rem 0.95rem;
-    font-size: 0.9375rem;
-    line-height: 1.3;
-  }
+  .d2c-v6-claude__more li { padding: 0.55rem 0.95rem; }
+  .d2c-v6-step__bullets { font-size: 0.9375rem; }
   .d2c-v6-claude__setup {
     margin: 3rem -1.25rem 0;
     padding: 2.25rem 1.25rem;
@@ -1772,10 +1921,8 @@
     border-top: 1px solid rgba(18, 16, 20, 0.1);
     background: #fff;
   }
-  .d2c-v6-claude__note { display: none; }
   /* O balão curto dá lugar à resposta longa: o ponto da seção é a densidade do
      que a D2C responde, e [N] não mostra isso. */
-  .d2c-v6-turn--d2c { display: none; }
   /* O rótulo de quem fala vai para baixo do balão, como em qualquer app de
      conversa — em cima ele lia como título de cartão. */
   .d2c-v6-turn { flex-direction: column-reverse; }
@@ -1789,140 +1936,21 @@
   }
   .d2c-v6-turn--you .d2c-v6-bubble { border-radius: 20px 20px 4px 20px; }
 
-  .d2c-v6-claude__long {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    align-self: flex-start;
-    max-width: 18rem;
-  }
-  .d2c-v6-claude__long-bubble {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    padding: 0.9rem 1rem;
-    border: 1px solid rgba(18, 16, 20, 0.08);
-    border-radius: 20px 20px 20px 4px;
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(18, 16, 20, 0.04);
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: rgba(18, 16, 20, 0.82);
-  }
-  .d2c-v6-claude__long-body {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    max-height: 13rem;
-  }
-  .d2c-v6-claude__long[data-open="on"] .d2c-v6-claude__long-body { max-height: none; }
-  .d2c-v6-claude__long-body p { margin: 0; text-wrap: pretty; }
-  .d2c-v6-claude__findings {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-  .d2c-v6-claude__findings li {
-    display: grid;
-    grid-template-columns: 1rem 1fr;
-    column-gap: 0.5rem;
-  }
-  .d2c-v6-claude__findings b { font-weight: 600; color: var(--v6-ink); }
-  .d2c-v6-claude__works {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.7rem 0.8rem;
-    border-radius: 12px;
-    background: var(--v6-cream-warm);
-  }
-  .d2c-v6-claude__works .d2c-v6-label { font-size: 0.6875rem; letter-spacing: 0.06em; }
-  .d2c-v6-claude__works ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: 0.875rem;
-    line-height: 1.45;
-  }
-  .d2c-v6-claude__works li {
-    display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    column-gap: 0.5rem;
-  }
-  .d2c-v6-claude__works b { font-weight: 600; color: var(--v6-ink); }
   .d2c-v6-claude__caveat { font-size: 0.8125rem; color: var(--v6-ink-dim); }
-  .d2c-v6-claude__veil {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 4.5rem;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 78%);
-    pointer-events: none;
-  }
-  .d2c-v6-claude__toggle {
-    align-self: flex-start;
-    min-height: 2.25rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0 0.85rem;
-    border: 1px solid rgba(18, 16, 20, 0.18);
-    border-radius: 999px;
-    background: transparent;
-    font-family: inherit;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--v6-ink);
-    cursor: pointer;
-    transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .d2c-v6-claude__toggle:hover { background: rgba(18, 16, 20, 0.05); }
-  .d2c-v6-claude__who { font-size: 0.6875rem; color: rgba(18, 16, 20, 0.38); }
 
   /* O passo 02 vira lista de ações; a frase corrida sai. */
-  .d2c-v6-step__d--has-bullets { display: none; }
-  .d2c-v6-step__bullets {
-    grid-column: 2;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--v6-ink-dim);
-  }
   .d2c-v6-step__bullets b { font-weight: 600; color: var(--v6-ink); }
+.d2c-v6-step__d--has-bullets { display: none; }
 
-  /* 06 — a ordem no celular é: quem conduz, os encontros, os sócios, os dias.
-     Os encontros vivem fora do `shell`, então o `shell` some como caixa
-     (`display: contents`) e os quatro blocos viram irmãos que a `order`
-     organiza. Cada um passa a carregar a própria margem lateral — e os trilhos
-     ganham com isso: rolam até a borda da tela, como no mockup. */
-  .d2c-v6-leads {
-    display: flex;
-    flex-direction: column;
-  }
+  /* A ordem já vem do markup; aqui os trilhos só voltam a rolar até a borda. */
   .d2c-v6-leads > .d2c-v6-shell { display: contents; }
-  .d2c-v6-leads [data-leads-block="head"] { order: 1; padding-inline: 1.25rem; }
-  .d2c-v6-leads .d2c-v6-meetups { order: 2; }
-  .d2c-v6-leads [data-leads-block="people"] { order: 3; padding-inline: 1.25rem; }
-  .d2c-v6-leads [data-leads-block="days"] { order: 4; padding-inline: 1.25rem; }
+  .d2c-v6-leads [data-leads-block="head"] { padding-inline: 1.25rem; }
+  .d2c-v6-leads [data-leads-block="people"],
+  .d2c-v6-leads [data-leads-block="days"] { padding-inline: 1.25rem; }
 
   /* 06 — agenda, sócios e registro dos encontros. */
   .d2c-v6-leads { padding: 5rem 0 0; }
   .d2c-v6-leads .d2c-v6-head { margin-bottom: 2.5rem; }
-  .d2c-v6-leads .d2c-v6-answer__soft { color: #fff; }
   /* Os dias fecham a seção, então herdam o filete que antes separava os
      encontros. */
   .d2c-v6-sessions {
@@ -1987,15 +2015,6 @@
   }
   .d2c-v6-plan__inner { gap: 2.25rem; }
   .d2c-v6-plan__offer { gap: 1.25rem; }
-  .d2c-v6-plan__offer .d2c-v6-answer__soft {
-    color: inherit;
-    background-image: linear-gradient(
-      transparent 58%,
-      var(--v6-mark) 58%,
-      var(--v6-mark) 92%,
-      transparent 92%
-    );
-  }
   .d2c-v6-plan__offer .d2c-button--human { width: 100%; }
   .d2c-v6-plan__note { line-height: 1.45; }
   .d2c-v6-plan__includes { gap: 0.5rem; }
@@ -2019,46 +2038,19 @@
   .d2c-v6-close__inner { align-items: flex-start; text-align: left; gap: 1.5rem; }
   .d2c-v6-close__note { margin-top: -0.75rem; line-height: 1.45; }
 
-  .d2c-human-landing.d2c-v6 .d2c-footer {
-    padding: 3rem 0;
-    border-top: 0;
-    background: var(--v6-dark);
-    color: #fff;
-  }
+  .d2c-human-landing.d2c-v6 .d2c-footer { padding: 3rem 0; }
   .d2c-v6 .d2c-footer__inner {
+    margin-top: 0;
+    padding: 1.5rem 0 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 1.1rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
   }
-  .d2c-v6 .d2c-footer .d2c-brand {
-    color: #fff;
-    font-family: var(--font-d2c-display), system-ui, sans-serif;
-    font-size: 1.125rem;
-    font-weight: 700;
-    letter-spacing: -0.045em;
-  }
-  .d2c-v6 .d2c-footer .d2c-brand__mark { display: none; }
-  .d2c-human-landing.d2c-v6 .d2c-footer p {
-    order: initial;
-    margin: -0.75rem 0 0;
-    font-size: 1rem;
-    line-height: 1.45;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  .d2c-human-landing.d2c-v6 .d2c-footer nav {
-    order: initial;
-    gap: 1.25rem;
-    font-size: 0.9375rem;
-    color: rgba(255, 255, 255, 0.55);
-  }
-  .d2c-human-landing.d2c-v6 .d2c-footer small {
-    order: initial;
-    font-size: 0.875rem;
-    color: rgba(255, 255, 255, 0.35);
-  }
+  .d2c-v6 .d2c-footer .d2c-brand { font-size: 1.125rem; }
+  .d2c-human-landing.d2c-v6 .d2c-footer p { margin: -0.75rem 0 0; font-size: 1rem; line-height: 1.45; }
+  .d2c-human-landing.d2c-v6 .d2c-footer nav { gap: 1.25rem; font-size: 0.9375rem; }
+  .d2c-human-landing.d2c-v6 .d2c-footer small { font-size: 0.875rem; }
 }
 
 /* Telas baixas (iPhone SE, ou qualquer celular com as barras do navegador

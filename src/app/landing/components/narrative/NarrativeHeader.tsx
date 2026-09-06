@@ -12,7 +12,9 @@ import { LandingAuthCta } from "./LandingAuthCta";
    seção: o ritual agora vive dentro de "quem conduz". */
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
-  { href: "#planos", label: "Planos" },
+  { href: "#publis", label: "A publi" },
+  { href: "#no-claude", label: "No Claude" },
+  { href: "#planos", label: "Assinatura" },
 ] as const;
 
 export function NarrativeHeader() {
@@ -25,12 +27,24 @@ export function NarrativeHeader() {
         <nav className="d2c-landing-header__nav" aria-label="Navegação principal">
           {NAV_LINKS.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
         </nav>
-        {/* "Entrar" e não "Criar conta grátis": o botão do herói já é esse
-            convite, com o mesmo destino (o login Google leva os dois). Repetir
-            a frase no topo dava dois primeiros passos concorrentes na mesma
-            tela; aqui o topo vira a porta de quem já é de casa. */}
+        {/* Duas portas no topo: "Entrar" em contorno para quem já é de casa e
+            "Criar conta grátis" cheio para quem chega. Quem já está logado vê
+            só a segunda — repetir "Acessar a D2C" duas vezes lado a lado não
+            diria nada. No celular a primeira some (ver CSS): lá o botão do
+            herói já é o convite, e dois pretos disputariam o clique. */}
         <div className="d2c-landing-header__actions">
-          <LandingAuthCta className="d2c-button d2c-button--small" guestLabel="Entrar" authenticatedLabel="Acessar a D2C" trackingLocation="header" />
+          <LandingAuthCta
+            className="d2c-button d2c-button--small d2c-button--ghost"
+            guestLabel="Entrar"
+            authenticatedLabel="Acessar a D2C"
+            trackingLocation="header"
+          />
+          <LandingAuthCta
+            className="d2c-button d2c-button--small d2c-header-cta--solid"
+            guestLabel="Criar conta grátis"
+            authenticatedLabel="Acessar a D2C"
+            trackingLocation="header"
+          />
         </div>
         <button
           className="d2c-menu-button"

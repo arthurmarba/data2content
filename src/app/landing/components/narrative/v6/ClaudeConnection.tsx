@@ -11,8 +11,9 @@ import { ClaudeAnswer } from "./ClaudeAnswer";
 const MCP_URL = "https://data2content.ai/api/mcp";
 
 const OTHER_PROMPTS = [
-  "quais tendências do momento combinam com o que eu falo",
-  "me dá o roteiro da pauta dessa semana no meu tom",
+  "quais tendências combinam com o que eu falo",
+  "me dá o roteiro da pauta no meu tom",
+  "quais campanhas abertas são pra mim",
 ];
 
 type Step = {
@@ -59,7 +60,7 @@ export function ClaudeConnection() {
       data-landing-section="claude"
     >
       <div className="d2c-v6-shell">
-        <div className="d2c-v6-head d2c-v6-reveal">
+        <div className="d2c-v6-head d2c-v6-head--split d2c-v6-reveal">
           <span className="d2c-v6-label">a qualquer hora</span>
           <h2 className="d2c-v6-title">Pergunte à D2C dentro do Claude.</h2>
           <p className="d2c-v6-lead">
@@ -79,18 +80,9 @@ export function ClaudeConnection() {
               </p>
             </div>
 
-            <div className="d2c-v6-turn d2c-v6-turn--d2c">
-              <span className="d2c-v6-turn__who">data2content</span>
-              <p className="d2c-v6-bubble">
-                Montei um calendário com [N] posts, nos dias e horários em que o seu público
-                costuma responder melhor. Quer que eu ajuste para postar menos vezes por semana?
-              </p>
-            </div>
-
             <ClaudeAnswer />
 
             <div className="d2c-v6-claude__more">
-              <span className="d2c-v6-label">e também</span>
               <ul>
                 {OTHER_PROMPTS.map((prompt) => (
                   <li key={prompt}>{prompt}</li>
@@ -124,9 +116,6 @@ export function ClaudeConnection() {
                 </li>
               ))}
             </ol>
-            <p className="d2c-v6-claude__note">
-              Você não precisa conectar o Instagram para usar a D2C no Claude.
-            </p>
           </div>
         </div>
       </div>

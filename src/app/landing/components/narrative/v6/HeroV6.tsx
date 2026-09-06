@@ -93,8 +93,7 @@ export function HeroV6({ creators, statLines }: HeroV6Props) {
           )}
 
           <h1 className="d2c-v6-hero__headline">
-            <span className="d2c-v6-hero__quiet">Nossa IA assiste seus conteúdos</span>
-            <br />
+            <span className="d2c-v6-hero__quiet">Nossa IA assiste seus conteúdos</span>{" "}
             {/* No celular esta abertura vira bloco (CSS) para que a palavra que
                 gira e o verbo caiam sempre juntos na linha seguinte — sem isso
                 a quebra automática deixava "criar" órfão no meio da promessa. */}
@@ -128,13 +127,21 @@ export function HeroV6({ creators, statLines }: HeroV6Props) {
           <p className="d2c-v6-hero__sub">Você não está mais sozinho. De criador pra criador.</p>
 
           <div className="d2c-v6-hero__cta">
-            <LandingAuthCta
-              className="d2c-button d2c-button--human"
-              guestLabel="Criar conta grátis"
-              authenticatedLabel="Acessar a D2C"
-              childrenAfter={<ArrowRight size={18} aria-hidden="true" />}
-              trackingLocation="hero"
-            />
+            <div className="d2c-v6-hero__buttons">
+              <LandingAuthCta
+                className="d2c-button d2c-button--human"
+                guestLabel="Criar conta grátis"
+                authenticatedLabel="Acessar a D2C"
+                childrenAfter={<ArrowRight size={18} aria-hidden="true" />}
+                trackingLocation="hero"
+              />
+              {/* Segunda porta para quem ainda não quer decidir: leva à seção
+                  que explica o mecanismo. Só existe no desktop, onde há linha
+                  para os dois lado a lado. */}
+              <a className="d2c-button d2c-v6-hero__secondary" href="#como-funciona">
+                Ver como funciona
+              </a>
+            </div>
             <span className="d2c-v6-hero__note">
               Primeiro mês grátis com o cupom <b>d2cVIP</b> · depois R$ 97/mês
             </span>
