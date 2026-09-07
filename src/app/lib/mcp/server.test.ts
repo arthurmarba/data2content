@@ -2,6 +2,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { D2C_INTELLIGENCE_MANIFEST } from "./intelligenceContract";
 import { createD2CMcpServer } from "./server";
 import { generateMcpScriptDraft } from "./catalog";
 import { findMcpCampaignOpportunities } from "./campaignRadar";
@@ -568,6 +569,70 @@ describe("Data2Content MCP server", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     return { client, server };
   }
+
+  it("keeps the intelligence manifest pointing at tools that really exist", async () => {
+    process.env.MCP_CAMPAIGN_RADAR_ENABLED = "true";
+    const { client, server } = await connect(true);
+    try {
+      const { tools } = await client.listTools();
+      const registradas = new Set(tools.map((tool) => tool.name));
+      const citadas = new Set(D2C_INTELLIGENCE_MANIFEST.flatMap((layer) => layer.tools));
+      // O inventário é o registro público do que o MCP se compromete a expor.
+      // Quando um nome de ferramenta muda e ele fica para trás, vira ficção.
+      expect([...citadas].filter((nome) => !registradas.has(nome))).toEqual([]);
+
+      for (const layer of D2C_INTELLIGENCE_MANIFEST) {
+        if (layer.status === "available") {
+          expect(layer.tools.length).toBeGreaterThan(0);
+        }
+        if (layer.status === "unavailable") {
+          expect(layer.tools).toEqual([]);
+        }
+      }
+    } finally {
+      delete process.env.MCP_CAMPAIGN_RADAR_ENABLED;
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("offers ready-made conversation starters that never sell a plan", async () => {
+    const { client, server } = await connect(true);
+    try {
+      const { prompts } = await client.listPrompts();
+      expect(prompts.map((prompt) => prompt.name)).toEqual([
+        "what_to_post",
+        "is_it_worth_posting",
+        "weekly_review",
+        "find_collab",
+        "script_from_idea",
+      ]);
+
+      const verdict = await client.getPrompt({
+        name: "is_it_worth_posting",
+        arguments: { idea: "um vídeo da minha filha cozinhando comigo" },
+      });
+      const text = verdict.messages.map((message) => JSON.stringify(message.content)).join(" ");
+      expect(text).toContain("minha filha cozinhando comigo");
+      // O veredito é binário por decisão de produto: "talvez" devolve ao creator
+      // exatamente o trabalho que ele veio delegar.
+      expect(text).toContain("veredito binário");
+
+      // Nenhum atalho pode empurrar assinatura — mesma regra do conversationPolicy.
+      const todos = await Promise.all(
+        prompts
+          .filter((prompt) => !prompt.arguments?.length)
+          .map((prompt) => client.getPrompt({ name: prompt.name })),
+      );
+      const corpo = JSON.stringify([...todos, verdict]).toLowerCase();
+      for (const proibido of ["assinatura", "upgrade", "checkout", "plano pro", "preço"]) {
+        expect(corpo).not.toContain(proibido);
+      }
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 
   it("exposes read tools plus separated script draft and save actions", async () => {
     delete process.env.MCP_CAMPAIGN_RADAR_ENABLED;

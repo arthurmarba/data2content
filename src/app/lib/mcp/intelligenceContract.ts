@@ -7,6 +7,12 @@ export type IntelligenceLayerManifest = {
   label: string;
   source: string;
   scope: string;
+  /**
+   * "available" exige que `tools` cite ferramentas que existem de verdade no
+   * servidor — o teste do contrato confere isso contra a lista registrada.
+   * "unavailable" é uma camada que o produto pretende expor e ainda não expõe.
+   */
+  status: IntelligenceLayerStatus;
   tools: string[];
   fields: string[];
   intentionallyExcluded?: Array<{ field: string; reason: string }>;
@@ -23,7 +29,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Conteúdo publicado",
     source: "Metric",
     scope: "content:read",
-    tools: ["analyze_content_period", "get_content_detail"],
+    status: "available",
+    tools: ["analyze_creator_period", "get_content_deep_analysis"],
     fields: [
       "format", "caption", "publication", "collaboration", "classification",
       "entities", "lifeAssets", "visualIntelligence",
@@ -39,7 +46,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Performance e evolução",
     source: "Metric.stats + Metric.dailySnapshots",
     scope: "metrics:read",
-    tools: ["analyze_content_period", "get_content_detail", "get_creator_playbook"],
+    status: "available",
+    tools: ["analyze_creator_period", "get_content_deep_analysis", "get_creator_intelligence_snapshot"],
     fields: ["metrics", "derivedMetrics", "velocity", "baselines", "deltas", "evidenceLevel"],
   },
   {
@@ -47,7 +55,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Mapa narrativo do creator",
     source: "MapaSeed + CreatorMapConfirmations",
     scope: "intelligence:read",
-    tools: ["get_creator_intelligence_profile"],
+    status: "available",
+    tools: ["get_creator_map", "get_creator_intelligence_snapshot"],
     fields: ["narrative", "territories", "themes", "adjacentNarratives", "assets", "tone", "formats", "confirmations"],
     intentionallyExcluded: [
       { field: "dismissedChips", reason: "Controle editorial interno; apenas o efeito da rejeição é aplicado." },
@@ -58,7 +67,10 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Diagnóstico multimodal de vídeo",
     source: "CreatorVideoNarrativeDiagnosis",
     scope: "intelligence:read",
-    tools: ["get_video_diagnosis"],
+    // Declarada mas ainda não exposta: nenhum módulo do MCP lê
+    // CreatorVideoNarrativeDiagnosis hoje.
+    status: "unavailable",
+    tools: [],
     fields: [
       "videoReading", "speechReading", "productionReading", "commercialReading",
       "strategicRecommendation", "profileContribution", "evidenceAnchors",
@@ -77,7 +89,10 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Audiência agregada",
     source: "AccountInsight",
     scope: "audience:read",
-    tools: ["get_audience_intelligence"],
+    // A audiência chega ao modelo dentro do DNA de conteúdo, não por
+    // ferramenta própria.
+    status: "partial",
+    tools: ["get_creator_content_dna"],
     fields: ["account", "periodInsights", "followerDemographics", "engagedAudienceDemographics", "growth"],
   },
   {
@@ -85,7 +100,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Aprendizado histórico",
     source: "CreatorWeeklyReport + ScriptOutcomeProfile",
     scope: "intelligence:read",
-    tools: ["get_creator_playbook"],
+    status: "available",
+    tools: ["get_creator_intelligence_snapshot"],
     fields: ["weeklyPatterns", "scriptOutcome", "topExamples", "confidence", "sampleSize"],
   },
   {
@@ -93,7 +109,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "DNA de conteúdo e roteiro",
     source: "PublishedContentEvidence + CreatorScriptDnaProfile + AudienceDemographicSnapshot",
     scope: "intelligence:read",
-    tools: ["get_creator_content_dna", "generate_creator_script", "critique_script_against_creator_dna"],
+    status: "available",
+    tools: ["get_creator_content_dna", "generate_script_draft", "critique_script_against_creator_dna"],
     fields: [
       "voice", "narrative", "visual", "subjects", "audience", "winningDurations",
       "performanceIndex", "coverage", "confidence", "evidenceReceipt",
@@ -109,7 +126,8 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Geração e crítica de roteiro",
     source: "CreatorScriptGenerationV3",
     scope: "scripts:generate",
-    tools: ["generate_creator_script", "critique_script_against_creator_dna", "save_generated_script"],
+    status: "available",
+    tools: ["generate_script_draft", "critique_script_against_creator_dna", "save_script"],
     fields: ["script", "duration", "validation", "evidenceReceipt", "provider", "model"],
     intentionallyExcluded: [
       { field: "providerPrompt", reason: "Prompt interno contém evidências privadas e regras proprietárias." },
@@ -121,13 +139,29 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     label: "Rede de collabs",
     source: "MapaSeed + User + CreatorVideoNarrativeDiagnosis",
     scope: "collabs:read",
-    tools: ["suggest_collab_creators"],
+    status: "available",
+    tools: ["recommend_collab_creators"],
     fields: ["publicProfile", "sharedSignals", "complementarySignals", "fitReason", "recordingDirection", "mode"],
     intentionallyExcluded: [
       { field: "email", reason: "Dado pessoal não necessário para uma sugestão." },
       { field: "location", reason: "O MCP expõe apenas o modo presencial/remoto, nunca localização precisa." },
       { field: "privateMetrics", reason: "Métricas de outro creator não são compartilhadas." },
       { field: "privateEvidence", reason: "Falas e cenas privadas de outro creator não são compartilhadas." },
+    ],
+  },
+  {
+    id: "content_ideas",
+    label: "Pautas ancoradas no mapa",
+    source: "CreatorContentIdea",
+    scope: "intelligence:read",
+    status: "available",
+    tools: ["list_content_ideas"],
+    fields: [
+      "title", "territory", "angle", "hook", "assets", "suggestedFormat",
+      "tone", "whyItFits", "scriptPoints", "scriptClosing", "status",
+    ],
+    intentionallyExcluded: [
+      { field: "generationPrompt", reason: "Prompt interno de geração não é exposto." },
     ],
   },
 ];

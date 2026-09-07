@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-06
+atualizado: 2026-09-07
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -12,8 +12,8 @@ Os números crus, pra dar noção de escala antes de mexer em qualquer coisa.
 
 | | |
 | --- | --- |
-| Arquivos de código | 2026 |
-| Arquivos de teste | 678 |
+| Arquivos de código | 2027 |
+| Arquivos de teste | 679 |
 | Componentes de tela (.tsx) | 679 |
 | Rotas de API | 419 |
 | Documentos em `docs/` | 159 |

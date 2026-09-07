@@ -1,12 +1,21 @@
 import { D2C_INTELLIGENCE_MANIFEST, getPublicIntelligenceManifest } from "./intelligenceContract";
 
 describe("MCP intelligence contract", () => {
-  it("maps every public layer to a scope and at least one tool", () => {
+  it("maps every public layer to a scope, a status and the tools that match it", () => {
     expect(D2C_INTELLIGENCE_MANIFEST.length).toBeGreaterThanOrEqual(7);
     for (const layer of D2C_INTELLIGENCE_MANIFEST) {
       expect(layer.scope).toMatch(/:(read|generate|write)$/);
-      expect(layer.tools.length).toBeGreaterThan(0);
       expect(layer.fields.length).toBeGreaterThan(0);
+      expect(["available", "partial", "unavailable", "restricted"]).toContain(layer.status);
+      // Camada anunciada como disponível precisa de ferramenta; camada sem
+      // ferramenta precisa se declarar indisponível. A versão anterior deste
+      // teste só exigia lista não vazia — foi por isso que o inventário
+      // conseguiu citar nove ferramentas inexistentes sem ninguém perceber.
+      if (layer.status === "unavailable") {
+        expect(layer.tools).toEqual([]);
+      } else {
+        expect(layer.tools.length).toBeGreaterThan(0);
+      }
     }
   });
 

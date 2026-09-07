@@ -1914,5 +1914,110 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       buildToolDescriptor(name, config)),
   }));
 
+  // ─── Atalhos de conversa ───────────────────────────────────────────────────
+  //
+  // O produto responde a um punhado de perguntas recorrentes, e até aqui elas
+  // dependiam do creator saber formulá-las. Prompts de MCP aparecem prontos no
+  // cliente: pergunta bem formada é o que separa uma resposta boa de uma vaga.
+  //
+  // Nenhum deles fala de plano, preço ou upgrade — mesma regra do
+  // conversationPolicy.
+  const rawRegisterPrompt = server.registerPrompt.bind(server) as unknown as (
+    name: string,
+    config: { title?: string; description?: string; argsSchema?: Record<string, unknown> },
+    cb: (...args: never[]) => { messages: Array<{ role: "user"; content: { type: "text"; text: string } }> },
+  ) => unknown;
+
+  const userMessage = (text: string) => ({
+    messages: [{ role: "user" as const, content: { type: "text" as const, text } }],
+  });
+
+  rawRegisterPrompt(
+    "what_to_post",
+    {
+      title: "O que eu posto agora",
+      description:
+        "Pautas prontas, ancoradas na sua narrativa e nos seus territórios — não ideias genéricas.",
+    },
+    () =>
+      userMessage(
+        "Me diga o que eu devo postar agora. Consulte meu mapa com get_creator_map e minhas pautas " +
+          "com list_content_ideas antes de sugerir qualquer coisa. Use os termos do meu mapa. " +
+          "Escolha no máximo três pautas, e para cada uma diga o território, o gancho e por que " +
+          "ela é minha — não de qualquer criador do mesmo assunto. Se nenhuma pauta existente " +
+          "servir, diga isso antes de propor algo novo.",
+      ),
+  );
+
+  rawRegisterPrompt(
+    "is_it_worth_posting",
+    {
+      title: "Vale postar isso?",
+      description:
+        "Um veredito direto em três eixos: narrativa, audiência e marca. Sim ou não, sem talvez.",
+      argsSchema: {
+        idea: z.string().min(3).describe("A ideia, o roteiro ou a descrição do que você quer postar"),
+      },
+    },
+    (args: never) =>
+      userMessage(
+        `Avalie se vale postar isto:\n\n${(args as unknown as { idea: string }).idea}\n\n` +
+          "Consulte get_creator_map antes de julgar. Responda em três eixos: (1) narrativa — isso é " +
+          "meu?; (2) audiência — isso conversa com quem me vê?; (3) marca — isso me aproxima de ser " +
+          "contratado? Feche com um veredito binário: vale postar ou não vale. Não responda 'talvez' " +
+          "— se faltar informação, diga qual e escolha assim mesmo.",
+      ),
+  );
+
+  rawRegisterPrompt(
+    "weekly_review",
+    {
+      title: "Analisar minha semana",
+      description:
+        "O que a última semana entregou, medido contra a sua própria mediana — nunca contra outro criador.",
+    },
+    () =>
+      userMessage(
+        "Analise minha última semana de conteúdo. Use analyze_creator_period com as datas exatas dos " +
+          "últimos 7 dias e compare com meus próprios 90 dias — a semana entrega, o trimestre compara. " +
+          "Nunca me compare com outro criador nem com média de mercado. Consulte get_creator_map para " +
+          "falar dos meus territórios pelos nomes certos. Respeite coverage.warnings: se a cobertura " +
+          "for parcial, diga isso antes de concluir qualquer coisa.",
+      ),
+  );
+
+  rawRegisterPrompt(
+    "find_collab",
+    {
+      title: "Achar uma collab pra mim",
+      description: "Criadores que dividem território com você, com uma ideia de gravação junto.",
+    },
+    () =>
+      userMessage(
+        "Encontre criadores que combinam comigo para uma collab. Use get_creator_map e " +
+          "recommend_collab_creators. Para cada sugestão, diga qual território nós dividimos e qual " +
+          "seria a ideia de gravação — uma collab sem pauta não é uma collab. Não prometa que a outra " +
+          "pessoa vai topar.",
+      ),
+  );
+
+  rawRegisterPrompt(
+    "script_from_idea",
+    {
+      title: "Roteiro a partir de uma pauta",
+      description: "Um rascunho de roteiro na sua voz, checado contra o seu próprio histórico.",
+      argsSchema: {
+        idea: z.string().min(3).describe("A pauta ou o assunto que você quer transformar em roteiro"),
+      },
+    },
+    (args: never) =>
+      userMessage(
+        `Escreva um rascunho de roteiro para esta pauta:\n\n${(args as unknown as { idea: string }).idea}\n\n` +
+          "Consulte get_creator_map e get_creator_content_dna antes de escrever, para o roteiro sair na " +
+          "minha voz e não numa voz genérica. Depois use critique_script_against_creator_dna para me " +
+          "dizer onde ele foge do meu histórico. Não salve nada sem eu confirmar.",
+      ),
+  );
+
   return server;
 }
