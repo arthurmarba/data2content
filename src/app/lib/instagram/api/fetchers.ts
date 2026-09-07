@@ -111,10 +111,43 @@ export async function fetchSingleInstagramMedia(
   }
 }
 
+/**
+ * Métricas que a API aceita para uns tipos de mídia e recusa para outros.
+ *
+ * Isso importa porque a chamada de insights é atômica: uma métrica inválida
+ * derruba a leitura inteira daquele post, não só a métrica. Em vez de perder
+ * alcance, visualizações e interações por causa de um campo opcional, a leitura
+ * tenta de novo sem ele — e guarda a recusa para não repetir a pergunta no resto
+ * da sincronização.
+ */
+const OPTIONAL_MEDIA_INSIGHT_METRICS = ['follows'] as const;
+
+/** Recusas observadas nesta execução, por lista de métricas pedida. */
+const rejectedOptionalMetrics = new Map<string, Set<string>>();
+
+function optionalMetricsIn(metrics: string): string[] {
+  const requested = new Set(metrics.split(',').map((metric) => metric.trim()));
+  return OPTIONAL_MEDIA_INSIGHT_METRICS.filter((metric) => requested.has(metric));
+}
+
+function withoutMetrics(metrics: string, remove: string[]): string {
+  const drop = new Set(remove);
+  return metrics
+    .split(',')
+    .map((metric) => metric.trim())
+    .filter((metric) => metric && !drop.has(metric))
+    .join(',');
+}
+
+export function resetMediaInsightMetricRejectionsForTests(): void {
+  rejectedOptionalMetrics.clear();
+}
+
 export async function fetchMediaInsights(
   mediaId: string,
   accessToken: string,
-  metricsToFetch: string
+  metricsToFetch: string,
+  retryWithoutOptional = true
 ): Promise<FetchInsightsResult<IMetricStats>> {
   const logContext = 'fetchMediaInsights';
   logger.debug(`[${logContext}] Buscando insights para Media ID: ${mediaId} (Métricas: ${metricsToFetch.substring(0, 50)}... )`);
@@ -126,7 +159,16 @@ export async function fetchMediaInsights(
     return { success: true, data: {} as IMetricStats, error: null, errorMessage: 'Nenhuma métrica solicitada.', requestedMetrics: metricsToFetch };
   }
 
-  const url = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metricsToFetch}&access_token=${accessToken}`;
+  // Já sabemos, nesta execução, que a API recusa esses campos para esta lista.
+  const alreadyRejected = [...(rejectedOptionalMetrics.get(metricsToFetch) ?? [])];
+  const effectiveMetrics = alreadyRejected.length
+    ? withoutMetrics(metricsToFetch, alreadyRejected)
+    : metricsToFetch;
+  if (!effectiveMetrics) {
+    return { success: true, data: {} as IMetricStats, error: null, errorMessage: 'Nenhuma métrica aceita para esta mídia.', requestedMetrics: metricsToFetch };
+  }
+
+  const url = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${effectiveMetrics}&access_token=${accessToken}`;
 
   try {
     const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, logContext, accessToken);
@@ -145,6 +187,16 @@ export async function fetchMediaInsights(
       resultWithErrorContext.error = `Falha API (${errorDetail.code}): ${errorMsg}`;
 
       if (errorDetail.code === 100 && errorMsg.toLowerCase().includes('metric')) {
+        const optional = optionalMetricsIn(effectiveMetrics);
+        if (retryWithoutOptional && optional.length) {
+          // Marca a recusa antes de repetir, para que os próximos posts da mesma
+          // sincronização já saiam sem o campo — uma tentativa extra por execução.
+          const known = rejectedOptionalMetrics.get(metricsToFetch) ?? new Set<string>();
+          for (const metric of optional) known.add(metric);
+          rejectedOptionalMetrics.set(metricsToFetch, known);
+          logger.info(`[${logContext}] API recusou métrica opcional (${optional.join(', ')}) para Mídia ${mediaId}. Repetindo sem ela e desativando na execução atual.`);
+          return fetchMediaInsights(mediaId, accessToken, metricsToFetch, false);
+        }
         resultWithErrorContext.error = `Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${errorMsg}.`;
       } else if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
         resultWithErrorContext.error = `Permissão insuficiente para insights da mídia (${errorDetail.code}): ${errorMsg}`;
@@ -178,7 +230,7 @@ export async function fetchMediaInsights(
         }
       });
     }
-    return { success: true, data: insights as IMetricStats, requestedMetrics: metricsToFetch };
+    return { success: true, data: insights as IMetricStats, requestedMetrics: effectiveMetrics };
   } catch (error: any) {
     logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}):`, error);
     const message = error.message || String(error);

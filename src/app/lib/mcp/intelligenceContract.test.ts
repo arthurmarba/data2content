@@ -26,7 +26,7 @@ describe("MCP intelligence contract", () => {
     expect(serialized).toContain("email");
     expect(serialized).toContain("location");
     expect(serialized).toContain("privateMetrics");
-    expect(serialized).toContain("historicalFullTranscripts");
+    expect(serialized).toContain("bulkHistoricalTranscripts");
     expect(serialized).toContain("providerPrompt");
   });
 });

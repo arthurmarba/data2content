@@ -30,6 +30,7 @@ export interface McpAdminAuditCompletionInput {
   durationMs: number;
   resultCount?: number | null;
   errorCode?: string | null;
+  targetCreatorIds?: string[];
 }
 
 function auditFailure(
@@ -98,6 +99,8 @@ export async function completeMcpAdminAuditEvent(
           durationMs: Math.max(0, Math.round(input.durationMs)),
           resultCount: input.resultCount ?? null,
           errorCode: input.errorCode || null,
+          ...(input.targetCreatorIds ? { targetCreatorIds: [...new Set(input.targetCreatorIds)]
+            .filter(id => mongoose.isValidObjectId(id)).map(id => new Types.ObjectId(id)) } : {}),
         },
       },
     );

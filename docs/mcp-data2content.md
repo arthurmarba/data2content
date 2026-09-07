@@ -28,6 +28,12 @@ O endpoint `GET|POST|DELETE /api/mcp/admin` é um recurso OAuth separado, soment
 
 Ferramentas administrativas:
 
+- `list_creators`: percorre a base inteira em páginas ligadas por `nextCursor`, incluindo contas desconectadas e sem conteúdo. O cursor só vale para o filtro que o originou.
+- `analyze_creator_portfolio`: consolida toda a população filtrada no período e compara com uma janela anterior de igual duração. O resumo cobre todos os criadores que casam com o filtro; as linhas por criador são paginadas.
+- `get_creator_analysis`: dossiê de um creator — identidade, conexão, mapa canônico, DNA já armazenado e desempenho do período contra a janela anterior. Não reconstrói perfil nem relê vídeo.
+- `get_creator_map`: territórios, narrativa, assets, tom e nível de confirmação do creator selecionado.
+- `get_creator_follower_growth`: saldo de seguidores por dia da conta do creator selecionado.
+- `get_creator_script_evidence`: até três referências privadas do creator, com fala observada, roteiro planejado, origem e métricas, para analisar texto e estrutura.
 - `search`: localiza creators por nome, @username, email ou ID e retorna `creator:<ObjectId>`.
 - `fetch`: confirma o creator e informa conexão, cobertura histórica e última atualização.
 - `analyze_creator_period`: contagem exata e evidências em um intervalo civil explícito.
@@ -39,7 +45,15 @@ Ferramentas administrativas:
 - `research_creator_inspirations`: referências opt-in da comunidade para o creator selecionado.
 - `compare_creators`: comparação de dois a cinco creators com período e cobertura equivalentes.
 
-Todas as ferramentas têm `readOnlyHint=true`. O servidor instrui o cliente a usar `search` e `fetch` antes da análise, não misturar creators, não estimar contagens e respeitar os recibos de cobertura.
+Todas as ferramentas têm `readOnlyHint=true`. O servidor instrui o cliente a usar `search` e `fetch` antes da análise, não misturar creators, não estimar contagens e respeitar os recibos de cobertura. O servidor só é montado para uma autorização `role=admin` cujo ator confere com a identidade do token; cada ferramenta declara os scopes que exige e a auditoria registra também os creators que apareceram na resposta.
+
+### Analisar todos os creators de uma vez
+
+`search` localiza nomes e nunca representa a base. Para falar da população inteira, o cliente usa `analyze_creator_portfolio` — cujo `summary` é completo por construção — e `list_creators` quando precisa enumerar contas uma a uma.
+
+Os recibos dessa consolidação explicitam o que os números não são: alcance somado entre posts não é audiência única; métricas atuais de posts antigos não são um retrato congelado do passado, porque continuam acumulando; ausência de post no banco não comprova ausência de publicação no Instagram; e a prioridade de atenção mede lacuna operacional, não qualidade editorial. Soma e média por métrica trazem `availablePosts` ao lado de `totalPosts`, e o engajamento agregado só usa posts que têm interações e alcance ao mesmo tempo — numerador e denominador nunca vêm de conjuntos diferentes.
+
+Filtros disponíveis: `population` (`creators`, que exclui contas `admin`/`agency`, ou `all_accounts`), `connection`, `query`, `format` e `sortBy`. Nenhum deles muda o significado do resumo: ele sempre cobre exatamente a população filtrada.
 
 ## Entregue nesta etapa
 
@@ -52,7 +66,7 @@ Todas as ferramentas têm `readOnlyHint=true`. O servidor instrui o cliente a us
 - Consentimento explícito ligado à sessão Data2Content.
 - Códigos de autorização de uso único e refresh tokens opacos com rotação e revogação.
 - Limite de 120 requisições por minuto por usuário quando Redis está disponível.
-- Quinze ferramentas, sendo treze de leitura, uma de geração sem persistência e uma escrita idempotente:
+- Entre as ferramentas disponíveis (lista completa mantida em `server.ts`):
   - `search`
   - `fetch`
   - `get_creator_profile`
@@ -63,9 +77,13 @@ Todas as ferramentas têm `readOnlyHint=true`. O servidor instrui o cliente a us
   - `analyze_inspiration_content`
   - `compare_inspiration_contents`
   - `generate_script_draft`
+  - `get_script_evidence_pack`
+  - `critique_script_against_creator_dna`
+  - `record_script_feedback`
   - `save_script`
   - `recommend_collab_creators`
   - `get_performance_summary`
+  - `get_follower_growth`
   - `list_top_content`
   - `compare_content_formats`
 
@@ -86,7 +104,22 @@ Todas as ferramentas têm `readOnlyHint=true`. O servidor instrui o cliente a us
 
 `get_creator_intelligence_snapshot` reúne, em uma única leitura, DNA de voz, perfil de estilo, categorias vencedoras, exemplos de roteiros vinculados a resultados, timing observado e padrões visuais agregados. Todo sinal inclui cobertura, tamanho da amostra ou aviso de baixa confiança.
 
-`get_content_deep_analysis` abre um post específico da conta autenticada e retorna somente os dados disponíveis: legenda, transcrição, classificações, cenas, objetos, falas, local, enquadramento, estética, duração e métricas. Campos ausentes permanecem ausentes e o recibo define `mustNotInferMissingFields: true`.
+`get_content_deep_analysis` abre um post específico da conta autenticada e junta `Metric` com `PublishedContentEvidence`. Retorna somente os dados disponíveis: legenda, transcrição, classificações, timeline de cenas, objetos, falas, local, enquadramento, estética, estrutura narrativa, duração e métricas. A transcrição integral, os segmentos e as falas da timeline só são devolvidos com `includeTranscript: true`; sem isso, a ferramenta informa a disponibilidade mas omite o texto falado. Campos ausentes permanecem ausentes e o recibo define `mustNotInferMissingFields: true`.
+
+`analyze_creator_period` calcula cobertura de transcrição e cenas pela evidência multimodal publicada. `Metric.description` é legenda; o campo legado `Metric.text_content` não é fonte de transcrição. A cobertura de transcrição conta **apenas vídeos**: foto e carrossel saem do total e aparecem em `notApplicable`, porque não ter áudio é diferente de não ter sido lido. No lado administrativo, `analyze_creator_portfolio` separa `videos`/`observedTranscripts` de `photosAndCarousels`/`photosAndCarouselsVisuallyRead`, com o aviso `photo_visual_reading_coverage_partial` para o segundo par.
+
+### Seguidores
+
+`get_follower_growth` devolve o saldo de seguidores por dia. O Instagram não informa esse número: o que existe no banco é o total de seguidores no instante de cada leitura de conta (`AccountInsight.followersCount`, gravado a cada sincronização, hoje cerca de três vezes por dia). O saldo diário é a diferença entre o fechamento de um dia e o do anterior, com três consequências que viajam no recibo:
+
+- **É líquido.** Já desconta quem deixou de seguir. Um dia negativo é saldo negativo, não falha de coleta.
+- **Dia sem leitura não é dia de saldo zero.** Ele simplesmente não aparece na série, e a variação seguinte declara em `daysCovered` quantos dias cobre. O ganho nunca é dividido entre os dias do buraco.
+- **Sem leitura anterior ao período, o primeiro dia fica sem saldo.** Falta referência, o que é diferente de não ter crescido.
+- **O dia em curso não fecha.** Quando o período inclui hoje, o último ponto vem com `dayIsComplete: false`, sai de `bestDay`/`worstDay` e da contagem de dias negativos, e aparece em `inProgressDay`. Sem isso, toda manhã o dia de hoje seria eleito o pior da série.
+
+No lado administrativo, `analyze_creator_portfolio` traz o saldo por criador e o da base inteira, e aceita `sortBy: "follower_gain"`. Quando um criador não tem leitura antes da janela, a medição começa na primeira leitura de dentro dela e `measuredFromDate` diz onde — o saldo cobre menos dias, e `creatorsMeasuredFromInsidePeriod` conta quantos estão nessa situação. Criador com uma única leitura no período fica sem saldo: início e fim seriam o mesmo número.
+
+Por conteúdo, `stats.follows` (quantas pessoas passaram a seguir a partir daquele post) aparece em `get_content_deep_analysis` e pode ordenar `list_top_content` / `list_creator_top_content` com `metric: "follows"`. A API entrega esse campo para FEED e Stories; para Reels ele passou a ser pedido junto das demais métricas, com uma salvaguarda: se a API recusar, a leitura repete sem ele e desativa o campo pelo resto da execução, em vez de perder alcance e interações do post inteiro. Valor ausente é ausência de dado, nunca zero seguidores — e saldo de conta não se atribui a um post sem esse campo.
 
 ### Pesquisa criativa conversacional
 
@@ -118,9 +151,15 @@ As respostas nunca expõem transcrição integral, roteiro integral, vídeo brut
 
 ### Roteiros personalizados com confirmação
 
-`generate_script_draft` usa o Gemini como provedor principal e combina o briefing com voz, roteiros vencedores, ganchos, assuntos, audiência, demografia, duração, cenas, objetos, cenários, enquadramentos e resultados disponíveis. Opcionalmente recebe até cinco `inspirationContentIds`; nesse caso, injeta somente os padrões derivados das referências opt-in e aplica uma instrução explícita contra cópia. A ferramenta apenas devolve um rascunho e um `clientRequestId`; ela não grava nada.
+`get_script_evidence_pack` prepara referências do próprio criador para o Claude/ChatGPT escrever na conversa. Exige capacidade privada e `content:read`, `metrics:read`, `intelligence:read`. Recebe objetivo, período, formato, duração até 180 segundos e até três `ownContentIds` (IDs privados da própria conta, não inspirações). Entrega transcrições observadas ou roteiros planejados com origem explícita, métricas, padrões, mapa, preferências e limitações. Não chama Gemini nem gerador textual.
+
+Use o `clientRequestId` em `critique_script_against_creator_dna` para revisar contra o mesmo pacote, conservado privadamente por sete dias. O cliente deve escrever o roteiro sem chamar `generate_script_draft` para repetir o trabalho. A crítica separa verificações técnicas de sinais/rubrica de voz; não certifica semelhança ou desempenho.
+
+`generate_script_draft` continua disponível para pedir escrita ao motor D2C, respeitando o provedor textual configurado e sua política de fallback. Usa o mesmo seletor e mantém as referências nas revisões. Opcionalmente recebe até cinco `inspirationContentIds`, apenas como padrões abstratos. Devolve rascunho, recibo de evidências e `clientRequestId`; não cria um roteiro salvo, mas conserva a sessão privada necessária à proveniência. Não confundir `selectedExamples` com `sentExamples`, especialmente no fallback local.
 
 `save_script` possui o scope separado `scripts:write`, exige `userConfirmed: true` e só deve ser chamada depois que o cliente mostrou o rascunho e recebeu confirmação explícita. O `clientRequestId` torna a gravação idempotente e segura para retry. Tokens legados com `content:write` continuam aceitos durante a migração.
+
+O salvamento mantém referências, métricas utilizadas, origem e versões do texto quando há sessão válida; sem sessão, marca proveniência não verificada. `record_script_feedback` registra preferência expressa sobre um roteiro da própria conta. A confirmação de salvamento não autoriza publicar no Instagram.
 
 ### Recomendações de collab
 
@@ -201,9 +240,16 @@ seleciona um administrador e um creator já existentes sem alterá-los, executa
 OAuth com PKCE, valida autorização, refresh e auditoria, e remove todos os registros
 OAuth/auditoria criados pelo próprio teste.
 
+`npm run smoke:mcp-admin-portfolio` roda, somente leitura e sem subir servidor, as
+três consultas que varrem a base: o diretório paginado (conferindo que o cursor
+cobre a população inteira sem repetir e recusa troca de filtro), a consolidação do
+período com seus recortes, e o dossiê individual. Ele mede o tempo de cada consulta
+e falha se algum campo privado aparecer na resposta.
+
 Com o runtime local ativo, `npm run smoke:mcp-admin-http` valida o transporte
-Streamable HTTP, o catálogo somente leitura, `search`, `fetch`, ausência de
-segredos e um gate local de 5 segundos por ferramenta.
+Streamable HTTP, o catálogo somente leitura, `search`, `fetch`, `list_creators`,
+`analyze_creator_portfolio`, ausência de segredos e um gate local de 5 segundos
+por ferramenta.
 
 Mesmo no bypass local, a regra de assinatura continua consultando o banco e bloqueando não assinantes.
 
@@ -211,7 +257,7 @@ Mesmo no bypass local, a regra de assinatura continua consultando o banco e bloq
 
 - Cada chamada de ferramenta registra nome, duração, cliente, conta pseudonimizada e estado de erro; prompts, roteiros, tokens e dados pessoais não entram nesse log.
 - O uso do Gemini é atribuído separadamente às tags `scripts_generation` e `scripts_review`, incluindo tokens de entrada, saída e raciocínio quando o SDK disponibiliza esses dados.
-- `npm run eval:mcp` executa os mesmos gates para ChatGPT e Claude: período exato sem estimativa, respeito a evidência ausente, rascunho antes de persistência, confirmação explícita para escrita, collab explicável e seleção correta das ferramentas de pesquisa criativa.
+- `npm run eval:mcp` executa os mesmos gates para ChatGPT e Claude: período exato sem estimativa, respeito a evidência ausente, rascunho antes de persistência, confirmação explícita para escrita, collab explicável e seleção correta das ferramentas de pesquisa criativa. No lado administrativo, também garante que uma pergunta sobre a base inteira passe por `analyze_creator_portfolio` em vez de uma busca por nome, e que enumerar creators passe pelo diretório paginado.
 
 ## Etapa necessária para produção
 

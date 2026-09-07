@@ -43,12 +43,14 @@ import {
 import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNorth";
 import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
+import { getMcpFollowerGrowth } from "./followerGrowth";
 import { buildMcpConversationPolicy } from "./conversationPolicy";
 import {
   extractCampaignRadarPrivateSignals,
   findMcpCampaignOpportunities,
 } from "./campaignRadar";
-import { critiqueMcpCreatorScript, getMcpCreatorContentDna } from "./scriptIntelligence";
+import { critiqueMcpCreatorScript, getMcpCreatorContentDna, prepareMcpScriptEvidence, recordMcpScriptFeedback } from "./scriptIntelligence";
+import { SCRIPT_GOALS } from "@/app/lib/scripts/scriptEvidenceSelection";
 
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -315,6 +317,8 @@ const periodAnalysisOutputSchema = z.object({
         hasClassification: z.boolean(),
         hasSceneAnalysis: z.boolean(),
         hasTranscript: z.boolean(),
+        transcriptSource: z.string().nullable(),
+        publishedEvidenceVersion: z.string().nullable(),
       }),
     }),
   ),
@@ -325,6 +329,7 @@ const periodAnalysisOutputSchema = z.object({
     totalEvidencePosts: z.number().int().nonnegative(),
     returnedEvidencePostIds: z.array(z.string()),
     lastDataUpdateAt: z.string().nullable(),
+    publishedEvidenceRecords: z.number().int().nonnegative(),
     mustNotEstimate: z.literal(true),
   }),
 });
@@ -496,12 +501,17 @@ const deepContentOutputSchema = z.object({
     transcriptIncluded: z.boolean(),
     hasClassification: z.boolean(),
     hasSceneAnalysis: z.boolean(),
+    hasSceneTimeline: z.boolean(),
     hasMetrics: z.boolean(),
   }),
   receipt: z.object({
     generatedAt: z.string(),
     source: z.literal("data2content_content_record"),
     evidenceContentId: z.string(),
+    publishedEvidenceVersion: z.string().nullable(),
+    publishedEvidenceProvider: z.string().nullable(),
+    publishedEvidenceAnalyzedAt: z.string().nullable(),
+    transcriptSource: z.string().nullable(),
     mustNotInferMissingFields: z.literal(true),
     transcriptRequiresExplicitOptIn: z.literal(true),
   }),
@@ -886,7 +896,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         "missão, asset é elemento de vida — nunca credencial. Quando evidenceLevel for declared, "  +
         "apresente a narrativa como declaração do creator, não como diagnóstico. Para pedidos de pauta "  +
         "ou do que gravar, use list_content_ideas antes de inventar assunto novo; se nenhuma servir, "  +
-        "diga por quê antes de propor outra." +
+        "diga por quê antes de propor outra. Para escrever com os conteúdos vencedores do próprio " +
+        "criador, use get_script_evidence_pack e escreva nesta conversa com as referências retornadas. " +
+        "Não gere novamente com generate_script_draft, a menos que o usuário queira o motor interno D2C. " +
+        "Revise contra o mesmo clientRequestId e informe métrica, período e cobertura. " +
         (campaignRadarEnabled
           ? " Para publicidades, use find_campaign_opportunities. Em conta gratuita, mostre apenas " +
             "a seleção semanal retornada, não revele quantas outras existem e não inclua link de plano, " +
@@ -1602,10 +1615,51 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
+  registerTool("get_script_evidence_pack", {
+    title: "Preparar referências próprias para roteiro",
+    description: "Use para escrever nesta conversa um roteiro baseado na fala e no desempenho do próprio criador. Retorna até três referências privadas, origem, métricas atuais, mapa e limitações. Não chama modelo de geração nem relê vídeos. Escreva com o pacote e revise com o clientRequestId; não duplique a geração interna.",
+    inputSchema: z.object({
+      prompt: z.string().trim().min(3).max(2000),
+      goal: z.enum(SCRIPT_GOALS).optional(),
+      lookbackDays: z.number().int().min(7).max(365).default(180),
+      startsAt: z.string().datetime({ offset: true }).optional().describe("Início ISO com timezone, quando houver período explícito"),
+      endsAt: z.string().datetime({ offset: true }).optional().describe("Fim ISO com timezone, quando houver período explícito"),
+      format: z.enum(["all", "reel", "carousel", "photo"]).default("all"),
+      targetDurationSeconds: z.number().int().min(5).max(180).nullable().default(null),
+      ownContentIds: z.array(z.string().regex(/^[a-f0-9]{24}$/i)).max(3).default([]),
+    }),
+    outputSchema: z.object({ schemaVersion: z.literal("creator_script_evidence_pack_v1"), clientRequestId: z.string(), receipt: z.record(z.unknown()) }).passthrough(),
+    annotations: READ_ONLY_ANNOTATIONS,
+    securitySchemes: oauthSecuritySchemes("content:read", "metrics:read", "intelligence:read"),
+  }, async (args: any) => {
+    for (const scope of ["content:read", "metrics:read", "intelligence:read"]) if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+    const unavailable = privateCreatorContextRequiredResult(context);
+    if (unavailable) return unavailable;
+    const result = await prepareMcpScriptEvidence({ ...args, userId: context.identity.userId,
+      includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence });
+    return structuredJsonResult(result);
+  });
+
+  registerTool("record_script_feedback", {
+    title: "Registrar preferência de voz do criador",
+    description: "Use somente quando o criador pedir para registrar sua avaliação ou preferência sobre um roteiro salvo. Não infira aprovação nem preferência pelo silêncio.",
+    inputSchema: z.object({ scriptId: z.string().regex(/^[a-f0-9]{24}$/i), voiceMatch: z.boolean().optional(), preferredDirection: z.string().trim().min(1).max(500).optional(), notes: z.string().trim().min(1).max(1000).optional() }).refine(v => v.voiceMatch !== undefined || v.preferredDirection || v.notes, "Informe uma avaliação."),
+    outputSchema: z.object({ saved: z.boolean(), scriptId: z.string().optional(), message: z.string().optional() }),
+    annotations: IDEMPOTENT_WRITE_ANNOTATIONS, securitySchemes: oauthSecuritySchemes("scripts:write"),
+  }, async (args: any) => {
+    if (!hasScope(context, "scripts:write")) return scopeRequiredResult("scripts:write");
+    return structuredJsonResult(await recordMcpScriptFeedback({ ...args, userId: context.identity.userId }));
+  });
+
   registerTool<{
     prompt: string;
     title: string;
     lookbackDays: number;
+    startsAt?: string;
+    endsAt?: string;
+    goal?: typeof SCRIPT_GOALS[number];
+    format?: "all" | "reel" | "carousel" | "photo";
+    ownContentIds?: string[];
     targetDurationSeconds: number | null;
     inspirationContentIds: string[];
   }>(
@@ -1617,12 +1671,17 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       inputSchema: z.object({
         prompt: z.string().trim().min(3).max(2000).describe("Briefing completo do roteiro desejado"),
         title: z.string().trim().max(180).default("").describe("Título opcional pedido pelo usuário"),
-        lookbackDays: z.number().int().min(30).max(365).default(180),
+        lookbackDays: z.number().int().min(7).max(365).default(180),
+        startsAt: z.string().datetime({ offset: true }).optional(),
+        endsAt: z.string().datetime({ offset: true }).optional(),
+        goal: z.enum(SCRIPT_GOALS).optional(),
+        format: z.enum(["all", "reel", "carousel", "photo"]).default("all"),
+        ownContentIds: z.array(z.string().regex(/^[a-f0-9]{24}$/i)).max(3).default([]),
         targetDurationSeconds: z
           .number()
           .int()
           .min(5)
-          .max(600)
+          .max(180)
           .nullable()
           .default(null)
           .describe("Duração alvo em segundos, quando o usuário pedir um roteiro de tamanho específico"),
@@ -1636,7 +1695,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       annotations: GENERATIVE_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
-    async ({ prompt, title, lookbackDays, targetDurationSeconds, inspirationContentIds }) => {
+    async ({ prompt, title, lookbackDays, startsAt, endsAt, goal, format, ownContentIds, targetDurationSeconds, inspirationContentIds }) => {
       const hasScriptGenerationScope = hasScope(context, "scripts:generate");
       const hasLegacyGenerationScopes = hasScope(context, "strategy:read") && hasScope(context, "content:read");
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
@@ -1655,6 +1714,11 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (context.accountState.accessLevel === "free" && inspirationContentIds.length > 0) {
         return communityInspirationRequiredResult();
       }
+      if (context.accountState.capabilities.privateCreatorIntelligence) {
+        for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
+          if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+        }
+      }
       const contextualPrompt = context.accountState.creatorNorth
         ? `Norte declarado pelo creator: ${context.accountState.creatorNorth}\n\nPedido atual: ${prompt}`
         : prompt;
@@ -1666,6 +1730,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         targetDurationSeconds,
         inspirationContentIds,
         includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
+        startsAt, endsAt, goal, format, ownContentIds,
       });
       return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
@@ -1675,6 +1740,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     content: string;
     prompt: string;
     targetDurationSeconds: number | null;
+    clientRequestId?: string;
+    lookbackDays?: number;
   }>(
     "critique_script_against_creator_dna",
     {
@@ -1683,6 +1750,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         "Use this when the user has a script — written by them, by you, or elsewhere — and asks whether it fits their own style, history, or target duration. It compares the text against the creator's published evidence and returns adherence signals, duration checks and warnings. It never rewrites the script and never saves it: report the diagnosis and let the user decide. Present it as adherence to their own history, not as a performance guarantee.",
       inputSchema: z.object({
         content: z.string().trim().min(1).max(20_000).describe("Texto completo do roteiro a ser avaliado"),
+        clientRequestId: z.string().regex(/^mcp-[0-9a-f-]{36}$/i).optional(),
+        lookbackDays: z.number().int().min(7).max(365).optional(),
         prompt: z
           .string()
           .trim()
@@ -1693,7 +1762,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .number()
           .int()
           .min(5)
-          .max(600)
+          .max(180)
           .nullable()
           .default(null)
           .describe("Duração alvo em segundos, quando o usuário informar"),
@@ -1702,7 +1771,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       annotations: GENERATIVE_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
-    async ({ content, prompt, targetDurationSeconds }) => {
+    async ({ content, prompt, targetDurationSeconds, clientRequestId, lookbackDays }) => {
       const hasScriptGenerationScope = hasScope(context, "scripts:generate");
       const hasLegacyGenerationScopes = hasScope(context, "strategy:read") && hasScope(context, "content:read");
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
@@ -1710,11 +1779,15 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       }
       const unavailable = privateCreatorContextRequiredResult(context);
       if (unavailable) return unavailable;
+      for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
+        if (!hasScope(context, scope)) return scopeRequiredResult(scope);
+      }
       const result = await critiqueMcpCreatorScript({
         userId: context.identity.userId,
         content,
         prompt: prompt || undefined,
         targetDurationSeconds,
+        clientRequestId, lookbackDays,
       });
       return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
@@ -1736,7 +1809,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .string()
           .trim()
           .regex(/^mcp-[0-9a-f-]{36}$/i)
-          .describe("ID retornado por generate_script_draft"),
+          .describe("ID retornado por generate_script_draft ou get_script_evidence_pack"),
         title: z.string().trim().min(1).max(180),
         content: z.string().trim().min(1).max(20_000),
         userConfirmed: z.literal(true).describe("Só pode ser true após confirmação explícita do usuário"),
@@ -1839,8 +1912,57 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
   );
 
+  registerTool<{ startDate: string; endDate: string; timeZone: string }>(
+    "get_follower_growth",
+    {
+      title: "Saldo de seguidores por dia",
+      description:
+        "Use this when the user asks how many followers they gained or lost, per day or in a period — growth, drops, best day, or whether an audience is still growing. It returns the daily net follower balance derived from stored account readings, plus coverage. The balance already subtracts unfollows, days without a reading are never reported as zero, and it never attributes growth to a specific post.",
+      inputSchema: z.object({
+        startDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Primeiro dia inclusivo no formato YYYY-MM-DD"),
+        endDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Último dia inclusivo no formato YYYY-MM-DD"),
+        timeZone: z
+          .string()
+          .trim()
+          .min(1)
+          .max(80)
+          .default("America/Sao_Paulo")
+          .describe("Fuso IANA usado para fechar cada dia civil"),
+      }),
+      outputSchema: z.object({}).passthrough(),
+      annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("metrics:read"),
+    },
+    async ({ startDate, endDate, timeZone }) => {
+      if (!hasScope(context, "metrics:read")) return scopeRequiredResult("metrics:read");
+      const unavailable = privateCreatorContextRequiredResult(context);
+      if (unavailable) return unavailable;
+
+      try {
+        const result = await getMcpFollowerGrowth({
+          userId: context.identity.userId,
+          startDate,
+          endDate,
+          timeZone,
+        });
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
+      } catch (error) {
+        if (error instanceof McpPeriodValidationError) {
+          return { isError: true, content: jsonText({ error: error.code, message: error.message }) };
+        }
+        throw error;
+      }
+    },
+  );
+
   registerTool<{
-    metric: "reach" | "views" | "total_interactions" | "saved" | "shares" | "comments" | "likes";
+    metric: "reach" | "views" | "total_interactions" | "saved" | "shares" | "comments" | "likes" | "follows";
     format: "all" | "reel" | "carousel" | "photo";
     periodDays: number;
     limit: number;
@@ -1849,11 +1971,12 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Listar melhores conteúdos",
       description:
-        "Use this when the user asks for their best posts, Reels, carousels, or photos ranked by a specific Instagram metric.",
+        "Use this when the user asks for their best posts, Reels, carousels, or photos ranked by a specific Instagram metric — including which content brought the most new followers (metric: follows). Ranking by follows only lists posts where Instagram reported that number; a missing value is not zero followers.",
       inputSchema: z.object({
         metric: z
-          .enum(["reach", "views", "total_interactions", "saved", "shares", "comments", "likes"])
-          .default("total_interactions"),
+          .enum(["reach", "views", "total_interactions", "saved", "shares", "comments", "likes", "follows"])
+          .default("total_interactions")
+          .describe("follows = seguidores conquistados a partir do conteúdo; só lista posts que têm esse dado"),
         format: z.enum(["all", "reel", "carousel", "photo"]).default("all"),
         periodDays: z.number().int().min(7).max(365).default(90),
         limit: z.number().int().min(1).max(10).default(5),
@@ -2013,9 +2136,11 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     (args: never) =>
       userMessage(
         `Escreva um rascunho de roteiro para esta pauta:\n\n${(args as unknown as { idea: string }).idea}\n\n` +
-          "Consulte get_creator_map e get_creator_content_dna antes de escrever, para o roteiro sair na " +
-          "minha voz e não numa voz genérica. Depois use critique_script_against_creator_dna para me " +
-          "dizer onde ele foge do meu histórico. Não salve nada sem eu confirmar.",
+          "Consulte meu mapa e as capacidades disponíveis. Quando houver evidência privada, use " +
+          "get_script_evidence_pack e escreva com a fala e a estrutura das referências entregues, " +
+          "declarando as limitações. Revise com critique_script_against_creator_dna usando o mesmo " +
+          "clientRequestId; não duplique a geração interna. Sem capacidade privada, use o caminho " +
+          "genérico de generate_script_draft sem afirmar que leu meus vídeos. Não salve nada sem eu confirmar.",
       ),
   );
 

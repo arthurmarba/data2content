@@ -40,7 +40,10 @@ async function main() {
   try {
     const connection = await timed(() => client.connect(transport));
     const listed = await timed(() => client.listTools());
-    assert(listed.value.tools.length === 10, "O endpoint admin não expôs as dez ferramentas esperadas.");
+    assert(listed.value.tools.length === 16, "O endpoint admin não expôs as dezesseis ferramentas esperadas.");
+    for (const expected of ["list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map", "get_creator_follower_growth", "get_creator_script_evidence"]) {
+      assert(listed.value.tools.some((tool) => tool.name === expected), `A ferramenta ${expected} não foi exposta.`);
+    }
     assert(
       listed.value.tools.every((tool) => tool.annotations?.readOnlyHint === true),
       "Uma ferramenta administrativa não está marcada como somente leitura.",
@@ -73,11 +76,41 @@ async function main() {
     }));
     assert(compared.value.isError !== true, "A ferramenta compare_creators falhou via HTTP.");
 
+    const listedCreators = await timed(() => client.callTool({ name: "list_creators", arguments: { limit: 5 } }));
+    assert(listedCreators.value.isError !== true, "A ferramenta list_creators falhou via HTTP.");
+    const directory = textPayload(listedCreators.value as CallToolResult) as {
+      creators?: unknown;
+      pagination?: { total?: unknown };
+    };
+    assert(
+      Array.isArray(directory.creators) && typeof directory.pagination?.total === "number",
+      "O diretório administrativo não devolveu criadores com total da população.",
+    );
+
+    const portfolio = await timed(() => client.callTool({
+      name: "analyze_creator_portfolio",
+      arguments: { startDate: "2026-07-27", endDate: "2026-08-26", timeZone: "America/Sao_Paulo", limit: 5 },
+    }));
+    assert(portfolio.value.isError !== true, "A ferramenta analyze_creator_portfolio falhou via HTTP.");
+    const portfolioPayload = textPayload(portfolio.value as CallToolResult) as {
+      summary?: { totalCreators?: unknown };
+      receipt?: { summaryCoversAllMatchingCreators?: unknown };
+    };
+    assert(
+      portfolioPayload.summary?.totalCreators === directory.pagination?.total,
+      "A consolidação do período não cobriu a mesma população do diretório.",
+    );
+    assert(
+      portfolioPayload.receipt?.summaryCoversAllMatchingCreators === true,
+      "A consolidação não declarou que o resumo cobre toda a população filtrada.",
+    );
+
     const slowestToolMs = Math.max(searched.durationMs, fetched.durationMs);
     assert(slowestToolMs < 5_000, `Latência administrativa acima do gate local: ${slowestToolMs}ms.`);
     assert(compared.durationMs < 15_000, `Comparação administrativa acima do gate local: ${compared.durationMs}ms.`);
+    assert(portfolio.durationMs < 20_000, `Consolidação da base acima do gate local: ${portfolio.durationMs}ms.`);
     process.stdout.write(
-      `MCP Admin HTTP smoke passed: connect=${connection.durationMs}ms list=${listed.durationMs}ms search=${searched.durationMs}ms fetch=${fetched.durationMs}ms compare=${compared.durationMs}ms.\n`,
+      `MCP Admin HTTP smoke passed: connect=${connection.durationMs}ms list=${listed.durationMs}ms search=${searched.durationMs}ms fetch=${fetched.durationMs}ms compare=${compared.durationMs}ms directory=${listedCreators.durationMs}ms portfolio=${portfolio.durationMs}ms.\n`,
     );
   } finally {
     await client.close().catch(() => undefined);

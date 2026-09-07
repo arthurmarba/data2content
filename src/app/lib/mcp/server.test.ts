@@ -6,7 +6,7 @@ import { D2C_INTELLIGENCE_MANIFEST } from "./intelligenceContract";
 import { createD2CMcpServer } from "./server";
 import { generateMcpScriptDraft } from "./catalog";
 import { findMcpCampaignOpportunities } from "./campaignRadar";
-import { critiqueMcpCreatorScript, getMcpCreatorContentDna } from "./scriptIntelligence";
+import { critiqueMcpCreatorScript, getMcpCreatorContentDna, prepareMcpScriptEvidence } from "./scriptIntelligence";
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -112,6 +112,8 @@ jest.mock("./catalog", () => ({
           hasClassification: true,
           hasSceneAnalysis: true,
           hasTranscript: true,
+          transcriptSource: "gemini_video",
+          publishedEvidenceVersion: "published_content_evidence_v1",
         },
       },
     ],
@@ -122,6 +124,7 @@ jest.mock("./catalog", () => ({
       totalEvidencePosts: 2,
       returnedEvidencePostIds: ["507f1f77bcf86cd799439013"],
       lastDataUpdateAt: "2026-08-07T12:00:00.000Z",
+      publishedEvidenceRecords: 1,
       mustNotEstimate: true,
     },
   })),
@@ -269,12 +272,17 @@ jest.mock("./catalog", () => ({
       transcriptIncluded: false,
       hasClassification: true,
       hasSceneAnalysis: false,
+      hasSceneTimeline: false,
       hasMetrics: true,
     },
     receipt: {
       generatedAt: "2026-08-08T12:00:00.000Z",
       source: "data2content_content_record",
       evidenceContentId: "507f1f77bcf86cd799439013",
+      publishedEvidenceVersion: null,
+      publishedEvidenceProvider: null,
+      publishedEvidenceAnalyzedAt: null,
+      transcriptSource: null,
       mustNotInferMissingFields: true,
       transcriptRequiresExplicitOptIn: true,
     },
@@ -485,6 +493,8 @@ jest.mock("./creatorRadar", () => ({
 }));
 
 jest.mock("./scriptIntelligence", () => ({
+  prepareMcpScriptEvidence: jest.fn(async () => ({ schemaVersion: "creator_script_evidence_pack_v1", clientRequestId: "mcp-11111111-1111-4111-8111-111111111111", receipt: { selectionStage: "delivered_to_client" } })),
+  recordMcpScriptFeedback: jest.fn(async () => ({ saved: true })),
   getMcpCreatorContentDna: jest.fn(async () => ({
     schemaVersion: "creator_script_dna_v3",
     confidence: "medium",
@@ -634,6 +644,46 @@ describe("Data2Content MCP server", () => {
     }
   });
 
+  it("entrega referências para escrever no cliente sem chamar o gerador interno", async () => {
+    const { client, server } = await connect(true);
+    const before = (generateMcpScriptDraft as jest.Mock).mock.calls.length;
+    try {
+      const result = await client.callTool({ name: "get_script_evidence_pack", arguments: { prompt: "Roteiro com os conteúdos que mais engajaram", goal: "engagement", lookbackDays: 90 } });
+      expect(result.isError).not.toBe(true);
+      expect(textPayload(result)).toMatchObject({ receipt: { selectionStage: "delivered_to_client" } });
+      expect(prepareMcpScriptEvidence).toHaveBeenCalledWith(expect.objectContaining({ includePrivateIntelligence: true, lookbackDays: 90, goal: "engagement" }));
+      expect((generateMcpScriptDraft as jest.Mock).mock.calls.length).toBe(before);
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("bloqueia preparação privada para conta gratuita", async () => {
+    const { client, server } = await connect(true, undefined, "free");
+    const before = (prepareMcpScriptEvidence as jest.Mock).mock.calls.length;
+    try {
+      await client.callTool({ name: "get_script_evidence_pack", arguments: { prompt: "Meu roteiro" } });
+      expect((prepareMcpScriptEvidence as jest.Mock).mock.calls.length).toBe(before);
+    } finally { await client.close(); await server.close(); }
+  });
+  it("não lê corpus privado quando falta scope de métricas", async () => {
+    const { client, server } = await connect(true, ["profile:read", "content:read", "intelligence:read", "scripts:generate"]);
+    const prepareBefore = (prepareMcpScriptEvidence as jest.Mock).mock.calls.length;
+    const generateBefore = (generateMcpScriptDraft as jest.Mock).mock.calls.length;
+    const critiqueBefore = (critiqueMcpCreatorScript as jest.Mock).mock.calls.length;
+    try {
+      for (const [name, args] of [
+        ["get_script_evidence_pack", { prompt: "Meu roteiro" }],
+        ["generate_script_draft", { prompt: "Meu roteiro" }],
+        ["critique_script_against_creator_dna", { content: "Meu roteiro completo" }],
+      ] as const) {
+        const result = await client.callTool({ name, arguments: args });
+        expect(result.isError).toBe(true);
+      }
+      expect((prepareMcpScriptEvidence as jest.Mock).mock.calls.length).toBe(prepareBefore);
+      expect((generateMcpScriptDraft as jest.Mock).mock.calls.length).toBe(generateBefore);
+      expect((critiqueMcpCreatorScript as jest.Mock).mock.calls.length).toBe(critiqueBefore);
+    } finally { await client.close(); await server.close(); }
+  });
+
   it("exposes read tools plus separated script draft and save actions", async () => {
     delete process.env.MCP_CAMPAIGN_RADAR_ENABLED;
     const { client, server } = await connect(true);
@@ -655,11 +705,14 @@ describe("Data2Content MCP server", () => {
         "analyze_inspiration_content",
         "compare_inspiration_contents",
         "get_creator_content_dna",
+        "get_script_evidence_pack",
+        "record_script_feedback",
         "generate_script_draft",
         "critique_script_against_creator_dna",
         "save_script",
         "recommend_collab_creators",
         "get_performance_summary",
+        "get_follower_growth",
         "list_top_content",
         "compare_content_formats",
       ]);

@@ -4,6 +4,7 @@ import UserModel from "@/app/models/User";
 import MetricModel from "@/app/models/Metric";
 import AudienceDemographicSnapshotModel from "@/app/models/demographics/AudienceDemographicSnapshot";
 import { getMcpAppBaseUrl } from "./config";
+import { analyzeMcpAdminPortfolio } from "./adminAnalytics";
 import {
   analyzeMcpCreatorPeriod,
   getMcpCreatorIntelligenceSnapshot,
@@ -41,7 +42,7 @@ export function parseAdminCreatorRef(value: string): string | null {
 
 export async function searchMcpAdminCreators(query: string, limit: number) {
   await connectToDatabase();
-  const normalized = compactText(query, 160).replace(/^@/, "");
+  const normalized = (parseAdminCreatorRef(query) || compactText(query, 160)).replace(/^@/, "");
   if (normalized.length < 2) return [];
 
   const projection = {
@@ -222,8 +223,9 @@ export async function compareMcpAdminCreators(params: {
   endDate: string;
   timeZone: string;
 }) {
-  const targetIds = params.creatorRefs.map(parseAdminCreatorRef);
+  const targetIds = [...new Set(params.creatorRefs)].map(parseAdminCreatorRef);
   if (targetIds.some((value) => !value)) return null;
+  const performance = await analyzeMcpAdminPortfolio({ ...params, population: "all_accounts", creatorIds: targetIds as string[], limit: 5 });
 
   const rows = await Promise.all(
     (targetIds as string[]).map(async (userId) => {
@@ -261,10 +263,11 @@ export async function compareMcpAdminCreators(params: {
       timeZone: params.timeZone,
     },
     creators,
+    performance,
     coverage: {
-      requestedCreators: params.creatorRefs.length,
+      requestedCreators: targetIds.length,
       comparedCreators: creators.length,
-      warnings: creators.length === params.creatorRefs.length ? [] : ["one_or_more_creators_unavailable"],
+      warnings: creators.length === targetIds.length ? [] : ["one_or_more_creators_unavailable"],
     },
     receipt: {
       generatedAt: new Date().toISOString(),

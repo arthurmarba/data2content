@@ -13,6 +13,7 @@ import { checkRateLimitStrict } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function noStoreHeaders() {
   return { "Cache-Control": "no-store" };

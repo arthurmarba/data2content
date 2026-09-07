@@ -6,6 +6,18 @@ import { createD2CAdminMcpServer } from "./adminServer";
 import { beginMcpAdminAuditEvent, completeMcpAdminAuditEvent } from "./adminAudit";
 import { getMcpAdminCreatorOverview, searchMcpAdminCreators } from "./adminCatalog";
 import { getMcpDeepContentAnalysis } from "./catalog";
+import { analyzeMcpAdminPortfolio, listMcpAdminCreators } from "./adminAnalytics";
+import { getMcpAdminCreatorAnalysis, getMcpAdminScriptEvidence } from "./adminCreatorAnalysis";
+
+jest.mock("./adminAnalytics", () => ({
+  listMcpAdminCreators: jest.fn(async () => ({ creators: [{ id: "creator:507f1f77bcf86cd799439021" }], pagination: { total: 120, nextCursor: "next" } })),
+  analyzeMcpAdminPortfolio: jest.fn(async () => ({ summary: { totalCreators: 120 }, creators: [], receipt: { summaryCoversAllMatchingCreators: true } })),
+}));
+jest.mock("./adminCreatorAnalysis", () => ({
+  getMcpAdminCreatorAnalysis: jest.fn(async () => ({ targetCreatorRef: "creator:507f1f77bcf86cd799439021", map: { hasMap: true } })),
+  getMcpAdminScriptEvidence: jest.fn(async () => ({ targetCreatorRef: "creator:507f1f77bcf86cd799439021", receipt: { noPaidModelCalls: true } })),
+}));
+jest.mock("./creatorMap", () => ({ loadMcpCreatorMap: jest.fn(async () => ({ hasMap: true, narrativeIsFirm: false })) }));
 
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -164,6 +176,8 @@ describe("Data2Content admin MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
+        "list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map",
+        "get_creator_follower_growth", "get_creator_script_evidence",
         "search",
         "fetch",
         "analyze_creator_period",
@@ -388,5 +402,53 @@ describe("Data2Content admin MCP server", () => {
       await client.close();
       await server.close();
     }
+  });
+
+  it("expõe o total da população sem confundir uma página com a base inteira", async () => {
+    const { client, server } = await connect();
+    try {
+      const page = await client.callTool({ name: "list_creators", arguments: { limit: 1 } });
+      expect(page.structuredContent).toMatchObject({ pagination: { total: 120, nextCursor: "next" } });
+      const portfolio = await client.callTool({ name: "analyze_creator_portfolio", arguments: { startDate: "2026-08-01", endDate: "2026-08-31" } });
+      expect(portfolio.structuredContent).toMatchObject({ summary: { totalCreators: 120 }, receipt: { summaryCoversAllMatchingCreators: true } });
+      expect(mockCompleteAdminAudit).toHaveBeenCalledWith("invocation-test", expect.objectContaining({ targetCreatorIds: [creatorId] }));
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("exige todas as permissões antes de consultar a base ou as falas", async () => {
+    const { client, server } = await connect(["admin:creators:search", "admin:creators:compare", "admin:intelligence:read"]);
+    (analyzeMcpAdminPortfolio as jest.Mock).mockClear();
+    (getMcpAdminScriptEvidence as jest.Mock).mockClear();
+    try {
+      for (const [name, args] of [
+        ["analyze_creator_portfolio", { startDate: "2026-08-01", endDate: "2026-08-31" }],
+        ["get_creator_script_evidence", { creatorRef, prompt: "Analise as falas" }],
+      ] as const) expect((await client.callTool({ name, arguments: args })).isError).toBe(true);
+      expect(analyzeMcpAdminPortfolio).not.toHaveBeenCalled();
+      expect(getMcpAdminScriptEvidence).not.toHaveBeenCalled();
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("amarra dossiê e fala ao criador escolhido", async () => {
+    const { client, server } = await connect();
+    try {
+      await client.callTool({ name: "get_creator_analysis", arguments: { creatorRef, startDate: "2026-08-01", endDate: "2026-08-31" } });
+      expect(getMcpAdminCreatorAnalysis).toHaveBeenCalledWith(expect.objectContaining({ creatorRef }));
+      await client.callTool({ name: "get_creator_script_evidence", arguments: { creatorRef, prompt: "Analise os vídeos que mais engajaram", goal: "engagement" } });
+      expect(getMcpAdminScriptEvidence).toHaveBeenCalledWith(expect.objectContaining({ creatorRef, goal: "engagement" }));
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("não entrega consulta bem-sucedida quando falha a auditoria final", async () => {
+    const { client, server } = await connect();
+    mockCompleteAdminAudit.mockRejectedValueOnce(new Error("audit unavailable"));
+    try {
+      expect((await client.callTool({ name: "list_creators", arguments: {} })).isError).toBe(true);
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("não monta o servidor para autorização ausente ou identidade divergente", () => {
+    expect(() => createD2CAdminMcpServer({ identity: { userId: "actor" }, authorization: { authorized: false } } as any)).toThrow("admin_authorization_required");
+    expect(() => createD2CAdminMcpServer({ identity: { userId: "actor" }, authorization: { authorized: true, role: "admin", actorUserId: "other" } } as any)).toThrow("admin_authorization_required");
   });
 });

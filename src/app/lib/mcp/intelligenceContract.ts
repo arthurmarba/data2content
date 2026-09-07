@@ -47,8 +47,30 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     source: "Metric.stats + Metric.dailySnapshots",
     scope: "metrics:read",
     status: "available",
-    tools: ["analyze_creator_period", "get_content_deep_analysis", "get_creator_intelligence_snapshot"],
-    fields: ["metrics", "derivedMetrics", "velocity", "baselines", "deltas", "evidenceLevel"],
+    tools: ["analyze_creator_period", "get_content_deep_analysis", "get_creator_intelligence_snapshot", "list_top_content"],
+    fields: ["metrics", "derivedMetrics", "velocity", "baselines", "deltas", "evidenceLevel", "followersGained"],
+  },
+  {
+    id: "audience_growth",
+    label: "Saldo de seguidores por dia",
+    source: "AccountInsight.followersCount",
+    scope: "metrics:read",
+    status: "available",
+    tools: ["get_follower_growth"],
+    fields: [
+      "dailyNetGain", "followersAtEndOfDay", "daysCovered", "readingsPerDay",
+      "periodNetGain", "bestDay", "worstDay", "coverage",
+    ],
+    intentionallyExcluded: [
+      {
+        field: "grossFollowsAndUnfollows",
+        reason: "A API do Instagram não devolve seguidas e deixadas de seguir separadamente na coleta atual; só o saldo é verificável.",
+      },
+      {
+        field: "followerIdentities",
+        reason: "Quem seguiu é dado pessoal de terceiro; o MCP expõe apenas contagem agregada.",
+      },
+    ],
   },
   {
     id: "creator_map",
@@ -110,13 +132,13 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     source: "PublishedContentEvidence + CreatorScriptDnaProfile + AudienceDemographicSnapshot",
     scope: "intelligence:read",
     status: "available",
-    tools: ["get_creator_content_dna", "generate_script_draft", "critique_script_against_creator_dna"],
+    tools: ["get_creator_content_dna", "get_script_evidence_pack", "generate_script_draft", "critique_script_against_creator_dna"],
     fields: [
       "voice", "narrative", "visual", "subjects", "audience", "winningDurations",
       "performanceIndex", "coverage", "confidence", "evidenceReceipt",
     ],
     intentionallyExcluded: [
-      { field: "historicalFullTranscripts", reason: "O corpus integral é usado internamente na recuperação, sem ser entregue ao cliente MCP." },
+      { field: "bulkHistoricalTranscripts", reason: "Somente referências próprias selecionadas são entregues; o corpus em massa é privado." },
       { field: "historicalFullScripts", reason: "Roteiros integrais históricos são usados como evidência privada, sem exposição em massa." },
       { field: "demographicRawPayload", reason: "Somente distribuições agregadas e sanitizadas orientam a geração." },
     ],
@@ -127,7 +149,7 @@ export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
     source: "CreatorScriptGenerationV3",
     scope: "scripts:generate",
     status: "available",
-    tools: ["generate_script_draft", "critique_script_against_creator_dna", "save_script"],
+    tools: ["generate_script_draft", "critique_script_against_creator_dna", "save_script", "record_script_feedback"],
     fields: ["script", "duration", "validation", "evidenceReceipt", "provider", "model"],
     intentionallyExcluded: [
       { field: "providerPrompt", reason: "Prompt interno contém evidências privadas e regras proprietárias." },

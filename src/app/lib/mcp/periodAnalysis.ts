@@ -21,7 +21,6 @@ export type McpPeriodMetricDocument = {
   _id: unknown;
   instagramMediaId?: unknown;
   description?: unknown;
-  text_content?: unknown;
   postLink?: unknown;
   postDate?: unknown;
   updatedAt?: unknown;
@@ -40,6 +39,22 @@ export type McpPeriodMetricDocument = {
   stats?: unknown;
 };
 
+export type McpPeriodPublishedEvidenceDocument = {
+  metricId?: unknown;
+  evidenceVersion?: unknown;
+  transcript?: {
+    fullText?: unknown;
+    source?: unknown;
+  } | null;
+  scenes?: unknown;
+  completeness?: {
+    transcript?: unknown;
+    scenes?: unknown;
+  } | null;
+  analyzedAt?: unknown;
+  updatedAt?: unknown;
+};
+
 type CalendarDate = {
   year: number;
   month: number;
@@ -50,6 +65,11 @@ type CoverageSignal = {
   available: number;
   total: number;
   ratio: number;
+  /**
+   * Posts que não podem ter esse dado por natureza — foto não tem fala. Ficam de
+   * fora do total para que "0 de 0" não seja lido como lacuna de coleta.
+   */
+  notApplicable?: number;
 };
 
 export class McpPeriodValidationError extends Error {
@@ -258,12 +278,18 @@ function hasSceneAnalysis(document: McpPeriodMetricDocument): boolean {
   );
 }
 
-function coverageSignal(available: number, total: number): CoverageSignal {
+function coverageSignal(available: number, total: number, notApplicable = 0): CoverageSignal {
   return {
     available,
     total,
     ratio: total > 0 ? Number((available / total).toFixed(4)) : 0,
+    ...(notApplicable > 0 ? { notApplicable } : {}),
   };
+}
+
+/** Só vídeo tem fala. Foto e carrossel não entram na conta de transcrição. */
+function canHaveSpokenTranscript(document: McpPeriodMetricDocument): boolean {
+  return !["IMAGE", "CAROUSEL_ALBUM", "CAROUSEL"].includes(String(document.type).toUpperCase());
 }
 
 export function buildMcpPeriodAnalysis(params: {
@@ -275,6 +301,7 @@ export function buildMcpPeriodAnalysis(params: {
   format: McpPeriodContentFormat;
   evidenceLimit: number;
   documents: McpPeriodMetricDocument[];
+  publishedEvidence?: McpPeriodPublishedEvidenceDocument[];
   generatedAt?: Date;
 }) {
   const generatedAt = params.generatedAt ?? new Date();
@@ -286,6 +313,20 @@ export function buildMcpPeriodAnalysis(params: {
   const total = sortedDocuments.length;
   const evidenceLimit = Math.max(1, Math.floor(params.evidenceLimit));
   const evidenceDocuments = sortedDocuments.slice(0, evidenceLimit);
+  const publishedEvidenceByMetricId = new Map(
+    (params.publishedEvidence ?? []).map((evidence) => [String(evidence.metricId || ""), evidence]),
+  );
+  const publishedEvidenceFor = (document: McpPeriodMetricDocument) =>
+    publishedEvidenceByMetricId.get(String(document._id)) ?? null;
+  const hasPublishedTranscript = (document: McpPeriodMetricDocument) => {
+    if (["IMAGE", "CAROUSEL_ALBUM"].includes(String(document.type).toUpperCase())) return false;
+    const evidence = publishedEvidenceFor(document);
+    return evidence?.completeness?.transcript === true && evidence.transcript?.source === "gemini_video" && hasText(evidence.transcript?.fullText);
+  };
+  const hasPublishedScenes = (document: McpPeriodMetricDocument) => {
+    const evidence = publishedEvidenceFor(document);
+    return evidence?.completeness?.scenes === true && Array.isArray(evidence.scenes) && evidence.scenes.length > 0;
+  };
 
   const byFormat: Record<McpResolvedContentFormat, number> = {
     reel: 0,
@@ -309,9 +350,18 @@ export function buildMcpPeriodAnalysis(params: {
 
   const captionsAvailable = sortedDocuments.filter((document) => hasText(document.description)).length;
   const classificationsAvailable = sortedDocuments.filter(hasClassification).length;
-  const scenesAvailable = sortedDocuments.filter(hasSceneAnalysis).length;
-  const transcriptsAvailable = sortedDocuments.filter((document) => hasText(document.text_content)).length;
-  const updatedDates = sortedDocuments.map((document) => toIsoDate(document.updatedAt)).filter(Boolean) as string[];
+  const scenesAvailable = sortedDocuments.filter(
+    (document) => hasPublishedScenes(document) || hasSceneAnalysis(document),
+  ).length;
+  const transcriptEligible = sortedDocuments.filter(canHaveSpokenTranscript);
+  const transcriptsAvailable = transcriptEligible.filter(hasPublishedTranscript).length;
+  const updatedDates = [
+    ...sortedDocuments.map((document) => toIsoDate(document.updatedAt)),
+    ...(params.publishedEvidence ?? []).flatMap((evidence) => [
+      toIsoDate(evidence.updatedAt),
+      toIsoDate(evidence.analyzedAt),
+    ]),
+  ].filter(Boolean) as string[];
   const postDates = sortedDocuments.map((document) => toIsoDate(document.postDate)).filter(Boolean) as string[];
 
   const posts = evidenceDocuments.map((document) => {
@@ -322,6 +372,7 @@ export function buildMcpPeriodAnalysis(params: {
       MCP_PERIOD_METRIC_KEYS.map((key) => [key, readMetric(stats, key)]),
     ) as Record<McpPeriodMetricKey, number | null>;
     const postLink = hasText(document.postLink) ? String(document.postLink).trim() : null;
+    const publishedEvidence = publishedEvidenceFor(document);
 
     return {
       id: String(document._id),
@@ -335,8 +386,14 @@ export function buildMcpPeriodAnalysis(params: {
       evidence: {
         hasCaption: hasText(document.description),
         hasClassification: hasClassification(document),
-        hasSceneAnalysis: hasSceneAnalysis(document),
-        hasTranscript: hasText(document.text_content),
+        hasSceneAnalysis: hasPublishedScenes(document) || hasSceneAnalysis(document),
+        hasTranscript: hasPublishedTranscript(document),
+        transcriptSource: hasPublishedTranscript(document) && hasText(publishedEvidence?.transcript?.source)
+          ? String(publishedEvidence?.transcript?.source)
+          : null,
+        publishedEvidenceVersion: hasText(publishedEvidence?.evidenceVersion)
+          ? String(publishedEvidence?.evidenceVersion)
+          : null,
       },
     };
   });
@@ -346,7 +403,9 @@ export function buildMcpPeriodAnalysis(params: {
   if (evidenceDocuments.length < total) warnings.push("evidence_list_truncated");
   if (total > 0 && classificationsAvailable < total) warnings.push("classification_coverage_partial");
   if (total > 0 && scenesAvailable < total) warnings.push("scene_analysis_coverage_partial");
-  if (total > 0 && transcriptsAvailable < total) warnings.push("transcript_coverage_partial");
+  if (transcriptEligible.length > 0 && transcriptsAvailable < transcriptEligible.length) {
+    warnings.push("transcript_coverage_partial");
+  }
 
   return {
     schemaVersion: MCP_PERIOD_ANALYSIS_VERSION,
@@ -376,7 +435,11 @@ export function buildMcpPeriodAnalysis(params: {
       captions: coverageSignal(captionsAvailable, total),
       classifications: coverageSignal(classificationsAvailable, total),
       sceneAnalysis: coverageSignal(scenesAvailable, total),
-      transcripts: coverageSignal(transcriptsAvailable, total),
+      transcripts: coverageSignal(
+        transcriptsAvailable,
+        transcriptEligible.length,
+        total - transcriptEligible.length,
+      ),
       metrics: metricsCoverage,
       warnings,
     },
@@ -384,11 +447,13 @@ export function buildMcpPeriodAnalysis(params: {
     receipt: {
       generatedAt: generatedAt.toISOString(),
       source: "data2content_metric_inventory",
+      publishedEvidenceRecords: publishedEvidenceByMetricId.size,
       requestFingerprint: `${params.startDate}:${params.endDate}:${params.timeZone}:${params.format}`,
       totalEvidencePosts: total,
       returnedEvidencePostIds: posts.map((post) => post.id),
       lastDataUpdateAt: updatedDates.sort().at(-1) ?? null,
       mustNotEstimate: true,
+      transcriptCoverageCountsOnlyVideos: true,
     },
   };
 }

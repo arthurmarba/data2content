@@ -44,7 +44,7 @@ export const FEED_MEDIA_INSIGHTS_METRICS =
  * Combina suas REEL_SAFE_GENERAL_METRICS e REEL_SPECIFIC_INSIGHTS_METRICS, garantindo 'views'.
  */
 export const REEL_INSIGHTS_METRICS = 
-    `${COMMON_REACH_AND_VIEWS_METRICS},${COMMON_ENGAGEMENT_METRICS},ig_reels_avg_watch_time,ig_reels_video_view_total_time`;
+    `${COMMON_REACH_AND_VIEWS_METRICS},${COMMON_ENGAGEMENT_METRICS},ig_reels_avg_watch_time,ig_reels_video_view_total_time,follows`;
 
 /**
  * Metrics for STORY media insights (media_product_type: STORY).

@@ -56,6 +56,12 @@ describe("rascunho de roteiro do MCP", () => {
     jest.clearAllMocks();
   });
 
+  it("conta sem capacidade privada não entra no motor que lê o corpus", async () => {
+    await generateMcpScriptDraft({ userId: USER_ID, prompt: "Meu roteiro", lookbackDays: 180, includePrivateIntelligence: false });
+    expect(generateCreatorScriptV3).not.toHaveBeenCalled();
+    expect(generateScriptFromPrompt).toHaveBeenCalledWith({ prompt: "Meu roteiro", title: undefined });
+  });
+
   it("entrega o rascunho do motor V3 com duração, validação e recibo de evidência", async () => {
     (generateCreatorScriptV3 as jest.Mock).mockResolvedValue(v3Result);
 

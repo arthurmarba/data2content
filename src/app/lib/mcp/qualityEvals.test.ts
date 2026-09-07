@@ -44,6 +44,29 @@ describe("MCP cross-client quality gates", () => {
     });
   });
 
+  it("rejects answering for the whole base from a name search", () => {
+    const evalCase = MCP_ADMIN_QUALITY_EVAL_CASES.find(
+      (item) => item.id === "admin_analyze_whole_base",
+    )!;
+    const result = evaluateMcpToolPlan(evalCase, [{ name: "search" }]);
+    expect(result.passed).toBe(false);
+    expect(result.violations).toEqual(expect.arrayContaining([
+      "missing_required_tool:analyze_creator_portfolio",
+      "forbidden_tool:search",
+      "population_answer_without_portfolio_consolidation",
+      "population_answer_from_name_search",
+    ]));
+  });
+
+  it("rejects enumerating creators without the paginated directory", () => {
+    const evalCase = MCP_ADMIN_QUALITY_EVAL_CASES.find(
+      (item) => item.id === "admin_list_every_creator",
+    )!;
+    const result = evaluateMcpToolPlan(evalCase, [{ name: "analyze_creator_portfolio" }]);
+    expect(result.passed).toBe(false);
+    expect(result.violations).toContain("creator_enumeration_without_directory_pagination");
+  });
+
   it("rejects administrative analysis before creator resolution", () => {
     const evalCase = MCP_ADMIN_QUALITY_EVAL_CASES.find(
       (item) => item.id === "admin_analyze_creator_30_days",

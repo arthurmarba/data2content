@@ -22,6 +22,8 @@ export type McpQualityEvalCase = {
     | "trend_requires_velocity_evidence"
     | "resolve_admin_creator_first"
     | "admin_evidence_listing"
+    | "admin_population_requires_portfolio"
+    | "admin_enumeration_requires_pagination"
   >;
 };
 
@@ -126,6 +128,30 @@ export const MCP_ADMIN_QUALITY_EVAL_CASES: McpQualityEvalCase[] = [
     rules: ["admin_evidence_listing"],
   },
   {
+    id: "admin_analyze_whole_base",
+    clients: ["chatgpt", "claude"],
+    userRequest: "Como está a base inteira de criadores nos últimos 30 dias?",
+    requiredTools: ["analyze_creator_portfolio"],
+    forbiddenTools: ["search", "list_creator_top_content"],
+    rules: ["admin_population_requires_portfolio"],
+  },
+  {
+    id: "admin_list_every_creator",
+    clients: ["chatgpt", "claude"],
+    userRequest: "Liste todos os criadores cadastrados, inclusive os sem conteúdo.",
+    requiredTools: ["list_creators"],
+    forbiddenTools: ["search"],
+    rules: ["admin_enumeration_requires_pagination"],
+  },
+  {
+    id: "admin_creator_dossier",
+    clients: ["chatgpt", "claude"],
+    userRequest: "Faça uma análise completa desse criador: mapa, padrões e desempenho.",
+    requiredTools: ["search", "fetch", "get_creator_analysis"],
+    forbiddenTools: [],
+    rules: ["respect_missing_evidence"],
+  },
+  {
     id: "admin_compare_creators",
     clients: ["chatgpt", "claude"],
     userRequest: "Compare este criador com outros três.",
@@ -203,6 +229,22 @@ export function evaluateMcpToolPlan(
     !names.includes("get_creator_contents")
   ) {
     violations.push("admin_conclusion_without_supporting_contents");
+  }
+
+  // Uma pergunta sobre a base inteira não se responde com uma busca por nome:
+  // search encontra quem foi procurado, nunca representa a população.
+  if (evalCase.rules.includes("admin_population_requires_portfolio")) {
+    if (!names.includes("analyze_creator_portfolio")) {
+      violations.push("population_answer_without_portfolio_consolidation");
+    }
+    if (names.includes("search") && !names.includes("analyze_creator_portfolio")) {
+      violations.push("population_answer_from_name_search");
+    }
+  }
+
+  // Enumerar a base exige o diretório paginado; uma página não é a base.
+  if (evalCase.rules.includes("admin_enumeration_requires_pagination") && !names.includes("list_creators")) {
+    violations.push("creator_enumeration_without_directory_pagination");
   }
 
   return { passed: violations.length === 0, violations };

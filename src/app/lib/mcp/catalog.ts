@@ -2,6 +2,8 @@ import mongoose, { Types } from "mongoose";
 import { randomUUID } from "node:crypto";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import MetricModel from "@/app/models/Metric";
+import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
+import { rememberScriptEvidence, scriptProvenanceForSave } from "@/app/lib/scripts/scriptEvidenceSession";
 import CreatorContentIdeaModel from "@/app/models/CreatorContentIdea";
 import ScriptEntryModel from "@/app/models/ScriptEntry";
 import UserModel from "@/app/models/User";
@@ -58,6 +60,8 @@ export interface McpFetchedItem {
   metadata?: Record<string, unknown>;
 }
 
+// `follows` = quantas pessoas passaram a seguir a partir daquele conteúdo. A API
+// devolve isso por post, mas nem sempre: rankear por ele lista só quem tem o dado.
 const TOP_CONTENT_METRICS = [
   "reach",
   "views",
@@ -66,6 +70,7 @@ const TOP_CONTENT_METRICS = [
   "shares",
   "comments",
   "likes",
+  "follows",
 ] as const;
 
 export type McpTopContentMetric = (typeof TOP_CONTENT_METRICS)[number];
@@ -84,18 +89,36 @@ async function generateScriptDraftContent(params: {
   title?: string;
   targetDurationSeconds?: number | null;
   intelligenceContext: Awaited<ReturnType<typeof buildScriptIntelligenceContext>> | null;
+  includePrivateIntelligence?: boolean;
+  lookbackDays?: number;
+  startsAt?: string;
+  endsAt?: string;
+  goal?: import("@/app/lib/scripts/creatorScriptEvidencePack").CreatorScriptGoal;
+  format?: import("@/app/lib/scripts/scriptEvidenceSelection").EvidenceFormat;
+  ownContentIds?: string[];
 }) {
   try {
+    if (params.includePrivateIntelligence === false) {
+      const draft = await generateScriptFromPrompt({ prompt: params.prompt, title: params.title });
+      return { title: draft.title, content: draft.content, generation: null };
+    }
     const result = await generateCreatorScriptV3({
       userId: params.userId,
       prompt: params.prompt,
       title: params.title,
       targetDurationSeconds: params.targetDurationSeconds,
       intelligenceContext: params.intelligenceContext ?? undefined,
+      lookbackDays: params.lookbackDays,
+      startsAt: params.startsAt,
+      endsAt: params.endsAt,
+      goal: params.goal,
+      format: params.format,
+      ownContentIds: params.ownContentIds,
     });
     return {
       title: result.title,
       content: result.content,
+      evidencePack: result.evidencePack,
       generation: {
         version: result.generationVersion,
         provider: result.provider,
@@ -113,6 +136,7 @@ async function generateScriptDraftContent(params: {
       },
     };
   } catch (error) {
+    if (error instanceof Error && /invalid_own_content_ids|own_content_unavailable|private_creator_evidence_unavailable|invalid_evidence_period/.test(error.message)) throw error;
     logger.warn("[mcp][script_draft][v3_failed_using_legacy_engine]", {
       userId: params.userId,
       error: error instanceof Error ? error.message : String(error || ""),
@@ -135,9 +159,14 @@ export async function generateMcpScriptDraft(params: {
   prompt: string;
   title?: string | null;
   lookbackDays: number;
+  startsAt?: string;
+  endsAt?: string;
   inspirationContentIds?: string[];
   includePrivateIntelligence?: boolean;
   targetDurationSeconds?: number | null;
+  goal?: import("@/app/lib/scripts/creatorScriptEvidencePack").CreatorScriptGoal;
+  format?: import("@/app/lib/scripts/scriptEvidenceSelection").EvidenceFormat;
+  ownContentIds?: string[];
 }) {
   const [intelligenceContext, inspirationReferences] = await Promise.all([
     params.includePrivateIntelligence === false
@@ -163,8 +192,20 @@ export async function generateMcpScriptDraft(params: {
     title: params.title?.trim() || undefined,
     targetDurationSeconds: params.targetDurationSeconds ?? null,
     intelligenceContext,
+    includePrivateIntelligence: params.includePrivateIntelligence,
+    lookbackDays: params.lookbackDays,
+    startsAt: params.startsAt,
+    endsAt: params.endsAt,
+    goal: params.goal,
+    format: params.format,
+    ownContentIds: params.ownContentIds,
   });
   const clientRequestId = `mcp-${randomUUID()}`;
+  if ("evidencePack" in generated && generated.evidencePack) {
+    await rememberScriptEvidence({ userId: params.userId, clientRequestId,
+      pack: { ...generated.evidencePack, receipt: generated.generation!.evidenceReceipt as any },
+      mode: "internal", content: generated.content, provider: generated.generation?.provider });
+  }
 
   return {
     schemaVersion: "script_draft_v1" as const,
@@ -205,6 +246,7 @@ export async function saveMcpScript(params: {
   const title = compactText(params.title, 180) || "Roteiro sem título";
   const content = params.content.trim().slice(0, 20_000);
   if (!content) throw new Error("script_content_required");
+  const evidenceProvenance = await scriptProvenanceForSave(params.userId, params.clientRequestId, content);
 
   const saved = await ScriptEntryModel.findOneAndUpdate(
     { userId: userObjectId, clientRequestId: params.clientRequestId },
@@ -216,6 +258,7 @@ export async function saveMcpScript(params: {
         content,
         source: "ai",
         linkType: "standalone",
+        evidenceProvenance,
       },
     },
     { new: true, upsert: true, setDefaultsOnInsert: true },
@@ -586,11 +629,25 @@ export async function analyzeMcpCreatorPeriod(params: {
   const documents = (await MetricModel.find(query)
     .sort({ postDate: -1, _id: -1 })
     .select(
-      "_id instagramMediaId description text_content postLink postDate updatedAt type format " +
+      "_id instagramMediaId description postLink postDate updatedAt type format " +
         "classificationStatus proposal context tone references contentIntent narrativeForm stance proofStyle " +
         "sceneElements stats",
     )
     .lean()) as unknown as McpPeriodMetricDocument[];
+  const metricIds = documents
+    .map((document) => document._id)
+    .filter((id) => mongoose.isValidObjectId(id));
+  const publishedEvidence = metricIds.length
+    ? await PublishedContentEvidence.find({
+        userId: new Types.ObjectId(params.userId),
+        metricId: { $in: metricIds },
+      })
+        .select(
+          "metricId evidenceVersion transcript.fullText transcript.source scenes completeness.transcript " +
+            "completeness.scenes analyzedAt updatedAt",
+        )
+        .lean()
+    : [];
 
   return buildMcpPeriodAnalysis({
     startDate: period.startDate,
@@ -601,6 +658,7 @@ export async function analyzeMcpCreatorPeriod(params: {
     format: params.format,
     evidenceLimit: params.evidenceLimit,
     documents,
+    publishedEvidence,
   });
 }
 
@@ -658,6 +716,78 @@ function sanitizeMcpClassificationMeta(value: unknown) {
   };
 }
 
+function boundedText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLength);
+}
+
+function sanitizeMcpTranscriptSegments(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 500).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const segment = item as Record<string, unknown>;
+    const text = boundedText(segment.text, 1_600);
+    if (!text) return [];
+    return [{
+      startMs: typeof segment.startMs === "number" && Number.isFinite(segment.startMs)
+        ? segment.startMs
+        : null,
+      endMs: typeof segment.endMs === "number" && Number.isFinite(segment.endMs)
+        ? segment.endMs
+        : null,
+      text,
+    }];
+  });
+}
+
+function sanitizeMcpPublishedScenes(value: unknown, includeSpokenText: boolean) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 50).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const scene = item as Record<string, unknown>;
+    const description = boundedText(scene.description, 800);
+    if (!description) return [];
+    return [{
+      startMs: typeof scene.startMs === "number" && Number.isFinite(scene.startMs) ? scene.startMs : null,
+      endMs: typeof scene.endMs === "number" && Number.isFinite(scene.endMs) ? scene.endMs : null,
+      role: boundedText(scene.role, 60),
+      description,
+      spokenText: includeSpokenText ? boundedText(scene.spokenText, 2_000) : null,
+      onScreenText: boundedText(scene.onScreenText, 500),
+      setting: boundedText(scene.setting, 120),
+      objects: normalizeStringArray(scene.objects).slice(0, 12),
+      framing: normalizeStringArray(scene.framing).slice(0, 12),
+    }];
+  });
+}
+
+function sanitizeMcpPublishedNarrative(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const narrative = value as Record<string, unknown>;
+  return {
+    hook: boundedText(narrative.hook, 500),
+    promise: boundedText(narrative.promise, 500),
+    structure: normalizeStringArray(narrative.structure).slice(0, 20),
+    cta: boundedText(narrative.cta, 500),
+    subjects: normalizeStringArray(narrative.subjects).slice(0, 20),
+    toneSignals: normalizeStringArray(narrative.toneSignals).slice(0, 20),
+  };
+}
+
+function sanitizeMcpPublishedVisual(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const visual = value as Record<string, unknown>;
+  return {
+    setting: boundedText(visual.setting, 120),
+    objects: normalizeStringArray(visual.objects).slice(0, 20),
+    framing: normalizeStringArray(visual.framing).slice(0, 20),
+    aesthetics: normalizeStringArray(visual.aesthetics).slice(0, 20),
+    screenTitle: boundedText(visual.screenTitle, 500),
+  };
+}
+
 export async function getMcpDeepContentAnalysis(params: {
   userId: string;
   contentId: string;
@@ -671,7 +801,7 @@ export async function getMcpDeepContentAnalysis(params: {
     "_id instagramMediaId description postLink postDate updatedAt type format source " +
     "classificationStatus proposal context tone references contentIntent narrativeForm contentSignals " +
     "stance proofStyle commercialMode entityTargets classificationMeta theme collab collabCreator isPubli " +
-    `lifeAssets sceneElements stats${params.includeTranscript === true ? " text_content" : ""}`;
+    "lifeAssets sceneElements stats";
   const document = (await MetricModel.findOne({
     _id: new Types.ObjectId(normalizedId),
     user: new Types.ObjectId(params.userId),
@@ -680,14 +810,32 @@ export async function getMcpDeepContentAnalysis(params: {
     .lean()) as unknown as McpPeriodMetricDocument & Record<string, unknown>;
   if (!document) return null;
 
+  const publishedEvidence = await PublishedContentEvidence.findOne({
+    userId: new Types.ObjectId(params.userId),
+    metricId: new Types.ObjectId(normalizedId),
+  })
+    .select("evidenceVersion transcript scenes narrative visual completeness provider analyzedAt updatedAt")
+    .lean<any>();
+
   const stats = document.stats && typeof document.stats === "object"
     ? (document.stats as Record<string, unknown>)
     : {};
   const sceneElements = sanitizeMcpSceneElements(document.sceneElements);
   const caption = compactText(document.description, 8_000) || null;
-  const transcript = params.includeTranscript === true
-    ? compactText(document.text_content, 20_000) || null
-    : null;
+  const hasObservedSpeechSource = publishedEvidence?.transcript?.source === "gemini_video"
+    && !["IMAGE", "CAROUSEL_ALBUM"].includes(String(document.type).toUpperCase());
+  const availableTranscript = hasObservedSpeechSource
+    ? boundedText(publishedEvidence?.transcript?.fullText, 30_000) : null;
+  const transcript = params.includeTranscript === true ? availableTranscript : null;
+  const transcriptSegments = params.includeTranscript === true && hasObservedSpeechSource
+    ? sanitizeMcpTranscriptSegments(publishedEvidence?.transcript?.segments)
+    : [];
+  const scenes = sanitizeMcpPublishedScenes(
+    publishedEvidence?.scenes,
+    params.includeTranscript === true && hasObservedSpeechSource,
+  );
+  const narrative = sanitizeMcpPublishedNarrative(publishedEvidence?.narrative);
+  const visual = sanitizeMcpPublishedVisual(publishedEvidence?.visual);
   const postDate = isoDateOrNull(document.postDate);
   const updatedAt = isoDateOrNull(document.updatedAt);
 
@@ -733,6 +881,15 @@ export async function getMcpDeepContentAnalysis(params: {
     visualAndSpeech: {
       sceneElements,
       lifeAssets: normalizeStringArray(document.lifeAssets).slice(0, 50),
+      scenes,
+      narrative,
+      visual,
+      transcriptSegments,
+      transcriptQuality: {
+        status: availableTranscript ? boundedText(publishedEvidence?.transcript?.quality?.status, 40) || "unverified" : "unavailable",
+        truncated: Boolean(publishedEvidence?.transcript?.quality?.truncated) || String(publishedEvidence?.transcript?.fullText || "").length >= 30000,
+        speakerVerified: hasObservedSpeechSource && publishedEvidence?.transcript?.quality?.speakerVerified === true,
+      },
     },
     metrics: {
       reach: stats.reach ?? null,
@@ -753,19 +910,26 @@ export async function getMcpDeepContentAnalysis(params: {
     },
     coverage: {
       hasCaption: Boolean(caption),
-      hasTranscript: Boolean(transcript),
-      transcriptIncluded: params.includeTranscript === true,
+      hasTranscript: Boolean(availableTranscript),
+      transcriptIncluded: params.includeTranscript === true && Boolean(availableTranscript),
       hasClassification:
         document.classificationStatus === "completed" ||
         normalizeStringArray(document.context).length > 0 ||
         normalizeStringArray(document.proposal).length > 0,
-      hasSceneAnalysis: Boolean(sceneElements),
+      hasSceneAnalysis: scenes.length > 0 || Boolean(sceneElements),
+      hasSceneTimeline: scenes.length > 0,
       hasMetrics: Object.values(stats).some((value) => typeof value === "number" && Number.isFinite(value)),
     },
     receipt: {
       generatedAt: new Date().toISOString(),
       source: "data2content_content_record",
       evidenceContentId: String(document._id),
+      publishedEvidenceVersion: boundedText(publishedEvidence?.evidenceVersion, 100),
+      publishedEvidenceProvider: boundedText(publishedEvidence?.provider, 100),
+      publishedEvidenceAnalyzedAt: isoDateOrNull(publishedEvidence?.analyzedAt),
+      transcriptSource: availableTranscript
+        ? boundedText(publishedEvidence?.transcript?.source, 80)
+        : null,
       mustNotInferMissingFields: true,
       transcriptRequiresExplicitOptIn: true,
     },
@@ -784,6 +948,7 @@ export async function getMcpCreatorIntelligenceSnapshot(params: {
       userId: params.userId,
       prompt: params.focus || "Visão estratégica completa do conteúdo do creator",
       lookbackDays: params.lookbackDays,
+      readOnly: true,
     }).catch(() => null),
     MetricModel.find({
       user: new Types.ObjectId(params.userId),
@@ -905,6 +1070,7 @@ export async function listMcpTopContent(params: {
       format: normalizeStringArray(post.format),
       metric: params.metric,
       value: typeof stats[params.metric] === "number" ? stats[params.metric] : null,
+      followersGained: typeof stats.follows === "number" ? stats.follows : null,
     };
   });
 }

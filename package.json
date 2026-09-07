@@ -23,6 +23,7 @@
     "smoke:mcp-oauth": "tsx scripts/smokeMcpOAuthCrypto.ts",
     "smoke:mcp-admin-integration": "tsx --env-file=.env.local scripts/smokeMcpAdminIntegration.ts",
     "smoke:mcp-admin-http": "tsx --env-file=.env.local scripts/smokeMcpAdminHttp.ts",
+    "smoke:mcp-admin-portfolio": "tsx --env-file=.env.local scripts/smokeMcpAdminPortfolio.ts",
     "test:e2e": "playwright test",
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "reclassify:strategic-residual": "tsx --env-file=.env.local ./scripts/reclassifyStrategicResidual.ts",
