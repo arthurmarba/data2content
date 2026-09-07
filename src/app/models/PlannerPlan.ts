@@ -1,5 +1,5 @@
 // src/app/models/PlannerPlan.ts
-import mongoose, { Schema, model, models, Types, Document } from 'mongoose';
+import mongoose, { Schema, Types, Document } from 'mongoose';
 
 export type PlannerStatus = 'planned' | 'drafted' | 'test' | 'posted';
 export type PlannerFormat = 'reel' | 'photo' | 'carousel' | 'story' | 'live' | 'long_video';
@@ -128,8 +128,8 @@ PlannerPlanSchema.index(
 );
 
 const PlannerPlanModel =
-  (models.PlannerPlan as mongoose.Model<IPlannerPlan>) ||
-  model<IPlannerPlan>('PlannerPlan', PlannerPlanSchema);
+  (mongoose.models.PlannerPlan as mongoose.Model<IPlannerPlan>) ||
+  mongoose.model<IPlannerPlan>('PlannerPlan', PlannerPlanSchema);
 
 export default PlannerPlanModel;
 // exports nomeados para o loader dinâmico encontrar em qualquer cenário

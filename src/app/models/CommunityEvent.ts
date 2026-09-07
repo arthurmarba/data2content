@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models, Document, Model, Types } from "mongoose";
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
 export type CommunityEventType = "mentorship" | "live" | "webinar" | "workshop";
 export type CommunityEventStatus = "draft" | "scheduled" | "cancelled";
@@ -54,8 +54,8 @@ CommunityEventSchema.index({ type: 1, startAt: 1 });
 CommunityEventSchema.index({ type: 1, status: 1, startAt: 1 });
 
 const CommunityEventModel =
-  (models.CommunityEvent as Model<ICommunityEvent>) ||
-  model<ICommunityEvent>("CommunityEvent", CommunityEventSchema);
+  (mongoose.models.CommunityEvent as Model<ICommunityEvent>) ||
+  mongoose.model<ICommunityEvent>("CommunityEvent", CommunityEventSchema);
 
 export default CommunityEventModel;
 

@@ -4,10 +4,12 @@
  * de conexão competindo no mesmo runtime.
  * @version 2.15.0
  */
-import mongoose, { ConnectionStates } from 'mongoose';
-
+import mongoose from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase as connectSharedMongoose } from '@/app/lib/mongoose';
+
+// mongoose exporta STATES; o alias nomeado ConnectionStates não sobrevive ao ESM.
+const ConnectionStates = mongoose.STATES;
 
 const EXPECTED_DB_NAME = process.env.MONGODB_DB_NAME || process.env.DB_NAME || 'data2content';
 

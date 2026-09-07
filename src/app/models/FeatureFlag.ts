@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model, models } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IFeatureFlag extends Document {
   key: string;
@@ -45,7 +45,7 @@ FeatureFlagSchema.statics.getValue = async function getValue(
 };
 
 const FeatureFlag =
-  (models.FeatureFlag as mongoose.Model<IFeatureFlag>) ||
+  (mongoose.models.FeatureFlag as mongoose.Model<IFeatureFlag>) ||
   mongoose.model<IFeatureFlag>('FeatureFlag', FeatureFlagSchema);
 
 export default FeatureFlag;

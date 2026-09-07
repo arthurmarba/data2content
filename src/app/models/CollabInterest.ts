@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, models, Types } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 import type { ContentIdeaCollabBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
 
 /**
@@ -108,7 +108,7 @@ CollabInterestSchema.index({ user: 1, matchedAt: 1 });
 CollabInterestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const CollabInterest =
-  (models.CollabInterest as mongoose.Model<ICollabInterest>) ||
+  (mongoose.models.CollabInterest as mongoose.Model<ICollabInterest>) ||
   mongoose.model<ICollabInterest>("CollabInterest", CollabInterestSchema);
 
 export default CollabInterest;

@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models, Types, Document } from "mongoose";
+import mongoose, { Schema, Types, Document } from "mongoose";
 
 const USAGE_EVENT_CATEGORIES = [
   "session",
@@ -38,8 +38,8 @@ UsageEventSchema.index({ userId: 1, createdAt: -1 }, { name: "usage_events_user_
 UsageEventSchema.index({ eventName: 1, createdAt: -1 }, { name: "usage_events_event_created_at" });
 
 const UsageEventModel =
-  (models.UsageEvent as mongoose.Model<IUsageEvent>) ||
-  model<IUsageEvent>("UsageEvent", UsageEventSchema);
+  (mongoose.models.UsageEvent as mongoose.Model<IUsageEvent>) ||
+  mongoose.model<IUsageEvent>("UsageEvent", UsageEventSchema);
 
 export default UsageEventModel;
 export { USAGE_EVENT_CATEGORIES };

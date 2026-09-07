@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, model, models, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IMediaKitSlugAlias extends Document {
   slug: string;
@@ -18,7 +18,7 @@ const MediaKitSlugAliasSchema = new Schema<IMediaKitSlugAlias>(
 );
 
 const MediaKitSlugAlias =
-  (models.MediaKitSlugAlias as mongoose.Model<IMediaKitSlugAlias>) ||
-  model<IMediaKitSlugAlias>('MediaKitSlugAlias', MediaKitSlugAliasSchema);
+  (mongoose.models.MediaKitSlugAlias as mongoose.Model<IMediaKitSlugAlias>) ||
+  mongoose.model<IMediaKitSlugAlias>('MediaKitSlugAlias', MediaKitSlugAliasSchema);
 
 export default MediaKitSlugAlias;

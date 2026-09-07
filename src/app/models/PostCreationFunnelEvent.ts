@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models, Types, Document } from "mongoose";
+import mongoose, { Schema, Types, Document } from "mongoose";
 
 const POST_CREATION_FUNNEL_EVENT_NAMES = [
   "post_creation_checkpoint_selected",
@@ -93,7 +93,7 @@ PostCreationFunnelEventSchema.index(
 );
 
 const existingPostCreationFunnelEventModel =
-  models.PostCreationFunnelEvent as mongoose.Model<IPostCreationFunnelEvent> | undefined;
+  mongoose.models.PostCreationFunnelEvent as mongoose.Model<IPostCreationFunnelEvent> | undefined;
 
 const shouldRefreshPostCreationFunnelEventModel =
   process.env.NODE_ENV !== "production" &&
@@ -112,8 +112,8 @@ if (shouldRefreshPostCreationFunnelEventModel) {
 }
 
 const PostCreationFunnelEventModel =
-  (models.PostCreationFunnelEvent as mongoose.Model<IPostCreationFunnelEvent>) ||
-  model<IPostCreationFunnelEvent>("PostCreationFunnelEvent", PostCreationFunnelEventSchema);
+  (mongoose.models.PostCreationFunnelEvent as mongoose.Model<IPostCreationFunnelEvent>) ||
+  mongoose.model<IPostCreationFunnelEvent>("PostCreationFunnelEvent", PostCreationFunnelEventSchema);
 
 export default PostCreationFunnelEventModel;
 export {

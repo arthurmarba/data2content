@@ -1,6 +1,6 @@
 // src/app/models/AdDeal.ts
 
-import mongoose, { Schema, model, models, Document, Types } from 'mongoose';
+import mongoose, { Schema, type Document, type Types } from 'mongoose';
 
 // Interface para tipagem do documento AdDeal
 export interface IAdDeal extends Document {
@@ -141,6 +141,6 @@ AdDealSchema.index({ userId: 1, dealDate: -1 });
 AdDealSchema.index({ linkedCalculationSegment: 1, dealDate: -1 });
 
 // Evita recompilar o modelo se ele já existir (comum em Next.js)
-const AdDeal = (models.AdDeal || model<IAdDeal>('AdDeal', AdDealSchema)) as mongoose.Model<IAdDeal>;
+const AdDeal = (mongoose.models.AdDeal || mongoose.model<IAdDeal>('AdDeal', AdDealSchema)) as mongoose.Model<IAdDeal>;
 
 export default AdDeal;

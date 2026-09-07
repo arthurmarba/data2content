@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, model, models } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export type CampaignStatus = 'pending' | 'in_review' | 'contacted';
 
@@ -54,7 +54,7 @@ CampaignSchema.index({ source: 1, createdAt: -1 });
 CampaignSchema.index({ originMediaKitSlug: 1, createdAt: -1 });
 
 const Campaign =
-  (models.Campaign as mongoose.Model<ICampaign>) ||
-  model<ICampaign>('Campaign', CampaignSchema);
+  (mongoose.models.Campaign as mongoose.Model<ICampaign>) ||
+  mongoose.model<ICampaign>('Campaign', CampaignSchema);
 
 export default Campaign;

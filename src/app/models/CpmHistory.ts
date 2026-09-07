@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, models, model } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICpmHistory extends Document {
   segment: string;
@@ -24,7 +24,7 @@ const CpmHistorySchema = new Schema<ICpmHistory>(
 CpmHistorySchema.index({ segment: 1, createdAt: -1 });
 
 const CpmHistory =
-  (models.CpmHistory as mongoose.Model<ICpmHistory>) ||
-  model<ICpmHistory>('CpmHistory', CpmHistorySchema);
+  (mongoose.models.CpmHistory as mongoose.Model<ICpmHistory>) ||
+  mongoose.model<ICpmHistory>('CpmHistory', CpmHistorySchema);
 
 export default CpmHistory;

@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, Types, model, models } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export type CampaignLinkEntityType = 'script' | 'publi';
 export type CampaignLinkScriptApprovalStatus = 'draft' | 'sent' | 'approved' | 'changes_requested';
@@ -67,7 +67,7 @@ CampaignLinkSchema.index(
 );
 
 const CampaignLink =
-  (models.CampaignLink as mongoose.Model<ICampaignLink>) ||
-  model<ICampaignLink>('CampaignLink', CampaignLinkSchema);
+  (mongoose.models.CampaignLink as mongoose.Model<ICampaignLink>) ||
+  mongoose.model<ICampaignLink>('CampaignLink', CampaignLinkSchema);
 
 export default CampaignLink;

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types, type Document, models } from "mongoose";
+import mongoose, { Schema, Types, type Document } from "mongoose";
 
 export interface ICollabMatch extends Document {
   pairKey: string;
@@ -25,7 +25,7 @@ const CollabMatchSchema = new Schema<ICollabMatch>(
 CollabMatchSchema.index({ userA: 1, userB: 1, territoryNorm: 1 });
 
 const CollabMatch =
-  (models.CollabMatch as mongoose.Model<ICollabMatch>) ||
+  (mongoose.models.CollabMatch as mongoose.Model<ICollabMatch>) ||
   mongoose.model<ICollabMatch>("CollabMatch", CollabMatchSchema);
 
 export default CollabMatch;

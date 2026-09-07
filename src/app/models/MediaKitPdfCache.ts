@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, model, models } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMediaKitPdfCache extends Document {
   cacheKey: string;
@@ -24,7 +24,7 @@ const MediaKitPdfCacheSchema = new Schema<IMediaKitPdfCache>(
 MediaKitPdfCacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const MediaKitPdfCache =
-  (models.MediaKitPdfCache as mongoose.Model<IMediaKitPdfCache>) ||
-  model<IMediaKitPdfCache>('MediaKitPdfCache', MediaKitPdfCacheSchema);
+  (mongoose.models.MediaKitPdfCache as mongoose.Model<IMediaKitPdfCache>) ||
+  mongoose.model<IMediaKitPdfCache>('MediaKitPdfCache', MediaKitPdfCacheSchema);
 
 export default MediaKitPdfCache;

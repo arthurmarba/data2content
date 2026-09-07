@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types, Document, model, models } from 'mongoose';
+import mongoose, { Schema, Types, Document } from 'mongoose';
 
 export type BrandProposalStatus = 'novo' | 'visto' | 'respondido' | 'aceito' | 'rejeitado';
 export type BrandProposalBudgetIntent = 'provided' | 'requested';
@@ -278,7 +278,7 @@ BrandProposalSchema.index({ userId: 1, openedAt: 1, status: 1 });
 BrandProposalSchema.index({ mediaKitSlug: 1, createdAt: -1 });
 
 const BrandProposal =
-  (models.BrandProposal as mongoose.Model<IBrandProposal>) ||
-  model<IBrandProposal>('BrandProposal', BrandProposalSchema);
+  (mongoose.models.BrandProposal as mongoose.Model<IBrandProposal>) ||
+  mongoose.model<IBrandProposal>('BrandProposal', BrandProposalSchema);
 
 export default BrandProposal;

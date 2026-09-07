@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models, Types, Document } from "mongoose";
+import mongoose, { Schema, Types, Document } from "mongoose";
 
 export interface IPostCreationDraft extends Document {
   userId: Types.ObjectId;
@@ -40,8 +40,8 @@ PostCreationDraftSchema.index(
 );
 
 const PostCreationDraftModel =
-  (models.PostCreationDraft as mongoose.Model<IPostCreationDraft>) ||
-  model<IPostCreationDraft>("PostCreationDraft", PostCreationDraftSchema);
+  (mongoose.models.PostCreationDraft as mongoose.Model<IPostCreationDraft>) ||
+  mongoose.model<IPostCreationDraft>("PostCreationDraft", PostCreationDraftSchema);
 
 export default PostCreationDraftModel;
 export { PostCreationDraftModel };

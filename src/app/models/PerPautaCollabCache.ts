@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, models, Types } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 /**
  * PerPautaCollabCache — cache do resultado do matcher por-pauta (aba Collabs).
@@ -46,7 +46,7 @@ PerPautaCollabCacheSchema.index({ user: 1, cacheKey: 1 }, { unique: true });
 PerPautaCollabCacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const PerPautaCollabCache =
-  (models.PerPautaCollabCache as mongoose.Model<IPerPautaCollabCache>) ||
+  (mongoose.models.PerPautaCollabCache as mongoose.Model<IPerPautaCollabCache>) ||
   mongoose.model<IPerPautaCollabCache>("PerPautaCollabCache", PerPautaCollabCacheSchema);
 
 export default PerPautaCollabCache;

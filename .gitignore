@@ -81,6 +81,10 @@ keys/
 /output/**/*.gif
 /output/**/*.mp4
 /output/**/*.mov
+/output/**/*.aiff
+/output/**/*.wav
+/output/**/*.mp3
+/output/**/*.m4a
 /output/**/*.pdf
 /output/**/*.pptx
 /output/**/*.zip

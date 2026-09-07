@@ -1,6 +1,6 @@
 // src/app/models/PubliCalculation.ts
 
-import mongoose, { Schema, Types, Document, models, model } from 'mongoose';
+import mongoose, { Schema, Types, Document } from 'mongoose';
 
 export interface IPubliCalculationMetrics {
   reach?: number;
@@ -380,7 +380,7 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
 PubliCalculationSchema.index({ userId: 1, createdAt: -1 });
 
 const PubliCalculation =
-  (models.PubliCalculation as mongoose.Model<IPubliCalculation>) ||
-  model<IPubliCalculation>('PubliCalculation', PubliCalculationSchema);
+  (mongoose.models.PubliCalculation as mongoose.Model<IPubliCalculation>) ||
+  mongoose.model<IPubliCalculation>('PubliCalculation', PubliCalculationSchema);
 
 export default PubliCalculation;

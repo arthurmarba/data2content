@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types, Document, models, model } from 'mongoose';
+import mongoose, { Schema, Types, Document } from 'mongoose';
 
 export interface IMediaKitPackage extends Document {
     userId: Types.ObjectId;
@@ -72,7 +72,7 @@ const MediaKitPackageSchema = new Schema<IMediaKitPackage>(
 MediaKitPackageSchema.index({ userId: 1, order: 1 });
 
 const MediaKitPackage =
-    (models.MediaKitPackage as mongoose.Model<IMediaKitPackage>) ||
-    model<IMediaKitPackage>('MediaKitPackage', MediaKitPackageSchema);
+    (mongoose.models.MediaKitPackage as mongoose.Model<IMediaKitPackage>) ||
+    mongoose.model<IMediaKitPackage>('MediaKitPackage', MediaKitPackageSchema);
 
 export default MediaKitPackage;
