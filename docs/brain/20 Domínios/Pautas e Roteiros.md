@@ -36,6 +36,24 @@ A repetição é o inimigo silencioso — daí existirem três arquivos só pra 
 
 O V3 é a linha viva — o MCP também já usa ela (`generate_script_draft`, `critique_script_against_creator_dna`).
 
+Desde 07/09/2026, o seletor comum (`scriptEvidenceSelection.ts`) começa pelos
+posts com métricas atuais, cruza as transcrições disponíveis e distingue vencedor
+de exemplo de voz. `get_script_evidence_pack` permite escrita pelo modelo da
+conversa; o fallback textual interno também recebe as mesmas evidências.
+Capacidade privada, origem, período e cobertura são parte do contrato.
+
+`ScriptEvidenceSession` é uma revisão privada com validade de sete dias, usada
+na crítica e no salvamento. `ScriptEntry.evidenceProvenance` guarda fontes,
+métricas e versões do texto; `creatorFeedback` guarda preferências expressas.
+Novas leituras e mudanças de vínculo enfileiram `scriptEvidenceMaintenance.ts`;
+esse serviço atualiza desempenho/vínculo/DNA sem Gemini. A consulta não reconstrói
+DNA na requisição e avisa quando ele estiver defasado.
+
+Qualidade de transcrição é estrutural, não reconhecimento certificado do locutor.
+`scriptVoiceReview.ts` compara sinais textuais e oferece rubrica editorial; não
+prometer voz aprendida quando só há legenda/roteiro planejado, nem tratar o
+benchmark automático como preferência humana demonstrada.
+
 Antes de mexer no prompt, rode o parâmetro de comparação:
 
 ```bash

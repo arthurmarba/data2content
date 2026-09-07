@@ -497,6 +497,21 @@ export type EvaluateSceneOutcome =
   | { ok: true; result: SceneEvaluation }
   | { ok: false; reason: string; retryable: boolean };
 
+/**
+ * Erro de saldo/faturamento não melhora com retry imediato. Separá-lo de um 429 de
+ * tráfego evita três chamadas inúteis por conteúdo quando o crédito pré-pago acaba.
+ */
+export function isRetryableGeminiSceneError(message: string): boolean {
+  if (
+    /prepayment credits? (?:are )?depleted|insufficient (?:prepaid )?credits?|billing (?:is )?(?:disabled|required)|payment required/i.test(
+      message,
+    )
+  ) {
+    return false;
+  }
+  return /429|rate.?limit|quota|resource_exhausted|503|timeout|ECONN/i.test(message);
+}
+
 const DEFAULT_MODEL = process.env.GEMINI_CENA_MODEL || "gemini-2.5-flash";
 
 export interface EvaluateImagesParams {
@@ -574,7 +589,7 @@ export async function evaluateImagesAgainstMap(
   } catch (error) {
     const message = error instanceof Error ? error.message : "erro desconhecido";
     logger.warn(`${TAG} falha na leitura de foto/carrossel: ${message}`);
-    return { ok: false, reason: message, retryable: /429|rate|quota|503|timeout|ECONN/i.test(message) };
+    return { ok: false, reason: message, retryable: isRetryableGeminiSceneError(message) };
   }
 }
 
@@ -659,7 +674,7 @@ export async function evaluateSceneAgainstMap(
   } catch (error) {
     const message = error instanceof Error ? error.message : "erro desconhecido";
     logger.warn(`${TAG} falha na avaliação de cena: ${message}`);
-    const retryable = /429|rate|quota|503|timeout|ECONN/i.test(message);
+    const retryable = isRetryableGeminiSceneError(message);
     return { ok: false, reason: message, retryable };
   }
 }

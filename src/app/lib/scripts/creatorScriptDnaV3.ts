@@ -6,6 +6,8 @@ import CreatorScriptDnaProfile, {
 } from "@/app/models/CreatorScriptDnaProfile";
 import AudienceDemographicSnapshot from "@/app/models/demographics/AudienceDemographicSnapshot";
 import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
+import Metric from "@/app/models/Metric";
+import { metricPerformance } from "./scriptEvidenceSelection";
 import { getPublishedEvidenceCoverage } from "./publishedContentEvidence";
 
 type EvidenceDoc = Record<string, any>;
@@ -97,10 +99,11 @@ function rawPerformance(doc: EvidenceDoc) {
   const attention = duration && averageWatch !== null
     ? averageWatch / duration
     : reach && views !== null ? views / reach : null;
-  const depth = reach ? ((finite(p.saves) || 0) + (finite(p.shares) || 0)) / reach : null;
-  const conversation = reach ? (finite(p.comments) || 0) / reach : null;
-  const conversion = reach ? (finite(p.follows) || 0) / reach : null;
-  const fallback = reach ? (finite(p.interactions) || 0) / reach : finite(p.interactions);
+  const saves = finite(p.saves), shares = finite(p.shares), comments = finite(p.comments), follows = finite(p.follows), interactions = finite(p.interactions);
+  const depth = reach && saves !== null && shares !== null ? (saves + shares) / reach : null;
+  const conversation = reach && comments !== null ? comments / reach : null;
+  const conversion = reach && follows !== null ? follows / reach : null;
+  const fallback = reach && interactions !== null ? interactions / reach : null;
   return { attention, depth, conversation, conversion, fallback, exposure: reach || views || 0 };
 }
 
@@ -191,6 +194,11 @@ export async function buildCreatorScriptDnaV3(params: { userId: string; lookback
     AudienceDemographicSnapshot.findOne({ user: userId }).sort({ recordedAt: -1 }).lean<any>(),
   ]);
   const audience = audienceFromSnapshot(demographicSnapshot);
+  const metrics = docs.length ? await Metric.find({ user: userId, _id: { $in: docs.map(d => d.metricId) } })
+    .select("_id type stats updatedAt lastFetchedAt").lean<any[]>() : [];
+  const nonSpeechIds = new Set(metrics.filter(m => ["IMAGE", "CAROUSEL_ALBUM"].includes(m.type)).map(m => String(m._id)));
+  const byId = new Map(metrics.map(m => [String(m._id), metricPerformance(m)]));
+  for (const doc of docs) doc.performance = byId.get(String(doc.metricId)) || {};
   const coverage = await getPublishedEvidenceCoverage({
     userId: params.userId,
     lookbackDays,
@@ -200,7 +208,7 @@ export async function buildCreatorScriptDnaV3(params: { userId: string; lookback
   const ranked = [...docs].sort((a, b) => (indices.get(String(b._id)) || 0) - (indices.get(String(a._id)) || 0));
   const winnerCount = ranked.length ? Math.max(1, Math.ceil(ranked.length * 0.35)) : 0;
   const winners = ranked.slice(0, winnerCount);
-  const transcriptDocs = docs.filter((doc) => String(doc.transcript?.fullText || "").trim());
+  const transcriptDocs = docs.filter((doc) => !nonSpeechIds.has(String(doc.metricId)) && doc.transcript?.source === "gemini_video" && doc.completeness?.transcript && String(doc.transcript?.fullText || "").trim());
   const transcripts = transcriptDocs.map((doc) => String(doc.transcript?.fullText || "").trim());
   const transcriptWords = transcripts.map((item) => words(item).length);
   const totalWords = transcriptWords.reduce((sum, item) => sum + item, 0);
@@ -306,7 +314,8 @@ export async function getCreatorScriptDnaV3(params: {
   const generatedAt = existing?.generatedAt ? new Date(existing.generatedAt).getTime() : 0;
   if (existing && Date.now() - generatedAt <= maxAgeMs) return existing;
   if (params.rebuildIfStale === false) return existing;
-  return buildCreatorScriptDnaV3({ userId: params.userId });
+  // Reconstrução ocorre no worker de manutenção; consultas servem a revisão disponível.
+  return existing;
 }
 
 export function sanitizeCreatorScriptDnaForMcp(profile: any) {

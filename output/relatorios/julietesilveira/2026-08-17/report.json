@@ -1,0 +1,268 @@
+{
+  "data": "2026-08-17",
+  "periodo": { "de": "2026-08-11", "ate": "2026-08-17" },
+  "criador": {
+    "userId": "69e8f96564be9f1592a5ca6e",
+    "nome": "Juliete Silveira",
+    "handle": "@julietesilveira",
+    "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/687842356_18584604064001581_8288653583026288733_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=G8G1VJhE_8UQ7kNvwGpII6B&_nc_oc=AdpkzV89GOTQRBKxjtM4zSHnkkvDKqFqm4TtH_zRBcNc2DpRpnjxyBGk4UdeMXcE6Ak&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=KXDlhIKiD4uGircvMooWcQ&oh=00_AQEbXTcU2j5nNZPfuJbEnWTXIJMLI7lYVKlI1QgkIJZWiw&oe=6A88E1FF",
+    "narrativaCentral": "Uma estudante de medicina que navega a maternidade e a vida adulta com humor e ironia",
+    "territorios": ["Maternidade", "Estudo de medicina", "Humor cotidiano", "Autoconhecimento", "Relacionamentos", "Saúde mental"],
+    "tom": "Casual e direto, Humor leve, Reflexivo"
+  },
+  "resumoSemana": "Semana de contraste forte: o maior viral da sua conta até aqui aconteceu essa semana — só que fora da sua narrativa. Ao lado dele, dois posts pequenos em alcance mas certeiros na voz (a consulta do 'deu ruim' e o dia em que a maternidade cancelou os planos) mostram onde mora o ponto-ouro de verdade. Nota técnica: o billing do Gemini foi resolvido no meio da apuração e consegui ler a cena de 4 dos 13 posts. Os outros 9 — incluindo o próprio viral — ficaram de fora não por causa do billing, mas porque nunca tiveram a duração do vídeo registrada no banco: uma lacuna de dado diferente, fora do que este relatório resolve. As avaliações desses 9 seguem se apoiando em legenda, números e no padrão de cena das semanas anteriores.",
+  "avaliacoes": [
+    {
+      "postId": "18349853974219002",
+      "postLink": "https://www.instagram.com/reel/Db4YtFXBpzE/",
+      "postDate": "2026-08-11",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/770920315_18611841715001581_1307231933972241683_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=5squWWuKz6YQ7kNvwGgLvqM&_nc_oc=Adq_IOvRy55pcA6QZH15XU66yk2b6cruYkz8k-AQ07IilNsLX4lYohBgkeNtgzS3Nr9oFgzBrQ-ng18iVZZ9xq-B&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=1xHKjwev_JkCAkJSB1aUfQ&_nc_tpa=Q5bMBQJxsgYsDTzBUVoJ1829K8mL7Za90_Yp05WJTqgOQ3lL137r8Mw-7afR9AOg08EIdRe6D16tTpBlGQ&oh=00_AQEaL6Cg2rtSaMyniTB9I65pCpyCVOg9kBP064u0LTO8sg&oe=6A890AF7",
+      "oQueEra": "humor genérico · 'aquela amiga que confirma qualquer mentira' · formato de marcar amiga",
+      "narrativa": "vermelho",
+      "audiencia": "verde",
+      "marca": "amarelo",
+      "stat": { "valor": "1639×", "label": "mais compartilhado que a sua mediana — o maior viral que você já teve" },
+      "funcionou": "É puro mecanismo de compartilhamento: relatable, universal, fácil de marcar uma amiga. Bateu um recorde absoluto de alcance.",
+      "enfraqueceu": "Não tem uma gota de Juliete nele — é o mesmo tipo de formato que o relatório passado já tinha marcado como armadilha: viraliza, mas ensina a audiência a lembrar do meme, não de você. Nenhuma menção a maternidade, medicina ou identidade nordestina.",
+      "veredito": "ajustar"
+    },
+    {
+      "postId": "18173715622441729",
+      "postLink": "https://www.instagram.com/reel/Db6ur4_hunN/",
+      "postDate": "2026-08-11",
+      "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/771757313_18612115639001581_8893273295425711268_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=N74jwWp_C1cQ7kNvwGNFTZF&_nc_oc=AdrCvuE6tNhlaBO9hPyR5Tg8rQ2v_oLOuI1rwdplYcVp0L3cKtn2n2P7LjwdTjRKsXQ&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=qagTCqi1bSzverjV_UDkXQ&_nc_tpa=Q5bMBQKkTA6L127hCX4dMMmSyd1SRauPCiNH-pdgIVKBBYvL--koU3HNia9XXtJezjFcJU2CmUKT2JaExw&oh=00_AQGpEYJWktQzhD90ClveC64Ecf08JU134b2rwPRf6sJbNg&oe=6A843DCB",
+      "oQueEra": "humor genérico · usar o ChatGPT pra suavizar mensagem · sem cena pessoal",
+      "narrativa": "vermelho",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,1×", "label": "quase nenhuma visualização perto da sua mediana" },
+      "funcionou": "Nada de relevante — praticamente não saiu do zero.",
+      "enfraqueceu": "Mesmo problema do post anterior (formato genérico, sem cena sua) mas sem o golpe de sorte do algoritmo — aqui fica claro que o formato sozinho não sustenta nada.",
+      "veredito": "nao-repetir"
+    },
+    {
+      "postId": "18070708520453706",
+      "postLink": "https://www.instagram.com/reel/Db7DlHUhdWm/",
+      "postDate": "2026-08-12",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/766636403_1074371308460099_3811283977242077788_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=qw0ipnwutw4Q7kNvwE02ock&_nc_oc=AdoTOf6rYd3ptB8QRVUts5XF_h02rexQ3_cn8TOj-8Up_jKMYdGckvJ2F8FKrFdkiWPaZFYCXtDd63Qjw30xSIn0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=J6vYSyaamT-WLtQCw8y-zg&_nc_tpa=Q5bMBQKG1kTTxJROkzDTUhnDnwkbCxdVrgcsl-SKc3cy6FNOfUCUWI97dj-NHk_TxNVc7yEKAK7FFHGNDg&oh=00_AQEzNkA-uKhdovRvwtRr-6hZBXOLyXJFk1Yv9jnDs_Nxyw&oe=6A891CC5",
+      "oQueEra": "maternidade · dia cancelado por filho doente · vulnerabilidade real",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "fraco",
+      "stat": { "valor": "1,7×", "label": "mais compartilhado que a sua mediana" },
+      "gancho": "Hoje era pra ser meu primeiro dia de volta à rotina.",
+      "cena": { "local": "Quarto", "assunto": "filho doente e mudança de planos" },
+      "funcionou": "Cena concreta e específica no quarto, com a fala exata 'faz nove dias que eu não sei o que é dormir direito' — exatamente o tipo de imagem real que costuma render bem pra você.",
+      "enfraqueceu": "Salvamento ficou abaixo da mediana — a vulnerabilidade rendeu compartilhamento (identificação) mas não guardou (não virou referência pra usar depois).",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18091071851199887",
+      "postLink": "https://www.instagram.com/reel/Db8p60KRfZE/",
+      "postDate": "2026-08-12",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774042431_18612362698001581_5242855322065433098_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=-XO8Rzs3PywQ7kNvwEMoAee&_nc_oc=AdoXiuxChp9YX21FCDNyis6w-ZBFudsiahDglZqBY_3vrW-TWYxbEBXXwDVf3CaRM6eVP1d3reE8zexOpTa8OHJq&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=NVjavazkiGqlATYlmolNsQ&_nc_tpa=Q5bMBQJ-xPaEQ0IdNX1e-GrohqgRZH9zgDGHMTeOaT7B9mvUte07Nz0S2h16pmylsQlpy_V_apoVhx-geQ&oh=00_AQExBET2V18_v5aBJTlUJnoUv2h2HLFZVuaWGUChBF3T4Q&oe=6A890FB4",
+      "oQueEra": "mensagem motivacional · reflexão abstrata · sem cena específica",
+      "narrativa": "amarelo",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,4×", "label": "do que você costuma compartilhar" },
+      "funcionou": "A frase da filha ('que dia lindo, né mamãe') é o único fiapo de cena real no post.",
+      "enfraqueceu": "É exatamente o formato que o relatório passado já tinha marcado como fraco: mensagem motivacional sem cena que a sustente. Zero salvamento.",
+      "veredito": "nao-repetir"
+    },
+    {
+      "postId": "18110846288051996",
+      "postLink": "https://www.instagram.com/reel/Db9F7CWB8dZ/",
+      "postDate": "2026-08-12",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774469180_18612430558001581_6371430523358711951_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=qlPenr2u4-sQ7kNvwH-zWep&_nc_oc=AdomUmMw0tW98Bkk5lUyUuvHxkTgf3WwVmh6QfP1pp5V1HFSq1Vm9h8TI8KPur_CcPPOetTWDaFCiUboh5mcevSQ&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=zcueoqcmedQTDz5L4sQX1A&_nc_tpa=Q5bMBQLHiDiqCRzffy1A3OPg7akj3SYmEEELvw7_qAtfqSFGHZSK6odn8BcveDuoGpzI77RHlaKsh5A9wg&oh=00_AQFK5dqjEDqc4PCCgByNCh2xpmm4ub7nfLj_par_Mh3qBg&oe=6A89237B",
+      "oQueEra": "dica de parentalidade · texto informativo · sem cena",
+      "narrativa": "amarelo",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,1×", "label": "quase nenhuma visualização perto da sua mediana" },
+      "funcionou": "Nada de relevante — o post praticamente não circulou.",
+      "enfraqueceu": "É um PSA (brincar é desenvolvimento infantil) sem nenhuma cena sua por trás — terceiro post motivacional/informativo do dia, e o terceiro a flopar.",
+      "veredito": "nao-repetir"
+    },
+    {
+      "postId": "18110675059905231",
+      "postLink": "https://www.instagram.com/reel/Db9Jw8zhBqT/",
+      "postDate": "2026-08-12",
+      "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t15.5256-10/774512537_4358125961114957_3280244525517564254_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=vKQbmBFsWTAQ7kNvwHXi4k8&_nc_oc=AdoWJaZA_NVd37qL6q8wRLU85WGKGCVhMBzLiOjgi-yCLkFWS6BJ_niKNqfj2-_po78&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=qagTCqi1bSzverjV_UDkXQ&_nc_tpa=Q5bMBQJeJdfOFWyWt0fFRaU9tbNW7MM1bfiZbFdRHwjRwVLWqyLsx9aUoMjQmapU80jBBhfB-DN3Q1VYgA&oh=00_AQHHaySGGZ1bQRGSf5bb4bys94zqrrbzo8j57gyxeTtA1w&oe=6A8436E7",
+      "oQueEra": "reflexão espiritual · música · sem cena",
+      "narrativa": "amarelo",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,1×", "label": "quase nenhuma visualização perto da sua mediana" },
+      "funcionou": "Nada de relevante.",
+      "enfraqueceu": "Quarto post do mesmo dia no formato reflexivo/musical sem cena — o dia inteiro (12/08) foi dominado por esse formato, e nenhum deles rendeu.",
+      "veredito": "nao-repetir"
+    },
+    {
+      "postId": "18109048649046092",
+      "postLink": "https://www.instagram.com/reel/Db9hgFsBWt3/",
+      "postDate": "2026-08-13",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/773316697_18612496870001581_2987485219579217368_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=wwLLu440rVsQ7kNvwEJYfY9&_nc_oc=AdoAZX3hAfcsZZza8_-Zv7TBf64jA4XISGfgk48h4vXu_laufPMvDNr-pL5VQ7gLDuChNNvdooImtO6u0yMR-8bD&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=_8Abt6lPaPzF92M7jdhDbw&_nc_tpa=Q5bMBQJmVt9_a3WZrDShwIRixX8agJ_lbRDiLkDa22W5-c_RA-VB3P6NA90A0BMo5dWBFfISqIECQLJTSA&oh=00_AQEpBUMrIy1RxnxCnstDtJmRPDZhlp_cBfQVz8Vk746yxg&oe=6A88FFDD",
+      "oQueEra": "humor cotidiano · perdendo a paciência contando gotinha de remédio · autoirônico",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": { "valor": "1,7×", "label": "mais compartilhado que a sua mediana" },
+      "gancho": "um dois três quatro",
+      "cena": { "local": "Quarto", "assunto": "contar gotas de remédio" },
+      "funcionou": "Cena específica e autoirônica (contar gotinha por gotinha, 'um dois três quatro', até perder a paciência) — humor cotidiano genuíno, sua voz de sempre.",
+      "enfraqueceu": "Zero salvamento — rendeu como piada do momento, não como algo pra guardar.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18112501105978293",
+      "postLink": "https://www.instagram.com/reel/Db_F6uIRl0v/",
+      "postDate": "2026-08-13",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t15.5256-10/774666123_2533911870410554_1164493079917129066_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=INmAzxVXv-EQ7kNvwEmrjpA&_nc_oc=AdqX2sbbuYfYRL9IlPmm2z8XtsPWAfTqmC_Q2RkH0RWV0--Mw5wBLlpLlAPj4WoavgBMWheNfINwrQL5io54qNPb&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=mbl09U5L6QrF3lKTp279zw&_nc_tpa=Q5bMBQK8forslg-eVZjmfe__db1vk_M-FhRxrmWEIeJEUmFDEMhKcqmEOP_YoRfNP7z1ew9_UoZttJcZeA&oh=00_AQG-lDWbj-muWDyAX96EMn8BX6GTnIBfSH8ecH28y3We8Q&oe=6A88F06B",
+      "oQueEra": "relacionamento · casamento · marido participando de brincadeira sem entender",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": { "valor": "3,3×", "label": "mais salvo que a sua mediana — o maior salvamento relativo da semana depois da clamídia" },
+      "funcionou": "Salvamento bem acima da mediana mesmo com alcance modesto — sinal de quem guarda pra rever ou mandar pro parceiro, não só de quem passa o olho.",
+      "enfraqueceu": "Alcance ficou abaixo da mediana — o formato (marido + brincadeira) rende fidelidade, mas ainda não descoberta.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18098960132613843",
+      "postLink": "https://www.instagram.com/reel/Db_2y2ZBvTi/",
+      "postDate": "2026-08-13",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774192407_18612838339001581_2653993411966007421_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=zceWEdlIfwoQ7kNvwFQUPhw&_nc_oc=AdrNB9WeT3AqeinW1XltzGGbxZMvfS9UuCMM0X-3GmMnLCcNBgigp9AB7LtwFI8mPon-VGsG6hP4jcLRKWzPLBAG&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=d8yMpIbxmTVjfzYrS1OfWg&_nc_tpa=Q5bMBQKt64fCLRTj6egmwJE9K9BEhRGNLIS0L4lW5nI5Zm-FC3E0Mt4-_4HQnYT1iT_Kh-_-Z_5wVVTOBw&oh=00_AQF4W0Z_vToWyD9EJXBVb_SFO1cMVFKzBr1up1GCnmkl_A&oe=6A8920F5",
+      "oQueEra": "medicina + humor · consulta de IST · consultório",
+      "narrativa": "verde",
+      "audiencia": "verde",
+      "marca": "verde",
+      "stat": { "valor": "13,8×", "label": "mais visto e 11,3× mais salvo que a sua mediana — o segundo melhor post da semana" },
+      "funcionou": "É o cruzamento raro que só você tem: humor + medicina real, no consultório, com um caso concreto (a clamídia, o olhar pro marido, o silêncio). Salvamento altíssimo — a audiência guarda como referência de saúde, não só ri.",
+      "enfraqueceu": "Nada a apontar — é o post mais completo da semana nos três círculos.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18117336812488369",
+      "postLink": "https://www.instagram.com/reel/DcALRfrha05/",
+      "postDate": "2026-08-14",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774197469_18612883174001581_5796332805927209855_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=oxjMWN2EbvUQ7kNvwGEkgnM&_nc_oc=Adpf8q24oMfbQoIoLfK6fu169M02dyCDbl6TPZy62VJF7nB6qDIxNF7e-mgtwCcEs6BDjQWyCl6omr0E76vAaqYb&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=CP3Hkg7d8C366Zj-oG0wvQ&_nc_tpa=Q5bMBQLb_4Nu79KchkxAm_qghVqcsvmj9fQBBImy7TTqWVVBMCnNwrl4HsARQB9YDkSXxDAUJNRtkTOnow&oh=00_AQHQCxfu06bwuD7tOqMuybSFauASQIcEvNrVyl7rs2m7nw&oe=6A88FB2B",
+      "oQueEra": "beleza + maternidade · tutorial de make com a filha · autoirônico",
+      "narrativa": "amarelo",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,0×", "label": "nenhum compartilhamento" },
+      "gancho": "Você parece destruída.",
+      "cena": { "local": "Banheiro", "assunto": "interação com a filha durante a maquiagem" },
+      "funcionou": "A cena real tem mais território do que a legenda sugeria: a filha está junto no banheiro, e a fala 'você não nasceu assim, você fez o cabelo' é uma boa piada específica — não é só beleza genérica, tem maternidade dentro.",
+      "enfraqueceu": "Mesmo com a filha em cena, beleza segue sendo o tema declarado, não maternidade — e a audiência não pediu: zero compartilhamento e visualização abaixo da mediana.",
+      "veredito": "ajustar"
+    },
+    {
+      "postId": "18096001988057461",
+      "postLink": "https://www.instagram.com/reel/DcBZBbkRLxj/",
+      "postDate": "2026-08-14",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774761614_18613032607001581_6214836656617828031_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=m9lrMwuP1C4Q7kNvwGQ50mj&_nc_oc=AdqwiTbCg3widWk18YRZ_CR7eKHnbXTCZ2sIiXkctDILg4UW-FSrV5tuAH6UdY5nA_52lwVlWybo8fvJ7MdY0nsD&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=emKgzFhjUv9Bu2RvTgkaAQ&_nc_tpa=Q5bMBQJIxtIvmXZHy4Ql44988YttUgmxnEeggsQc5z141_8XSfW0nNnwB8kWOeputDd4JRpwuCmQ2YaRrQ&oh=00_AQF8JlZGKpaAkiblrisxx-EBOk7LQpf4vIolvSQHu6G_jg&oe=6A890FC9",
+      "oQueEra": "autoconhecimento · humor sobre traço de personalidade · documentário",
+      "narrativa": "amarelo",
+      "audiencia": "amarelo",
+      "marca": "fraco",
+      "stat": { "valor": "2,1×", "label": "mais compartilhado que a sua mediana, mas com visualização abaixo" },
+      "funcionou": "Um público menor, mas que se reconheceu e compartilhou mais — toca autoconhecimento com humor, ainda que sem cena concreta.",
+      "enfraqueceu": "É comentário sobre uma tela (o documentário), não uma cena sua — mais próximo de opinião do que de vivência.",
+      "veredito": "ajustar"
+    },
+    {
+      "postId": "18016934681914426",
+      "postLink": "https://www.instagram.com/reel/DcFFpL5hbhB/",
+      "postDate": "2026-08-15",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/774513628_18613650496001581_431880101918167096_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=xL2BlsMxsisQ7kNvwEFXqtm&_nc_oc=AdqkmRuVplLFjGrtjkb-LRILNzniUcsXBKA9jUFI3k4-gWpvVQARC4w2gv-9dIbwo4RCmVe5_Rxd7TGiuqy17_CL&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=Rh_JA8v6c_IBZQHT4k8Upg&_nc_tpa=Q5bMBQKU3R5DDATeucmg4LLq7IJpBp88K3_Xcv5QXCXX3pEFpuUE8I3VlnF4GJrhFf1yruHcqfFIc-lZ6w&oh=00_AQGBbsny_Z6vhoXYxkTPBMh-LRo-BnWFO-pzyB_xen9x8A&oe=6A8914AE",
+      "oQueEra": "relacionamento · casamento · pegadinha que não deu certo",
+      "narrativa": "verde",
+      "audiencia": "vermelho",
+      "marca": "fraco",
+      "stat": { "valor": "0,0×", "label": "nenhum compartilhamento nem salvamento" },
+      "funcionou": "Views e alcance dentro da mediana — o público chegou.",
+      "enfraqueceu": "Chegou, mas não pediu mais: zero salvamento e zero compartilhamento. A pegadinha que 'deu errado pra ela' não teve uma virada forte o bastante pra render.",
+      "veredito": "ajustar"
+    },
+    {
+      "postId": "17876132805688510",
+      "postLink": "https://www.instagram.com/reel/DcH3zUeBDJ6/",
+      "postDate": "2026-08-17",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t15.5256-10/774116741_1703309034063444_3578690787991000577_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=p574wBfSriwQ7kNvwHQsate&_nc_oc=AdoaQB0MTTxZ_K3NXP6R-7EsyY597RZ9j7DTkBNndLLSUC6IQyTJ7VwIKxRBNLwXnxzknrA9fJgSX0BGVmyUkgZc&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=UtQpDCq5n5Cz-0m6jddL1w&_nc_tpa=Q5bMBQLhS_W4cZee9mrOfR7NjuybZS0NiEHPSTis8oCS9GUOFPtEmQYEYpQSxMulGPX-55eYuTDXJ-4MbA&oh=00_AQGjHn_1z4WAY2wpmokLb5LzK2bf4kuNiy3LOg3JEacrBA&oe=6A891B46",
+      "oQueEra": "relacionamento · pegadinha com ChatGPT no marido · casamento",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": { "valor": "1,1×", "label": "bem próximo da sua mediana em todos os índices" },
+      "gancho": "chat, meu marido já me traiu?",
+      "cena": { "local": "Quarto", "assunto": "marido nervoso com as respostas do chat gpt" },
+      "funcionou": "Retoma o mesmo eixo (marido + tecnologia) que já rendeu bem em outro formato, com uma fala forte de abertura ('você me garante que eu não sou chifruda?') — aqui com um resultado mediano, nem flop nem destaque.",
+      "enfraqueceu": "Comparado ao outro post desta semana no mesmo eixo casamento (o do salvamento 3,3×), esse tem uma virada mais fraca — a piada é boa, mas não dá o mesmo motivo pra guardar.",
+      "veredito": "ajustar"
+    }
+  ],
+  "padroesLeitura": {
+    "assuntos": "A ponta mais forte dos 90 dias inteiros é uma imagem concreta e específica — não uma frase de efeito. As mais fracas são o oposto: comentário abstrato sobre a própria audiência ('elas estão amando o que você posta', 'você sabe tudo sobre eles mas não sobre você') — textos que parecem copy de autoajuda genérica, não uma cena vivida. É a mesma distância que separou a consulta da clamídia (cena real) dos três motivacionais desta semana (frase sem cena).",
+    "assuntoRepetido": "Os poucos assuntos que você já repetiu — reflexão sobre a vida, filha doente, mãe preocupada — têm amostra ainda pequena (2 posts cada), mas apontam todos pro mesmo lugar: medo e cuidado maternos tratados com uma cena real por trás. Vale continuar alimentando esse veio antes de tirar conclusão definitiva.",
+    "cenario": "Carro aparece com índice altíssimo mas amostra mínima (2 posts) — é hipótese, não regra ainda. O que já tem lastro real é a sala (17 posts, tendência, acima da mediana): seu cenário de casa mais forte e mais usado ao mesmo tempo. O quarto vem logo atrás com amostra que já sustenta — os dois posts desta semana lidos lá (o dia cancelado, a gotinha de remédio) confirmam esse cenário como um segundo porto seguro além da sala.",
+    "elenco": "Estar sozinha em cena, de longe a categoria mais comum (69 posts), já é levemente positiva sozinha. As demais — casa, objeto do cotidiano, look montado, filho em cena, natureza — andam juntas, levemente abaixo da mediana. Isso diz que QUEM (ou o quê) mais aparece não é o que separa um post forte de um fraco pra você; o que separa é o ângulo específico da cena, não o elenco.",
+    "objeto": "A caneca é o objeto com melhor combinação de força e amostra real. A garrafa de água é o único objeto com amostra decente (4 posts) e ainda assim abaixo da mediana — vale evitar como prop central.",
+    "tom": "Humor e direto andam os dois acima da mediana, com amostra real dos dois lados — o tom sozinho não é o que separa um post forte de um fraco pra você. A queda dos três motivacionais desta semana não vem do tom sério em si, vem da ausência de cena: eles são mensagem sem imagem, não tom sério com imagem.",
+    "enquadramento": "Câmera fixa, plano médio e plano aberto — os enquadramentos mais compostos e menos 'selfie' — puxam bem acima da mediana com amostra grande dos três lados. Selfie no braço é a única opção abaixo da mediana. O enquadramento mais produzido rende mais que o mais cru, ao contrário do que costuma valer pra outros criadores.",
+    "dia": "Sexta e domingo têm o melhor resultado real (amostra de dois dígitos nos dois). Quarta-feira, o dia que você MAIS usa, é justamente um dos mais fracos — frequência e performance não estão alinhadas aí. Segunda aparece fraca na média histórica; o pico gigante desta semana nela é o viral fora da curva, não um padrão novo de segunda-feira.",
+    "horario": "20h-24h é seu horário mais forte com amostra grande (quase metade dos posts) — hábito real que sustenta resultado. Manhã cedo (0h-4h) aparece com índice enorme mas amostra mínima — indício, não regra.",
+    "ganchos": "Os ganchos que mais renderam nomeiam algo específico — uma pessoa (Bruno Magno), uma expressão nordestina ('cavalo égua'), um momento preciso. Os que menos renderam são comentários sobre a própria audiência ou frases soltas sem imagem nenhuma atrás. O gancho forte mostra uma cena; o fraco comenta sobre si mesmo."
+  },
+  "audiencia": {
+    "resumo": "Sua audiência pede humor cotidiano com uma cena concreta por trás — e responde ainda mais forte quando essa cena cruza medicina com humor, o único território que só você tem. O que ela historicamente ignora é mensagem motivacional ou reflexiva sem uma cena que sustente, e essa semana confirmou isso três vezes seguidas.",
+    "itens": [
+      { "dimensao": "humor cotidiano com cena concreta (casamento, filhos, consultório)", "sinal": "alto", "nota": "onde moram os maiores acertos reais da semana — a clamídia, a gotinha de remédio, a brincadeira do casamento — todos com uma cena específica por trás" },
+      { "dimensao": "medicina cruzada com humor (a paciente-médica no consultório)", "sinal": "alto", "nota": "segundo melhor post da semana e um dos poucos que já cruza dois territórios do mapa ao mesmo tempo" },
+      { "dimensao": "humor genérico sem assinatura pessoal (meme, formato universal)", "sinal": "medio", "nota": "pode viralizar em alcance — foi o maior post da semana —, mas historicamente não constrói assinatura; ensina a lembrar do meme, não de você" },
+      { "dimensao": "mensagem motivacional ou reflexiva sem cena", "sinal": "baixo", "nota": "três tentativas essa semana, todas abaixo da mediana — o relatório passado já tinha avisado" }
+    ]
+  },
+  "facaMais": [
+    "Cena concreta e específica (um objeto, uma frase de alguém, um lugar) em vez de mensagem abstrata — é a diferença entre o post da clamídia (13,8× visualização, 11,3× salvamento) e os três motivacionais desta semana (quase zero).",
+    "Cruzar medicina com humor — o consultório, o diagnóstico, o jargão médico virando piada. É uma vantagem que praticamente nenhum outro criador de humor materno tem.",
+    "Enquadramento composto (câmera fixa, plano médio ou aberto) em vez de selfie — é o padrão mais bem evidenciado dos 90 dias, com amostra grande dos dois lados."
+  ],
+  "facaMenos": [
+    "Mensagem motivacional ou reflexiva sem uma cena por trás — três tentativas essa semana, todas abaixo da mediana. O padrão de 90 dias já vinha avisando isso desde o relatório passado.",
+    "Formato genérico de humor sem assinatura pessoal (meme universal, dica de chat) — o post mais viral da semana é exatamente esse tipo, e ele treina a audiência a lembrar do formato, não de você.",
+    "Publicar quarta-feira só porque é o dia que mais usa — é um dos dias mais fracos com a maior amostra de todos; sexta e domingo rendem mais e são menos usados."
+  ],
+  "plano": [
+    {
+      "titulo": "A consulta que virou piada de família: quando o jargão médico não convence ninguém em casa",
+      "porque": "o post da clamídia foi o segundo melhor da semana cruzando medicina + humor — vale repetir esse cruzamento de propósito, com uma cena nova.",
+      "mira": "centro"
+    },
+    {
+      "titulo": "Cavalo égua: o dia que descobri que só falo nordestinês debaixo de pressão",
+      "porque": "'cavalo égua' está entre os ganchos mais fortes dos 90 dias, e identidade nordestina é o território que o seu próprio mapa marca como menos explorado.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "O dia em que a maternidade cancelou meus planos de novo — só que dessa vez eu já sabia o que fazer",
+      "porque": "continua direto do post mais forte e mais sincero da semana no eixo maternidade (dia planejado, filho com febre), sem repetir a mesma cena.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "Peguei o formato que viralizou essa semana e botei a Juliete dentro dele",
+      "porque": "testa a lição do post mais viral da semana: manter o mecanismo de compartilhamento fácil, mas substituir o conteúdo genérico por uma cena ancorada na sua narrativa.",
+      "mira": "narrativa+audiencia"
+    }
+  ],
+  "comparativo": {
+    "prometido": [
+      { "item": "A noite em que precisei decidir: era medo de mãe ou sinal que a estudante de medicina não podia ignorar?", "cumpriu": "parcial", "nota": "o post do dia cancelado por causa do filho com febre toca o mesmo medo materno, mas sem o cruzamento explícito com o olhar de estudante de medicina que a pauta prometia." },
+      { "item": "Mãe nordestina na triagem: o protocolo diz uma coisa, o coração diz 'oxente, atende logo meu filho'", "cumpriu": "nao", "nota": "não encontrei esse conteúdo nos posts desta semana." },
+      { "item": "A consulta na UPA que mudou o jeito como eu cuido dos meus filhos", "cumpriu": "nao", "nota": "saiu uma consulta médica (a da clamídia), mas como paciente, não como mãe cuidando dos filhos — ângulo diferente do prometido." },
+      { "item": "Brincando de consultório: minha filha virou a paciente mais difícil do plantão", "cumpriu": "nao", "nota": "não saiu." }
+    ],
+    "delta": "As pautas específicas prometidas não foram ao ar como roteirizadas, mas o instinto por trás delas se confirmou sozinho: os dois posts mais sólidos da semana (a consulta da clamídia e o dia cancelado pela febre do filho) vieram exatamente do cruzamento medicina+maternidade que o plano passado apontava, só que em versões orgânicas, não nas pautas exatas. Nota à parte: o post viral desta semana (18349853974219002) já tinha sido avaliado no relatório anterior com selo 'ajustar' — com a semana completa de dados, o tamanho do viral ficou muito maior (1639× a mediana), mas a leitura não muda: é alcance sem narrativa, não um novo padrão a perseguir."
+  }
+}

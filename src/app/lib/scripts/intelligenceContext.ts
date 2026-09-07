@@ -1551,6 +1551,7 @@ export async function buildScriptIntelligenceContext(params: {
   userId: string;
   prompt: string;
   lookbackDays?: number;
+  readOnly?: boolean;
 }): Promise<ScriptIntelligenceContext> {
   const totalStartMs = Date.now();
   try {
@@ -1617,7 +1618,7 @@ export async function buildScriptIntelligenceContext(params: {
           rebuildIfMissing: false,
           rebuildIfCorrupted: false,
         });
-        if (!storedStyleProfile) {
+        if (!storedStyleProfile && !params.readOnly) {
           void refreshScriptStyleProfile(params.userId, { awaitCompletion: false }).catch(() => null);
         }
         styleProfile = buildScriptStyleContext(storedStyleProfile);

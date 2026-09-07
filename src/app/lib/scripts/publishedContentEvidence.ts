@@ -8,6 +8,7 @@ import PublishedContentEvidence, {
   type PublishedTranscriptSegment,
 } from "@/app/models/PublishedContentEvidence";
 import ScriptEntry from "@/app/models/ScriptEntry";
+import { assessTranscriptQuality } from "./transcriptQuality";
 import AudienceDemographicSnapshot from "@/app/models/demographics/AudienceDemographicSnapshot";
 
 export type PublishedEvidenceCoverage = {
@@ -208,11 +209,11 @@ export async function upsertPublishedContentEvidence(params: {
   if (!Types.ObjectId.isValid(params.metricId)) throw new Error("invalid_metric_id");
   await connectToDatabase();
   const metric = await MetricModel.findById(params.metricId)
-    .select("user instagramMediaId postDate description stats sceneElements")
+    .select("user instagramMediaId postDate description stats sceneElements type")
     .lean<any>();
   if (!metric) throw new Error("metric_not_found");
 
-  const observedTranscript = cleanText(params.scene.transcript, 30000);
+  const observedTranscript = ["IMAGE", "CAROUSEL_ALBUM"].includes(metric.type) ? null : cleanText(params.scene.transcript, 30000);
   const segments = normalizeSegments(params.scene.transcriptSegments);
   const scenes = normalizeScenes(params.scene.sceneTimeline);
   const stats = (metric.stats || {}) as Record<string, unknown>;
@@ -249,6 +250,7 @@ export async function upsertPublishedContentEvidence(params: {
           wordCount: words(fullTranscript),
           language: fullTranscript ? "pt-BR" : null,
           source: transcriptSource,
+          quality: assessTranscriptQuality(observedTranscript, segments, durationSeconds, (params.scene.transcript?.length || 0) >= 30000),
         },
         scenes,
         narrative: {
@@ -286,7 +288,7 @@ export async function upsertPublishedContentEvidence(params: {
           source: scriptLink.source,
         },
         completeness: {
-          transcript: Boolean(fullTranscript && words(fullTranscript) >= 8),
+          transcript: Boolean(observedTranscript && words(observedTranscript) >= 8),
           scenes: scenes.length > 0,
           performance: performanceAvailable,
           duration: durationSeconds !== null,
@@ -341,7 +343,8 @@ export async function getPublishedEvidenceCoverage(params: {
       { $group: {
         _id: null,
         evidenceRecords: { $sum: 1 },
-        fullTranscriptAvailable: { $sum: { $cond: ["$completeness.transcript", 1, 0] } },
+        fullTranscriptAvailable: { $sum: { $cond: [{ $and: ["$completeness.transcript", { $eq: ["$transcript.source", "gemini_video"] }] }, 1, 0] } },
+        observedWithPerformance: { $sum: { $cond: [{ $and: ["$completeness.transcript", "$completeness.performance", { $eq: ["$transcript.source", "gemini_video"] }] }, 1, 0] } },
         scenesAvailable: { $sum: { $cond: ["$completeness.scenes", 1, 0] } },
         durationAvailable: { $sum: { $cond: ["$completeness.duration", 1, 0] } },
         performanceAvailable: { $sum: { $cond: ["$completeness.performance", 1, 0] } },
@@ -362,7 +365,7 @@ export async function getPublishedEvidenceCoverage(params: {
   const durationAvailable = Number(row.durationAvailable || 0);
   const performanceAvailable = Number(row.performanceAvailable || 0);
   const scriptsLinked = Number(row.scriptsLinked || 0);
-  const coreRatio = ratio(Math.min(fullTranscriptAvailable, performanceAvailable), Math.max(1, videoContent));
+  const coreRatio = ratio(Number(row.observedWithPerformance || 0), Math.max(1, videoContent));
   return {
     schemaVersion: "published_evidence_coverage_v1",
     generatedAt: new Date().toISOString(),

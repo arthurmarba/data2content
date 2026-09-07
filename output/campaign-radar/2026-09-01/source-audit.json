@@ -1,0 +1,332 @@
+{
+  "schemaVersion": "campaign_radar_source_audit_v1",
+  "generatedAt": "2026-09-01T16:00:00.000Z",
+  "reportDate": "2026-09-01",
+  "summary": {
+    "total": 13,
+    "verified": 13,
+    "changed": 0,
+    "unreachable": 0
+  },
+  "entries": [
+    {
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "publicCheckUrl": "https://influencerbrasil.com.br/sitemap-projects.xml",
+      "inventoryVisibility": "public",
+      "collectionModes": [
+        "automated_public"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "<urlset",
+          "found": true
+        },
+        {
+          "signal": "/projeto/",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "squid-public-campaigns",
+      "sourcePlatform": "Squid",
+      "publicCheckUrl": "https://vidadeinfluencer.squidit.com.br/campanha/t",
+      "inventoryVisibility": "partial_public",
+      "collectionModes": [
+        "automated_public",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Campanhas",
+          "found": true
+        },
+        {
+          "signal": "article-sq",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "creator-ads-public-calls",
+      "sourcePlatform": "Creator Ads",
+      "publicCheckUrl": "https://linktr.ee/creatorads.br",
+      "inventoryVisibility": "partial_public",
+      "collectionModes": [
+        "automated_public",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "creatorads.br",
+          "found": true
+        },
+        {
+          "signal": "campanha",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "playnest-public-programs",
+      "sourcePlatform": "PlayNest / Play9",
+      "publicCheckUrl": "https://business.playnest.com.br/acelera-casas-bahia/acelera-cb",
+      "inventoryVisibility": "partial_public",
+      "collectionModes": [
+        "automated_public",
+        "email_candidate"
+      ],
+      "reportPolicy": "programs_require_review",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Acelera CB",
+          "found": true
+        },
+        {
+          "signal": "pré-seleção",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "publicCheckUrl": "https://www.mis-app.com/",
+      "inventoryVisibility": "profile_selected",
+      "collectionModes": [
+        "manual_capture",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaign_evidence_required",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "MIS",
+          "found": true
+        },
+        {
+          "signal": "Micro e Nano Influenciadores",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "influency-me",
+      "sourcePlatform": "Influency.me",
+      "publicCheckUrl": "https://influency.me/sou-influenciador/",
+      "inventoryVisibility": "authenticated",
+      "collectionModes": [
+        "monitor_public_entry",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaign_evidence_required",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Como se inscrever em uma campanha?",
+          "found": true
+        },
+        {
+          "signal": "ainda não é possível localizar as campanhas",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "creators-llc",
+      "sourcePlatform": "Creators LLC",
+      "publicCheckUrl": "https://creators.llc/central-de-ajuda/duvidas-de-creators.html",
+      "inventoryVisibility": "authenticated",
+      "collectionModes": [
+        "monitor_public_entry",
+        "email_candidate"
+      ],
+      "reportPolicy": "programs_require_review",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "oportunidades de campanhas",
+          "found": true
+        },
+        {
+          "signal": "dashboard",
+          "found": true
+        },
+        {
+          "signal": "Job List",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "comu-delas",
+      "sourcePlatform": "Comû Delas",
+      "publicCheckUrl": "https://comudelas.com/aplicacao",
+      "inventoryVisibility": "authenticated",
+      "collectionModes": [
+        "monitor_public_entry",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaign_evidence_required",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Inscrição para o agenciamento",
+          "found": true
+        },
+        {
+          "signal": "R$ 69/mês",
+          "found": true
+        },
+        {
+          "signal": "R$ 89/mês",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "noovid",
+      "sourcePlatform": "Noovid",
+      "publicCheckUrl": "https://app.noovid.com/pt-BR/auth/signup?type=creator",
+      "inventoryVisibility": "authenticated",
+      "collectionModes": [
+        "monitor_public_entry",
+        "email_candidate"
+      ],
+      "reportPolicy": "campaign_evidence_required",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Sua próxima oportunidade de criar começa aqui",
+          "found": true
+        },
+        {
+          "signal": "Para criadores",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "publicCheckUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "inventoryVisibility": "public",
+      "collectionModes": [
+        "automated_public"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "result-item",
+          "found": true
+        },
+        {
+          "signal": "/project/",
+          "found": true
+        },
+        {
+          "signal": "data-content",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "animextreme-public-creators",
+      "sourcePlatform": "Animextreme",
+      "publicCheckUrl": "https://linktr.ee/animextreme",
+      "inventoryVisibility": "public",
+      "collectionModes": [
+        "automated_public"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Cadastro de Embaixadores e Promotores",
+          "found": true
+        },
+        {
+          "signal": "Cadastro Creators e Imprensa",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "upabc-public-coverage",
+      "sourcePlatform": "Up!ABC",
+      "publicCheckUrl": "https://ajuda.upabc.com.br/index.php?catid=16&id=45&view=article",
+      "inventoryVisibility": "public",
+      "collectionModes": [
+        "automated_public"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "Credenciamento para Cobertura do Up!ABC",
+          "found": true
+        },
+        {
+          "signal": "Criadores de Conteúdo",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    },
+    {
+      "sourceId": "tijuca-geek-public-coverage",
+      "sourcePlatform": "Tijuca Geek Festival",
+      "publicCheckUrl": "https://www.tijucageekfestival.com.br/",
+      "inventoryVisibility": "public",
+      "collectionModes": [
+        "automated_public"
+      ],
+      "reportPolicy": "campaigns_eligible",
+      "status": "verified",
+      "signals": [
+        {
+          "signal": "CREDENCIAMENTO DE IMPRENSA E INFLUENCIADORES",
+          "found": true
+        },
+        {
+          "signal": "produzir e publicar conteudo",
+          "found": true
+        }
+      ],
+      "checkedAt": "2026-09-01T16:00:00.000Z",
+      "error": null
+    }
+  ]
+}

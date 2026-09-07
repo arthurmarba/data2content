@@ -20,13 +20,14 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `plano-roteiros-baseados-em-conteudos-vencedores.md` | 09/2026 | Auditoria e plano: seleção de vencedores, fala real, geração no MCP, qualidade e custo |
 | `plano-gerador-gancho-video.md` | 09/2026 | Gerador de gancho para vídeo |
 | `plano-ajuste-inteligente-roteiro-video.md` | 09/2026 | Ajuste de roteiro a partir do vídeo |
 | `mcp-data2content.md` | 09/2026 | O MCP — a referência principal |
 | `chatgpt-plugin-v1.md` · `-submission.md` · `-funnel-release-checklist.md` | 09/2026 | O plugin do ChatGPT e a submissão |
 | `campaign-radar-report-mvp.md` · `-source-compliance-audit.md` | 09/2026 | Radar de campanhas e a conformidade das fontes |
 | `mcp-admin-delivery-scope.md` | 08/2026 | O MCP administrativo, só leitura |
-| `script-intelligence-v3.md` | 08/2026 | O motor de roteiro V3 — o que está no ar |
+| `script-intelligence-v3.md` | 09/2026 | Evidência compartilhada, escrita no cliente/interna e operação; publicação deve ser confirmada |
 | `plano-topo-relatorio-enxuto.md` | 08/2026 | Enxugamento do topo do relatório |
 | `plano-perfil-padroes-na-capa.md` | 08/2026 | Padrões por evidência na capa do perfil |
 | `plano-oferta-pos-narrativa.md` | 08/2026 | A oferta depois da narrativa |
@@ -49,6 +50,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 ### MCP, ChatGPT e Claude
 `mcp-data2content.md` (09/26) · `mcp-admin-delivery-scope.md` (08/26) · `chatgpt-plugin-v1.md` · `chatgpt-plugin-submission.md` · `chatgpt-plugin-funnel-release-checklist.md` (09/26)
 
+> Análise administrativa de toda a base de criadores: `brain/20 Domínios/MCP — ChatGPT e Claude.md`. Saldo de seguidores por dia e por conteúdo: `brain/20 Domínios/Seguidores.md`. Script `tsx` que morre antes de rodar: `brain/30 Armadilhas/Script com tsx não enxerga import nomeado do mongoose.md`. Cobertura que cobra dado impossível: `brain/30 Armadilhas/Cobertura que cobra o impossível.md`.
+
 ### Roteiros, pautas e ganchos
 `script-intelligence-v3.md` (08/26) · `scripts-intelligence-rollout.md` (02/26) · `plano-gerador-gancho-video.md` · `plano-ajuste-inteligente-roteiro-video.md` (09/26) · `plano-perfil-padroes-na-capa.md` (08/26) · `post-creation/` (funil de criação de post)
 
@@ -68,6 +71,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 ### IA: provedor e custo
 `llm-provider-migration-plan.md` (06/26) · `plano-de-otimizacao-estrategica-v3.md` · `-v4.md` (07/25)
+
+> Falha de saldo do Gemini e recuperação das leituras: `brain/30 Armadilhas/Crédito do Gemini paralisa a leitura publicada.md`.
 
 ### Interface e design
 `mobile-design-system.md` (07/26) · `design-tokens.md` (11/25) · `dashboard/plano-boards-ui-v2.md` (04/26) · `dashboard/etapa2|5|6-checklist.md` (11/25) · `navigation/etapa1-*.md` (11–12/25) · `home-tutorial-playbook.md` (11/25) · `MM90_MOBILE_UX_SIMPLIFICATION_PASS.md` (05/26) · `mobile-strategic-profile-performance-report.md` (07/26)

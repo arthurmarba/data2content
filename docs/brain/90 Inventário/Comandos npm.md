@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Comandos npm
 
-**89 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**90 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -234,6 +234,7 @@ atualizado: 2026-09-07
 | `npm run smoke:brand-narratives` | `tsx --env-file=.env.local ./scripts/smokeBrandNarrativeFlow.ts` |
 | `npm run smoke:mcp-admin-http` | `tsx --env-file=.env.local scripts/smokeMcpAdminHttp.ts` |
 | `npm run smoke:mcp-admin-integration` | `tsx --env-file=.env.local scripts/smokeMcpAdminIntegration.ts` |
+| `npm run smoke:mcp-admin-portfolio` | `tsx --env-file=.env.local scripts/smokeMcpAdminPortfolio.ts` |
 | `npm run smoke:mcp-oauth` | `tsx scripts/smokeMcpOAuthCrypto.ts` |
 | `npm run smoke:types` | `tsc -p tsconfig.smoke.json` |
 

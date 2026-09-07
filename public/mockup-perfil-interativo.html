@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup Funcional — Nova Tela de Perfil D2C</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,600&display=swap" rel="stylesheet">
+  <style>
+    /* D2C OFFICIAL DESIGN SYSTEM TOKENS */
+    :root {
+      --ds-color-brand: #fa165b;
+      --ds-color-brand-strong: #d80d48;
+      --ds-color-brand-soft: #ffe7ef;
+      --ds-color-coral: #ff4e58;
+      --ds-color-map: #ff8438;
+      --ds-color-ink: #121014;
+      --ds-color-on-brand: #fff;
+      --ds-color-paper: #fff9f5;
+      --ds-color-surface: #fffdfa;
+      --ds-color-neutral: #f5f0eb;
+      --ds-color-text: #121014;
+      --ds-color-text-secondary: rgba(18, 16, 20, 0.68);
+      --ds-color-text-muted: rgba(18, 16, 20, 0.52);
+      --ds-color-line: rgba(18, 16, 20, 0.12);
+      --ds-color-line-strong: rgba(18, 16, 20, 0.22);
+      --ds-color-success: #167a55;
+      --ds-color-success-soft: #e7f6ef;
+      --ds-color-warning: #9a4b0b;
+      --ds-color-warning-soft: #fff0df;
+      --ds-color-danger: #b4233d;
+      --ds-color-danger-soft: #ffeaee;
+      --ds-radius-sm: 0.75rem;
+      --ds-radius-md: 1rem;
+      --ds-radius-lg: 1.25rem;
+      --ds-radius-pill: 999px;
+      --ds-shadow-raised: 0 1px 3px rgba(18, 16, 20, 0.05), 0 12px 30px rgba(18, 16, 20, 0.07);
+      --font-scale: 1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: #EFE9E2;
+      color: var(--ds-color-ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 12px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* CONTROLS BAR */
+    .controls-panel {
+      width: 100%;
+      max-width: 440px;
+      background: #FFFFFF;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .controls-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .controls-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ds-color-brand-strong);
+    }
+    .state-switcher-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .btn-state {
+      background: var(--ds-color-neutral);
+      border: 1px solid transparent;
+      color: var(--ds-color-text-secondary);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+    .btn-state:hover { background: #ECE5DC; color: var(--ds-color-ink); }
+    .btn-state.active {
+      background: var(--ds-color-brand-soft);
+      border-color: var(--ds-color-brand);
+      color: var(--ds-color-brand-strong);
+      font-weight: 700;
+    }
+    .font-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--ds-color-neutral);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .btn-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid var(--ds-color-line);
+      background: #FFF;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-circle:hover { background: var(--ds-color-brand-soft); color: var(--ds-color-brand); }
+
+    /* MOBILE PHONE SIMULATOR FRAME */
+    .phone-simulator {
+      width: 100%;
+      max-width: 410px;
+      background: var(--ds-color-paper);
+      border-radius: 36px;
+      border: 8px solid #1E1B20;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0,0,0,0.06);
+      position: relative;
+    }
+
+    .phone-speaker-notch {
+      width: 110px;
+      height: 18px;
+      background: #1E1B20;
+      margin: 0 auto;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+
+    .app-screen {
+      padding: 16px 16px 40px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* NOTEBOOK SECTION CONTAINER (D2C STANDARD) */
+    .ds-notebook-section {
+      background: var(--ds-color-surface);
+      border-radius: var(--ds-radius-md);
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(18, 16, 20, 0.03);
+    }
+    .ds-notebook-label {
+      font-size: calc(11px * var(--font-scale));
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--ds-color-text-secondary);
+      display: block;
+    }
+    .ds-notebook-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--ds-color-neutral);
+      color: var(--ds-color-text-secondary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 600;
+    }
+    .ds-notebook-tag.observed {
+      color: var(--ds-color-ink);
+      font-weight: 700;
+    }
+
+    /* 1. SEU NORTE & PERFIL (TOPO) */
+    .profile-identity-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .profile-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--ds-color-neutral);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--ds-color-ink);
+      border: 1px solid var(--ds-color-line);
+      flex-shrink: 0;
+    }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      font-size: calc(19px * var(--font-scale));
+      font-weight: 800;
+      color: var(--ds-color-ink);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .profile-subtitle {
+      font-size: calc(12px * var(--font-scale));
+      color: var(--ds-color-text-muted);
+      margin-top: 2px;
+    }
+    .btn-gear {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--ds-color-text-muted);
+      padding: 4px;
+    }
+    .quote-norte {
+      font-family: 'Newsreader', Georgia, serif;
+      font-size: calc(23px * var(--font-scale));
+      font-weight: 600;
+      line-height: 1.18;
+      color: var(--ds-color-ink);
+      letter-spacing: -0.02em;
+      margin: 8px 0 14px 0;
+    }
+    .btn-action-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      background: none;
+      border: none;
+      border-top: 1px solid var(--ds-color-line);
+      padding-top: 12px;
+      margin-top: 14px;
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 700;
+      color: var(--ds-color-ink);
+      cursor: pointer;
+    }
+
+    /* 2. DYNAMIC FUNNEL / PRÓXIMO PASSO CARD */
+    .funnel-card {
+      border-radius: var(--ds-radius-md);
+      padding: 16px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    .funnel-card.pro-offer {
+      background: var(--ds-color-surface);
+      border: 1px solid var(--ds-color-line-strong);
+    }
+    .funnel-card.warning {
+      background: var(--ds-color-danger-soft);
+      border: 1px solid rgba(180, 35, 61, 0.2);
+    }
+    .btn-primary-d2c {
+      background: var(--ds-color-brand);
+      color: var(--ds-color-on-brand);
+      font-size: calc(14px * var(--font-scale));
+      font-weight: 700;
+      padding: 11px 18px;
+      border-radius: var(--ds-radius-sm);
+      border: none;
+      width: 100%;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background 0.15s;
+    }
+    .btn-primary-d2c:hover { background: var(--ds-color-brand-strong); }
+    .btn-primary-d2c.danger { background: var(--ds-color-danger); }
+
+    /* STATUS SUBTLE BADGE (CONNECTED) */
+    .status-connected-subtle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: calc(11.5px * var(--font-scale));
+      color: var(--ds-color-text-muted);
+      padding: 2px 4px;
+    }
+    .status-check-circle {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ds-color-success-soft);
+      color: var(--ds-color-success);
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    /* 3. HERO WEEKLY REPORT (ZERO CARDCEPTION - DIRECT ON CANVAS) */
+    .report-hero-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .report-headline {
+      font-size: calc(20px * var(--font-scale));
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      color: var(--ds-color-ink);
+    }
+    
+    /* VIDEO CARD */
+    .video-card-clean {
+      background: var(--ds-color-surface);
+      border: 1px solid var(--ds-color-line);
+      border-radius: var(--ds-radius-md);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .video-thumb-banner {
+      width: 100%;
+      height: 140px;
+      background: #252229 url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80') center/cover;
+      position: relative;
+    }
+    .video-play-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      display: grid;
+      place-items: center;
+    }
+    .video-play-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      color: var(--ds-color-ink);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+    .video-details { padding: 14px; }
+    .video-title {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      color: var(--ds-color-ink);
+      line-height: 1.25;
+    }
+    .video-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--ds-color-line);
+    }
+    .metric-value {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 800;
+      color: var(--ds-color-ink);
+    }
+    .metric-label {
+      font-size: calc(10.5px * var(--font-scale));
+      color: var(--ds-color-text-muted);
+      margin-top: 1px;
+    }
+
+    /* 4. 4 NARRATIVE PILLARS (1ST LEVEL MODULES - NO CARDCEPTION) */
+    .pillars-grid-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .pillar-card-box {
+      background: var(--ds-color-surface);
+      border: 1px solid var(--ds-color-line);
+      border-radius: var(--ds-radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .pillar-card-box:hover {
+      border-color: var(--ds-color-line-strong);
+      transform: translateY(-1px);
+    }
+    .pillar-tag {
+      font-size: calc(11px * var(--font-scale));
+      font-weight: 700;
+      color: var(--ds-color-text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pillar-title {
+      font-size: calc(15.5px * var(--font-scale));
+      font-weight: 750;
+      color: var(--ds-color-ink);
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+    }
+    .pillar-multiplier {
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 700;
+      color: var(--ds-color-success);
+      margin-top: 2px;
+    }
+
+    /* Locked state */
+    .pillar-card-box.locked .pillar-blur-zone {
+      filter: blur(4px);
+      user-select: none;
+      opacity: 0.5;
+    }
+    .locked-pro-tag {
+      background: var(--ds-color-neutral);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--ds-color-text-secondary);
+    }
+
+    /* 5. TOOLS & COMMUNITY SECTIONS */
+    .tool-row-button {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 10px 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    .tool-row-button + .tool-row-button {
+      border-top: 1px solid var(--ds-color-line);
+    }
+
+    /* BOTTOM SHEET DRAWER */
+    .drawer-scrim {
+      position: fixed;
+      inset: 0;
+      background: rgba(18, 16, 20, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+    .drawer-scrim.open { opacity: 1; pointer-events: auto; }
+    .drawer-modal {
+      width: 100%;
+      max-width: 440px;
+      background: var(--ds-color-paper);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      padding: 20px 20px 32px 20px;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .drawer-scrim.open .drawer-modal { transform: translateY(0); }
+    .drawer-pill-bar {
+      width: 36px;
+      height: 4px;
+      background: var(--ds-color-line-strong);
+      border-radius: 2px;
+      margin: 0 auto 16px auto;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP CONTROLS PANEL -->
+  <div class="controls-panel">
+    <div class="controls-header">
+      <span class="controls-title">Controle do Mockup</span>
+      <span style="font-size: 11px; color: var(--ds-color-text-muted); font-weight: 600;">Design System Oficial</span>
+    </div>
+    
+    <div class="state-switcher-grid">
+      <button class="btn-state active" onclick="setAppState('pro', this)">🌟 1. Pro Conectado</button>
+      <button class="btn-state" onclick="setAppState('free', this)">⚡ 2. Criador Gratuito</button>
+      <button class="btn-state" onclick="setAppState('insta_expired', this)">⚠️ 3. Instagram Expirou</button>
+      <button class="btn-state" onclick="setAppState('no_norte', this)">🧭 4. Sem Norte</button>
+      <button class="btn-state" onclick="setAppState('billing_pending', this)">💳 5. Pagamento Pendente</button>
+    </div>
+
+    <div class="font-controls">
+      <span>Tamanho da Fonte: <strong id="fontIndicator">100% (16–18px)</strong></span>
+      <div style="display: flex; gap: 4px;">
+        <button class="btn-circle" onclick="adjustScale(-0.1)">−</button>
+        <button class="btn-circle" onclick="adjustScale(0.1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHONE SIMULATOR FRAME -->
+  <div class="phone-simulator">
+    <div class="phone-speaker-notch"></div>
+    
+    <div class="app-screen">
+      
+      <!-- 1. BLOCO SEU NORTE & IDENTIDADE (TOPO) -->
+      <section class="ds-notebook-section" style="padding-top: 16px;">
+        <!-- Header Identidade -->
+        <div class="profile-identity-row">
+          <div class="profile-avatar">AM</div>
+          <div class="profile-info">
+            <h1 class="profile-name">Arthur Marba</h1>
+            <p class="profile-subtitle" id="periodSubtitle">Semana de 11 a 17 de agosto</p>
+          </div>
+          <button class="btn-gear" title="Configurações da conta" onclick="alert('Configurações da conta')">⚙️</button>
+        </div>
+
+        <div style="height: 1px; background: var(--ds-color-line); margin: 16px 0 12px 0;"></div>
+
+        <!-- Frase da Narrativa Central / Seu Norte -->
+        <span class="ds-notebook-label">Seu mapa</span>
+        <blockquote class="quote-norte" id="norteQuoteText">
+          “A sua narrativa é sobre bastidores reais de tecnologia e criação de produtos digitais sem filtro.”
+        </blockquote>
+
+        <!-- Assuntos / Territórios -->
+        <span class="ds-notebook-label" style="margin-top: 10px;">Assuntos</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;" id="territoriesList">
+          <span class="ds-notebook-tag observed">✓ Bastidores</span>
+          <span class="ds-notebook-tag observed">✓ Setup & Rotina</span>
+          <span class="ds-notebook-tag">Tutoriais Práticos</span>
+          <span class="ds-notebook-tag">Inteligência Artificial</span>
+        </div>
+
+        <p style="font-size: calc(11px * var(--font-scale)); color: var(--ds-color-text-muted); margin-top: 10px;">
+          O ✓ marca os assuntos que também apareceram nos seus vídeos.
+        </p>
+
+        <button class="btn-action-link" onclick="alert('Abrindo Mapa Completo...')">
+          <span>Ver mapa completo</span>
+          <span style="color: var(--ds-color-text-muted);">›</span>
+        </button>
+
+        <!-- Status sutil quando Pro Conectado (fica dentro do bloco) -->
+        <div id="subtleStatusContainer" style="margin-top: 8px;">
+          <div class="status-connected-subtle">
+            <span class="status-check-circle">✓</span>
+            <span>Instagram conectado · lido hoje às 14:30</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. CARD CONDICIONAL DO FUNIL / PRÓXIMO PASSO -->
+      <div id="funnelCardContainer"></div>
+
+      <!-- 3. LEITURA DA SEMANA (HERO EDITORIAL - SEM CASCA PAI) -->
+      <section class="report-hero-section">
+        <span class="ds-notebook-label">✨ Leitura da Semana</span>
+        <h2 class="report-headline">
+          Seu gancho de curiosidade rendeu 3,5× o seu normal
+        </h2>
+
+        <!-- Vídeo da Semana -->
+        <div class="video-card-clean" onclick="alert('Abrindo publicação no Instagram...')">
+          <div class="video-thumb-banner">
+            <div class="video-play-overlay">
+              <div class="video-play-btn">▶</div>
+            </div>
+          </div>
+          <div class="video-details">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="ds-notebook-label">Vídeo da semana</span>
+              <span style="font-size: calc(13px * var(--font-scale)); font-weight: 800; color: var(--ds-color-success);">3,5× o seu normal</span>
+            </div>
+            <div class="video-title">Como montei meu setup de tecnologia em 2026</div>
+            <div class="video-metrics-grid">
+              <div>
+                <div class="metric-value">33,4k</div>
+                <div class="metric-label">visualizações</div>
+              </div>
+              <div>
+                <div class="metric-value">1,2k</div>
+                <div class="metric-label">salvamentos</div>
+              </div>
+              <div>
+                <div class="metric-value">480</div>
+                <div class="metric-label">compartilhamentos</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. OS 4 PILARES DA NARRATIVA (1º NÍVEL - SEM CARDCEPTION) -->
+      <section>
+        <span class="ds-notebook-label" style="margin-bottom: 10px;">O que mais funcionou na conta</span>
+        <div class="pillars-grid-container" id="pillarsContainer">
+          <!-- Rendered via JS -->
+        </div>
+        <p style="font-size: calc(11px * var(--font-scale)); color: var(--ds-color-text-muted); margin-top: 8px;">
+          Tudo comparado com o que você costuma fazer nos últimos 90 dias · 12 posts analisados.
+        </p>
+      </section>
+
+      <!-- 5. FERRAMENTAS (MÍDIA KIT + CALCULADORA) -->
+      <section class="ds-notebook-section">
+        <span class="ds-notebook-label" style="margin-bottom: 6px;" id="toolsSectionTitle">Ferramentas</span>
+        
+        <button class="tool-row-button" onclick="alert('Abrindo Mídia Kit...')">
+          <div>
+            <div style="font-size: calc(14px * var(--font-scale)); font-weight: 700; color: var(--ds-color-ink);">💼 Mídia Kit</div>
+            <div style="font-size: calc(11.5px * var(--font-scale)); color: var(--ds-color-text-muted);">Sua página para marcas</div>
+          </div>
+          <span style="color: var(--ds-color-text-muted); font-size: 16px;">›</span>
+        </button>
+
+        <button class="tool-row-button" onclick="alert('Abrindo Calculadora de Publi...')">
+          <div>
+            <div style="font-size: calc(14px * var(--font-scale)); font-weight: 700; color: var(--ds-color-ink);">🧮 Quanto vale sua publi</div>
+            <div style="font-size: calc(11.5px * var(--font-scale)); color: var(--ds-color-text-muted);" id="calcSubText">Último cálculo · Reels</div>
+          </div>
+          <div id="calcValueBadge" style="font-size: calc(14px * var(--font-scale)); font-weight: 800; color: var(--ds-color-ink);">R$ 2.400 ›</div>
+        </button>
+      </section>
+
+      <!-- 6. COMUNIDADE / ENCONTROS -->
+      <section class="ds-notebook-section">
+        <span class="ds-notebook-label">Comunidade D2C</span>
+        <h3 style="font-size: calc(15px * var(--font-scale)); font-weight: 700; color: var(--ds-color-ink); margin-top: 4px;">
+          Encontro Semanal ao Vivo
+        </h3>
+        <p style="font-size: calc(12.5px * var(--font-scale)); color: var(--ds-color-text-secondary); margin-top: 4px; line-height: 1.4;">
+          Toda quinta-feira às 19:00 no Google Meet. Análise dos vídeos da semana e troca com outros criadores.
+        </p>
+        <button class="btn-primary-d2c" style="background: #121014; margin-top: 10px;" onclick="alert('Abrindo Grupo do WhatsApp...')">
+          Entrar no grupo do WhatsApp
+        </button>
+      </section>
+
+      <p style="text-align: center; font-size: 11px; color: var(--ds-color-text-muted); padding-top: 8px;">
+        Segunda o relatório chega. Quinta a gente conversa sobre ele.
+      </p>
+
+    </div>
+  </div>
+
+  <!-- BOTTOM SHEET DRAWER MODAL -->
+  <div class="drawer-scrim" id="drawerScrim" onclick="closePillarModal(event)">
+    <div class="drawer-modal" onclick="event.stopPropagation()">
+      <div class="drawer-pill-bar"></div>
+      <div id="drawerContentBody"></div>
+      <button class="btn-primary-d2c" style="background: #121014; margin-top: 16px;" onclick="closePillarModalDirect()">Fechar</button>
+    </div>
+  </div>
+
+  <script>
+    let appState = 'pro';
+    let currentScale = 1.0;
+
+    const pillars = [
+      {
+        id: 'gancho',
+        label: '🎯 Gancho',
+        title: 'Pergunta direta nos primeiros 3s',
+        multiplier: '3,2× o seu normal',
+        description: 'Ao iniciar os vídeos fazendo uma pergunta direta sobre uma dor do público, sua retenção inicial saltou 68% em relação a aberturas descritivas.'
+      },
+      {
+        id: 'assunto',
+        label: '💡 Assunto',
+        title: 'Bastidores reais sem filtro',
+        multiplier: '2,8× o seu normal',
+        description: 'Vídeos em que você mostrou os erros e o processo sem cortes ultra-perfeitos tiveram 2.8× mais comentários e compartilhamentos.'
+      },
+      {
+        id: 'cenario',
+        label: '🎬 Cenário & Tom',
+        title: 'Câmera na mão, luz natural',
+        multiplier: '1,8× o seu normal',
+        description: 'Gravar segurando a câmera traz sensação de proximidade imediata com a sua audiência.'
+      },
+      {
+        id: 'momento',
+        label: '⏱️ Melhor Momento',
+        title: 'Terça-feira às 19:00',
+        multiplier: '1,9× o seu normal',
+        description: 'Seus seguidores mais ativos consomem conteúdo no início da noite de terças e quartas-feiras.'
+      }
+    ];
+
+    function setAppState(state, btnElement) {
+      appState = state;
+      document.querySelectorAll('.btn-state').forEach(b => b.classList.remove('active'));
+      if (btnElement) btnElement.classList.add('active');
+      renderApp();
+    }
+
+    function adjustScale(delta) {
+      currentScale = Math.min(Math.max(0.85, currentScale + delta), 1.25);
+      document.documentElement.style.setProperty('--font-scale', currentScale.toFixed(2));
+      document.getElementById('fontIndicator').innerText = `${Math.round(currentScale * 100)}% (${Math.round(16 * currentScale)}–${Math.round(18 * currentScale)}px)`;
+    }
+
+    function renderApp() {
+      const funnelContainer = document.getElementById('funnelCardContainer');
+      const subtleStatus = document.getElementById('subtleStatusContainer');
+      const pillarsContainer = document.getElementById('pillarsContainer');
+      const toolsTitle = document.getElementById('toolsSectionTitle');
+      const calcSub = document.getElementById('calcSubText');
+      const calcVal = document.getElementById('calcValueBadge');
+      const norteQuote = document.getElementById('norteQuoteText');
+      const periodSubtitle = document.getElementById('periodSubtitle');
+
+      // 1. Estados do Norte e Header
+      if (appState === 'no_norte') {
+        norteQuote.innerText = '“Sua história ainda está ganhando forma. Responda o Seu Norte para escrevê-la.”';
+        norteQuote.style.color = 'var(--ds-color-text-muted)';
+        periodSubtitle.innerText = 'Olá, Arthur';
+      } else {
+        norteQuote.innerText = '“A sua narrativa é sobre bastidores reais de tecnologia e criação de produtos digitais sem filtro.”';
+        norteQuote.style.color = 'var(--ds-color-ink)';
+        periodSubtitle.innerText = 'Semana de 11 a 17 de agosto';
+      }
+
+      // 2. Card do Funil (Precedência Exata do Código)
+      if (appState === 'pro') {
+        funnelContainer.innerHTML = '';
+        subtleStatus.style.display = 'block';
+        toolsTitle.innerText = 'Ferramentas';
+        calcSub.innerText = 'Último cálculo · Reels';
+        calcVal.innerHTML = 'R$ 2.400 ›';
+      } 
+      else if (appState === 'free') {
+        subtleStatus.style.display = 'none';
+        funnelContainer.innerHTML = `
+          <section class="ds-notebook-section funnel-card pro-offer">
+            <span class="ds-notebook-label">Seu próximo passo</span>
+            <h2 style="font-size: calc(18px * var(--font-scale)); font-weight: 800; margin-top: 4px; color: var(--ds-color-ink);">Ative o Pro</h2>
+            <p style="font-size: calc(13px * var(--font-scale)); color: var(--ds-color-text-secondary); margin-top: 4px; line-height: 1.4;">
+              Seu mapa vira relatório, pautas e collabs toda semana. Por enquanto, o que aparece aqui embaixo é um exemplo.
+            </p>
+            <button class="btn-primary-d2c" onclick="alert('Abrindo Checkout do Pro...')">Ativar o Pro</button>
+          </section>
+        `;
+        toolsTitle.innerText = 'Ferramentas incluídas no Pro';
+        calcSub.innerText = 'Calcule seu preço justo';
+        calcVal.innerHTML = '<span class="ds-notebook-tag">Pro</span>';
+      }
+      else if (appState === 'insta_expired') {
+        subtleStatus.style.display = 'none';
+        funnelContainer.innerHTML = `
+          <section class="ds-notebook-section funnel-card warning">
+            <span class="ds-notebook-label" style="color: var(--ds-color-danger);">Conexão</span>
+            <h2 style="font-size: calc(17px * var(--font-scale)); font-weight: 800; margin-top: 4px; color: var(--ds-color-danger);">
+              A conexão do seu Instagram expirou.
+            </h2>
+            <p style="font-size: calc(13px * var(--font-scale)); color: var(--ds-color-text-secondary); margin-top: 4px; line-height: 1.4;">
+              Seu relatório parou de atualizar. Reconecte a conta para os novos vídeos voltarem a entrar.
+            </p>
+            <button class="btn-primary-d2c danger" onclick="alert('Reconectando Instagram...')">Reconectar Instagram</button>
+          </section>
+        `;
+      }
+      else if (appState === 'no_norte') {
+        subtleStatus.style.display = 'none';
+        funnelContainer.innerHTML = `
+          <section class="ds-notebook-section funnel-card" style="border: 1px solid var(--ds-color-line-strong);">
+            <span class="ds-notebook-label">Primeiro passo</span>
+            <h2 style="font-size: calc(18px * var(--font-scale)); font-weight: 800; margin-top: 4px; color: var(--ds-color-ink);">
+              Defina seu Norte para começar o mapa.
+            </h2>
+            <p style="font-size: calc(13px * var(--font-scale)); color: var(--ds-color-text-secondary); margin-top: 4px; line-height: 1.4;">
+              Conte para quem você cria e o que deseja provocar. A D2C transforma essa resposta no seu primeiro rascunho.
+            </p>
+            <button class="btn-primary-d2c" onclick="alert('Iniciando Onboarding do Norte...')">Definir meu Norte</button>
+          </section>
+        `;
+      }
+      else if (appState === 'billing_pending') {
+        subtleStatus.style.display = 'none';
+        funnelContainer.innerHTML = `
+          <section class="ds-notebook-section funnel-card warning">
+            <span class="ds-notebook-label" style="color: var(--ds-color-danger);">Assinatura</span>
+            <h2 style="font-size: calc(17px * var(--font-scale)); font-weight: 800; margin-top: 4px; color: var(--ds-color-danger);">
+              Seu pagamento precisa ser atualizado.
+            </h2>
+            <p style="font-size: calc(13px * var(--font-scale)); color: var(--ds-color-text-secondary); margin-top: 4px; line-height: 1.4;">
+              Seu mapa continua seguro. O que para enquanto isso é o relatório da semana.
+            </p>
+            <button class="btn-primary-d2c danger" onclick="alert('Abrindo atualização de pagamento...')">Atualizar pagamento</button>
+          </section>
+        `;
+      }
+
+      // 3. Pilares da Narrativa
+      pillarsContainer.innerHTML = pillars.map((p, index) => {
+        const isLocked = appState === 'free' && index > 0;
+        return `
+          <div class="pillar-card-box ${isLocked ? 'locked' : ''}" onclick="openPillarModal(${index}, ${isLocked})">
+            <div class="pillar-tag">
+              <span>${p.label}</span>
+              ${isLocked ? '<span class="locked-pro-tag">Pro</span>' : ''}
+            </div>
+            <div class="${isLocked ? 'pillar-blur-zone' : ''}">
+              <div class="pillar-title">${p.title}</div>
+              <div class="pillar-multiplier">${p.multiplier}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openPillarModal(index, isLocked) {
+      if (isLocked) {
+        alert("🔒 Este padrão faz parte do diagnóstico completo do Pro. Clique em 'Ativar o Pro' para desbloquear!");
+        return;
+      }
+      const p = pillars[index];
+      document.getElementById('drawerContentBody').innerHTML = `
+        <span class="ds-notebook-label" style="margin-bottom: 4px;">${p.label}</span>
+        <h3 style="font-size: 20px; font-weight: 800; color: var(--ds-color-ink); line-height: 1.25; margin-bottom: 10px;">${p.title}</h3>
+        <p style="font-size: 14px; color: var(--ds-color-text-secondary); line-height: 1.5; margin-bottom: 14px;">${p.description}</p>
+        <div style="background: var(--ds-color-success-soft); border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; color: var(--ds-color-success);">
+          Multiplicador: ${p.multiplier}
+        </div>
+      `;
+      document.getElementById('drawerScrim').classList.add('open');
+    }
+
+    function closePillarModal(e) {
+      if (e.target.id === 'drawerScrim') closePillarModalDirect();
+    }
+
+    function closePillarModalDirect() {
+      document.getElementById('drawerScrim').classList.remove('open');
+    }
+
+    // Initialize
+    renderApp();
+  </script>
+</body>
+</html>

@@ -34,7 +34,7 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `weekly-whatsapp-message` | `src/app/api/cron/weekly-whatsapp-message/route.ts` |
 | `whatsapp-trial` | `src/app/api/cron/whatsapp-trial/route.ts` |
 
-## Worker — 7 trabalhos enfileirados
+## Worker — 8 trabalhos enfileirados
 
 | Trabalho | Arquivo |
 | --- | --- |
@@ -45,6 +45,7 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `generate-creator-weekly-report` | `src/app/api/worker/generate-creator-weekly-report/route.ts` |
 | `process-story-webhook` | `src/app/api/worker/process-story-webhook/route.ts` |
 | `refresh-instagram-user` | `src/app/api/worker/refresh-instagram-user/route.ts` |
+| `refresh-script-evidence` | `src/app/api/worker/refresh-script-evidence/route.ts` |
 
 ## Agendamento
 

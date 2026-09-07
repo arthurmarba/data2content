@@ -33,6 +33,9 @@ import {
   sceneElementsUpdate,
 } from "@/app/lib/relatorio/sceneEvaluation";
 import { upsertPublishedContentEvidence } from "@/app/lib/scripts/publishedContentEvidence";
+import { enqueueScriptEvidenceMaintenance } from "@/app/lib/scripts/scriptEvidenceQueue";
+import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
+import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, markGeminiHealthy } from "@/app/lib/relatorio/contentReadingState";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -59,7 +62,7 @@ async function freshMedia(
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}?fields=${fields}&access_token=${token}`;
   try {
     const response = await fetch(url);
-    if (!response.ok) return { mediaType: null, mediaUrl: null, imageUrls: [] };
+    if (!response.ok) throw new Error(`Instagram HTTP ${response.status}`);
     const json = (await response.json()) as {
       media_type?: string;
       media_url?: string;
@@ -67,7 +70,7 @@ async function freshMedia(
       children?: { data?: Array<{ media_type?: string; media_url?: string; thumbnail_url?: string }> };
       error?: unknown;
     };
-    if (json.error) return { mediaType: null, mediaUrl: null, imageUrls: [] };
+    if (json.error) throw new Error("Instagram token ou mídia indisponível");
     const imageUrls = json.media_type === "CAROUSEL_ALBUM"
       ? (json.children?.data ?? []).flatMap((child) => {
           const url = child.media_type === "VIDEO"
@@ -83,12 +86,12 @@ async function freshMedia(
       mediaUrl: typeof json.media_url === "string" ? json.media_url : null,
       imageUrls,
     };
-  } catch {
-    return { mediaType: null, mediaUrl: null, imageUrls: [] };
+  } catch (error) {
+    throw error;
   }
 }
 
-async function handle(metricId: string): Promise<NextResponse> {
+async function processReading(metricId: string, lease: { token: string; result: Record<string, any> | null }): Promise<NextResponse> {
   if (!mongoose.isValidObjectId(metricId)) {
     return NextResponse.json({ message: "metricId inválido." }, { status: 400 });
   }
@@ -103,8 +106,14 @@ async function handle(metricId: string): Promise<NextResponse> {
   }
   // Idempotente por versão: reprocessar só acontece quando a versão muda, e aí é
   // uma decisão explícita.
-  if (metric.sceneElements?.version === SCENE_EVALUATION_VERSION) {
-    return NextResponse.json({ message: "Cena já avaliada nesta versão." });
+  if (metric.sceneElements?.version === SCENE_EVALUATION_VERSION && await PublishedContentEvidence.exists({ metricId: metric._id, userId: metric.user })) {
+    return NextResponse.json({ ok: true, message: "Cena já avaliada nesta versão." });
+  }
+  if (lease.result) {
+    await upsertPublishedContentEvidence({ metricId, scene: lease.result });
+    await MetricModel.updateOne({ _id: metric._id }, { $set: { sceneElements: sceneElementsUpdate(lease.result as any) } });
+    await enqueueScriptEvidenceMaintenance(String(metric.user));
+    return NextResponse.json({ ok: true, recoveredFromCheckpoint: true });
   }
   if (!metric.instagramMediaId) {
     return NextResponse.json({ message: "Post sem instagramMediaId — nada a ler." });
@@ -137,6 +146,7 @@ async function handle(metricId: string): Promise<NextResponse> {
     return NextResponse.json({ message: "Criador sem token do Instagram." });
   }
 
+  if (!(await claimGeminiAvailability())) return NextResponse.json({ message: "Provedor temporariamente pausado; leitura adiada." });
   const media = await freshMedia(metric.instagramMediaId, token);
   const outcome = media.mediaType === "VIDEO" && media.mediaUrl
     ? await evaluateSceneAgainstMap({
@@ -152,6 +162,11 @@ async function handle(metricId: string): Promise<NextResponse> {
       : null;
 
   if (!outcome) {
+    logger.warn(`${TAG} ${metricId}: post sem mídia compatível para leitura visual.`, {
+      mediaType: media.mediaType,
+      hasMediaUrl: Boolean(media.mediaUrl),
+      imageCount: media.imageUrls.length,
+    });
     return NextResponse.json({ message: "Post sem mídia compatível para leitura visual." });
   }
 
@@ -163,6 +178,8 @@ async function handle(metricId: string): Promise<NextResponse> {
       { status: outcome.retryable ? 503 : 200 },
     );
   }
+  await markGeminiHealthy();
+  await checkpointReading(metricId, lease.token, outcome.result);
 
   // A transcrição integral e a timeline ficam num documento privado separado.
   // Ela é persistida ANTES de marcar a cena como v4: se esta escrita falhar, o QStash
@@ -183,6 +200,7 @@ async function handle(metricId: string): Promise<NextResponse> {
     { _id: metric._id },
     { $set: { sceneElements: sceneElementsUpdate(outcome.result) } },
   );
+  await enqueueScriptEvidenceMaintenance(String(metric.user));
 
   logger.info(
     `${TAG} ${metricId}: ${outcome.result.assetRoleIds.join(", ") || "(nenhum asset)"} · ` +
@@ -202,6 +220,21 @@ async function handle(metricId: string): Promise<NextResponse> {
       transcriptAvailable: Boolean(outcome.result.transcript),
     },
   });
+}
+
+async function handle(metricId: string): Promise<NextResponse> {
+  if (!mongoose.isValidObjectId(metricId)) return NextResponse.json({ message: "metricId inválido." }, { status: 400 });
+  const lease = await acquireReading(metricId, SCENE_EVALUATION_VERSION);
+  if (!lease) return NextResponse.json({ message: "Leitura em andamento ou aguardando próxima tentativa." });
+  try {
+    const response = await processReading(metricId, lease);
+    const payload = await response.clone().json();
+    await finishReading(metricId, lease.token, payload.ok ? undefined : String(payload.message || "Falha temporária"));
+    return response;
+  } catch (error) {
+    await finishReading(metricId, lease.token, error instanceof Error ? error.message : "Falha temporária");
+    throw error;
+  }
 }
 
 export async function POST(request: NextRequest) {

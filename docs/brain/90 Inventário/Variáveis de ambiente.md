@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Variáveis de ambiente
 
-**423 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**424 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -49,7 +49,7 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `GEMINI_API_KEY` | 22 |
+| `GEMINI_API_KEY` | 30 |
 | `GEMINI_MODEL_SCRIPT` | 4 |
 | `GEMINI_MODEL_SCRIPT_JUDGE` | 4 |
 | `GEMINI_THINKING_LEVEL_SCRIPTS` | 4 |
@@ -110,6 +110,7 @@ atualizado: 2026-09-07
 | `MCP_ADMIN_REQUIRED_SCOPE` | 2 |
 | `MCP_ADMIN_AUDIT_RETENTION_DAYS` | 1 |
 | `MCP_ADMIN_HTTP_SMOKE_URL` | 1 |
+| `MCP_ADMIN_TEST_MONGO_URI` | 1 |
 | `MCP_OAUTH_ACCESS_TOKEN_TTL_SECONDS` | 1 |
 | `MCP_OAUTH_CODE_TTL_SECONDS` | 1 |
 | `MCP_OAUTH_REFRESH_TOKEN_TTL_DAYS` | 1 |
@@ -120,7 +121,7 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `MONGODB_URI` | 8 |
+| `MONGODB_URI` | 9 |
 | `MONGODB_DB_NAME` | 4 |
 | `MONGODB_MAX_POOL_SIZE` | 1 |
 | `MONGODB_SERVER_SELECTION_TIMEOUT_MS` | 1 |
@@ -138,7 +139,7 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 62 |
+| `NEXT_PUBLIC_APP_URL` | 63 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -216,9 +217,9 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 28 |
-| `QSTASH_NEXT_SIGNING_KEY` | 28 |
-| `QSTASH_TOKEN` | 22 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 29 |
+| `QSTASH_NEXT_SIGNING_KEY` | 29 |
+| `QSTASH_TOKEN` | 23 |
 | `QSTASH_WORKER_URL` | 1 |
 
 ## REDIS
@@ -310,15 +311,17 @@ atualizado: 2026-09-07
 | Variável | Usos no código |
 | --- | --- |
 | `NODE_ENV` | 121 |
+| `APP_BASE_URL` | 15 |
 | `LOG_LEVEL` | 15 |
-| `APP_BASE_URL` | 14 |
 | `LLM_PROVIDER` | 11 |
 | `LLM_PROVIDER_MAPA` | 7 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
+| `LLM_FALLBACK_SCRIPTS` | 6 |
 | `MOBILE_STRATEGIC_PROFILE_SERVER_ENABLED` | 6 |
 | `PLANNER_FREEZE_ENABLED` | 6 |
 | `PLAYWRIGHT_BROWSERS_PATH` | 6 |
+| `SCRIPTS_OPENAI_FALLBACK_ENABLED` | 6 |
 | `CLASSIFICATION_WORKER_URL` | 5 |
 | `D2C_VIP_EXPIRES_AT` | 5 |
 | `WEEKLY_MEETING_JOIN_URL` | 5 |
@@ -333,6 +336,7 @@ atualizado: 2026-09-07
 | `HOME` | 3 |
 | `LLM_FALLBACK_ENABLED` | 3 |
 | `LLM_PROVIDER_CLASSIFICATION` | 3 |
+| `LLM_PROVIDER_SCRIPTS` | 3 |
 | `PROPOSAL_ANALYSIS_V2_ENABLED` | 3 |
 | `UPSTASH_REDIS_REST_TOKEN` | 3 |
 | `UPSTASH_REDIS_REST_URL` | 3 |
@@ -348,10 +352,8 @@ atualizado: 2026-09-07
 | `GREETING_THRESHOLD_HOURS` | 2 |
 | `GREETING_THRESHOLD_HOURS_CONSULTANT` | 2 |
 | `LLM_FALLBACK_COMMUNITY` | 2 |
-| `LLM_FALLBACK_SCRIPTS` | 2 |
 | `LLM_HISTORY_LIMIT` | 2 |
 | `LLM_PROVIDER_COMMUNITY` | 2 |
-| `LLM_PROVIDER_SCRIPTS` | 2 |
 | `MAPASEED_BACKFILL_DB` | 2 |
 | `PLANNER_THEMES_MODE` | 2 |
 | `PLAYWRIGHT_EXTRA_ARGS` | 2 |
@@ -509,7 +511,6 @@ atualizado: 2026-09-07
 | `SCRIPTS_LIST_CACHE_STALE_WHILE_ERROR_MS` | 1 |
 | `SCRIPTS_NOTIFICATIONS_CACHE_MAX_ENTRIES` | 1 |
 | `SCRIPTS_NOTIFICATIONS_CACHE_TTL_MS` | 1 |
-| `SCRIPTS_OPENAI_FALLBACK_ENABLED` | 1 |
 | `SCRIPTS_OUTCOME_LEARNING_V1` | 1 |
 | `SCRIPTS_OUTCOME_PROFILE_CACHE_MAX_ENTRIES` | 1 |
 | `SCRIPTS_OUTCOME_PROFILE_CACHE_TTL_MS` | 1 |

@@ -1,268 +1,176 @@
+import { createHash } from "node:crypto";
 import { Types } from "mongoose";
-
 import { connectToDatabase } from "@/app/lib/mongoose";
 import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
+import Metric from "@/app/models/Metric";
 import ScriptEntry from "@/app/models/ScriptEntry";
+import { loadMcpCreatorMap, summarizeMcpCreatorMap } from "@/app/lib/mcp/creatorMap";
 import { getCreatorScriptDnaV3, sanitizeCreatorScriptDnaForMcp } from "./creatorScriptDnaV3";
+import { inferScriptGoal, rankScriptEvidence, type ScriptGoal, type EvidenceFormat } from "./scriptEvidenceSelection";
+import { recordScriptsStageDuration } from "./performanceTelemetry";
 
-export type CreatorScriptGoal = "attention" | "depth" | "conversation" | "conversion" | "authority";
-
+export type CreatorScriptGoal = ScriptGoal;
 export type CreatorScriptEvidenceExemplar = {
-  contentId: string;
-  scriptId: string | null;
+  contentId: string; scriptId: string | null;
   source: "planned_script" | "observed_transcript" | "planned_and_observed";
-  fullText: string;
-  plannedScriptText: string | null;
-  observedTranscriptText: string | null;
-  hook: string | null;
-  cta: string | null;
-  structure: string[];
-  subjects: string[];
-  durationSeconds: number | null;
-  performanceIndex: number;
-  relevance: number;
+  fullText: string; plannedScriptText: string | null; observedTranscriptText: string | null;
+  hook: string | null; cta: string | null; structure: string[]; subjects: string[];
+  durationSeconds: number | null; performanceIndex: number; relevance: number;
+  role?: "winner" | "voice_example" | "requested" | "contrast";
+  url?: string | null; publishedAt?: string | null;
+  quality?: { status: string; truncated: boolean; completenessVerified: boolean; speakerVerified: boolean };
+  metrics?: Record<string, unknown>;
+  selectionReason?: string;
+  segments?: Array<{ startMs: number | null; endMs: number | null; text: string }>;
 };
-
 export type CreatorScriptEvidencePack = {
   schemaVersion: "creator_script_evidence_pack_v1";
   generatedAt: string;
-  request: {
-    prompt: string;
-    goal: CreatorScriptGoal;
-    targetDurationSeconds: number | null;
-  };
+  request: { prompt: string; goal: CreatorScriptGoal; targetDurationSeconds: number | null; lookbackDays?: number; startsAt?: string; endsAt?: string; format?: EvidenceFormat; requestedIds?: string[] };
   dna: ReturnType<typeof sanitizeCreatorScriptDnaForMcp>;
+  editorialContext?: ReturnType<typeof summarizeMcpCreatorMap>;
+  creatorPreferences?: Array<{ scriptId: string; voiceMatch?: boolean; preferredDirection?: string; notes?: string }>;
   winningExemplars: CreatorScriptEvidenceExemplar[];
   contrastExemplar: CreatorScriptEvidenceExemplar | null;
-  generationConstraints: {
-    targetDurationSeconds: number;
-    preferredSceneCount: number;
-    creatorFitConfidence: "low" | "medium" | "high";
-    avoidVerbatimCopy: boolean;
-    audienceGuidance: string[];
-    visualGuidance: string[];
-  };
+  generationConstraints: { targetDurationSeconds: number; preferredSceneCount: number; creatorFitConfidence: "low" | "medium" | "high"; avoidVerbatimCopy: boolean; audienceGuidance: string[]; visualGuidance: string[] };
   receipt: {
-    profileVersion: string;
-    evidenceRecordsConsidered: number;
-    fullExemplarsUsed: number;
-    linkedPlannedScriptsUsed: number;
-    observedTranscriptsUsed: number;
-    demographicsUsed: boolean;
-    status: "complete" | "partial" | "insufficient";
-    warnings: string[];
+    profileVersion: string; evidenceRecordsConsidered: number; fullExemplarsUsed: number;
+    linkedPlannedScriptsUsed: number; observedTranscriptsUsed: number; demographicsUsed: boolean;
+    status: "complete" | "partial" | "insufficient"; warnings: string[];
+    packId?: string; rankingVersion?: string; selectedContentIds?: string[];
+    coverage?: ReturnType<typeof rankScriptEvidence>["coverage"];
+    selectionStage?: "prepared" | "delivered_to_client" | "sent_to_generator" | "local_without_evidence";
+    selectedExamples?: number; sentExamples?: number; validatedExamples?: number;
+    corpusLimited?: boolean; periodStart?: string; periodEnd?: string;
   };
 };
+export type BuildScriptEvidenceInput = {
+  userId: string; prompt: string; goal?: CreatorScriptGoal; targetDurationSeconds?: number | null;
+  lookbackDays?: number; format?: EvidenceFormat; ownContentIds?: string[];
+  startsAt?: string; endsAt?: string;
+  /** O adaptador autenticado deve impedir a leitura antes de entrar no corpus. */
+  includePrivateIntelligence?: boolean;
+};
+const iso = (value: unknown) => {
+  const date = value ? new Date(String(value)) : null;
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+};
 
-function normalizedTokens(value: string): Set<string> {
-  return new Set(value
-    .toLocaleLowerCase("pt-BR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((item) => item.length >= 4));
-}
-
-function relevance(query: string, candidate: string): number {
-  const q = normalizedTokens(query);
-  const c = normalizedTokens(candidate);
-  if (!q.size || !c.size) return 0;
-  let overlap = 0;
-  for (const token of q) if (c.has(token)) overlap += 1;
-  return Number((overlap / q.size).toFixed(4));
-}
-
-function finite(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-function median(values: number[]): number {
-  const usable = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!usable.length) return 0;
-  const middle = Math.floor(usable.length / 2);
-  return usable.length % 2
-    ? usable[middle] ?? 0
-    : ((usable[middle - 1] ?? 0) + (usable[middle] ?? 0)) / 2;
-}
-
-function scorePerformance(doc: any, goal: CreatorScriptGoal): number {
-  const p = doc.performance || {};
-  const reach = Math.max(1, finite(p.reach) || 0);
-  const duration = finite(p.durationSeconds);
-  const avgWatch = finite(p.averageWatchTimeSeconds);
-  const attention = duration && avgWatch !== null
-    ? avgWatch / duration
-    : (finite(p.views) || 0) / reach;
-  const depth = ((finite(p.saves) || 0) + (finite(p.shares) || 0)) / reach;
-  const conversation = (finite(p.comments) || 0) / reach;
-  const conversion = (finite(p.follows) || 0) / reach;
-  const fallback = (finite(p.interactions) || 0) / reach;
-  const selected = goal === "attention" ? attention
-    : goal === "depth" ? depth
-      : goal === "conversation" ? conversation
-        : goal === "conversion" ? conversion
-          : 0.35 * attention + 0.35 * depth + 0.15 * conversation + 0.15 * conversion;
-  return Number((Number.isFinite(selected) && selected > 0 ? selected : fallback).toFixed(6));
-}
-
-function inferGoal(prompt: string): CreatorScriptGoal {
-  if (/vend|convers|lead|direct|or[cç]amento|cliente/i.test(prompt)) return "conversion";
-  if (/coment|conversa|debate|opini[aã]o|resposta/i.test(prompt)) return "conversation";
-  if (/salv|compart|util|passo|tutorial|checklist/i.test(prompt)) return "depth";
-  if (/autoridade|especialista|posicion|credibilidade/i.test(prompt)) return "authority";
-  return "attention";
-}
-
-function inferDuration(prompt: string): number | null {
-  const match = prompt.match(/(\d{1,3})\s*(?:s|seg|segundos?)(?:\b|$)/i);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) && value >= 8 && value <= 180 ? value : null;
-}
-
-function audienceGuidance(dna: any): string[] {
-  const audience = dna?.audience;
-  if (!audience || audience.source === "none") return [];
-  const lines: string[] = [];
-  if (audience.age?.length) lines.push(`Faixas etárias mais presentes: ${audience.age.join(", ")}.`);
-  if (audience.cities?.length) lines.push(`Contextos geográficos recorrentes: ${audience.cities.slice(0, 3).join(", ")}.`);
-  lines.push("Use demografia apenas para clareza e escolha de exemplos; não presuma crenças ou comportamento.");
-  return lines;
-}
-
-export async function buildCreatorScriptEvidencePack(params: {
-  userId: string;
-  prompt: string;
-  goal?: CreatorScriptGoal;
-  targetDurationSeconds?: number | null;
-}): Promise<CreatorScriptEvidencePack> {
+export async function buildCreatorScriptEvidencePack(params: BuildScriptEvidenceInput): Promise<CreatorScriptEvidencePack> {
+  if (params.includePrivateIntelligence === false) throw new Error("private_creator_evidence_unavailable");
   if (!Types.ObjectId.isValid(params.userId)) throw new Error("invalid_user_id");
-  const prompt = params.prompt.replace(/\s+/g, " ").trim();
+  const prompt = params.prompt.trim().slice(0, 2000);
   if (!prompt) throw new Error("prompt_required");
+  const startedAt = Date.now();
+  const now = new Date();
+  const lookbackDays = Math.max(7, Math.min(365, Math.floor(params.lookbackDays || 180)));
+  const end = params.endsAt ? new Date(params.endsAt.length === 10 ? `${params.endsAt}T23:59:59.999Z` : params.endsAt) : now;
+  const since = params.startsAt ? new Date(params.startsAt) : new Date(end.getTime() - lookbackDays * 86400000);
+  if (![since.getTime(),end.getTime()].every(Number.isFinite) || since > end || end > now || end.getTime()-since.getTime() > 366*86400000) throw new Error("invalid_evidence_period");
+  const goal = params.goal || inferScriptGoal(prompt);
+  const format = params.format || "all";
+  const ids = [...new Set(params.ownContentIds || [])];
+  if (ids.length > 3 || ids.some(id => !Types.ObjectId.isValid(id))) throw new Error("invalid_own_content_ids");
   await connectToDatabase();
   const userId = new Types.ObjectId(params.userId);
-  const goal = params.goal || inferGoal(prompt);
-  const explicitDuration = params.targetDurationSeconds ?? inferDuration(prompt);
-  const dnaDoc = await getCreatorScriptDnaV3({ userId: params.userId });
-  const dna = sanitizeCreatorScriptDnaForMcp(dnaDoc);
-  const candidates = await PublishedContentEvidence.find({
-    userId,
-    "completeness.performance": true,
-    $or: [
-      { "completeness.transcript": true },
-      { "completeness.scriptLink": true },
-    ],
-  }).sort({ publishedAt: -1 }).limit(500).lean<any[]>();
-
-  const linkedScriptIds = [...new Set(candidates
-    .map((doc) => String(doc.scriptLink?.scriptId || ""))
-    .filter((id) => Types.ObjectId.isValid(id)))];
-  const scripts = linkedScriptIds.length
-    ? await ScriptEntry.find({ userId, _id: { $in: linkedScriptIds.map((id) => new Types.ObjectId(id)) } })
-      .select("_id content").lean<any[]>()
-    : [];
-  const scriptById = new Map(scripts.map((item) => [String(item._id), String(item.content || "").trim()]));
-
-  const rawScores = candidates.map((doc) => scorePerformance(doc, goal));
-  const reaches = candidates.map((doc) => finite(doc.performance?.reach) || 0);
-  const priorScore = median(rawScores.filter((score) => score > 0));
-  const priorExposure = Math.max(50, median(reaches.filter((reach) => reach > 0)) * 0.25);
-  const adjustedScores = rawScores.map((score, index) => {
-    const exposure = reaches[index] ?? 0;
-    return (score * exposure + priorScore * priorExposure) / Math.max(1, exposure + priorExposure);
-  });
-  const maxPerformance = Math.max(0.000001, ...adjustedScores);
-  const ranked = candidates.map((doc, index) => {
-    const scriptId = String(doc.scriptLink?.scriptId || "");
-    const planned = scriptById.get(scriptId) || "";
-    const observed = String(doc.transcript?.fullText || "").trim();
-    const fullText = observed || planned;
-    const rel = relevance(prompt, [fullText, ...(doc.narrative?.subjects || [])].join(" "));
-    const performanceIndex = (adjustedScores[index] ?? 0) / maxPerformance;
-    const ageDays = doc.publishedAt ? Math.max(0, (Date.now() - new Date(doc.publishedAt).getTime()) / 86_400_000) : 365;
-    const recency = Math.max(0.2, Math.exp(-ageDays / 240));
-    return {
-      doc,
-      fullText,
-      scriptId: planned ? scriptId : null,
-      source: planned && observed
-        ? "planned_and_observed" as const
-        : planned ? "planned_script" as const : "observed_transcript" as const,
-      planned,
-      observed,
-      rel,
-      performanceIndex,
-      rankScore: 0.5 * performanceIndex + 0.4 * rel + 0.1 * recency,
-    };
-  }).filter((item) => item.fullText.length >= 80)
-    .sort((a, b) => b.rankScore - a.rankScore);
-
-  const selected: typeof ranked = [];
-  const seenContent = new Set<string>();
-  for (const item of ranked) {
-    const signature = [...normalizedTokens(item.fullText)].slice(0, 30).join("|");
-    if (seenContent.has(signature)) continue;
-    seenContent.add(signature);
-    selected.push(item);
-    if (selected.length >= 3) break;
+  const query: Record<string, unknown> = { user: userId, postDate: { $gte: since, $lte: end } };
+  if (format !== "all") query.type = format === "reel" ? { $in: ["REEL", "VIDEO"] } : format === "photo" ? "IMAGE" : "CAROUSEL_ALBUM";
+  if (ids.length) {
+    const authorized = await Metric.find({ ...query, _id: { $in: ids.map(id => new Types.ObjectId(id)) } }).select("_id").lean();
+    if (authorized.length !== ids.length) throw new Error("own_content_unavailable_in_period_or_account");
   }
-  const bottom = [...ranked].sort((a, b) => a.performanceIndex - b.performanceIndex)
-    .find((item) => !selected.includes(item)) || null;
-
-  const toExemplar = (item: typeof ranked[number]): CreatorScriptEvidenceExemplar => ({
-    contentId: String(item.doc.metricId || ""),
-    scriptId: item.scriptId,
-    source: item.source,
-    fullText: item.fullText.slice(0, 20_000),
-    plannedScriptText: item.planned ? item.planned.slice(0, 20_000) : null,
-    observedTranscriptText: item.observed ? item.observed.slice(0, 30_000) : null,
-    hook: typeof item.doc.narrative?.hook === "string" ? item.doc.narrative.hook : null,
-    cta: typeof item.doc.narrative?.cta === "string" ? item.doc.narrative.cta : null,
-    structure: Array.isArray(item.doc.narrative?.structure) ? item.doc.narrative.structure.slice(0, 12) : [],
-    subjects: Array.isArray(item.doc.narrative?.subjects) ? item.doc.narrative.subjects.slice(0, 10) : [],
-    durationSeconds: finite(item.doc.performance?.durationSeconds),
-    performanceIndex: Number(item.performanceIndex.toFixed(4)),
-    relevance: item.rel,
-  });
-  const winningExemplars = selected.map(toExemplar);
-  const targetDurationSeconds = explicitDuration
-    || finite(dna?.narrative?.medianDurationSeconds)
-    || 35;
-  const warnings: string[] = [];
-  if (!winningExemplars.length) warnings.push("Sem roteiro integral vencedor; a geração usará o DNA agregado e regras base.");
-  if (!dna?.coverage?.demographics) warnings.push("Demografia indisponível; nenhuma personalização demográfica será inferida.");
-  if ((dna?.confidence || "low") === "low") warnings.push("Amostra pequena; trate as recomendações como experimento.");
-
-  return {
-    schemaVersion: "creator_script_evidence_pack_v1",
-    generatedAt: new Date().toISOString(),
-    request: { prompt, goal, targetDurationSeconds: explicitDuration },
-    dna,
-    winningExemplars,
-    contrastExemplar: bottom ? toExemplar(bottom) : null,
-    generationConstraints: {
-      targetDurationSeconds: Math.round(targetDurationSeconds),
-      preferredSceneCount: targetDurationSeconds <= 20 ? 3 : targetDurationSeconds <= 35 ? 4 : targetDurationSeconds <= 50 ? 5 : 6,
-      creatorFitConfidence: dna?.confidence || "low",
-      avoidVerbatimCopy: true,
-      audienceGuidance: audienceGuidance(dna),
-      visualGuidance: [
-        dna?.visual?.settings?.length ? `Cenários recorrentes: ${dna.visual.settings.join(", ")}.` : "",
-        dna?.visual?.objects?.length ? `Objetos recorrentes: ${dna.visual.objects.join(", ")}.` : "",
-        dna?.visual?.framing?.length ? `Enquadramentos recorrentes: ${dna.visual.framing.join(", ")}.` : "",
-      ].filter(Boolean),
-    },
-    receipt: {
-      profileVersion: dna?.schemaVersion || "unavailable",
-      evidenceRecordsConsidered: candidates.length,
-      fullExemplarsUsed: winningExemplars.length,
-      linkedPlannedScriptsUsed: winningExemplars.filter((item) => Boolean(item.plannedScriptText)).length,
-      observedTranscriptsUsed: winningExemplars.filter((item) => Boolean(item.observedTranscriptText)).length,
-      demographicsUsed: Boolean(dna?.coverage?.demographics),
-      status: winningExemplars.length >= 2 && dna?.confidence !== "low"
-        ? "complete" : winningExemplars.length ? "partial" : "insufficient",
-      warnings,
-    },
+  const [metrics, total, dnaDoc, creatorMap] = await Promise.all([
+    Metric.find(query).sort({ postDate: -1, _id: 1 }).limit(2000)
+      .select("_id postDate postLink type stats updatedAt lastFetchedAt").lean<any[]>(),
+    Metric.countDocuments(query),
+    getCreatorScriptDnaV3({ userId: params.userId, rebuildIfStale: false }),
+    loadMcpCreatorMap(params.userId),
+  ]);
+  // Referências explícitas não podem desaparecer por causa do limite da janela de consulta.
+  const missing = ids.filter(id => !metrics.some(m => String(m._id) === id));
+  if (missing.length) metrics.push(...await Metric.find({ ...query, _id: { $in: missing.map(id => new Types.ObjectId(id)) } })
+    .select("_id postDate postLink type stats updatedAt lastFetchedAt").lean<any[]>());
+  const candidates = metrics.length ? await PublishedContentEvidence.find({ userId, metricId: { $in: metrics.map(m => m._id) } })
+    .select("metricId transcript.source transcript.quality transcript.wordCount narrative visual scriptLink completeness evidenceVersion analyzedAt updatedAt").lean<any[]>() : [];
+  const preview = rankScriptEvidence({ metrics, evidence: candidates, prompt, goal, requestedIds: ids, now });
+  const textIds = preview.ranked.filter(r => r.observedAvailable || r.doc?.completeness?.scriptLink || r.doc?.transcript?.source === "stored_script" || r.fullText)
+    .slice(0,40).map(r => new Types.ObjectId(r.contentId));
+  const texts = textIds.length ? await PublishedContentEvidence.find({ userId, metricId: { $in: textIds } })
+    .select("metricId transcript").lean<any[]>() : [];
+  const textById = new Map(texts.map(d => [String(d.metricId), d.transcript]));
+  for (const candidate of candidates) if (textById.has(String(candidate.metricId))) candidate.transcript = textById.get(String(candidate.metricId));
+  const linkedIds = candidates.filter(d => textById.has(String(d.metricId)) && ["confirmed", "high"].includes(d.scriptLink?.confidence))
+    .map(d => String(d.scriptLink?.scriptId)).filter(id => Types.ObjectId.isValid(id));
+  const scripts = linkedIds.length ? await ScriptEntry.find({ userId, _id: { $in: linkedIds.map(id => new Types.ObjectId(id)) } }).select("_id content").lean<any[]>() : [];
+  const ranked = rankScriptEvidence({ metrics, evidence: candidates, scripts: new Map(scripts.map(s => [String(s._id), s.content])), prompt, goal, requestedIds: ids, now });
+  const dna = sanitizeCreatorScriptDnaForMcp(dnaDoc);
+  // O pacote não exige audience:read; não exporta demografia por essa ferramenta.
+  if (dna) dna.audience = null;
+  const feedback = await ScriptEntry.find({ userId, "creatorFeedback.updatedAt": { $exists: true } })
+    .sort({ "creatorFeedback.updatedAt": -1 }).limit(5).select("_id creatorFeedback").lean<any[]>();
+  const creatorPreferences = feedback.map(s => ({ scriptId: String(s._id), voiceMatch: s.creatorFeedback?.voiceMatch,
+    preferredDirection: String(s.creatorFeedback?.preferredDirection || "").slice(0,500), notes: String(s.creatorFeedback?.notes || "").slice(0,1000) }));
+  let budget = 48000;
+  const toExemplar = (row: typeof ranked.selected[number], contrast = false): CreatorScriptEvidenceExemplar => {
+    const original = row.observed || row.planned;
+    const limit = Math.min(16000, budget);
+    const text = original.slice(0, limit);
+    budget -= text.length;
+    const truncated = text.length < original.length || row.quality.truncated;
+    return {
+      contentId: row.contentId, scriptId: row.planned ? String(row.doc?.scriptLink?.scriptId || "") || null : null,
+      source: row.observed ? "observed_transcript" : "planned_script", fullText: text,
+      plannedScriptText: row.observed ? null : text || null,
+      observedTranscriptText: row.observed ? text : null,
+      hook: row.doc?.narrative?.hook || null, cta: row.doc?.narrative?.cta || null,
+      structure: (row.doc?.narrative?.structure || []).slice(0,12), subjects: (row.doc?.narrative?.subjects || []).slice(0,10),
+      durationSeconds: row.performance.durationSeconds, performanceIndex: row.performanceIndex || 0, relevance: row.relevance,
+      role: contrast ? "contrast" : row.requested ? "requested" : row.winner ? "winner" : "voice_example",
+      url: /^https?:\/\//.test(row.metric.postLink || "") ? row.metric.postLink : null,
+      publishedAt: iso(row.metric.postDate), quality: { ...row.quality, truncated, completenessVerified: row.quality.completenessVerified && !truncated, status: truncated ? "partial" : row.quality.status },
+      metrics: { ...row.performance, capturedAt: iso(row.performance.capturedAt), value: row.value, method: row.method, baseline: row.baseline },
+      selectionReason: row.requested ? "Referência indicada pelo criador." : row.winner ? "Desempenho igual ou superior à mediana comparável; proximidade lexical com o pedido." : "Referência de voz disponível; não comprova desempenho vencedor.",
+      segments: row.observed ? (row.doc?.transcript?.segments || []).slice(0,12).map((s: any) => ({ startMs: s.startMs ?? null, endMs: s.endMs ?? null, text: String(s.text || "").slice(0,600) })) : [],
+    };
   };
+  const winningExemplars = ranked.selected.map(r => toExemplar(r));
+  const contrastExemplar = ranked.contrast && budget >= 2000 ? toExemplar(ranked.contrast, true) : null;
+  const inferredDuration = Number(prompt.match(/(\d{1,3})\s*(?:s|seg|segundos?)\b/i)?.[1]) || null;
+  const target = Math.max(5, Math.min(180, params.targetDurationSeconds || inferredDuration || dna?.narrative?.medianDurationSeconds || 35));
+  const warnings: string[] = [];
+  if (!winningExemplars.length) warnings.push("Sem exemplos utilizáveis; não afirme conhecer a voz do criador.");
+  if (winningExemplars.some(e => !e.observedTranscriptText)) warnings.push("Parte dos exemplos é roteiro planejado, não fala observada.");
+  if (winningExemplars.some(e => !e.quality?.completenessVerified)) warnings.push("Há textos cuja integralidade não foi verificada; não os anuncie como transcrição completa.");
+  if (ranked.coverage.missingLeaderIds.length) warnings.push(`${ranked.coverage.missingLeaderIds.length} dos ${ranked.coverage.leaders} líderes não têm transcrição observada utilizável.`);
+  if (total > metrics.length) warnings.push(`Corpus limitado aos ${metrics.length} posts consultados de ${total} no período.`);
+  if (!dna) warnings.push("DNA agregado ainda não disponível; use somente as referências deste pacote.");
+  if (dnaDoc?.generatedAt && now.getTime() - new Date(dnaDoc.generatedAt).getTime() > 6*3600000) warnings.push("DNA agregado aguardando atualização; referências e métricas foram consultadas agora.");
+  if (goal === "conversion") warnings.push("Sem atribuição comercial disponível; exemplos orientam voz, não comprovam vendas.");
+  if (goal === "authority") warnings.push("Autoridade é objetivo editorial; o ranking utiliza engajamento como sinal auxiliar.");
+  if ((params.targetDurationSeconds || inferredDuration || 0) > 180) warnings.push("Este motor atende roteiros de até 180 segundos; duração ajustada ao limite.");
+  const packId = createHash("sha256").update(JSON.stringify({ userId: params.userId, prompt, goal, target, lookbackDays, startsAt: params.startsAt, endsAt: params.endsAt, format, ids,
+    examples: winningExemplars, contrastExemplar, map: creatorMap, creatorPreferences, dnaUpdatedAt: dna?.generatedAt })).digest("hex");
+  recordScriptsStageDuration("evidence.total", Date.now()-startedAt);
+  return {
+    schemaVersion: "creator_script_evidence_pack_v1", generatedAt: now.toISOString(),
+    request: { prompt, goal, targetDurationSeconds: params.targetDurationSeconds ?? inferredDuration, lookbackDays, startsAt: since.toISOString(), endsAt: end.toISOString(), format, requestedIds: ids },
+    dna, editorialContext: summarizeMcpCreatorMap(creatorMap), creatorPreferences, winningExemplars, contrastExemplar,
+    generationConstraints: { targetDurationSeconds: target, preferredSceneCount: target <= 20 ? 3 : target <= 35 ? 4 : target <= 50 ? 5 : 6,
+      creatorFitConfidence: winningExemplars.filter(e => e.observedTranscriptText).length >= 2 ? "medium" : "low",
+      avoidVerbatimCopy: true, audienceGuidance: [],
+      visualGuidance: [creatorMap.tone ? `Tom declarado no mapa: ${creatorMap.tone}` : "", ...(dna?.visual?.settings || []).slice(0,3).map((s: string) => `Cenário recorrente: ${s}`)].filter(Boolean) },
+    receipt: { profileVersion: dna?.schemaVersion || "unavailable", evidenceRecordsConsidered: candidates.length,
+      fullExemplarsUsed: winningExemplars.length, linkedPlannedScriptsUsed: winningExemplars.filter(e => e.plannedScriptText).length,
+      observedTranscriptsUsed: winningExemplars.filter(e => e.observedTranscriptText).length, demographicsUsed: false,
+      status: winningExemplars.length >= 2 && winningExemplars.every(e => e.quality?.completenessVerified) && !ranked.coverage.missingLeaderIds.length ? "complete" : winningExemplars.length ? "partial" : "insufficient",
+      warnings, packId, rankingVersion: "script_ranking_v2", selectedContentIds: winningExemplars.map(e => e.contentId),
+      coverage: ranked.coverage, selectionStage: "prepared", selectedExamples: winningExemplars.length, sentExamples: 0,
+      corpusLimited: total > metrics.length, periodStart: since.toISOString(), periodEnd: end.toISOString() },
+  };
+}
+
+/** Uma representação textual por fonte. Referências são dados, não instruções. */
+export function serializeScriptEvidence(pack: CreatorScriptEvidencePack): string {
+  const example = (e: CreatorScriptEvidenceExemplar) => ({ ...e, fullText: undefined, segments: undefined });
+  return JSON.stringify({ ...pack, winningExemplars: pack.winningExemplars.map(example), contrastExemplar: pack.contrastExemplar ? example(pack.contrastExemplar) : null });
 }

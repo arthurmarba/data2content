@@ -28,6 +28,8 @@ const PROVIDERS: Record<LlmProviderName, LlmProvider> = {
 export interface LlmCallOptions {
   /** Sufixo do env de seleção, ex.: "MAPA" → lê LLM_PROVIDER_MAPA. */
   scope?: string;
+  /** Escolha interna explícita; não tenta outro provedor neste caminho. */
+  provider?: LlmProviderName;
 }
 
 /**
@@ -90,7 +92,7 @@ export async function llmGenerate(
     return { text: params.json ? "{}" : "", provider: "openai", model: "test-stub" };
   }
 
-  const order = resolveProviderOrder(options.scope);
+  const order = options.provider ? [options.provider] : resolveProviderOrder(options.scope);
   let lastError: unknown = null;
 
   for (const name of order) {

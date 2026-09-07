@@ -27,6 +27,7 @@ import MetricModel from "@/app/models/Metric";
 import UserModel from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
 import { SCENE_EVALUATION_VERSION } from "@/app/lib/relatorio/sceneEvaluation";
+import { findPendingReadingBatch } from "@/app/lib/relatorio/contentReadingState";
 import { lastClosedWeek } from "@/app/lib/relatorio/weekWindow";
 
 export const runtime = "nodejs";
@@ -90,23 +91,16 @@ export async function POST(request: NextRequest) {
       .lean()
       .exec()) as unknown as Array<{ _id: Types.ObjectId }>;
 
-    const metrics = (await MetricModel.find(
+    const metrics = await findPendingReadingBatch(
       {
         postDate: { $gte: week.startsAt, $lte: week.endsAt },
         classificationStatus: "completed",
         instagramMediaId: { $nin: [null, ""] },
         type: { $in: ["REEL", "VIDEO", "IMAGE", "CAROUSEL_ALBUM"] },
         user: { $in: withToken.map((u) => u._id) },
-        $or: [
-          { sceneElements: { $exists: false } },
-          { "sceneElements.version": { $ne: SCENE_EVALUATION_VERSION } },
-        ],
       },
-      { _id: 1 },
-    )
-      .limit(MAX_PER_RUN)
-      .lean()
-      .exec()) as unknown as Array<{ _id: Types.ObjectId }>;
+      SCENE_EVALUATION_VERSION, MAX_PER_RUN,
+    );
 
     let queued = 0;
     for (const metric of metrics) {

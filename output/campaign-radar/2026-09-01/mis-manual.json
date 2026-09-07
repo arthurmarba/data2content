@@ -1,0 +1,1305 @@
+{
+  "schemaVersion": "campaign_radar_batch_v1",
+  "generatedAt": "2026-09-01T00:15:00.000Z",
+  "reportDate": "2026-09-01",
+  "coverageStatement": "Campanhas lidas manualmente na tela do app do MIS, na conta de um creator, em 01/09/2026. O MIS nao publica campanhas em pagina publica: nao ha coletor automatico para esta fonte. A lista reflete o que a plataforma selecionou para aquele perfil, nao o inventario completo do MIS.",
+  "sources": [
+    {
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "discoveryUrl": "https://mis-app.com/",
+      "fetchedAt": "2026-09-01T00:15:00.000Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 24,
+      "warnings": [
+        "captura_manual: lida na tela, sem coletor; nao se repete sozinha na proxima edicao.",
+        "recorte_por_perfil: o app mostra o que a IA do MIS escolheu para uma conta especifica.",
+        "lista_incompleta: a rolagem pulou trechos; KitKat no Instagram e Hering no TikTok podem existir e nao foram vistos.",
+        "prazos_ausentes: Mentos no TikTok e Comfort no Instagram tiveram o prazo cortado na tela.",
+        "rede_ausente: 5 cards nao mostraram o sufixo de rede, entao a entrega nao foi confirmada."
+      ]
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "mis-manual-capture:fb5fb2cdf6735bfc",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Ekos | Equilibrium Tour | TikTok",
+      "brand": "Natura",
+      "summary": "Campanha de Natura na plataforma MIS. Cachê de R$ 570,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 570,
+        "maximum": 570,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 570,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-11-30",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Natura — Ekos | Equilibrium Tour | TikTok — R$ 570,00 — Inscrições até 30/11"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "sinal",
+          "excerpt": "Card marcado como 'Novo' no app."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:f85b56aa3c261035",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Ekos | Equilibrium Tour | Instagram",
+      "brand": "Natura",
+      "summary": "Campanha de Natura na plataforma MIS. Cachê de R$ 570,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 570,
+        "maximum": 570,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 570,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-11-30",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Natura — Ekos | Equilibrium Tour | Instagram — R$ 570,00 — Inscrições até 30/11"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "sinal",
+          "excerpt": "Card marcado como 'Novo' no app."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:a5eea54031df6064",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Rock in Rio | TikTok",
+      "brand": "KitKat",
+      "summary": "Campanha de KitKat na plataforma MIS. Cachê de R$ 450,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 450,
+        "maximum": 450,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 450,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-03",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "KitKat — Rock in Rio | TikTok — R$ 450,00 — Inscrições até 03/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:f96019d71c2f014e",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Promoção Ypê",
+      "brand": "Ypê",
+      "summary": "Campanha de Ypê na plataforma MIS. Cachê de R$ 500,00 por entrega, informado na listagem do app. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 500,
+        "maximum": 500,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 500,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-11-24",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Ypê — Promoção Ypê — R$ 500,00 — Inscrições até 24/11"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:cad9bd0ee2f06237",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Adeus a sensibilidade dentária",
+      "brand": "Sensodyne",
+      "summary": "Campanha de Sensodyne na plataforma MIS. Cachê de R$ 500,00 por entrega, informado na listagem do app. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 500,
+        "maximum": 500,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 500,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-21",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Sensodyne — Adeus a sensibilidade dentária — R$ 500,00 — Inscrições até 21/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:cd21d372b0a0c700",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Adeus a sensibilidade dentária",
+      "brand": "Sensodyne",
+      "summary": "Campanha de Sensodyne na plataforma MIS. Cachê de R$ 500,00 por entrega, informado na listagem do app. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 500,
+        "maximum": 500,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 500,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-21",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Sensodyne — Adeus a sensibilidade dentária — R$ 500,00 — Inscrições até 21/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:4dceab872efb1169",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "React Crocante | TikTok",
+      "brand": "Philips Walita",
+      "summary": "Campanha de Philips Walita na plataforma MIS. Cachê de R$ 360,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 360,
+        "maximum": 360,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 360,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2027-01-01",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Philips Walita — React Crocante | TikTok — R$ 360,00 — Inscrições até 01/01"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:2afb2171064534b9",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "React Crocante | Instagram",
+      "brand": "Philips Walita",
+      "summary": "Campanha de Philips Walita na plataforma MIS. Cachê de R$ 360,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 360,
+        "maximum": 360,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 360,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2027-01-01",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Philips Walita — React Crocante | Instagram — R$ 360,00 — Inscrições até 01/01"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:f52e33efa68cbb5f",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Experiência Coffee Lover | TikTok",
+      "brand": "Philips Walita",
+      "summary": "Campanha de Philips Walita na plataforma MIS. Cachê de R$ 350,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 350,
+        "maximum": 350,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 350,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Philips Walita — Experiência Coffee Lover | TikTok — R$ 350,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:bfd897eb7a8ac6b9",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Experiência Coffee Lover | Instagram",
+      "brand": "Philips Walita",
+      "summary": "Campanha de Philips Walita na plataforma MIS. Cachê de R$ 350,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 350,
+        "maximum": 350,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 350,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Philips Walita — Experiência Coffee Lover | Instagram — R$ 350,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:8220614bcd7df899",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Lançamento T-Shirt | Instagram",
+      "brand": "Hering",
+      "summary": "Campanha de Hering na plataforma MIS. Cachê de R$ 350,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 350,
+        "maximum": 350,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 350,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-12-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Hering — Lançamento T-Shirt | Instagram — R$ 350,00 — Inscrições até 31/12"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:29ed707980b76e1c",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "O Boticário | Glamour | TikTok",
+      "brand": "Grupo Boticário",
+      "summary": "Campanha de Grupo Boticário na plataforma MIS. Cachê de R$ 300,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 300,
+        "maximum": 300,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 300,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-18",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Grupo Boticário — O Boticário | Glamour | TikTok — R$ 300,00 — Inscrições até 18/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:1c2099fb8d4ffc8c",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "O Boticário | Glamour",
+      "brand": "Grupo Boticário",
+      "summary": "Campanha de Grupo Boticário na plataforma MIS. Cachê de R$ 300,00 por entrega, informado na listagem do app. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 300,
+        "maximum": 300,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 300,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-18",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Grupo Boticário — O Boticário | Glamour — R$ 300,00 — Inscrições até 18/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:08bf60fdbf3ce096",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Flerte de Festival | Instagram",
+      "brand": "Mentos",
+      "summary": "Campanha de Mentos na plataforma MIS. Cachê de R$ 300,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 300,
+        "maximum": 300,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 300,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-30",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Mentos — Flerte de Festival | Instagram — R$ 300,00 — Inscrições até 30/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:8598be0a2c7b6306",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Flerte de Festival | TikTok",
+      "brand": "Mentos",
+      "summary": "Campanha de Mentos na plataforma MIS. Cachê de R$ 300,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 300,
+        "maximum": 300,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 300,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Mentos — Flerte de Festival | TikTok — R$ 300,00"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:ddda7a8e9321e241",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Perfume que Permanece | TikTok",
+      "brand": "Comfort",
+      "summary": "Campanha de Comfort na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Comfort — Perfume que Permanece | TikTok — R$ 295,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:4a142d238da4c5c4",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Perfume que Permanece | Instagram",
+      "brand": "Comfort",
+      "summary": "Campanha de Comfort na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Comfort — Perfume que Permanece | Instagram — R$ 295,00"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:ec7a165c7200ffdf",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Tradição que Brilha | TikTok",
+      "brand": "CIF",
+      "summary": "Campanha de CIF na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "CIF — Tradição que Brilha | TikTok — R$ 295,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:26c170276cc8fd7d",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Tradição que Brilha",
+      "brand": "CIF",
+      "summary": "Campanha de CIF na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "CIF — Tradição que Brilha — R$ 295,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:c0bb9988004e38f9",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Todo Ciclo | TikTok",
+      "brand": "OMO",
+      "summary": "Campanha de OMO na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2027-01-05",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "OMO — Todo Ciclo | TikTok — R$ 295,00 — Inscrições até 05/01"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:4c59a7835acbc2d7",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Todo Ciclo | Instagram",
+      "brand": "OMO",
+      "summary": "Campanha de OMO na plataforma MIS. Cachê de R$ 295,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 295,
+        "maximum": 295,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 295,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2027-01-05",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "OMO — Todo Ciclo | Instagram — R$ 295,00 — Inscrições até 05/01"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:3104b9981524d600",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Milagre em Cada Gota | TikTok",
+      "brand": "CIF",
+      "summary": "Campanha de CIF na plataforma MIS. Cachê de R$ 290,00 por entrega, informado na listagem do app. Entrega: 1 post no TikTok. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no TikTok"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 290,
+        "maximum": 290,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 290,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "CIF — Milagre em Cada Gota | TikTok — R$ 290,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:02e72eb8dfa40531",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Milagre em Cada Gota | Instagram",
+      "brand": "CIF",
+      "summary": "Campanha de CIF na plataforma MIS. Cachê de R$ 290,00 por entrega, informado na listagem do app. Entrega: 1 post no Instagram. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [
+        "1 post no Instagram"
+      ],
+      "compensation": {
+        "type": "fixed",
+        "minimum": 290,
+        "maximum": 290,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "R$ 290,00",
+        "confirmed": true,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "CIF — Milagre em Cada Gota | Instagram — R$ 290,00 — Inscrições até 31/10"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    },
+    {
+      "id": "mis-manual-capture:176183c11507f975",
+      "sourceId": "mis-manual-capture",
+      "sourcePlatform": "MIS",
+      "sourceUrl": "https://mis-app.com/",
+      "applicationUrl": "https://mis-app.com/",
+      "applicationLabel": "Abrir no app do MIS",
+      "requiresAccount": true,
+      "title": "Sérum Leave-in | Bambu",
+      "brand": "Pantene",
+      "summary": "Campanha de Pantene na plataforma MIS. Permuta: a marca envia o produto, sem pagamento em dinheiro. A candidatura acontece dentro do app do MIS.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "barter",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "Permuta",
+        "confirmed": true,
+        "includesProduct": true
+      },
+      "applicationDeadline": "2026-09-04",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-01T00:15:00.000Z",
+      "lastVerifiedAt": "2026-09-01T00:15:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "listagem",
+          "excerpt": "Pantene — Sérum Leave-in | Bambu — Permuta — Inscrições até 04/09"
+        },
+        {
+          "field": "captura",
+          "excerpt": "Lido na tela do app do MIS em 01/09/2026, via espelhamento do iPhone, na conta de um creator. Não há fonte pública equivalente."
+        },
+        {
+          "field": "rede",
+          "excerpt": "O sufixo de rede não estava visível no card; a entrega não pôde ser confirmada."
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "reviewedAt": null,
+        "reviewedBy": null,
+        "notes": null
+      }
+    }
+  ]
+}

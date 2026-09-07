@@ -102,7 +102,10 @@ async function main() {
     if (!c.territorios || c.territorios.length === 0) c.territorios = p.territorios;
     // Tabelas de padrão dos 90 dias: o motor calculou, o render exibe. O agente
     // nunca transcreve esses números (mesma divisão de trabalho do Ato 2 da Galileia).
-    if (!c.padroes && p.padroes) c.padroes = p.padroes;
+    // SEMPRE sobrescreve (diferente dos campos editoriais, que respeitam o que o
+    // agente escreveu): como isto nunca é escrito à mão, manter o valor antigo só
+    // serviria pra exibir tabela velha depois de um backfill de cena novo.
+    if (p.padroes) c.padroes = p.padroes;
     // Thumbs dos pontos (pelo postId) — nunca colar URL à mão.
     if (c.pontoForte && !c.pontoForte.thumbnailUrl) {
       c.pontoForte.thumbnailUrl = postById(p, c.pontoForte.postId)?.thumbnailUrl ?? null;

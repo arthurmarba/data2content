@@ -11,6 +11,9 @@ import CampaignLink from "@/app/models/CampaignLink";
 import BrandProposal from "@/app/models/BrandProposal";
 import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
 import { generateCreatorScriptV3 } from "@/app/lib/scripts/creatorScriptGenerationV3";
+import { SCRIPT_GOALS, type ScriptGoal } from "@/app/lib/scripts/scriptEvidenceSelection";
+import { enqueueScriptEvidenceMaintenance } from "@/app/lib/scripts/scriptEvidenceQueue";
+import { scriptTextHash } from "@/app/lib/scripts/scriptEvidenceSession";
 import { applyScriptToPlannerSlot, normalizeToMondayInTZ } from "@/app/lib/scripts/scriptSync";
 import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scripts/access";
 import { isScriptsIntelligenceV2Enabled, isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
@@ -275,8 +278,8 @@ function normalizeCreateBody(body: any) {
     typeof body?.clientRequestId === "string" || body?.clientRequestId === null
       ? body.clientRequestId
       : undefined;
-  const scriptGoal = ["attention", "depth", "conversation", "conversion", "authority"].includes(body?.scriptGoal)
-    ? body.scriptGoal as "attention" | "depth" | "conversation" | "conversion" | "authority"
+  const scriptGoal = SCRIPT_GOALS.includes(body?.scriptGoal)
+    ? body.scriptGoal as ScriptGoal
     : undefined;
   const targetDurationSeconds = typeof body?.targetDurationSeconds === "number"
     && Number.isFinite(body.targetDurationSeconds)
@@ -940,6 +943,13 @@ export async function POST(request: Request) {
             targetDurationSeconds: generatedV3.targetDurationSeconds,
             validation: generatedV3.validation,
             evidenceReceipt: generatedV3.evidenceReceipt,
+            packId: generatedV3.evidenceReceipt.packId,
+            request: generatedV3.evidencePack?.request,
+            references: generatedV3.evidencePack?.winningExemplars.map(e => ({
+              contentId: e.contentId, source: e.source, role: e.role, metrics: e.metrics, quality: e.quality,
+            })),
+            originalDraftHash: scriptTextHash(generatedV3.content),
+            originalContent: generatedV3.content,
           };
         } else {
           generated = await generateScriptFromPrompt({ prompt, title, intelligenceContext });
@@ -1137,6 +1147,9 @@ export async function POST(request: Request) {
         : undefined,
       aiVersionId,
       isAdminRecommendation: isRecommendation,
+      evidenceProvenance: generationV3Meta ? { status: "recorded", mode: "internal", ...generationV3Meta,
+        approvedContent: finalContent, approvedDraftHash: scriptTextHash(finalContent),
+        editedAfterGeneration: generationV3Meta.originalDraftHash !== scriptTextHash(finalContent) } : null,
       recommendedByAdminId: isRecommendation ? new Types.ObjectId(session.user.id as string) : null,
       recommendedByAdminName: isRecommendation ? recommendedByAdminName : null,
       recommendedAt: isRecommendation ? new Date() : null,
@@ -1209,6 +1222,7 @@ export async function POST(request: Request) {
       void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
     }
     if (postedContentResolution.postedContent?.metricId) {
+      await enqueueScriptEvidenceMaintenance(effectiveUserId);
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }

@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "campaign_radar_review_v1",
+  "reviewedAt": "2026-09-01T00:35:00.000Z",
+  "reviewedBy": "Data2Content MVP review",
+  "decisions": [
+    {
+      "id": "influencer-brasil:76ef2f3f88985479",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:ff66b194a3345cf9",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:e0e321f97a7a41b9",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:fe2c81019d30aa09",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:45ce732e14013935",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:40c352b767144eaf",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:6c4cc6649500369b",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:b596d628803a9387",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:90884df766be3441",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:39af3a9c28d84ab1",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:8ab6f11270b25461",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:6476d783bf067de8",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:cd28f9f4e6a4a879",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:299840b3ecc6ba16",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:4cdca831951f98a3",
+      "status": "rejected",
+      "notes": "Prazo encerrado antes da data desta edição."
+    },
+    {
+      "id": "influencer-brasil:b385db193826c72c",
+      "status": "approved",
+      "notes": "Prazo e faixa de cachê individual conferidos na fonte pública."
+    },
+    {
+      "id": "influencer-brasil:b7f9e60397fbbcc9",
+      "status": "approved",
+      "notes": "Prazo público vigente; o cachê individual não foi confirmado."
+    },
+    {
+      "id": "influencer-brasil:976d24fcbe483899",
+      "status": "approved",
+      "notes": "Prazo público vigente; a faixa divulgada é investimento da campanha, não cachê garantido."
+    },
+    {
+      "id": "influencer-brasil:7126cf2a9b82dbaf",
+      "status": "approved",
+      "notes": "Prazo, entrega e faixa de cachê individual conferidos na fonte pública."
+    },
+    {
+      "id": "influencer-brasil:0d942ab49c853325",
+      "status": "approved",
+      "notes": "Prazo, entrega e faixa de cachê individual conferidos na fonte pública."
+    },
+    {
+      "id": "influencer-brasil:21f6f7bacbe1a898",
+      "status": "approved",
+      "notes": "Prazo público vigente; oportunidade restrita a público 18+ e cachê individual não confirmado."
+    },
+    {
+      "id": "influencer-brasil:f872fb8d97cd38e1",
+      "status": "approved",
+      "notes": "Prazo público vigente; o investimento divulgado não equivale a cachê individual garantido."
+    },
+    {
+      "id": "influencer-brasil:7fa7d68276207a6c",
+      "status": "approved",
+      "notes": "Prazo público vigente; o investimento divulgado não equivale a cachê individual garantido."
+    },
+    {
+      "id": "influencer-brasil:493d50e0f7913296",
+      "status": "approved",
+      "notes": "Prazo público vigente; o orçamento divulgado é total da campanha, não cachê individual garantido."
+    },
+    {
+      "id": "influencer-brasil:7905c734563a531f",
+      "status": "approved",
+      "notes": "Prazo público vigente; modelo financeiro deve ser confirmado com a anunciante."
+    },
+    {
+      "id": "squid-public-campaigns:4a1ef0c51126cc53",
+      "status": "rejected",
+      "notes": "Chamada de abril sem prazo público; atualidade insuficiente para esta edição."
+    },
+    {
+      "id": "squid-public-campaigns:72fe55814659ed62",
+      "status": "rejected",
+      "notes": "Chamada de abril sem prazo público; atualidade insuficiente para esta edição."
+    },
+    {
+      "id": "influencer-brasil:eb4abf38f245bd4e",
+      "status": "approved",
+      "notes": "Página publicada recentemente, mas sem prazo; confirme disponibilidade antes de se candidatar."
+    },
+    {
+      "id": "squid-public-campaigns:fae8e714ad7186ac",
+      "status": "approved",
+      "notes": "Programa publicado em 31/07/2026 com link direto; prazo não informado, confirme o status na Squid."
+    },
+    {
+      "id": "influencer-brasil:fcea2dd7b4db1831",
+      "status": "approved",
+      "notes": "Página publicada recentemente, mas sem prazo; confirme disponibilidade antes de se candidatar."
+    },
+    {
+      "id": "squid-public-campaigns:88166620bcfca89f",
+      "status": "approved",
+      "notes": "Chamada pública com link direto; prazo e cachê não divulgados, confirme o status na Squid."
+    },
+    {
+      "id": "squid-public-campaigns:1c217829726c329c",
+      "status": "approved",
+      "notes": "Chamada pública com link direto; prazo e cachê não divulgados, confirme o status na Squid."
+    },
+    {
+      "id": "squid-public-campaigns:5c7237b60f681a15",
+      "status": "approved",
+      "notes": "Chamada pública com link direto; prazo e cachê não divulgados, confirme o status na Squid."
+    },
+    {
+      "id": "squid-public-campaigns:63da3e8261fadb3f",
+      "status": "approved",
+      "notes": "Chamada pública com link direto; prazo e cachê não divulgados, confirme o status na Squid."
+    },
+    {
+      "id": "creator-ads-public-calls:d6ea211c84c40963",
+      "status": "approved",
+      "notes": "Chamada específica presente na vitrine pública atual da Creator Ads; prazo, briefing e valor exigem confirmação no cadastro."
+    },
+    {
+      "id": "creator-ads-public-calls:1c1b5fcbef899f25",
+      "status": "approved",
+      "notes": "Chamada específica presente na vitrine pública atual da Creator Ads; direcionada a homens do Nordeste, com prazo e valor não divulgados."
+    },
+    {
+      "id": "creator-ads-public-calls:a191f1e475a9c973",
+      "status": "approved",
+      "notes": "Chamada específica presente na vitrine pública atual da Creator Ads; prazo, briefing e valor exigem confirmação no cadastro."
+    },
+    {
+      "id": "playnest-public-programs:3b79d0398a0d0934",
+      "status": "rejected",
+      "notes": "As inscrições do programa encerraram em 30/04/2026."
+    },
+    {
+      "id": "playnest-public-programs:90bd55c9bec776d6",
+      "status": "approved",
+      "notes": "Programa de banco de creators com inscrição aberta e link direto; entra na seção de programas, não como publi."
+    }
+  ]
+}

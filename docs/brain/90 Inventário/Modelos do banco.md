@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **80 modelos.**
+Todo dado persistido é um modelo Mongoose. **82 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -43,6 +43,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **CollabMatch** | `collabmatches` | `src/app/models/CollabMatch.ts` |
 | **CommunityEvent** | `community_events` | `src/app/models/CommunityEvent.ts` |
 | **CommunityInspiration** | `—` | `src/app/models/CommunityInspiration.ts` |
+| **ContentReadingState** | `content_reading_states` | `src/app/models/ContentReadingState.ts` |
 | **CpmHistory** | `—` | `src/app/models/CpmHistory.ts` |
 | **CreatorContentIdea** | `creatorcontentideas` | `src/app/models/CreatorContentIdea.ts` |
 | **CreatorMapConfirmations** | `creatormapconfirmations` | `src/app/models/CreatorMapConfirmations.ts` |
@@ -80,6 +81,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **PublishedContentEvidence** | `published_content_evidence` | `src/app/models/PublishedContentEvidence.ts` |
 | **Redemption** | `—` | `src/app/models/Redemption.ts` |
 | **ScriptEntry** | `script_entries` | `src/app/models/ScriptEntry.ts` |
+| **ScriptEvidenceSession** | `script_evidence_sessions` | `src/app/models/ScriptEvidenceSession.ts` |
 | **ScriptOutcomeProfile** | `script_outcome_profiles` | `src/app/models/ScriptOutcomeProfile.ts` |
 | **ScriptStyleProfile** | `script_style_profiles` | `src/app/models/ScriptStyleProfile.ts` |
 | **SegmentRadar** | `—` | `src/app/models/SegmentRadar.ts` |

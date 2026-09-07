@@ -12,6 +12,8 @@ import { resolveTargetScriptsUser, validateScriptsAccess } from "@/app/lib/scrip
 import { invalidateScriptsListCacheForUser } from "@/app/lib/scripts/scriptsListCache";
 import { getNormalizedScriptEntryMetadata } from "@/app/lib/scripts/scriptEntryMetadata";
 import { refreshScriptOutcomeProfile } from "@/app/lib/scripts/outcomeTraining";
+import { enqueueScriptEvidenceMaintenance } from "@/app/lib/scripts/scriptEvidenceQueue";
+import { scriptTextHash } from "@/app/lib/scripts/scriptEvidenceSession";
 import { isScriptsStyleTrainingV1Enabled } from "@/app/lib/scripts/featureFlag";
 import { refreshScriptStyleProfile } from "@/app/lib/scripts/styleTraining";
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
@@ -468,6 +470,12 @@ export async function PATCH(request: Request, { params }: Params) {
       doc.postedContent = postedContentResolution.postedContent;
     }
 
+    if (scriptTextChanged && doc.evidenceProvenance) {
+      doc.evidenceProvenance = { ...doc.evidenceProvenance,
+        approvedContent: doc.content, approvedDraftHash: scriptTextHash(doc.content),
+        editedAfterGeneration: doc.evidenceProvenance.originalDraftHash
+          ? doc.evidenceProvenance.originalDraftHash !== scriptTextHash(doc.content) : null };
+    }
     await withMongoTransientRetry(
       () => doc.save(),
       {
@@ -485,6 +493,7 @@ export async function PATCH(request: Request, { params }: Params) {
       void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
     }
     if (publicationChanged) {
+      await enqueueScriptEvidenceMaintenance(effectiveUserId);
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }
@@ -614,6 +623,7 @@ export async function DELETE(request: Request, { params }: Params) {
       void refreshScriptStyleProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
     }
     if (hadPostedContent) {
+      await enqueueScriptEvidenceMaintenance(effectiveUserId);
       void refreshScriptOutcomeProfile(effectiveUserId, { awaitCompletion: false }).catch(() => null);
       void Promise.resolve(invalidatePlannerRecommendationMemory({ userId: effectiveUserId })).catch(() => null);
     }

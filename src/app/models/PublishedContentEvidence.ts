@@ -32,6 +32,7 @@ export interface IPublishedContentEvidence extends Document {
     wordCount: number;
     language: string | null;
     source: "gemini_video" | "stored_script" | "caption_fallback" | "none";
+    quality?: { status: "complete" | "partial" | "unverified" | "unavailable"; truncated: boolean; speakerVerified: boolean; temporalCoverage: number | null };
   };
   scenes: PublishedSceneEvidence[];
   narrative: {
@@ -110,6 +111,12 @@ const PublishedContentEvidenceSchema = new Schema<IPublishedContentEvidence>({
       fullText: { type: String, default: null, maxlength: 30000 },
       segments: { type: [TranscriptSegmentSchema], default: [] },
       wordCount: { type: Number, default: 0, min: 0 },
+      quality: { type: new Schema({
+        status: { type: String, enum: ["complete", "partial", "unverified", "unavailable"], default: "unverified" },
+        truncated: { type: Boolean, default: false },
+        speakerVerified: { type: Boolean, default: false },
+        temporalCoverage: { type: Number, default: null },
+      }, { _id: false }), default: undefined },
       language: { type: String, default: null, maxlength: 20 },
       source: {
         type: String,

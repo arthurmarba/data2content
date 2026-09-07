@@ -6,6 +6,7 @@ import MetricModel from "@/app/models/Metric";
 import UserModel from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
 import { SCENE_EVALUATION_VERSION } from "@/app/lib/relatorio/sceneEvaluation";
+import { findPendingReadingBatch } from "@/app/lib/relatorio/contentReadingState";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +75,15 @@ export async function POST(request: NextRequest) {
       { _id: 1 },
     ).lean().exec()) as unknown as Array<{ _id: Types.ObjectId }>;
     const subscriberIds = subscribers.map((user) => user._id);
+    for (const id of subscriberIds) {
+      try {
+        await qstash.publishJSON({ url: `${appBaseUrl}/api/worker/refresh-script-evidence`,
+          body: { userId: String(id) }, retries: 2,
+          deduplicationId: `script-evidence-${String(id)}-${now.toISOString().slice(0,13)}` });
+      } catch (error) {
+        logger.warn(`${TAG} falha ao enfileirar manutenção de evidências ${String(id)}.`, error);
+      }
+    }
 
     const { reconcilePendingContentPotentialOutcomes } = await import(
       "@/app/dashboard/boards/videoUpload/contentPotentialHistoryService"
@@ -127,20 +137,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const scenes = (await MetricModel.find(
+    const scenes = await findPendingReadingBatch(
       {
         user: { $in: subscriberIds },
         postDate: { $gte: sceneSince },
         classificationStatus: "completed",
         instagramMediaId: { $nin: [null, ""] },
         type: { $in: ["REEL", "VIDEO", "IMAGE", "CAROUSEL_ALBUM"] },
-        $or: [
-          { sceneElements: { $exists: false } },
-          { "sceneElements.version": { $ne: SCENE_EVALUATION_VERSION } },
-        ],
       },
-      { _id: 1 },
-    ).sort({ postDate: -1 }).limit(MAX_SCENES).lean().exec()) as unknown as Array<{ _id: Types.ObjectId }>;
+      SCENE_EVALUATION_VERSION, MAX_SCENES,
+    );
 
     let scenesQueued = 0;
     let sceneFailures = 0;

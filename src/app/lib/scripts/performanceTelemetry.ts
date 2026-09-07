@@ -1,4 +1,6 @@
 type ScriptsPerformanceStage =
+  | "evidence.total"
+  | "generation.v3"
   | "intelligence.total"
   | "intelligence.ranking"
   | "intelligence.captions"

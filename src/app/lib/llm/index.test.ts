@@ -131,6 +131,13 @@ describe("llmGenerate — seleção e fallback (fora de teste)", () => {
     (process.env as Record<string, string>).NODE_ENV = "development";
   });
 
+  it("escolha explícita de OpenAI não volta ao Gemini na falha", async () => {
+    process.env.LLM_PROVIDER_SCRIPTS = "gemini";
+    (mockOpenai.generate as jest.Mock).mockRejectedValue(new Error("openai_unavailable"));
+    await expect(llmGenerate({ prompt: "referências preservadas" }, { scope: "SCRIPTS", provider: "openai" })).rejects.toThrow("openai_unavailable");
+    expect(mockGemini.generate).not.toHaveBeenCalled();
+  });
+
   it("usa o primário quando disponível", async () => {
     process.env.LLM_PROVIDER_MAPA = "gemini";
     (mockGemini.generate as jest.Mock).mockResolvedValue({ text: "ok", provider: "gemini", model: "flash" });

@@ -31,6 +31,21 @@ Quando uma tela "fica processando pra sempre", quase sempre o trabalho não cheg
 
 Mudança em qualquer uma dessas quatro últimas famílias é visível pra pessoa de fora. Trate como envio, não como código.
 
+## Leitura publicada e manutenção de roteiro
+
+`classify-published-scene` usa `ContentReadingState`: posse temporária por post,
+checkpoint da extração, tentativas, motivo e próxima tentativa. A extração paga
+é reaproveitada se apenas a persistência falhar. Falta de saldo pausa Gemini por
+seis horas; depois um job testa recuperação. A fila não confunde token inválido,
+URL expirada, mídia excluída e formato incompatível.
+
+`refresh-script-evidence` reconcilia métricas e vínculos confirmados e reconstrói
+DNA em lotes de até 500 evidências por criador, sem IA. É acionado por novas
+evidências, alterações de publicação do roteiro e pelo cron de recuperação.
+Se a fila de manutenção falhar, o salvamento continua e o cron é a retaguarda.
+Auditoria por padrão é somente leitura; `audit:script-evidence -- --reconcile`
+escreve no ambiente configurado e deve ser tratado como operação de banco.
+
 ## Ligações
 
 [[10 Mapa do sistema]] · [[Trabalhos em fundo]] · [[Classificação de conteúdo]]

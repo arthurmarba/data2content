@@ -44,6 +44,9 @@ export interface IScriptEntry extends Document {
   linkType: ScriptLinkType;
   plannerRef?: ScriptPlannerRef;
   aiVersionId?: string | null;
+  evidenceProvenance?: Record<string, unknown> | null;
+  publicationLearning?: Record<string, unknown> | null;
+  creatorFeedback?: { voiceMatch?: boolean; preferredDirection?: string; notes?: string; updatedAt?: Date } | null;
   isAdminRecommendation?: boolean;
   recommendedByAdminId?: Types.ObjectId | null;
   recommendedByAdminName?: string | null;
@@ -120,6 +123,9 @@ const ScriptEntrySchema = new Schema<IScriptEntry>(
     },
     plannerRef: { type: ScriptPlannerRefSchema, default: undefined },
     aiVersionId: { type: String, default: null },
+    evidenceProvenance: { type: Schema.Types.Mixed, default: null },
+    publicationLearning: { type: Schema.Types.Mixed, default: null },
+    creatorFeedback: { type: Schema.Types.Mixed, default: null },
     isAdminRecommendation: { type: Boolean, default: false, index: true },
     recommendedByAdminId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     recommendedByAdminName: { type: String, trim: true, maxlength: 120, default: null },

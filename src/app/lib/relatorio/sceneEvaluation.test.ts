@@ -3,6 +3,7 @@ import {
   SCENE_EVALUATION_VERSION,
   evaluateImagesAgainstMap,
   evaluateSceneAgainstMap,
+  isRetryableGeminiSceneError,
   parseSceneEvaluation,
 } from "./sceneEvaluation";
 import type { MapProfile } from "./mapProfiles";
@@ -207,6 +208,20 @@ describe("evaluateSceneAgainstMap", () => {
       apiKey: "",
     });
     expect(outcome).toMatchObject({ ok: false, retryable: false });
+  });
+});
+
+describe("classificação de falhas do Gemini", () => {
+  it("não repete chamadas quando o crédito pré-pago acabou", () => {
+    expect(isRetryableGeminiSceneError(
+      '{"error":{"code":429,"message":"Your prepayment credits are depleted","status":"RESOURCE_EXHAUSTED"}}',
+    )).toBe(false);
+  });
+
+  it("mantém rate limit e indisponibilidade temporária como retentáveis", () => {
+    expect(isRetryableGeminiSceneError("429 rate limit exceeded")).toBe(true);
+    expect(isRetryableGeminiSceneError("503 service unavailable")).toBe(true);
+    expect(isRetryableGeminiSceneError("request timeout")).toBe(true);
   });
 });
 

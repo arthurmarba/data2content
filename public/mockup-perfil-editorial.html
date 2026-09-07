@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mockup Visual Interativo - Perfil D2C (Sem Cardception)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ds-brand: #e90f4f;
+      --ds-brand-strong: #c70a42;
+      --ds-brand-soft: #fdecf1;
+      --ds-ink: #17140f;
+      --ds-paper: #f8f6f2;
+      --ds-surface: #ffffff;
+      --ds-neutral: #efe9e0;
+      --ds-text-secondary: #423b33;
+      --ds-text-muted: #6b6157;
+      --ds-line: #e7e1d8;
+      --ds-line-strong: #d6cec2;
+      --ds-success: #167a55;
+      --ds-success-soft: #e7f6ef;
+      --ds-warning: #9a4b0b;
+      --ds-warning-soft: #fff0df;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #18181f;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    /* Toolbar de controle de estados */
+    .controls-bar {
+      max-width: 900px;
+      width: 100%;
+      background: #24242e;
+      border: 1px solid #383848;
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .controls-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #a3a3bd;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .state-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .state-btn {
+      background: #323240;
+      color: #e0e0ec;
+      border: 1px solid #454558;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .state-btn:hover { background: #3f3f50; color: #fff; }
+    .state-btn.active {
+      background: var(--ds-brand);
+      color: #fff;
+      border-color: var(--ds-brand-strong);
+      box-shadow: 0 4px 14px rgba(233, 15, 79, 0.35);
+    }
+
+    /* Dispositivo Mobile Frame */
+    .phone-container {
+      width: 100%;
+      max-width: 410px;
+      background: var(--ds-paper);
+      color: var(--ds-ink);
+      border-radius: 38px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), 0 0 0 10px #2a2a34;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 820px;
+      position: relative;
+    }
+
+    /* Top notch bar */
+    .phone-notch-bar {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ds-text-muted);
+    }
+
+    .phone-content {
+      flex: 1;
+      padding: 12px 18px 80px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Identidade / Topo */
+    .identity-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .identity-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #e2d9cd;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ds-ink);
+    }
+    .user-text h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .user-text p {
+      font-size: 12.5px;
+      color: var(--ds-text-muted);
+    }
+    .gear-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      color: var(--ds-text-secondary);
+      font-size: 16px;
+    }
+
+    /* Narrativa de Identidade */
+    .narrative-quote {
+      font-family: 'Newsreader', serif;
+      font-size: 23px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--ds-ink);
+      letter-spacing: -0.02em;
+    }
+    .tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      background: var(--ds-neutral);
+      color: var(--ds-text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .tag.highlight {
+      color: var(--ds-ink);
+      background: #e4dcce;
+    }
+
+    /* Linha de status sutil */
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--ds-text-muted);
+      padding: 4px 0;
+    }
+    .status-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--ds-success-soft);
+      color: var(--ds-success);
+      font-size: 8px;
+      font-weight: 800;
+      display: grid;
+      place-items: center;
+    }
+
+    /* Card Condicional de Ativação / Funil */
+    .funnel-card {
+      background: var(--ds-surface);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+      border: 1px solid var(--ds-line);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .funnel-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ds-brand-strong);
+    }
+    .funnel-title {
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: var(--ds-ink);
+    }
+    .funnel-desc {
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--ds-text-secondary);
+    }
+    .btn-primary {
+      background: var(--ds-brand);
+      color: #fff;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+      text-align: center;
+      transition: background 0.15s ease;
+    }
+    .btn-primary:hover { background: var(--ds-brand-strong); }
+
+    /* Bloco Hero Narrativo (Sem aninhamento) */
+    .hero-narrative {
+      background: var(--ds-surface);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .hero-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-eyebrow {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ds-text-muted);
+    }
+    .hero-headline {
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--ds-ink);
+    }
+
+    /* Vídeo da semana fluido */
+    .video-inline-preview {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      background: var(--ds-paper);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+    }
+    .video-thumb {
+      width: 72px;
+      height: 96px;
+      border-radius: 8px;
+      background: #2a2520;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .video-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+    }
+    .play-icon {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.85);
+      color: #000;
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+    }
+    .video-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .video-metric-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--ds-line);
+      padding-bottom: 3px;
+    }
+    .video-metric-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .metric-val { font-size: 15px; font-weight: 800; color: var(--ds-ink); }
+    .metric-lbl { font-size: 11.5px; color: var(--ds-text-muted); }
+
+    /* Grade Direta dos 4 Pilares (Sem cartões aninhados) */
+    .pillars-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pillar-tile {
+      background: var(--ds-surface);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 130px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+    .pillar-tile:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .pillar-tile.full-width {
+      grid-column: span 2;
+      min-height: auto;
+    }
+    .pillar-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .pillar-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ds-text-muted);
+    }
+    .pillar-value {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--ds-ink);
+    }
+    .pillar-footer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .badge-index {
+      background: var(--ds-success-soft);
+      color: var(--ds-success);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .badge-pro {
+      background: var(--ds-neutral);
+      color: var(--ds-brand-strong);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--ds-line);
+    }
+
+    /* Estado Borrado (Free Teaser) */
+    .blurred-content {
+      filter: blur(4.5px);
+      user-select: none;
+      opacity: 0.55;
+    }
+
+    /* Próximo Passo */
+    .next-step-box {
+      background: var(--ds-brand-soft);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .next-step-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ds-brand-strong);
+    }
+    .next-step-text {
+      font-size: 13.5px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--ds-ink);
+    }
+
+    /* Bottom Tab Bar */
+    .bottom-tab-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--ds-surface);
+      border-top: 1px solid var(--ds-line);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: var(--ds-text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .tab-item.active { color: var(--ds-brand); font-weight: 800; }
+
+    /* Modal Sheet de Detalhes */
+    .detail-sheet {
+      position: absolute;
+      inset: 0;
+      background: rgba(23, 20, 15, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      justify-content: flex-end;
+      z-index: 100;
+    }
+    .detail-sheet.open { display: flex; }
+    .sheet-card {
+      background: var(--ds-paper);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px 40px;
+      color: var(--ds-ink);
+      max-height: 80%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sheet-title { font-size: 18px; font-weight: 800; }
+    .close-btn {
+      background: var(--ds-neutral);
+      border: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLE DE ESTADOS DO FUNIL -->
+  <div class="controls-bar">
+    <div class="controls-title">Alternar Estado Condicional do Funil (Clique para testar):</div>
+    <div class="state-buttons">
+      <button class="state-btn active" onclick="setState('pro_connected', this)">1. Pro Ativo (Instagram Conectado)</button>
+      <button class="state-btn" onclick="setState('free_offer', this)">2. Criador Free (Gatilho Pro + Degustação)</button>
+      <button class="state-btn" onclick="setState('reconnect_instagram', this)">3. Instagram Desconectou / Expirou</button>
+      <button class="state-btn" onclick="setState('define_north', this)">4. Sem Norte Definido</button>
+      <button class="state-btn" onclick="setState('billing_pending', this)">5. Pagamento Pendente</button>
+    </div>
+  </div>
+
+  <!-- CELULAR / MOCKUP VISUAL -->
+  <div class="phone-container">
+    <!-- Top Notch -->
+    <div class="phone-notch-bar">
+      <span>9:41</span>
+      <span>D2C Creator</span>
+      <span>100%</span>
+    </div>
+
+    <!-- Conteúdo do Perfil -->
+    <div class="phone-content">
+      
+      <!-- 1. IDENTIDADE E MAPA -->
+      <section class="identity-block">
+        <div class="identity-row">
+          <div class="user-info">
+            <div class="avatar">AM</div>
+            <div class="user-text">
+              <h1>Arthur Marba</h1>
+              <p id="header-subtitle">Semana de 12 a 18 de Agosto</p>
+            </div>
+          </div>
+          <button class="gear-btn" title="Configurações">⚙️</button>
+        </div>
+
+        <p class="narrative-quote">
+          “A sua narrativa é sobre bastidores de tecnologia e rotina real”
+        </p>
+
+        <div class="tags-row">
+          <span class="tag highlight">✓ Tecnologia</span>
+          <span class="tag highlight">✓ Rotina de Criador</span>
+          <span class="tag">Produtividade</span>
+        </div>
+
+        <!-- Confirmação sutil quando conectado -->
+        <div id="status-connected-row" class="status-line">
+          <span class="status-dot">✓</span>
+          <span>Instagram conectado · sincronizado hoje às 14:30</span>
+        </div>
+      </section>
+
+      <!-- 2. CARD CONDICIONAL DINÂMICO DO FUNIL (QUANDO HÁ AÇÃO PENDENTE) -->
+      <section id="dynamic-funnel-card" class="funnel-card" style="display: none;">
+        <span id="funnel-label" class="funnel-label">Seu próximo passo</span>
+        <h2 id="funnel-title" class="funnel-title">Ative o Pro</h2>
+        <p id="funnel-desc" class="funnel-desc">
+          Seu mapa vira relatório, pautas e collabs toda semana. Por enquanto, o que aparece abaixo é um exemplo.
+        </p>
+        <button id="funnel-btn" class="btn-primary" onclick="handleFunnelAction()">Ativar o Pro</button>
+      </section>
+
+      <!-- 3. HERO NARRATIVO DA SEMANA (Sem caixas aninhadas) -->
+      <section class="hero-narrative">
+        <div class="hero-header">
+          <span class="section-eyebrow" id="report-eyebrow">Diagnóstico da Semana</span>
+          <span id="demo-badge" class="badge-pro" style="display: none;">Dados de exemplo</span>
+        </div>
+        
+        <h2 class="hero-headline" id="report-headline">
+          O gancho de curiosidade rendeu 3,5× mais do que a sua média
+        </h2>
+
+        <!-- Vídeo fluido com métricas limpas -->
+        <div class="video-inline-preview">
+          <div class="video-thumb">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80" alt="Vídeo" />
+            <div class="play-icon">▶</div>
+          </div>
+          <div class="video-metrics">
+            <div class="video-metric-row">
+              <span class="metric-lbl">Visualizações</span>
+              <span class="metric-val">34.2k</span>
+            </div>
+            <div class="video-metric-row">
+              <span class="metric-lbl">Salvamentos</span>
+              <span class="metric-val">1.8k</span>
+            </div>
+            <div class="video-metric-row">
+              <span class="metric-lbl">Compartilhamentos</span>
+              <span class="metric-val">420</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. OS 4 PILARES DA NARRATIVA (Módulos de 1º Nível) -->
+      <section class="pillars-section">
+        <span class="section-eyebrow">Pilares da Narrativa</span>
+        
+        <div class="pillars-grid">
+          
+          <!-- Pilar 1: Gancho (Sempre aberto como degustação) -->
+          <div class="pillar-tile full-width" onclick="openDetail('Gancho em Destaque', 'Pergunta direta nos primeiros 3s', 'Vídeos que começam com pergunta direta e corte seco seguraram a atenção por 22 segundos adicionais.')">
+            <div>
+              <div class="pillar-top">
+                <span class="pillar-label">🎯 Gancho que segurou</span>
+                <span class="badge-index">3,5× o normal</span>
+              </div>
+              <div class="pillar-value">“Você também comete esse erro no setup?”</div>
+            </div>
+            <div class="pillar-footer">
+              <span class="metric-lbl">Toque para ver o ranking de ganchos ›</span>
+            </div>
+          </div>
+
+          <!-- Pilar 2: Assunto -->
+          <div class="pillar-tile" onclick="openPillar(2)">
+            <div>
+              <div class="pillar-top">
+                <span class="pillar-label">💡 Assunto que rende</span>
+                <span class="badge-pro pro-tag" style="display: none;">Pro</span>
+              </div>
+              <div id="pillar-2-content" class="pillar-value">Bastidores sem filtro</div>
+            </div>
+            <div class="pillar-footer">
+              <span class="badge-index">2,8× engajamento</span>
+            </div>
+          </div>
+
+          <!-- Pilar 3: Cenário & Tom -->
+          <div class="pillar-tile" onclick="openPillar(3)">
+            <div>
+              <div class="pillar-top">
+                <span class="pillar-label">🎬 Cenário & Tom</span>
+                <span class="badge-pro pro-tag" style="display: none;">Pro</span>
+              </div>
+              <div id="pillar-3-content" class="pillar-value">Câmera na mão, luz natural</div>
+            </div>
+            <div class="pillar-footer">
+              <span class="metric-lbl">Padrão firme</span>
+            </div>
+          </div>
+
+          <!-- Pilar 4: Quando postar -->
+          <div class="pillar-tile full-width" onclick="openPillar(4)">
+            <div>
+              <div class="pillar-top">
+                <span class="pillar-label">⏱️ Melhor Momento</span>
+                <span class="badge-index">1,9× alcance</span>
+                <span class="badge-pro pro-tag" style="display: none;">Pro</span>
+              </div>
+              <div id="pillar-4-content" class="pillar-value">Terça-feira às 19:00</div>
+            </div>
+            <div class="pillar-footer">
+              <span class="metric-lbl">Toque para ver todos os dias da semana ›</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 5. PRÓXIMO PASSO DO CRIADOR -->
+      <section class="next-step-box">
+        <span class="next-step-label">Recomendação da Semana</span>
+        <p class="next-step-text">
+          Grave na terça-feira abrindo com uma pergunta sem filtro sobre o seu novo projeto.
+        </p>
+      </section>
+
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="bottom-tab-bar">
+      <div class="tab-item active">
+        <span>👤</span>
+        <span>Perfil</span>
+      </div>
+      <div class="tab-item">
+        <span>📊</span>
+        <span>Relatório</span>
+      </div>
+      <div class="tab-item">
+        <span>🤝</span>
+        <span>Collabs</span>
+      </div>
+      <div class="tab-item">
+        <span>⚙️</span>
+        <span>Ajustes</span>
+      </div>
+    </div>
+
+    <!-- GAVETA / BOTTOM SHEET DE DETALHES -->
+    <div id="detail-sheet" class="detail-sheet">
+      <div class="sheet-card">
+        <div class="sheet-header">
+          <h3 id="sheet-title" class="sheet-title">Ranking de Ganchos</h3>
+          <button class="close-btn" onclick="closeSheet()">✕</button>
+        </div>
+        <p id="sheet-desc" style="font-size: 14px; line-height: 1.5; color: var(--ds-text-secondary);">
+          Explicação aprofundada da métrica...
+        </p>
+        <div style="background: var(--ds-surface); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 13.5px; font-weight: 700;">
+            <span>1. Pergunta Direta (0-3s)</span>
+            <span style="color: var(--ds-success);">3,5× mais retenção</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ds-text-muted);">
+            <span>2. Quebra de Padrão</span>
+            <span>2,1×</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ds-text-muted);">
+            <span>3. Introdução Lenta</span>
+            <span style="color: #b4233d;">0,8×</span>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="closeSheet()">Entendi</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JAVASCRIPT DE CONTROLE INTERATIVO -->
+  <script>
+    let currentState = 'pro_connected';
+
+    function setState(state, btn) {
+      currentState = state;
+      document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const statusRow = document.getElementById('status-connected-row');
+      const funnelCard = document.getElementById('dynamic-funnel-card');
+      const funnelLabel = document.getElementById('funnel-label');
+      const funnelTitle = document.getElementById('funnel-title');
+      const funnelDesc = document.getElementById('funnel-desc');
+      const funnelBtn = document.getElementById('funnel-btn');
+      const demoBadge = document.getElementById('demo-badge');
+      const proTags = document.querySelectorAll('.pro-tag');
+      const pillar2 = document.getElementById('pillar-2-content');
+      const pillar3 = document.getElementById('pillar-3-content');
+      const pillar4 = document.getElementById('pillar-4-content');
+
+      if (state === 'pro_connected') {
+        statusRow.style.display = 'flex';
+        funnelCard.style.display = 'none';
+        demoBadge.style.display = 'none';
+        proTags.forEach(t => t.style.display = 'none');
+        pillar2.className = 'pillar-value';
+        pillar3.className = 'pillar-value';
+        pillar4.className = 'pillar-value';
+      } 
+      else if (state === 'free_offer') {
+        statusRow.style.display = 'none';
+        funnelCard.style.display = 'flex';
+        funnelLabel.innerText = 'Seu próximo passo';
+        funnelTitle.innerText = 'Ative o Pro';
+        funnelDesc.innerText = 'Seu mapa vira relatório, pautas e collabs toda semana. O que aparece abaixo é um exemplo.';
+        funnelBtn.innerText = 'Ativar o Pro';
+        demoBadge.style.display = 'inline-block';
+        proTags.forEach(t => t.style.display = 'inline-block');
+        pillar2.className = 'pillar-value blurred-content';
+        pillar3.className = 'pillar-value blurred-content';
+        pillar4.className = 'pillar-value blurred-content';
+      }
+      else if (state === 'reconnect_instagram') {
+        statusRow.style.display = 'none';
+        funnelCard.style.display = 'flex';
+        funnelLabel.innerText = 'Atenção necessária';
+        funnelTitle.innerText = 'Seu relatório parou de atualizar';
+        funnelDesc.innerText = 'A conexão com o Instagram expirou. Reconecte para continuarmos analisando seus novos vídeos.';
+        funnelBtn.innerText = 'Reconectar Instagram';
+        demoBadge.style.display = 'none';
+        proTags.forEach(t => t.style.display = 'none');
+        pillar2.className = 'pillar-value';
+        pillar3.className = 'pillar-value';
+        pillar4.className = 'pillar-value';
+      }
+      else if (state === 'define_north') {
+        statusRow.style.display = 'none';
+        funnelCard.style.display = 'flex';
+        funnelLabel.innerText = 'Primeiro Passo';
+        funnelTitle.innerText = 'Defina seu Norte para começar';
+        funnelDesc.innerText = 'Conte para quem você cria e o que deseja provocar. A D2C transforma isso no seu mapa.';
+        funnelBtn.innerText = 'Definir meu Norte';
+        demoBadge.style.display = 'inline-block';
+        proTags.forEach(t => t.style.display = 'inline-block');
+        pillar2.className = 'pillar-value blurred-content';
+        pillar3.className = 'pillar-value blurred-content';
+        pillar4.className = 'pillar-value blurred-content';
+      }
+      else if (state === 'billing_pending') {
+        statusRow.style.display = 'none';
+        funnelCard.style.display = 'flex';
+        funnelLabel.innerText = 'Assinatura';
+        funnelTitle.innerText = 'Seu pagamento precisa ser atualizado';
+        funnelDesc.innerText = 'Seu mapa continua seguro, mas o relatório semanal pausou até a regularização.';
+        funnelBtn.innerText = 'Atualizar pagamento';
+        demoBadge.style.display = 'none';
+        proTags.forEach(t => t.style.display = 'none');
+        pillar2.className = 'pillar-value';
+        pillar3.className = 'pillar-value';
+        pillar4.className = 'pillar-value';
+      }
+    }
+
+    function openPillar(num) {
+      if (currentState === 'free_offer' || currentState === 'define_north') {
+        alert('Este pilar faz parte do Plano Pro! Clicar aqui abre o modal de assinatura.');
+        return;
+      }
+      if (num === 2) openDetail('Assunto que Rende', 'Bastidores sem filtro', 'Vídeos com o tema bastidores geram 2,8x mais comentários do que tutoriais técnicos.');
+      if (num === 3) openDetail('Cenário e Tom', 'Câmera na mão, luz natural', 'O formato espontâneo em primeira pessoa converteu 40% mais salvamentos.');
+      if (num === 4) openDetail('Melhor Momento', 'Terça-feira às 19:00', 'Seu público tem o maior pico de retenção no início da noite de terça-feira.');
+    }
+
+    function openDetail(title, value, desc) {
+      document.getElementById('sheet-title').innerText = title;
+      document.getElementById('sheet-desc').innerText = desc;
+      document.getElementById('detail-sheet').classList.add('open');
+    }
+
+    function closeSheet() {
+      document.getElementById('detail-sheet').classList.remove('open');
+    }
+
+    function handleFunnelAction() {
+      alert('Ação disparada: ' + document.getElementById('funnel-btn').innerText);
+    }
+  </script>
+</body>
+</html>
