@@ -581,6 +581,8 @@ describe("Data2Content MCP server", () => {
         "search",
         "fetch",
         "get_creator_profile",
+        "get_creator_map",
+        "list_content_ideas",
         "analyze_creator_period",
         "get_creator_intelligence_snapshot",
         "get_content_deep_analysis",

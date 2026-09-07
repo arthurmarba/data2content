@@ -22,11 +22,16 @@ import {
   getMcpCreatorProfile,
   getMcpDeepContentAnalysis,
   getMcpPerformanceSummary,
+  listMcpCreatorContentIdeas,
   listMcpTopContent,
   researchMcpInspirationContent,
   saveMcpScript,
   searchMcpKnowledge,
 } from "./catalog";
+import {
+  MCP_CREATOR_MAP_SCHEMA_VERSION,
+  loadMcpCreatorMap,
+} from "./creatorMap";
 import {
   getInstagramConnectUrl,
   getMcpCommunityJoinUrl,
@@ -333,11 +338,51 @@ const visualSignalSchema = z.object({
   evidencePostIds: z.array(z.string()),
 });
 
+const creatorMapSummarySchema = z.object({
+  hasMap: z.boolean(),
+  narrative: z.string().nullable(),
+  territories: z.array(z.string()),
+  assets: z.array(z.string()),
+  tone: z.string().nullable(),
+  evidenceLevel: z.enum(["declared", "one_reading", "two_readings"]),
+  narrativeIsFirm: z.boolean(),
+});
+
+const creatorMapOutputSchema = z.object({
+  schemaVersion: z.literal(MCP_CREATOR_MAP_SCHEMA_VERSION),
+  hasMap: z.boolean(),
+  narrative: z.string().nullable(),
+  territories: z.array(z.string()),
+  themes: z.array(z.string()),
+  adjacentNarratives: z.array(z.string()),
+  assets: z.array(z.string()),
+  tone: z.string().nullable(),
+  formats: z.array(z.string()),
+  maturity: z.string(),
+  sources: z.array(z.string()),
+  evidenceLevel: z.enum(["declared", "one_reading", "two_readings"]),
+  narrativeIsFirm: z.boolean(),
+  updatedAt: z.string().nullable(),
+  vocabulary: z.record(z.string()),
+  usage: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+
+const contentIdeasOutputSchema = z.object({
+  schemaVersion: z.literal("creator_content_ideas_v1"),
+  generatedAt: z.string(),
+  territoryFilter: z.string().nullable(),
+  total: z.number().int().nonnegative(),
+  items: z.array(z.record(z.unknown())),
+  usage: z.array(z.string()),
+});
+
 const creatorIntelligenceOutputSchema = z.object({
   schemaVersion: z.literal("creator_intelligence_v1"),
   generatedAt: z.string(),
   focus: z.string().nullable(),
   lookbackDays: z.number().int().positive(),
+  creatorMap: creatorMapSummarySchema,
   strategy: z.record(z.unknown()).nullable(),
   creatorVoice: z.record(z.unknown()).nullable(),
   performanceLearning: z.record(z.unknown()).nullable(),
@@ -767,7 +812,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         "coverage.warnings. Em contas gratuitas, use build_creator_radar para padrões agregados e " +
         "não use ferramentas de inspiração nominal. generate_script_draft não salva; só use " +
         "save_script após confirmação " +
-        "explícita. Use apenas a conta autenticada." +
+        "explícita. Use apenas a conta autenticada. " +
+        "Antes de responder o que o creator deve postar, qual é o posicionamento dele, quais assuntos "  +
+        "são dele ou como o conteúdo deve soar, use get_creator_map e trate o mapa como dicionário: use "  +
+        "os termos dele em vez de inventar rótulo novo. Território é substantivo, narrativa é tensão ou "  +
+        "missão, asset é elemento de vida — nunca credencial. Quando evidenceLevel for declared, "  +
+        "apresente a narrativa como declaração do creator, não como diagnóstico. Para pedidos de pauta "  +
+        "ou do que gravar, use list_content_ideas antes de inventar assunto novo; se nenhuma servir, "  +
+        "diga por quê antes de propor outra." +
         (campaignRadarEnabled
           ? " Para publicidades, use find_campaign_opportunities. Em conta gratuita, mostre apenas " +
             "a seleção semanal retornada, não revele quantas outras existem e não inclua link de plano, " +
@@ -1084,6 +1136,64 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return { isError: true, content: jsonText({ error: "profile_not_found" }) };
       }
       return { content: jsonText(profile) };
+    },
+  );
+
+  registerTool(
+    "get_creator_map",
+    {
+      title: "Consultar o mapa narrativo do creator",
+      description:
+        "Use this before answering anything about what the creator should post, what their positioning is, which subjects belong to them, or how their content should sound. It returns the creator's own map — central narrative, territories, themes, life assets, tone and formats — plus how much evidence supports it. Treat this map as the dictionary: use its exact terms instead of inventing labels, and never present a narrative marked as merely declared as if it were a diagnosis.",
+      outputSchema: creatorMapOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
+    },
+    async () => {
+      if (!hasAnyScope(context, ["intelligence:read", "strategy:read", "profile:read"])) {
+        return scopeRequiredResult("intelligence:read");
+      }
+      // O mapa seed é visível para qualquer conta que já tenha mapa — mesma regra
+      // de `evaluateMapaAccess`. O que é Pro são as pautas, não a leitura.
+      const map = await loadMcpCreatorMap(context.identity.userId);
+      return structuredJsonResult(map as unknown as Record<string, unknown>);
+    },
+  );
+
+  registerTool<{ territory: string; limit: number }>(
+    "list_content_ideas",
+    {
+      title: "Listar as pautas do creator",
+      description:
+        "Use this when the user asks what to record, what to post next, or wants ideas. It returns content ideas Data2Content already anchored in the creator's narrative and territories, each with its angle, hook, life assets, suggested format and why it fits. Prefer developing one of these over inventing a new subject; ideas marked as posted were already published.",
+      inputSchema: z.object({
+        territory: z
+          .string()
+          .trim()
+          .max(120)
+          .default("")
+          .describe("Filtra por um território do mapa do creator; vazio traz todos"),
+        limit: z.number().int().min(1).max(10).default(5),
+      }),
+      outputSchema: contentIdeasOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
+      securitySchemes: oauthSecuritySchemes("intelligence:read"),
+    },
+    async ({ territory, limit }) => {
+      if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
+        return scopeRequiredResult("intelligence:read");
+      }
+      // Pautas completas são Pro (`evaluateMapaAccess.podeVerPautas`). A recusa
+      // devolve o caminho do perfil, nunca oferta de plano — ver conversationPolicy.
+      if (context.accountState.accessLevel !== "pro") {
+        return profileRequiredResult();
+      }
+      const result = await listMcpCreatorContentIdeas({
+        userId: context.identity.userId,
+        territory,
+        limit,
+      });
+      return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
   );
 

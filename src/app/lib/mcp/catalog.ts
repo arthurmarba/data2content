@@ -15,6 +15,7 @@ import { generateCreatorScriptV3 } from "@/app/lib/scripts/creatorScriptGenerati
 import { logger } from "@/app/lib/logger";
 import { buildCollabCreatorSuggestions } from "@/app/lib/planner/collabCreatorSuggestionsService";
 import { getMcpAppBaseUrl } from "./config";
+import { loadMcpCreatorMap, summarizeMcpCreatorMap } from "./creatorMap";
 import {
   buildMcpVisualPlaybook,
   MCP_CREATOR_INTELLIGENCE_VERSION,
@@ -778,7 +779,7 @@ export async function getMcpCreatorIntelligenceSnapshot(params: {
 }) {
   await connectToDatabase();
   const since = new Date(Date.now() - params.lookbackDays * 86_400_000);
-  const [intelligenceContext, visualDocuments] = await Promise.all([
+  const [intelligenceContext, visualDocuments, creatorMap] = await Promise.all([
     buildScriptIntelligenceContext({
       userId: params.userId,
       prompt: params.focus || "Visão estratégica completa do conteúdo do creator",
@@ -791,6 +792,7 @@ export async function getMcpCreatorIntelligenceSnapshot(params: {
       .sort({ postDate: -1 })
       .select("_id postDate stats.total_interactions sceneElements")
       .lean() as unknown as Promise<McpVisualMetricDocument[]>,
+    loadMcpCreatorMap(params.userId),
   ]);
 
   const visualPlaybook = buildMcpVisualPlaybook(visualDocuments);
@@ -808,6 +810,10 @@ export async function getMcpCreatorIntelligenceSnapshot(params: {
     generatedAt: new Date().toISOString(),
     focus: params.focus || null,
     lookbackDays: params.lookbackDays,
+    // O mapa vem primeiro de propósito: é o dicionário do creator. Sem ele, o
+    // modelo monta a resposta a partir de categoria de classificação e perde a
+    // narrativa — que é justamente o que diferencia a leitura da Data2Content.
+    creatorMap: summarizeMcpCreatorMap(creatorMap),
     strategy: context
       ? {
           intelligenceVersion: context.intelligenceVersion,
@@ -850,6 +856,8 @@ export async function getMcpCreatorIntelligenceSnapshot(params: {
         ...(context && !context.dnaProfile.hasEnoughEvidence ? ["creator_voice_sample_low"] : []),
         ...(visualPlaybook.coverage.ratio < 1 ? ["visual_analysis_coverage_partial"] : []),
         ...(context?.usedFallbackRules ? ["strategy_used_fallback_rules"] : []),
+        ...(!creatorMap.hasMap ? ["creator_map_unavailable"] : []),
+        ...(creatorMap.hasMap && !creatorMap.narrativeIsFirm ? ["creator_narrative_not_firm"] : []),
       ],
     },
     receipt: {
@@ -903,4 +911,68 @@ export async function listMcpTopContent(params: {
 
 export function isMcpTopContentMetric(value: string): value is McpTopContentMetric {
   return (TOP_CONTENT_METRICS as readonly string[]).includes(value);
+}
+
+/**
+ * Pautas já geradas para o creator, ancoradas no mapa dele.
+ *
+ * Antes existiam apenas via `search`/`fetch` genéricos — o modelo só as
+ * encontrava se acertasse a busca, e no resto das vezes inventava pauta do zero
+ * em vez de usar a que o sistema já ancorou em narrativa e território.
+ */
+export async function listMcpCreatorContentIdeas(params: {
+  userId: string;
+  territory?: string;
+  limit?: number;
+}) {
+  await connectToDatabase();
+  const userObjectId = new Types.ObjectId(params.userId);
+  const limit = Math.max(1, Math.min(10, Math.trunc(params.limit ?? 5)));
+  const territory = params.territory?.trim() ?? "";
+
+  const query: Record<string, unknown> = {
+    userId: userObjectId,
+    status: { $in: ["active", "saved", "posted"] },
+  };
+  if (territory) {
+    query.territory = { $regex: escapeRegex(territory), $options: "i" };
+  }
+
+  const ideas = await CreatorContentIdeaModel.find(query)
+    .sort({ generatedAt: -1 })
+    .limit(limit)
+    .select(
+      "_id title angle hook territory assets suggestedFormat tone whyItFits " +
+        "scriptPoints scriptClosing status generatedAt",
+    )
+    .lean();
+
+  return {
+    schemaVersion: "creator_content_ideas_v1",
+    generatedAt: new Date().toISOString(),
+    territoryFilter: territory || null,
+    total: ideas.length,
+    items: ideas.map((idea) => ({
+      id: `idea:${idea._id}`,
+      title: compactText(idea.title, 160),
+      territory: idea.territory,
+      angle: compactText(idea.angle, 600),
+      hook: compactText(idea.hook, 300),
+      assets: normalizeStringArray(idea.assets),
+      suggestedFormat: idea.suggestedFormat,
+      tone: idea.tone || null,
+      whyItFits: compactText(idea.whyItFits, 600),
+      scriptPoints: Array.isArray(idea.scriptPoints) ? idea.scriptPoints.slice(0, 8) : [],
+      scriptClosing: idea.scriptClosing || null,
+      status: idea.status,
+      generatedAt:
+        idea.generatedAt instanceof Date ? idea.generatedAt.toISOString() : null,
+      url: appUrl(`/dashboard/boards/mobile-strategic-profile?idea=${idea._id}`),
+    })),
+    usage: [
+      "Estas pautas já nascem ancoradas na narrativa e nos territórios do creator.",
+      "Prefira desenvolver uma delas a inventar assunto novo; se nenhuma servir, diga por quê antes de propor outra.",
+      "status 'posted' significa que o creator já publicou — não sugira de novo como se fosse inédita.",
+    ],
+  };
 }
