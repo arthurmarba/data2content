@@ -598,6 +598,17 @@ describe("Data2Content MCP server", () => {
         "list_top_content",
         "compare_content_formats",
       ]);
+      // Ferramenta que devolve resposta estruturada precisa declarar o formato
+      // dela: sem isso o cliente não é obrigado a aproveitar a metade
+      // estruturada, e o mesmo conteúdo viaja duas vezes por nada.
+      expect(tools.filter((tool) => !tool.outputSchema).map((tool) => tool.name)).toEqual([
+        "search",
+        "fetch",
+        "get_creator_profile",
+        "get_performance_summary",
+        "list_top_content",
+        "compare_content_formats",
+      ]);
       expect(tools.find((tool) => tool.name === "generate_script_draft")?.annotations).toMatchObject({
         readOnlyHint: true,
         idempotentHint: false,

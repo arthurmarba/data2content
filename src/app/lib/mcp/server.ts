@@ -338,6 +338,73 @@ const visualSignalSchema = z.object({
   evidencePostIds: z.array(z.string()),
 });
 
+const accountStateOutputSchema = z
+  .object({
+    schemaVersion: z.literal("account_state_v1"),
+    accessLevel: z.string(),
+    instagramConnected: z.boolean(),
+    creatorNorth: z.string().nullable(),
+    northDeclared: z.boolean(),
+    contextDepth: z.string(),
+    profileUrl: z.string(),
+    conversationPolicy: z.record(z.unknown()),
+    membership: z.record(z.unknown()),
+    instagramConnectUrl: z.string().nullable(),
+  })
+  .passthrough();
+
+const creatorNorthOutputSchema = z
+  .object({
+    schemaVersion: z.literal("creator_north_v1"),
+    creatorNorth: z.string(),
+    updatedAt: z.string(),
+    seedSignal: z.unknown(),
+    next: z.record(z.unknown()),
+  })
+  .passthrough();
+
+const creatorRadarOutputSchema = z
+  .object({
+    schemaVersion: z.literal("creator_radar_v1"),
+    creatorNorth: z.string(),
+    // O radar tem caminhos de retorno diferentes conforme a cobertura
+    // encontrada; só schemaVersion e creatorNorth saem sempre.
+    narrativePreview: z.record(z.unknown()).optional(),
+    communityPanorama: z.record(z.unknown()).optional(),
+    creationBrief: z.record(z.unknown()).optional(),
+    coverage: z.record(z.unknown()).optional(),
+    receipt: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+// O DNA e a crítica vêm de contratos largos do motor de roteiro V3. Declaramos
+// só o que é estável: esquema frouxo entrega o benefício (o cliente aceita a
+// resposta estruturada em vez de descartá-la) sem prometer forma que não
+// controlamos daqui.
+const creatorContentDnaOutputSchema = z
+  .object({
+    schemaVersion: z.string(),
+    generatedAt: z.string().nullable().optional(),
+    sampleSize: z.number().optional(),
+    confidence: z.unknown(),
+    coverage: z.unknown(),
+    interpretationRules: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
+const scriptCritiqueOutputSchema = z
+  .object({
+    schemaVersion: z.string(),
+    generatedAt: z.string().optional(),
+    passed: z.boolean().optional(),
+    validation: z.record(z.unknown()).optional(),
+    issues: z.array(z.unknown()).optional(),
+    recommendations: z.array(z.unknown()).optional(),
+    evidenceReceipt: z.unknown(),
+    responseContract: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
 const creatorMapSummarySchema = z.object({
   hasMap: z.boolean(),
   narrative: z.string().nullable(),
@@ -874,6 +941,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       title: "Consultar estado da conta Data2Content",
       description:
         "Use this at the start of a Data2Content conversation to learn whether the creator has declared a North, which context depth is available, and the correct non-commercial next action.",
+      outputSchema: accountStateOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("profile:read"),
     },
@@ -921,6 +989,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       title: "Registrar o Norte do creator",
       description:
         "Use this after the user describes who they help, the transformation they want to create, or the direction of their content. It stores the declaration in their Data2Content account before generating contextual ideas.",
+      outputSchema: creatorNorthOutputSchema,
       inputSchema: z.object({
         creatorNorth: z
           .string()
@@ -963,6 +1032,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       inputSchema: z.object({
         periodDays: z.number().int().min(30).max(365).default(180),
       }),
+      outputSchema: creatorRadarOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
@@ -1510,6 +1580,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       title: "Consultar o DNA de conteúdo do creator",
       description:
         "Use this before writing or judging a script when the user asks what their own voice, recurring subjects, visual patterns, winning durations, or audience look like according to their published history. It returns the creator's own content DNA with confidence and sample size; treat every pattern as historical correlation, never as a guarantee, and say so when confidence is low.",
+      outputSchema: creatorContentDnaOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("intelligence:read"),
     },
@@ -1627,6 +1698,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .default(null)
           .describe("Duração alvo em segundos, quando o usuário informar"),
       }),
+      outputSchema: scriptCritiqueOutputSchema,
       annotations: GENERATIVE_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
