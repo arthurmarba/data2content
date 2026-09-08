@@ -1,3 +1,4 @@
+import { reconcileMapSuggestions, type MapSuggestionContext } from './mapSuggestions';
 // src/app/lib/mapaSeed/enrichMapaWithVideoReadings.ts
 // Cruza o mapa atual (declarativo + Instagram) com a síntese das leituras de
 // vídeo que o criador escolheu publicar, gerando um mapa mais fiel ao que ele
@@ -127,6 +128,7 @@ export async function enrichMapaWithVideoReadings(
   mapaAtual: IMapaData,
   synthesis: CreatorStrategicProfileSynthesis,
   locks?: CoreStabilityLocks,
+  context?: MapSuggestionContext,
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithVideoReadings]";
 
@@ -221,5 +223,5 @@ export async function enrichMapaWithVideoReadings(
   };
 
   logger.info(`${TAG} Mapa enriquecido com vídeo: "${mapaEnriquecido.narrativa_central}"`);
-  return mapaEnriquecido;
+  return reconcileMapSuggestions(mapaAtual, mapaEnriquecido, { ...raw, ...dedupedCandidates }, locks, context);
 }

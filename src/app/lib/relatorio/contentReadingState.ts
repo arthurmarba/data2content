@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 
 const EPOCH = new Date(0);
 export function classifyReadingFailure(message: string) {
+  if (/temporariamente pausado/i.test(message)) return { reason: "provider_paused", delayMs: 6*3600000, terminal: false };
   if (/prepayment.*depleted|insufficient.*credit|saldo|billing|payment.required/i.test(message)) return { reason: "provider_balance", delayMs: 6*3600000, terminal: false };
   if (/sem token|token.*invalid|oauth|HTTP 401/i.test(message)) return { reason: "instagram_auth", delayMs: 24*3600000, terminal: false };
   if (/HTTP 404|deleted|exclu[ií]d|m[eé]trica n[aã]o encontrada/i.test(message)) return { reason: "media_deleted", delayMs: 30*86400000, terminal: true };
@@ -96,9 +97,20 @@ export async function findPendingReadingBatch(query: Record<string, unknown>, re
     { $match: { readingState: { $not: { $elemMatch: { revision, $or: [
       { state: "unsupported" }, { nextAttemptAt: { $gt: now } }, { leaseUntil: { $gt: now } },
     ] } } } } },
-    { $sort: { postDate: -1, _id: 1 } },
-    { $limit: Math.max(limit, limit * 10) },
-    { $project: { _id: 1, user: 1, "stats.reach": 1, "stats.total_interactions": 1 } },
+    { $project: { _id: 1, user: 1, postDate: 1, stats: 1, instagramMediaId: 1, type: 1 } },
+    { $facet: {
+      recent: [{ $match: { postDate: { $gte: new Date(now.getTime() - 14 * 86400000) } } }, { $sort: { postDate: -1, _id: 1 } }, { $limit: limit * 10 }],
+      middle: [{ $match: { postDate: { $lt: new Date(now.getTime() - 14 * 86400000), $gte: new Date(now.getTime() - 28 * 86400000) } } }, { $sort: { postDate: 1, _id: 1 } }, { $limit: limit * 10 }],
+      older: [{ $match: { postDate: { $lt: new Date(now.getTime() - 28 * 86400000) } } }, { $sort: { postDate: 1, _id: 1 } }, { $limit: limit * 10 }],
+    } },
+
   ]);
-  return fairReadingBatch(rows, limit);
+  const buckets = rows[0] ?? {};
+  const oldLimit = Math.max(1, Math.floor(limit * 0.2));
+  const old = fairReadingBatch(buckets.older ?? [], oldLimit);
+  const middle = fairReadingBatch(buckets.middle ?? [], Math.max(1, Math.floor(limit * 0.2)));
+  const recent = fairReadingBatch(buckets.recent ?? [], Math.max(0, limit - old.length - middle.length));
+  const selected = [...recent, ...middle, ...old].slice(0, limit);
+  const ids = new Set(selected.map(row => String(row._id)));
+  return [...selected, ...fairReadingBatch([...(buckets.recent ?? []), ...(buckets.middle ?? []), ...(buckets.older ?? [])].filter(row => !ids.has(String(row._id))), limit - selected.length)];
 }

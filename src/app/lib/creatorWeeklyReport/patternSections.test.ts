@@ -45,7 +45,7 @@ describe("a resposta dita como ação", () => {
 });
 
 describe("os três estados de um padrão", () => {
-  it("separa regra de aposta pelo número de posts, não pelo multiplicador", () => {
+  it("exige validação explícita além da amostra para promover padrão", () => {
     const { rules, tests } = buildPatternSections(highlights);
 
     // Natureza tem o maior número da tela (7,5×) e um post só: é aposta.
@@ -58,7 +58,7 @@ describe("os três estados de um padrão", () => {
     expect(quinta?.evidence).toBe("14 posts");
 
     expect(rules.every((card) => (card.highlight.nPosts ?? 0) >= RULE_CUT)).toBe(true);
-    expect(tests.every((card) => (card.highlight.nPosts ?? 0) < RULE_CUT)).toBe(true);
+    expect(tests.every((card) => card.highlight.consistent !== true || (card.highlight.nPosts ?? 0) < RULE_CUT)).toBe(true);
   });
 
   it("guarda na terceira lista a dimensão que foi lida e não achou nada", () => {

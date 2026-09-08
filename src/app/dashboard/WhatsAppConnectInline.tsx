@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import React, { useEffect, useState } from "react";
 import {
   FaWhatsapp,
@@ -16,6 +17,10 @@ type GenResponse =
   | { error: string };
 
 export default function WhatsAppConnectInline() {
+  return WHATSAPP_ALERTS_VISIBLE ? <WhatsAppConnectContent /> : null;
+}
+
+function WhatsAppConnectContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);

@@ -28,6 +28,7 @@ export type CreatorContentIdeaStatus =
 export type CreatorContentIdeaSource = "gemini_v1" | "manual_seed" | "gpt4o_v1";
 
 export interface ICreatorContentIdea extends Document {
+  generationJobId?: string;
   userId: Types.ObjectId;
   status: CreatorContentIdeaStatus;
   source: CreatorContentIdeaSource;
@@ -137,6 +138,7 @@ const CreatorContentIdeaSchema = new Schema<ICreatorContentIdea>(
     mapContextHash: { type: String, required: true, maxlength: 64 },
     modelVersion: { type: String, required: true, default: "gemini_v1" },
     generatedAt: { type: Date, default: Date.now, required: true },
+    generationJobId: { type: String, index: true },
   },
   {
     timestamps: true,

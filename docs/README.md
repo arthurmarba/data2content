@@ -20,6 +20,11 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `implementacao-collabs-2026-09-08.md` | 09/2026 | Implementação local, testes, limites da validação e procedimento de liberação das novas Collabs |
+| `plano-melhorias-collabs-2026-09-08.md` | 09/2026 | Plano completo: integridade das parcerias, inteligência com evidência, descoberta, pauta compartilhada, experiência, migração e validação |
+| `auditoria-collabs-2026-09-08.md` | 09/2026 | Revisão de Collabs: experiência móvel e dedicada, qualidade das pautas, descoberta, reciprocidade, falhas reproduzidas e prioridades |
+| `plano-evolucao-perfil-2026-09-08.md` | 09/2026 | Plano de melhorias do Perfil: recuperação das leituras, atualização real, assuntos recentes, ganchos, confiança e revisão da narrativa |
+| `auditoria-atualizacao-perfil-2026-09-08.md` · `brain/30 Armadilhas/Perfil atualizado sem leitura nova.md` | 09/2026 | Reclamação de perfil parado: cobertura real, narrativa confirmada, ganchos antigos e critérios de evolução |
 | `brain/40 Decisões/Histórico diário conserva oito meses e uma referência.md` | 09/2026 | Retenção aprovada de snapshots, preservação de conteúdo e expiração de PDFs |
 | `auditoria-mongodb-armazenamento-2026-09-07.md` · `brain/30 Armadilhas/Expiração declarada não garante limpeza no MongoDB.md` | 09/2026 | Volume real do Atlas, PDFs vencidos, dados órfãos e cenários de retenção; avaliação sem exclusões |
 | `radar-coleta-gratuita-operacao.md` | 09/2026 | Implementação, operação administrativa, coleta sem APIs pagas e próximos passos |

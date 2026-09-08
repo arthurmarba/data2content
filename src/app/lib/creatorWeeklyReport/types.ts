@@ -1,4 +1,5 @@
-export const CREATOR_WEEKLY_REPORT_SCHEMA_VERSION = 1;
+import type { ProfileEvolution } from './evolution';
+export const CREATOR_WEEKLY_REPORT_SCHEMA_VERSION = 2;
 
 export type CreatorWeeklyReportStatus =
   | "queued"
@@ -16,6 +17,13 @@ export type CreatorWeeklyReportDetailId =
   | "openings";
 
 export interface CreatorWeeklyReportRankItem {
+  score?: number;
+  consistent?: boolean;
+  candidateConsistent?: boolean;
+  postId?: string;
+  postLink?: string | null;
+  publishedAt?: string;
+  comparisonMetric?: 'shares' | 'saved' | 'views';
   id: string;
   label: string;
   nPosts: number;
@@ -25,6 +33,7 @@ export interface CreatorWeeklyReportRankItem {
 }
 
 export interface CreatorWeeklyReportRankGroup {
+  grouping?: { version: string; source: string; confidence: 'descriptive' };
   id: string;
   title: string;
   subtitle: string;
@@ -57,6 +66,8 @@ export interface CreatorWeeklyReportVideo {
 }
 
 export interface CreatorWeeklyReportPayload {
+  policyVersion?: string;
+  evolution?: ProfileEvolution;
   schemaVersion: number;
   weekKey: string;
   period: {

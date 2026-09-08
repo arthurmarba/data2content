@@ -15,6 +15,8 @@
 //   "revisit"     — reaberto depois (ex.: fileira Combinadas). Sem fanfarra:
 //                   é status, não festa. Fade rápido, mesmo conteúdo.
 
+import { useState } from "react";
+import { useCollabDialog } from "./useCollabDialog";
 import { motion, useReducedMotion } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
@@ -81,7 +83,7 @@ export function DiagnosticoCollabMatchOverlay({
   viewerAvatarUrl,
   variant = "celebration",
   onOpenIdea,
-  onClose,
+  onClose, onEnd,
 }: {
   pauta: Pick<ContentIdeaListItem, "id" | "title">;
   collab: NarrativeCollabMatch;
@@ -90,6 +92,7 @@ export function DiagnosticoCollabMatchOverlay({
   variant?: "celebration" | "revisit";
   onOpenIdea?: (pautaId: string) => void;
   onClose: () => void;
+  onEnd?: () => Promise<void>;
 }) {
   const reduceMotion = useReducedMotion();
   const celebrate = variant === "celebration" && !reduceMotion;
@@ -108,8 +111,14 @@ export function DiagnosticoCollabMatchOverlay({
         }
       : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.18 } };
 
+  const dialogRef = useCollabDialog(onClose);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState(false);
   return (
     <motion.div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Parceria confirmada"
@@ -229,6 +238,9 @@ export function DiagnosticoCollabMatchOverlay({
               >
                 Ver plano da parceria
               </button>
+              {collab.planNeedsReview && <p className="text-sm">Combinação anterior: revisem juntos a pauta antes de gravar.</p>}
+              {endError && <p role="alert">Não foi possível encerrar. Tente novamente.</p>}
+              {onEnd && <div className="text-sm">{confirmEnd ? <><p>Encerrar esta parceria para os dois? As ideias salvas continuam no acervo.</p><button disabled={ending} className="min-h-11 px-3 underline" onClick={async () => { setEnding(true); try { await onEnd(); } catch { setEndError(true); } finally { setEnding(false); } }}>Sim, encerrar</button><button className="min-h-11 px-3" onClick={() => setConfirmEnd(false)}>Continuar parceria</button></> : <button className="min-h-11 underline" onClick={() => setConfirmEnd(true)}>Encerrar parceria</button>}</div>}
               <button
                 type="button"
                 onClick={onClose}

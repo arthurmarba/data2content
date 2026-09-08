@@ -1,3 +1,4 @@
+import { reconcileMapSuggestions, type MapSuggestionContext } from './mapSuggestions';
 // src/app/lib/mapaSeed/enrichMapaWithInstagram.ts
 // Cruza os padrões do Instagram com o mapa seed declarativo
 // e gera um mapa enriquecido mais fiel ao criador real.
@@ -91,6 +92,7 @@ export async function enrichMapaWithInstagram(
   mapaAtual: IMapaData,
   patterns: InstagramPatterns,
   locks?: CoreStabilityLocks,
+  context?: MapSuggestionContext,
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithInstagram]";
 
@@ -189,5 +191,5 @@ export async function enrichMapaWithInstagram(
   };
 
   logger.info(`${TAG} Mapa enriquecido: "${mapaEnriquecido.narrativa_central}"`);
-  return mapaEnriquecido;
+  return reconcileMapSuggestions(mapaAtual, mapaEnriquecido, { ...raw, ...dedupedCandidates }, locks, context);
 }

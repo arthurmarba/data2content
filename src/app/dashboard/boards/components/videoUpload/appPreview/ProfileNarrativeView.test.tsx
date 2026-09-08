@@ -105,7 +105,7 @@ describe("a narrativa por inteiro", () => {
     fireEvent.keyDown(within(temas).getByRole("textbox", { name: "Adicionar em Assuntos" }), { key: "Escape" });
 
     expect(onMapaChange).not.toHaveBeenCalled();
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect((global.fetch as jest.Mock).mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(false);
   });
 
   it("nomeia a distância entre o que foi declarado e o que os vídeos mostram", () => {
@@ -114,7 +114,7 @@ describe("a narrativa por inteiro", () => {
     renderView();
     const lacuna = screen.getByRole("region", { name: "O que não aparece" });
     expect(within(lacuna).getByText(/Trabalho e culpa/)).toBeInTheDocument();
-    expect(within(lacuna).getByText(/nenhum vídeo lido falou/)).toBeInTheDocument();
+    expect(within(lacuna).getByText(/não foi identificado|não foram identificados/)).toBeInTheDocument();
   });
 
   it("conta as lacunas que não couberam na frase, em vez de calar sobre elas", () => {
@@ -133,7 +133,7 @@ describe("a narrativa por inteiro", () => {
     renderView({ observedSubjects: [], mapa: { ...MAPA, temas: [], territorios: [] } as IMapaData });
     const lacuna = screen.getByRole("region", { name: "O que não aparece" });
     expect(
-      within(lacuna).getByText("Nenhum vídeo foi lido ainda, então não dá para dizer o que falta."),
+      within(lacuna).getByText("Sem leitura recente disponível, não dá para dizer quais assuntos faltam neste período."),
     ).toBeInTheDocument();
   });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { useCallback, useEffect, useMemo, useRef, startTransition, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -65,8 +66,8 @@ const MobileCalculatorWizard = dynamic(
   () => import("./MobileCalculatorWizard").then((module) => module.MobileCalculatorWizard),
   { ssr: false },
 );
-const DiagnosticoCollabsFeed = dynamic(
-  () => import("./DiagnosticoCollabsFeed").then((module) => module.DiagnosticoCollabsFeed),
+const SharedCollabsBoard = dynamic(
+  () => import("@/app/dashboard/boards/CollabsPinnedBoard"),
   { ssr: false },
 );
 const DiagnosticoCollabMatchOverlay = dynamic(
@@ -493,145 +494,7 @@ export function DiagnosticoRealShellClient({
       ? collabsBootstrap.status
       : "loading";
 
-  useEffect(() => {
-    if (activeTab !== "collabs") return;
-    if (weeklyProfileExperienceEnabled && (!weeklyCollabsUnlocked || weeklyReportDemo)) return;
-    if (collabsReadySignatureRef.current === collabsInputSignature) return;
 
-    const requestId = ++collabsBootstrapRequestRef.current;
-    const controller = new AbortController();
-    const localDecisions = readContentIdeaLocalDecisions(localPautaDecisionStorageKey);
-
-    setCollabsBootstrap({ status: "loading", signature: collabsInputSignature, error: null });
-
-    const commitLocalDecisions = () => {
-      if (localDecisions.size === 0) return;
-      setPautaActionStates((prev) => {
-        const next = new Map(prev);
-        for (const [id, kind] of localDecisions.entries()) {
-          if (!next.has(id)) next.set(id, { kind, phase: "confirmed" });
-        }
-        return next;
-      });
-    };
-
-    const commitReady = () => {
-      collabsReadySignatureRef.current = collabsInputSignature;
-      setCollabsBootstrap({ status: "ready", signature: collabsInputSignature, error: null });
-    };
-
-    // Free não consulta identidades reais, mas ainda respeita a transição única
-    // loading → ready para não hidratar decisões locais depois do primeiro card.
-    if (!hasProAccess) {
-      commitLocalDecisions();
-      setPautaCollabs(new Map());
-      setCollabDecisions(new Map());
-      setConfirmedMatches([]);
-      setMatchCelebrationQueue([]);
-      commitReady();
-      return () => controller.abort();
-    }
-
-    if (collabsPautas.length === 0) {
-      commitLocalDecisions();
-      setPautaCollabs(new Map());
-      setCollabDecisions(new Map());
-      setConfirmedMatches([]);
-      setMatchCelebrationQueue([]);
-      commitReady();
-      return () => controller.abort();
-    }
-
-    if (!collabsNarrativeLabel) {
-      setCollabsBootstrap({
-        status: "error",
-        signature: collabsInputSignature,
-        error: "Confirme sua narrativa no Perfil antes de preparar esta rodada.",
-      });
-      return () => controller.abort();
-    }
-
-    void (async () => {
-      try {
-        const [matchesResponse, interestResponse] = await Promise.all([
-          fetch("/api/dashboard/mobile-strategic-profile/collabs/per-pauta", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              narrativeLabel: collabsNarrativeLabel,
-              pautas: collabsPautas.map((p) => ({
-                id: p.id,
-                territory: p.territory,
-                title: p.title,
-                angle: p.angle,
-                hook: p.hook,
-                suggestedFormat: p.suggestedFormat,
-                scriptBlueprint: p.scriptBlueprint ?? null,
-                opportunityKind: p.opportunityBrief?.kind ?? null,
-              })),
-            }),
-            signal: controller.signal,
-          }),
-          fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
-            signal: controller.signal,
-          }),
-        ]);
-        const [matchesJson, interestJson] = await Promise.all([
-          matchesResponse.json().catch(() => null),
-          interestResponse.json().catch(() => null),
-        ]);
-        if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
-        if (!matchesResponse.ok || !matchesJson?.ok) throw new Error("matches_unavailable");
-        if (!interestResponse.ok || !interestJson?.ok) throw new Error("interest_unavailable");
-
-        const nextDecisions = new Map<string, CollabStackDecision>();
-        if (Array.isArray(interestJson.decisions)) {
-          for (const decision of interestJson.decisions) {
-            if (
-              typeof decision?.pautaId === "string" &&
-              (decision.decision === "interested" || decision.decision === "dismissed")
-            ) {
-              nextDecisions.set(decision.pautaId, decision.decision);
-            }
-          }
-        }
-        const nextMatches = Array.isArray(interestJson.matches) ? interestJson.matches : [];
-        const freshMatches = nextMatches.filter((match: { isNew?: boolean }) => match?.isNew);
-
-        // React 18 agrupa estes updates do mesmo ciclo assíncrono. O status
-        // `ready` só entra junto do snapshot completo, produzindo uma revelação.
-        commitLocalDecisions();
-        setPautaCollabs(new Map(Object.entries(matchesJson.matches ?? {})));
-        setCollabDecisions(nextDecisions);
-        setConfirmedMatches(nextMatches);
-        setMatchCelebrationQueue(freshMatches.map((match: { pautaId: string }) => match.pautaId));
-        if (freshMatches.length > 0) {
-          setOpenMatch({ pautaId: freshMatches[0].pautaId, variant: "celebration" });
-        }
-        commitReady();
-      } catch {
-        if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
-        setCollabsBootstrap({
-          status: "error",
-          signature: collabsInputSignature,
-          error: "Não foi possível sincronizar sugestões e matches. Tente novamente.",
-        });
-      }
-    })();
-
-    return () => controller.abort();
-  }, [
-    activeTab,
-    collabsBootstrapRetry,
-    collabsInputSignature,
-    collabsNarrativeLabel,
-    collabsPautas,
-    hasProAccess,
-    localPautaDecisionStorageKey,
-    weeklyCollabsUnlocked,
-    weeklyProfileExperienceEnabled,
-    weeklyReportDemo,
-  ]);
 
   const handleRetryCollabsBootstrap = useCallback(() => {
     collabsReadySignatureRef.current = "";
@@ -1159,128 +1022,7 @@ export function DiagnosticoRealShellClient({
   // Extracted so the user can also retry manually from the card.
   // `focusedTerritory` (opcional) semeia a geração a partir de um território —
   // usado pela ação "Gerar pautas de {território}" do card "Sua Audiência".
-  const triggerGenerateIdeas = useCallback(async (focusedTerritory?: string) => {
-    // Guarda: onRetryGenerateIdeas é usado como onClick em vários lugares, então o 1º
-    // argumento pode ser um MouseEvent. Só tratamos como território se for string.
-    const territory = typeof focusedTerritory === "string" && focusedTerritory.trim() ? focusedTerritory.trim() : null;
-    if (generatingRef.current) return;
-    generatingRef.current = true;
-    setIsGeneratingIdeas(true);
-    setIdeaGenerationBlocker(null);
-    console.log("[d2c:pautas] → iniciando geração", territory ? `(território: ${territory})` : "");
-    try {
-      const res = await fetch("/api/dashboard/mobile-strategic-profile/content-ideas/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(territory ? { focusedTerritory: territory } : {}),
-      });
-      console.log("[d2c:pautas] ← resposta status:", res.status);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-        const reason = typeof body?.reason === "string" ? body.reason : "failed";
-        console.warn(`[d2c:pautas] ERRO ${res.status} reason=${reason} —`, body?.message ?? "");
-        if (reason === "premium_required") {
-          setIdeaGenerationBlocker("premium_required");
-        } else if (reason === "quota_exceeded") {
-          setIdeaGenerationBlocker("quota_exceeded");
-          if (typeof body?.resetAt === "string") setIdeaQuotaResetAt(body.resetAt);
-        } else if (reason === "map_not_ready" || reason === "no_narrative" || reason === "no_territories") {
-          setIdeaGenerationBlocker("map_incomplete");
-        } else {
-          setIdeaGenerationBlocker("failed");
-        }
-        return;
-      }
-      const resJson = await res.json() as {
-        ok: boolean;
-        ideas?: Array<{
-          id: string; title: string; angle: string; hook: string;
-          territory: string; assets: string[]; suggestedFormat: string;
-          tone: string | null; whyItFits: string;
-          mapAnchors?: import("@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors").ContentIdeaMapAnchor[];
-          scriptPoints: string[]; scriptClosing: string | null;
-          scriptBlueprint?: import("@/app/dashboard/boards/videoUpload/contentIdeaBlueprint").ContentIdeaScriptBlueprint | null;
-          resonanceNote?: string | null;
-          opportunityBrief?: import("@/app/dashboard/boards/videoUpload/contentIdeaOpportunity").ContentIdeaOpportunityBrief | null;
-          generatedAt: string;
-        }>;
-      };
-      console.log("[d2c:pautas] ideas na resposta:", resJson?.ideas?.length ?? 0, resJson?.ideas?.map(i => i.title));
-      if (Array.isArray(resJson?.ideas) && resJson.ideas.length > 0) {
-        const newIdeas = resJson.ideas.map((idea) => ({
-          ...idea,
-          scriptPoints: idea.scriptPoints ?? [],
-          scriptClosing: idea.scriptClosing ?? null,
-          scriptBlueprint: idea.scriptBlueprint ?? null,
-          mapAnchors: idea.mapAnchors ?? [],
-          resonanceNote: idea.resonanceNote ?? null,
-          opportunityBrief: idea.opportunityBrief ?? null,
-          status: "active" as const,
-          scheduledFor: null,
-        }));
-        // Espelha o servidor: a leva nova entra como `active`; as pautas SALVAS
-        // que o criador guardou permanecem (o servidor só supersede `active`).
-        // As `active` anteriores saem — viraram `superseded` lá. Assim o card
-        // mostra a leva fresca + as salvas, sem acumular pautas velhas localmente.
-        setLocalContentIdeas((prev) => {
-          const newIds = new Set(newIdeas.map((i) => i.id));
-          const keptSaved = prev.filter((p) => p.status === "saved" && !newIds.has(p.id));
-          return [...newIdeas, ...keptSaved];
-        });
-        console.log("[d2c:pautas] localContentIdeas atualizado ✓");
-        // Use startTransition so the local state update renders BEFORE the
-        // router refresh re-fetches server data.  Without this, the Suspense
-        // boundary can show its blank fallback and reset all local state
-        // before the chips ever appear on screen.
-        startTransition(() => {
-          router.refresh();
-        });
-      } else {
-        console.warn("[d2c:pautas] 200 mas sem ideias na resposta — resJson:", resJson);
-        // Treat an unexpected empty-ideas success as a failure so the UI
-        // shows the retry button rather than the infinite "Preparando..." state.
-        setIdeaGenerationBlocker("failed");
-      }
-    } catch (err) {
-      console.warn("[d2c:pautas] Erro de rede:", err);
-      setIdeaGenerationBlocker("failed");
-    } finally {
-      generatingRef.current = false;
-      setIsGeneratingIdeas(false);
-    }
-  }, [router]);
-
-  // Auto-disparo quando o mapa fica pronto e não há pautas (ou estão velhas >7 dias,
-  // ou o mapa foi enriquecido depois da última pauta). Reativo a `ready`/contagem:
-  // além do mount, dispara quando a prontidão vira true após um router.refresh() —
-  // ex.: o enriquecimento assíncrono do Instagram concluiu e o polling abaixo trouxe
-  // dados frescos. O ref garante disparo único por mount.
-  useEffect(() => {
-    if (activeTab !== "collabs") return;
-    const ready = data.contentIdeasReadiness.ready;
-    const noIdeas = data.contentIdeas.length === 0;
-    const latestIdea = data.contentIdeas[0];
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-    const isStale = latestIdea
-      ? Date.now() - new Date(latestIdea.generatedAt).getTime() > SEVEN_DAYS_MS
-      : false;
-    // Mapa enriquecido (Instagram/vídeo) após a última pauta → regenera uma vez para
-    // refletir narrativa/territórios novos. Computado no servidor por timestamp; uma
-    // vez regenerado, a nova pauta fica mais recente que o enriquecimento e o flag
-    // volta a false, sem loop.
-    const mapStale = data.contentIdeasMapStale === true;
-    if (ready && (noIdeas || isStale || mapStale) && !autoGenerateTriggeredRef.current) {
-      autoGenerateTriggeredRef.current = true;
-      void triggerGenerateIdeas();
-    }
-  }, [
-    activeTab,
-    data.contentIdeas,
-    data.contentIdeasReadiness.ready,
-    data.contentIdeas.length,
-    data.contentIdeasMapStale,
-    triggerGenerateIdeas,
-  ]);
+  const triggerGenerateIdeas = useCallback(async () => { setActiveTab("collabs"); }, []);
 
   // Polling pós-conexão de Instagram. O enriquecimento do MapaSeed (sync de dados +
   // leitura visual do Gemini) roda async no worker QStash e leva alguns segundos.
@@ -2062,7 +1804,7 @@ export function DiagnosticoRealShellClient({
   const handleGeneratePautasForTerritory = useCallback((territoryLabel: string) => {
     // Ponte leitura → criação: semeia a geração pelo território e leva o
     // criador à aba Collabs, onde as pautas frescas aparecem (com o loading).
-    void triggerGenerateIdeas(territoryLabel);
+    void triggerGenerateIdeas();
     setActiveTab("collabs");
   }, [triggerGenerateIdeas]);
 
@@ -2096,48 +1838,7 @@ export function DiagnosticoRealShellClient({
         }}
       >
         {activeTab === "collabs" ? (
-          weeklyProfileExperienceEnabled && (!weeklyCollabsUnlocked || weeklyReportDemo) ? (
-            <CreatorWeeklyCollabsGate
-              accessState={hydratedData.accessState}
-              isDemo={weeklyReportDemo}
-              onUpgrade={handleProfileUpgrade}
-              onConnectInstagram={handleConnectInstagram}
-              onDemoChange={setWeeklyReportDemo}
-            />
-          ) : (
-          <DiagnosticoCollabsFeed
-            pautas={effectiveContentIdeas}
-            isPro={hasProAccess}
-            whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
-            isGeneratingIdeas={isGeneratingIdeas}
-            ideaGenerationBlocker={ideaGenerationBlocker}
-            ideaQuotaResetAt={ideaQuotaResetAt}
-            pautaCollabs={pautaCollabs}
-            bootstrapStatus={effectiveCollabsBootstrapStatus}
-            bootstrapError={collabsBootstrap.error}
-            onRetryBootstrap={handleRetryCollabsBootstrap}
-            collabDecisions={collabDecisions}
-            pautaActionStates={pautaActionStates}
-            onRetryPautaAction={handleRetryPautaAction}
-            confirmedMatches={confirmedMatches}
-            onOpenMatch={(pautaId) => setOpenMatch({ pautaId, variant: "revisit" })}
-            onOpenIdea={handleOpenIdea}
-            onSavePauta={handleSavePauta}
-            onUnsavePauta={handleUnsavePauta}
-            onAcceptCollabPauta={handleAcceptCollabPauta}
-            onDeclineCollabPauta={handleDeclineCollabPauta}
-            onDismissPauta={handleDismissPauta}
-            onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
-            onUpgrade={(ctx) => openPaywallModal({
-              context: typeof ctx === "string" ? ctx : "narrative_map",
-              source: typeof ctx === "string" ? `mobile_collabs_${ctx}` : "mobile_collabs",
-              returnTo: profileRoute,
-              postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
-            })}
-            onGenerate={triggerGenerateIdeas}
-            onBackToPerfil={() => setActiveTab("perfil")}
-          />
-          )
+          <SharedCollabsBoard embedded onBackToPerfil={() => setActiveTab("perfil")} onConnectWhatsApp={() => setWhatsAppSheetOpen(true)} />
         ) : (
         weeklyProfileExperienceEnabled ? (
           <CreatorWeeklyProfileExperience
@@ -2275,7 +1976,7 @@ export function DiagnosticoRealShellClient({
         ) : null;
       })()}
 
-      {whatsAppSheetOpen ? (
+      {WHATSAPP_ALERTS_VISIBLE && whatsAppSheetOpen ? (
         <DiagnosticoWhatsAppSheet onClose={() => setWhatsAppSheetOpen(false)} />
       ) : null}
 

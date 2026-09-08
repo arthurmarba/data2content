@@ -1,3 +1,4 @@
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes, FaInstagram, FaTrash } from 'react-icons/fa';
@@ -104,7 +105,7 @@ export const ToolsDrawer = React.memo(function ToolsDrawer({
                                     </div>
                                 </button>
 
-                                {instagramConnected && isActiveLikePlan && (
+                                {WHATSAPP_ALERTS_VISIBLE && instagramConnected && isActiveLikePlan && (
                                     <div className="p-1">
                                         <WhatsAppConnectInline />
                                     </div>

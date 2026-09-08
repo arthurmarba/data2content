@@ -511,7 +511,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     expect(screen.queryByRole("group", { name: /Ideia: Pauta a/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ver ideia sendo salva" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver ideias salvas (0)" }));
     expect(screen.getByText("Pauta a")).toBeInTheDocument();
     expect(screen.getByText("Salvando...")).toBeInTheDocument();
   });
@@ -541,7 +541,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Ver ideias salvas/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver ideias salvas (0)" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Ideia: Pauta salva/ })).toBeInTheDocument();
   });
 
@@ -555,7 +555,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautaActionStates={new Map([["salva", { kind: "unsave" as const, phase: "confirmed" as const }]])}
       />,
     );
-    expect(screen.queryByRole("button", { name: /Ver ideias salvas/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver ideias salvas (0)" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Ideia: Pauta salva/ })).toBeInTheDocument();
   });
 
@@ -622,17 +622,17 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.getByRole("dialog", { name: "Ideias salvas" })).toBeInTheDocument();
     expect(screen.getByText("Interesse registrado")).toBeInTheDocument();
     // A espera fecha o loop: diz o que falta e onde a resposta chega.
-    expect(screen.getByText(/Se houver interesse dos dois lados, avisamos você no WhatsApp/)).toBeInTheDocument();
+    expect(screen.getByText(/Se houver interesse dos dois lados, a collab aparecerá aqui/)).toBeInTheDocument();
     expect(screen.queryByText(/Combinada com/)).not.toBeInTheDocument();
     expect(screen.queryByText("Parceria com Théo confirmada")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
 
-    // Ícone de combinadas → só os matches + o alerta de WhatsApp no rodapé.
+    // Combinadas preserva os matches sem oferecer um canal oculto.
     fireEvent.click(screen.getByRole("button", { name: "Ver parcerias confirmadas (1)" }));
     expect(screen.getByRole("dialog", { name: "Combinadas" })).toBeInTheDocument();
     expect(screen.getByText("Parceria com Théo confirmada")).toBeInTheDocument();
     expect(screen.getByText("Próximo passo: combinar a gravação.")).toBeInTheDocument();
-    expect(screen.getByText(/Avisamos no WhatsApp/)).toBeInTheDocument();
+    expect(screen.queryByText(/Receba um aviso/)).not.toBeInTheDocument();
     expect(screen.queryByText("Interesse registrado")).not.toBeInTheDocument();
   });
 

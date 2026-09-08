@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { resolveBillingPricesShape } from "@/app/lib/billing/serverBillingPrices";
 import WhatsAppSubscribeInlineShell from "./WhatsAppSubscribeInlineShell";
 
 export default async function WhatsAppUpsellPage() {
+  if (!WHATSAPP_ALERTS_VISIBLE) redirect("/pro");
   const prices = await resolveBillingPricesShape();
 
   return (

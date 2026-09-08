@@ -21,6 +21,9 @@ export interface ContentIdeaTimingRecommendation {
 }
 
 export interface ContentIdeaOpportunityBrief {
+  evidence?: Array<{ postId: string; postLink: string | null; publishedAt: string }>;
+  policyVersion?: string;
+  readingCoverage?: number;
   version: 1;
   kind: ContentIdeaOpportunityKind;
   /** Motivo simples e verificável para sugerir a ideia neste momento. */
@@ -35,6 +38,9 @@ export interface ContentIdeaOpportunityBrief {
 }
 
 export interface ContentIdeasCreativeSignals {
+  evidence?: Array<{ postId: string; postLink: string | null; publishedAt: string }>;
+  policyVersion?: string;
+  readingCoverage?: number;
   postsAnalyzed: number;
   windowDays: number;
   confidence: "low" | "medium" | "high";
@@ -137,6 +143,9 @@ export function sanitizeContentIdeaOpportunityBrief(
   return {
     version: 1,
     kind,
+    policyVersion: typeof value.policyVersion === "string" ? value.policyVersion : undefined,
+    readingCoverage: typeof value.readingCoverage === "number" ? Math.max(0, Math.min(1, value.readingCoverage)) : undefined,
+    evidence: Array.isArray(value.evidence) ? value.evidence.filter((item): item is {postId:string;postLink:string|null;publishedAt:string} => Boolean(item && typeof item.postId === "string" && typeof item.publishedAt === "string")).slice(0, 12) : [],
     whyNow: simplifyUserFacingText(value.whyNow, 180),
     collabReason: kind === "collab_optional" ? simplifyUserFacingText(value.collabReason, 180) : null,
     evidenceSummary: simplifyUserFacingText(value.evidenceSummary, 180),

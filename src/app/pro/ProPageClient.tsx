@@ -479,7 +479,7 @@ export default function ProPageClient({
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Reunião semanal da comunidade e alertas no WhatsApp.</span>
+                          <span>Reunião semanal da comunidade e pautas personalizadas.</span>
                         </li>
                         <li className="flex items-start gap-3 text-sm text-slate-600">
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">

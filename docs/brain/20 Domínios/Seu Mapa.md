@@ -45,3 +45,19 @@ Existiram **dois caminhos paralelos** de leitura: a síntese vinda do vídeo env
 ## Ligações
 
 [[Pautas e Roteiros]] · [[Collabs]] · [[Relatório Semanal]] · [[Cadeia narrativa e pauta]]
+
+
+## Propostas de revisão do núcleo
+
+`lib/mapaSeed/mapSuggestions.ts` acumula propostas de Instagram e vídeo sem
+substituir uma frase já existente. Duas leituras só contam duas vezes quando há
+posts novos; um núcleo vazio pode ser preenchido após essa concordância.
+`mapConfirmationReproposalService` delega ao mesmo mecanismo, preservando a
+confirmação. `mapSuggestionService` aceita/edita em transação com a confirmação e
+recusa sugestões cuja revisão ou frase de origem mudou.
+
+O worker `enrich-mapa-instagram` separa enriquecimento da sincronização, reaproveita
+cenas e checkpoints e respeita revisão das fontes. O intervalo do mapa segue em
+12 horas; a atualização descritiva do Perfil é independente. Os documentos de
+mapa usam concorrência otimista; uma gravação antiga não deve substituir edição
+mais nova. Falhas ao ler confirmações interrompem o enriquecimento.

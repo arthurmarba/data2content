@@ -18,6 +18,9 @@ export interface IAdjacentNarrativeConfirmation {
 }
 
 export interface IMapDimensionConfirmation {
+  confirmedValue?: string | null;
+  confirmedRevision?: string | null;
+  valueOrigin?: "creator" | "migration" | null;
   state: MapDimensionConfirmationState;
   /** The raw creator response — preserved for AI context (almost ≠ yes in intent). */
   response: MapDimensionConfirmationResponse | null;
@@ -86,6 +89,9 @@ const MapDimensionConfirmationSchema = new Schema<IMapDimensionConfirmation>(
     },
     confirmedAt: { type: Date, default: null },
     previousLabel: { type: String, default: null },
+    confirmedValue: { type: String, default: null },
+    confirmedRevision: { type: String, default: null },
+    valueOrigin: { type: String, enum: ["creator", "migration", null], default: null },
   },
   { _id: false },
 );

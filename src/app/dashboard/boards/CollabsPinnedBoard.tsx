@@ -1,670 +1,96 @@
 "use client";
-
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Bookmark, CircleDot, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
-
 import Board from "@/app/dashboard/components/Board";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
-import useBillingStatus from "@/app/hooks/useBillingStatus";
-import {
-  type CollabsBootstrapStatus,
-  DiagnosticoCollabsFeed,
-  type PautaActionKind,
-  type PautaActionState,
-} from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabsFeed";
-import type { CollabStackDecision } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabStack";
-import { DiagnosticoCollabMatchOverlay } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabMatchOverlay";
-import { DiagnosticoIdeaDetailSheet } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoIdeaDetailSheet";
-import { MediaKitSheet } from "@/app/dashboard/boards/components/videoUpload/appPreview/MediaKitSheet";
-import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
-import {
-  contentIdeaLocalDecisionStorageKey,
-  forgetContentIdeaLocalDecision,
-  readContentIdeaLocalDecisions,
-  rememberContentIdeaLocalDecision,
-} from "@/app/dashboard/boards/videoUpload/contentIdeaLocalDecisions";
-import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
+import { DiagnosticoCollabsFeed, type CollabsBootstrapStatus } from "./components/videoUpload/appPreview/DiagnosticoCollabsFeed";
+import { DiagnosticoIdeaDetailSheet } from "./components/videoUpload/appPreview/DiagnosticoIdeaDetailSheet";
+import { DiagnosticoCollabMatchOverlay } from "./components/videoUpload/appPreview/DiagnosticoCollabMatchOverlay";
+import { MediaKitSheet } from "./components/videoUpload/appPreview/MediaKitSheet";
+import type { ContentIdeaListItem } from "./videoUpload/contentIdeasReadService";
+import { useCollabsController, collabsJson } from "./useCollabsController";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
-const WHATSAPP_ROUTE = "/dashboard/whatsapp";
-const PRO_ROUTE = "/pro";
-
-const IDEAS_API = "/api/dashboard/mobile-strategic-profile/content-ideas";
-const PER_PAUTA_API = "/api/dashboard/mobile-strategic-profile/collabs/per-pauta";
-const INTEREST_API = "/api/dashboard/mobile-strategic-profile/collabs/interest";
-const SUMMARY_API = "/api/dashboard/strategic-map/summary";
-
-type CollabMap = Map<string, NarrativeCollabMatch | null>;
-
-/**
- * Board "Collabs" na central de controle do desktop. Reusa a experiência do
- * mobile e preserva as mesmas ações, detalhes e estados nas duas larguras:
- *   - GET content-ideas → ideias
- *   - GET strategic-map/summary → narrativa (rótulo p/ o match por território)
- *   - POST collabs/per-pauta → match de criador por pauta
- *   - PATCH content-ideas/[id] → salvar ideia
- *   - POST content-ideas/generate → gerar novas ideias
- */
-export default function CollabsPinnedBoard({
-  showTitleMarker = true,
-  isHighlighted = false,
-  dedicatedView = false,
-}: {
-  showTitleMarker?: boolean;
-  isHighlighted?: boolean;
-  dedicatedView?: boolean;
+export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlighted = false, dedicatedView = false, embedded = false, onBackToPerfil, onConnectWhatsApp, focusedTerritory }: {
+  showTitleMarker?: boolean; isHighlighted?: boolean; dedicatedView?: boolean; embedded?: boolean;
+  onBackToPerfil?: () => void; onConnectWhatsApp?: () => void; focusedTerritory?: string | null;
 }) {
   const router = useRouter();
-  const { data: session, status: sessionStatus } = useSession();
-  const billing = useBillingStatus();
-  const userId = session?.user?.id ?? null;
-  const isPro = Boolean(billing.hasPremiumAccess);
-
-  const [pautas, setPautas] = React.useState<ContentIdeaListItem[]>([]);
-  const [pautaCollabs, setPautaCollabs] = React.useState<CollabMap>(new Map());
-  const [collabDecisions, setCollabDecisions] = React.useState<Map<string, CollabStackDecision>>(new Map());
-  const [confirmedMatches, setConfirmedMatches] = React.useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
-  const [pautaActionStates, setPautaActionStates] = React.useState<Map<string, PautaActionState>>(new Map());
-  const [bootstrapStatus, setBootstrapStatus] = React.useState<CollabsBootstrapStatus>("idle");
-  const [bootstrapError, setBootstrapError] = React.useState<string | null>(null);
-  const [generating, setGenerating] = React.useState(false);
+  const { data: session } = useSession();
+  const c = useCollabsController(session?.user?.id || null);
   const [openIdeaId, setOpenIdeaId] = React.useState<string | null>(null);
-  const [openMatch, setOpenMatch] = React.useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
-  const [matchCelebrationQueue, setMatchCelebrationQueue] = React.useState<string[]>([]);
+  const [openMatchId, setOpenMatchId] = React.useState<string | null>(null);
   const [mediaKitSlug, setMediaKitSlug] = React.useState<string | null>(null);
-  const pautaActionInFlightRef = React.useRef<Set<string>>(new Set());
-  const narrativeRef = React.useRef<string>("");
-  const localPautaDecisionStorageKey = React.useMemo(
-    () => contentIdeaLocalDecisionStorageKey(userId),
-    [userId],
-  );
-
-  React.useEffect(() => {
-    const localDecisions = readContentIdeaLocalDecisions(localPautaDecisionStorageKey);
-    if (localDecisions.size === 0) return;
-    setPautaActionStates((prev) => {
-      const next = new Map(prev);
-      for (const [id, kind] of localDecisions.entries()) {
-        if (!next.has(id)) next.set(id, { kind, phase: "confirmed" });
-      }
-      return next;
-    });
-  }, [localPautaDecisionStorageKey]);
-
-  const matchCollabs = React.useCallback(async (forPautas: ContentIdeaListItem[]) => {
-    const narrative = narrativeRef.current;
-    if (!narrative.trim() || forPautas.length === 0) {
-      setPautaCollabs(new Map());
-      return;
-    }
-    const res = await fetch(PER_PAUTA_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        narrativeLabel: narrative,
-        pautas: forPautas.map((p) => ({
-          id: p.id,
-          territory: p.territory,
-          title: p.title,
-          angle: p.angle,
-          hook: p.hook,
-          suggestedFormat: p.suggestedFormat,
-          scriptBlueprint: p.scriptBlueprint ?? null,
-          opportunityKind: p.opportunityBrief?.kind ?? null,
-        })),
-      }),
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.ok || !json.matches || typeof json.matches !== "object") {
-      throw new Error("collab_matches_unavailable");
-    }
-    setPautaCollabs(new Map(Object.entries(json.matches)));
-  }, []);
-
-  // Busca ideias, contexto e o estado salvo; depois prepara as parcerias possíveis.
-  const loadAll = React.useCallback(async () => {
-    if (!userId || sessionStatus === "loading" || !billing.hasResolvedOnce) return;
-    setBootstrapStatus("loading");
-    setBootstrapError(null);
-    try {
-      const [ideasRes, summaryRes, interestRes] = await Promise.all([
-        fetch(IDEAS_API, { cache: "no-store" }),
-        fetch(SUMMARY_API, { cache: "no-store" }),
-        isPro ? fetch(INTEREST_API, { cache: "no-store" }) : Promise.resolve(null),
-      ]);
-      if (!ideasRes.ok || !summaryRes.ok || (interestRes && !interestRes.ok)) {
-        throw new Error("collab_bootstrap_unavailable");
-      }
-      const [ideasJson, summaryJson, interestJson] = await Promise.all([
-        ideasRes.json(),
-        summaryRes.json(),
-        interestRes ? interestRes.json() : Promise.resolve(null),
-      ]);
-      const nextPautas: ContentIdeaListItem[] = ideasJson?.ideas ?? [];
-      narrativeRef.current = summaryJson?.summary?.narrative ?? "";
-      setPautas(nextPautas);
-      if (isPro) {
-        if (!interestJson?.ok) throw new Error("collab_interest_unavailable");
-        const nextDecisions = new Map<string, CollabStackDecision>();
-        if (Array.isArray(interestJson.decisions)) {
-          for (const item of interestJson.decisions) {
-            if (
-              typeof item?.pautaId === "string" &&
-              (item.decision === "interested" || item.decision === "dismissed")
-            ) {
-              nextDecisions.set(item.pautaId, item.decision);
-            }
-          }
-        }
-        const nextMatches: Array<{ pautaId: string; collab: NarrativeCollabMatch; isNew?: boolean }> = Array.isArray(interestJson.matches)
-          ? interestJson.matches.filter(
-            (item: unknown): item is { pautaId: string; collab: NarrativeCollabMatch; isNew?: boolean } => {
-              if (!item || typeof item !== "object") return false;
-              const candidate = item as { pautaId?: unknown; collab?: unknown };
-              return typeof candidate.pautaId === "string" && Boolean(candidate.collab && typeof candidate.collab === "object");
-            },
-          )
-          : [];
-        const freshMatches = nextMatches.filter((item) => item.isNew);
-        setCollabDecisions(nextDecisions);
-        setConfirmedMatches(nextMatches);
-        setMatchCelebrationQueue(freshMatches.map((item) => item.pautaId));
-        if (freshMatches[0]) {
-          setOpenMatch({ pautaId: freshMatches[0].pautaId, variant: "celebration" });
-        }
-        await matchCollabs(nextPautas);
-      } else {
-        setPautaCollabs(new Map());
-        setCollabDecisions(new Map());
-        setConfirmedMatches([]);
-        setMatchCelebrationQueue([]);
-      }
-      setBootstrapStatus("ready");
-    } catch {
-      setBootstrapStatus("error");
-      setBootstrapError("Não foi possível carregar suas ideias e parcerias.");
-    }
-  }, [billing.hasResolvedOnce, isPro, matchCollabs, sessionStatus, userId]);
-
-  React.useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
-
-  const setPautaStatus = React.useCallback((id: string, status: ContentIdeaListItem["status"]) => {
-    setPautas((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
-  }, []);
-
-  const setPautaAction = React.useCallback((id: string, state: PautaActionState) => {
-    setPautaActionStates((prev) => {
-      const next = new Map(prev);
-      next.set(id, state);
-      return next;
-    });
-  }, []);
-
-  const clearPautaAction = React.useCallback((id: string) => {
-    setPautaActionStates((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Map(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-
-  const beginPautaAction = React.useCallback((id: string) => {
-    if (pautaActionInFlightRef.current.has(id)) return false;
-    pautaActionInFlightRef.current.add(id);
-    return true;
-  }, []);
-
-  const finishPautaAction = React.useCallback((id: string) => {
-    pautaActionInFlightRef.current.delete(id);
-  }, []);
-
-  const actionErrorMessage = React.useCallback((kind: PautaActionKind, reason?: string) => {
-    if (reason === "storage_unavailable") {
-      if (kind === "unsave") return "Não foi possível tirar a ideia das salvas. Tente novamente.";
-      if (kind === "dismiss") return "Não foi possível descartar a ideia. Tente novamente.";
-      return "Não foi possível salvar agora. Tente novamente.";
-    }
-    if (kind === "collab-interest") return "Não foi possível registrar seu interesse na parceria. Tente novamente.";
-    if (kind === "collab-decline") return "Não foi possível atualizar a sugestão de parceria. Tente novamente.";
-    if (kind === "unsave") return "Não foi possível tirar a ideia das salvas. Tente novamente.";
-    if (kind === "dismiss") return "Não foi possível descartar a ideia. Tente novamente.";
-    return "Não foi possível salvar agora. Tente novamente.";
-  }, []);
-
-  const persistPautaStatus = React.useCallback(async (id: string, status: "saved" | "active" | "dismissed") => {
-    const res = await fetch(`${IDEAS_API}/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    const json = await res.json().catch(() => null) as {
-      ok?: boolean;
-      id?: string;
-      status?: string;
-      updatedAt?: string;
-      reason?: string;
-    } | null;
-    if (!res.ok || json?.ok !== true || json.id !== id || json.status !== status || !json.updatedAt) {
-      throw new Error(json?.reason ?? String(res.status));
-    }
-    return json;
-  }, []);
-
-  const handleSavePauta = React.useCallback((id: string) => {
-    if (!isPro) {
-      router.push(PRO_ROUTE);
-      return;
-    }
-    if (!beginPautaAction(id)) return;
-    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setPautaAction(id, { kind: "save", phase: "pending" });
-    void (async () => {
-      try {
-        await persistPautaStatus(id, "saved");
-        setPautaStatus(id, "saved");
-        clearPautaAction(id);
-      } catch (err) {
-        setPautaAction(id, {
-          kind: "save",
-          phase: "failed",
-          message: actionErrorMessage("save", err instanceof Error ? err.message : undefined),
-        });
-      } finally {
-        finishPautaAction(id);
-      }
-    })();
-  }, [actionErrorMessage, beginPautaAction, clearPautaAction, finishPautaAction, isPro, localPautaDecisionStorageKey, persistPautaStatus, router, setPautaAction, setPautaStatus]);
-
-  const handleUnsavePauta = React.useCallback((id: string) => {
-    if (!beginPautaAction(id)) return;
-    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setPautaStatus(id, "active");
-    setPautaAction(id, { kind: "unsave", phase: "pending" });
-    void (async () => {
-      try {
-        await persistPautaStatus(id, "active");
-        clearPautaAction(id);
-      } catch (err) {
-        setPautaStatus(id, "saved");
-        setPautaAction(id, {
-          kind: "unsave",
-          phase: "failed",
-          message: actionErrorMessage("unsave", err instanceof Error ? err.message : undefined),
-        });
-      } finally {
-        finishPautaAction(id);
-      }
-    })();
-  }, [actionErrorMessage, beginPautaAction, clearPautaAction, finishPautaAction, localPautaDecisionStorageKey, persistPautaStatus, setPautaAction, setPautaStatus]);
-
-  const handleDismissPauta = React.useCallback((id: string) => {
-    if (!beginPautaAction(id)) return;
-    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setPautaStatus(id, "dismissed");
-    setPautaAction(id, { kind: "dismiss", phase: "pending" });
-    void (async () => {
-      try {
-        await persistPautaStatus(id, "dismissed");
-        rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "dismiss");
-        clearPautaAction(id);
-      } catch (err) {
-        setPautaStatus(id, "active");
-        setPautaAction(id, {
-          kind: "dismiss",
-          phase: "failed",
-          message: actionErrorMessage("dismiss", err instanceof Error ? err.message : undefined),
-        });
-      } finally {
-        finishPautaAction(id);
-      }
-    })();
-  }, [actionErrorMessage, beginPautaAction, clearPautaAction, finishPautaAction, localPautaDecisionStorageKey, persistPautaStatus, setPautaAction, setPautaStatus]);
-
-  const handleAcceptCollabPauta = React.useCallback((id: string) => {
-    if (!isPro) {
-      router.push(PRO_ROUTE);
-      return;
-    }
-    if (!beginPautaAction(id)) return;
-    const pauta = pautas.find((p) => p.id === id) ?? null;
-    const collab = pautaCollabs.get(id) ?? null;
-    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
-    setPautaAction(id, { kind: "save", phase: "pending" });
-    void (async () => {
-      try {
-        await persistPautaStatus(id, "saved");
-        setPautaStatus(id, "saved");
-      } catch (err) {
-        setPautaAction(id, {
-          kind: "save",
-          phase: "failed",
-          message: actionErrorMessage("save", err instanceof Error ? err.message : undefined),
-        });
-        finishPautaAction(id);
-        return;
-      }
-
-      if (!pauta || !collab) {
-        clearPautaAction(id);
-        finishPautaAction(id);
-        return;
-      }
-
-      setPautaAction(id, { kind: "collab-interest", phase: "pending" });
-      try {
-        const res = await fetch(INTEREST_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pautaId: pauta.id,
-            pautaTitle: pauta.title,
-            partnerId: collab.id,
-            decision: "interested",
-            territory: pauta.territory,
-            fitReason: collab.narrativeFitReason,
-            sharedSignal: collab.sharedSignal,
-            recordingIdea: collab.collabRecordingIdea,
-            collabBlueprint: collab.collabBlueprint ?? null,
-            collabMode: collab.collabMode ?? null,
-            viewerContribution: collab.viewerContribution ?? null,
-            partnerContribution: collab.partnerContribution ?? null,
-          }),
-        });
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.ok) throw new Error(typeof json?.reason === "string" ? json.reason : String(res.status));
-        setCollabDecisions((prev) => new Map(prev).set(id, "interested"));
-        if (json.matched && json.match) {
-          setConfirmedMatches((prev) =>
-            prev.some((m) => m.pautaId === id) ? prev : [...prev, { pautaId: id, collab: json.match }],
-          );
-          setOpenMatch({ pautaId: id, variant: "celebration" });
-        }
-        clearPautaAction(id);
-      } catch (err) {
-        setPautaAction(id, {
-          kind: "collab-interest",
-          phase: "failed",
-          message: actionErrorMessage("collab-interest", err instanceof Error ? err.message : undefined),
-        });
-      } finally {
-        finishPautaAction(id);
-      }
-    })();
-  }, [
-    actionErrorMessage,
-    beginPautaAction,
-    clearPautaAction,
-    finishPautaAction,
-    isPro,
-    localPautaDecisionStorageKey,
-    pautaCollabs,
-    pautas,
-    persistPautaStatus,
-    router,
-    setPautaAction,
-    setPautaStatus,
-  ]);
-
-  const handleDeclineCollabPauta = React.useCallback((id: string) => {
-    if (!isPro) {
-      router.push(PRO_ROUTE);
-      return;
-    }
-    if (!beginPautaAction(id)) return;
-    const pauta = pautas.find((item) => item.id === id) ?? null;
-    const collab = pautaCollabs.get(id) ?? null;
-    if (!pauta || !collab) {
-      finishPautaAction(id);
-      return;
-    }
-    setCollabDecisions((prev) => new Map(prev).set(id, "dismissed"));
-    setPautaAction(id, { kind: "collab-decline", phase: "pending" });
-    void (async () => {
-      try {
-        const res = await fetch(INTEREST_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pautaId: pauta.id,
-            pautaTitle: pauta.title,
-            partnerId: collab.id,
-            decision: "dismissed",
-            territory: pauta.territory,
-            fitReason: collab.narrativeFitReason,
-            sharedSignal: collab.sharedSignal,
-            recordingIdea: collab.collabRecordingIdea,
-            collabBlueprint: collab.collabBlueprint ?? null,
-            collabMode: collab.collabMode ?? null,
-            viewerContribution: collab.viewerContribution ?? null,
-            partnerContribution: collab.partnerContribution ?? null,
-          }),
-        });
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.ok) throw new Error(String(res.status));
-        clearPautaAction(id);
-      } catch (err) {
-        setCollabDecisions((prev) => {
-          const next = new Map(prev);
-          next.delete(id);
-          return next;
-        });
-        setPautaAction(id, {
-          kind: "collab-decline",
-          phase: "failed",
-          message: actionErrorMessage("collab-decline", err instanceof Error ? err.message : undefined),
-        });
-      } finally {
-        finishPautaAction(id);
-      }
-    })();
-  }, [actionErrorMessage, beginPautaAction, clearPautaAction, finishPautaAction, isPro, pautaCollabs, pautas, router, setPautaAction]);
-
-  const handleRetryPautaAction = React.useCallback((id: string) => {
-    const action = pautaActionStates.get(id);
-    if (!action) return;
-    if (action.kind === "unsave") handleUnsavePauta(id);
-    else if (action.kind === "dismiss") handleDismissPauta(id);
-    else if (action.kind === "collab-interest") handleAcceptCollabPauta(id);
-    else if (action.kind === "collab-decline") handleDeclineCollabPauta(id);
-    else handleSavePauta(id);
-  }, [handleAcceptCollabPauta, handleDeclineCollabPauta, handleDismissPauta, handleSavePauta, handleUnsavePauta, pautaActionStates]);
-
-  const handleGenerate = React.useCallback(() => {
-    if (!isPro) {
-      router.push(PRO_ROUTE);
-      return;
-    }
-    setGenerating(true);
-    void (async () => {
-      try {
-        await fetch(`${IDEAS_API}/generate`, { method: "POST" });
-        await loadAll();
-      } catch {
-        /* silencioso */
-      } finally {
-        setGenerating(false);
-      }
-    })();
-  }, [isPro, loadAll, router]);
-
-  const handleOpenIdea = React.useCallback((id: string) => {
-    if (!isPro) {
-      router.push(PRO_ROUTE);
-      return;
-    }
-    setOpenIdeaId(id);
-  }, [isPro, router]);
-  const handleUpgrade = React.useCallback(() => router.push(PRO_ROUTE), [router]);
-  const handleOpenMatch = React.useCallback((pautaId: string) => {
-    setOpenMatch({ pautaId, variant: "revisit" });
-  }, []);
-  const acknowledgeMatchCelebration = React.useCallback((pautaId: string) => {
-    void fetch(INTEREST_API, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ celebratedPautaIds: [pautaId] }),
-    }).catch(() => {});
-  }, []);
-  const closeMatchOverlay = React.useCallback(() => {
-    if (!openMatch || openMatch.variant !== "celebration" || !matchCelebrationQueue.includes(openMatch.pautaId)) {
-      setOpenMatch(null);
-      return;
-    }
-    acknowledgeMatchCelebration(openMatch.pautaId);
-    const remaining = matchCelebrationQueue.filter((id) => id !== openMatch.pautaId);
-    setMatchCelebrationQueue(remaining);
-    setOpenMatch(remaining[0] ? { pautaId: remaining[0], variant: "celebration" } : null);
-  }, [acknowledgeMatchCelebration, matchCelebrationQueue, openMatch]);
-  const closeIdeaDetail = React.useCallback(() => {
-    setOpenIdeaId(null);
-    const nextMatchId = matchCelebrationQueue[0];
-    if (nextMatchId) setOpenMatch({ pautaId: nextMatchId, variant: "celebration" });
-  }, [matchCelebrationQueue]);
-  const feed = (
-    <DiagnosticoCollabsFeed
-      pautas={pautas}
-      isPro={isPro}
-      whatsappLinked={false}
-      isGeneratingIdeas={generating}
-      ideaGenerationBlocker={isPro ? null : "premium_required"}
-      pautaCollabs={pautaCollabs}
-      bootstrapStatus={bootstrapStatus}
-      bootstrapError={bootstrapError}
-      onRetryBootstrap={loadAll}
-      collabDecisions={collabDecisions}
-      confirmedMatches={confirmedMatches}
-      pautaActionStates={pautaActionStates}
-      onRetryPautaAction={handleRetryPautaAction}
-      onOpenIdea={handleOpenIdea}
-      onSavePauta={handleSavePauta}
-      onUnsavePauta={handleUnsavePauta}
-      onAcceptCollabPauta={handleAcceptCollabPauta}
-      onDeclineCollabPauta={handleDeclineCollabPauta}
-      onDismissPauta={handleDismissPauta}
-      onOpenMatch={handleOpenMatch}
-      onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
-      onUpgrade={handleUpgrade}
-      onGenerate={handleGenerate}
-      onBackToPerfil={() => router.push(CREATOR_PROFILE_ROUTE)}
-      showHeaderTitle={!dedicatedView}
+  const [territory, setTerritory] = React.useState(focusedTerritory || '');
+  const [format, setFormat] = React.useState('');
+  const [ending, setEnding] = React.useState(false);
+  const pautas = c.ideas, isPro = c.state.hasPremiumAccess;
+  const bootstrapStatus: CollabsBootstrapStatus = c.ready ? 'ready' : c.error ? 'error' : 'loading';
+  const collabs = React.useMemo(() => new Map(Object.entries(c.state.suggestions)), [c.state.suggestions]);
+  const decisions = React.useMemo(() => new Map(c.state.decisions.map(item => [item.pautaId, item.decision])), [c.state.decisions]);
+  const shown = React.useRef(new Set<string>());
+  const cardShown = React.useCallback((id: string) => {
+    const proposalId = collabs.get(id)?.proposalId;
+    if (!proposalId || shown.current.has(proposalId)) return;
+    shown.current.add(proposalId);
+    void collabsJson('collabs/interest', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exposedProposalIds: [proposalId] }) }).catch(() => shown.current.delete(proposalId));
+  }, [collabs]);
+  const selectedIdea = pautas.find(idea => idea.id === openIdeaId);
+  const selectedMatch = c.state.matches.find(match => match.pautaId === openMatchId);
+  const matchIdea = selectedMatch?.pautaSnapshot || pautas.find(idea => idea.id === openMatchId);
+  const back = onBackToPerfil || (() => router.push(CREATOR_PROFILE_ROUTE));
+  const upgrade = () => router.push('/pro');
+  const closeMatch = () => {
+    if (selectedMatch?.isNew) void collabsJson('collabs/interest', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ celebratedPautaIds: [selectedMatch.pautaId] }) }).then(() => c.load()).catch(() => {});
+    setOpenMatchId(null);
+  };
+  const action = (id: string, kind: 'save' | 'unsave' | 'dismiss' | 'collab-interest' | 'collab-decline') => void c.mutate(id, kind, kind === 'save' ? 'saved' : kind === 'dismiss' ? 'dismissed' : 'active');
+  const feed = <div className="min-w-0">
+    <div className="space-y-3 border-b border-zinc-200 bg-white p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={c.state.discovery.optedIn} disabled={!c.ready} onChange={event => void c.changeDiscovery(event.target.checked, c.state.discovery.mode)} /> Disponível para collabs</label>
+        <label className="flex items-center gap-2">Como gravar<select aria-label="Modo de colaboração" className="min-h-11 rounded-lg border p-2" value={c.state.discovery.mode} onChange={event => void c.changeDiscovery(c.state.discovery.optedIn, event.target.value)}><option value="remoto">Remoto</option><option value="presencial">Presencial</option><option value="ambos">Ambos</option></select></label>
+      </div>
+      <p className="text-xs text-zinc-600">{c.state.discovery.optedIn ? 'Seu interesse é privado. A parceria só é confirmada quando os dois aceitam a mesma proposta.' : 'Ative para aparecer nas sugestões. Suas ideias e parcerias anteriores continuam acessíveis.'}</p>
+      <details><summary className="cursor-pointer py-2">Escolher o foco das próximas ideias</summary><div className="flex flex-wrap gap-2 py-2"><label className="flex flex-col gap-1">Território<input className="min-h-11 rounded-lg border p-2" maxLength={120} value={territory} onChange={event => setTerritory(event.target.value)} placeholder="Um território do Seu Mapa" /></label><label className="flex flex-col gap-1">Formato<select className="min-h-11 rounded-lg border p-2" value={format} onChange={event => setFormat(event.target.value)}><option value="">Variar formatos</option><option value="reel">Reel</option><option value="carrossel">Carrossel</option><option value="story">Story</option></select></label></div></details>
+      {c.quota && <p className="text-xs text-zinc-600">{c.quota.limitBatches === Number.MAX_SAFE_INTEGER ? 'Sem limite comercial de' : Math.max(0, c.quota.limitBatches - c.quota.usedBatches - c.quota.reservedBatches)} rodadas disponíveis · renova em {new Date(c.quota.resetAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>}
+      {c.error && <div role="alert">{c.error} <button className="min-h-11 underline" onClick={() => void c.load()}>Tentar novamente</button></div>}
+      <div role="status" aria-live="polite">{c.generation ? 'Preparando suas ideias. Você pode continuar usando a página.' : c.matching ? 'Procurando parcerias que acrescentem algo à pauta.' : c.notice}</div>
+      {c.newRound && <button className="ds-button ds-button--primary" onClick={c.acceptRound}>Abrir nova rodada</button>}
+      {c.undo && <button className="min-h-11 underline" onClick={c.undoLast}>Desfazer última escolha</button>}
+      {c.state.discovery.optedIn && <button disabled={c.matching} className="min-h-11 underline disabled:opacity-50" onClick={() => void c.prepare()}>Atualizar sugestões de parceria</button>}
+    </div>
+    <DiagnosticoCollabsFeed pautas={pautas} isPro={isPro} canUseIdeas whatsappLinked={c.state.whatsappLinked} whatsappUnavailableReason={c.state.whatsappUnavailableReason}
+      isGeneratingIdeas={c.generation} ideaGenerationBlocker={c.generationBlocker} ideaQuotaResetAt={c.quota?.resetAt}
+      pautaCollabs={collabs} bootstrapStatus={bootstrapStatus} bootstrapError={c.error} onRetryBootstrap={() => void c.load()}
+      collabDecisions={decisions} confirmedMatches={c.state.matches} pautaActionStates={c.actions}
+      onRetryPautaAction={id => { const kind = c.actions.get(id)?.kind; if (kind) action(id, kind); }}
+      onCardShown={cardShown} onOpenIdea={id => { cardShown(id); setOpenIdeaId(id); }} onSavePauta={id => action(id, 'save')} onUnsavePauta={id => action(id, 'unsave')}
+      onAcceptCollabPauta={id => action(id, 'collab-interest')} onDeclineCollabPauta={id => action(id, 'collab-decline')} onDismissPauta={id => action(id, 'dismiss')}
+      onOpenMatch={setOpenMatchId} onConnectWhatsApp={onConnectWhatsApp || (() => router.push('/dashboard/whatsapp'))}
+      onUpgrade={upgrade} onGenerate={() => void c.generate({ territory, format })} onBackToPerfil={back} showHeaderTitle={!dedicatedView}
+      hasMoreSaved={Boolean(c.nextCursor)} onLoadMoreSaved={() => void c.loadMore()} onCancelInterest={id => void c.cancel(id)}
     />
-  );
-
-  const selectedIdea = openIdeaId ? pautas.find((idea) => idea.id === openIdeaId) ?? null : null;
-  const selectedIdeaDecision = openIdeaId ? collabDecisions.get(openIdeaId) : undefined;
-  const selectedIdeaCollab = openIdeaId && selectedIdeaDecision !== "dismissed"
-    ? pautaCollabs.get(openIdeaId) ?? null
-    : null;
-  const selectedIdeaMatched = openIdeaId
-    ? confirmedMatches.some((match) => match.pautaId === openIdeaId)
-    : false;
-  const selectedMatch = openMatch
-    ? confirmedMatches.find((match) => match.pautaId === openMatch.pautaId) ?? null
-    : null;
-  const selectedPersistedMatchIdea = openMatch
-    ? pautas.find((idea) => idea.id === openMatch.pautaId) ?? null
-    : null;
-  const selectedMatchSnapshot = selectedMatch
-    ? (selectedMatch as typeof selectedMatch & {
-        pautaSnapshot?: { id: string; title: string; territory?: string | null };
-      }).pautaSnapshot ?? null
-    : null;
-  const selectedMatchIdea = selectedPersistedMatchIdea ?? selectedMatchSnapshot;
-
-  const overlays = (
-    <>
-      {selectedIdea ? (
-        <DiagnosticoIdeaDetailSheet
-          idea={selectedIdea}
-          collab={selectedIdeaCollab}
-          isPro={isPro}
-          decisionPending={Boolean(selectedIdeaCollab) && !selectedIdeaDecision && !selectedIdeaMatched}
-          onDecide={(decision) => {
-            if (decision === "interested") handleAcceptCollabPauta(selectedIdea.id);
-            else handleDeclineCollabPauta(selectedIdea.id);
-            closeIdeaDetail();
-          }}
-          onSaveIdea={() => {
-            handleSavePauta(selectedIdea.id);
-            closeIdeaDetail();
-          }}
-          awaitingOtherSide={Boolean(selectedIdeaCollab) && selectedIdeaDecision === "interested" && !selectedIdeaMatched}
-          onOpenCreatorMediaKit={setMediaKitSlug}
-          onUpgrade={handleUpgrade}
-          onClose={closeIdeaDetail}
-        />
-      ) : null}
-
-      {openMatch && selectedMatch && selectedMatchIdea ? (
-        <DiagnosticoCollabMatchOverlay
-          pauta={selectedMatchIdea}
-          collab={selectedMatch.collab}
-          viewerName={session?.user?.name ?? "Você"}
-          viewerAvatarUrl={session?.user?.image ?? null}
-          variant={openMatch.variant}
-          onOpenIdea={selectedPersistedMatchIdea ? (id) => {
-            if (openMatch.variant === "celebration" && matchCelebrationQueue.includes(openMatch.pautaId)) {
-              acknowledgeMatchCelebration(openMatch.pautaId);
-              setMatchCelebrationQueue((current) => current.filter((pautaId) => pautaId !== openMatch.pautaId));
-            }
-            setOpenMatch(null);
-            setOpenIdeaId(id);
-          } : undefined}
-          onClose={closeMatchOverlay}
-        />
-      ) : null}
-
-      {mediaKitSlug ? (
-        <MediaKitSheet slug={mediaKitSlug} onClose={() => setMediaKitSlug(null)} />
-      ) : null}
-    </>
-  );
-
-  if (dedicatedView) {
-    return (
-      <>
-        <div className={`grid h-full min-h-0 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] ${d2cFontVariables}`}>
-          <CollabsWorkspaceSummary
-            bootstrapStatus={bootstrapStatus}
-            pautas={pautas}
-            suggestedMatches={Array.from(pautaCollabs.values()).filter(Boolean).length}
-            confirmedMatches={confirmedMatches.length}
-          />
-          <section
-            aria-label="Ideias e parcerias"
-            className="ds-notebook-section !mb-0 min-h-0 min-w-0 overflow-hidden !p-0"
-          >
-            {feed}
-          </section>
-        </div>
-        {overlays}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Board
-        title="Collabs"
-        showTitleMarker={showTitleMarker}
-        titleMarkerVariant="chip"
-        variant="card"
-        showChevron={false}
-        showOptions={false}
-        contentClassName={`bg-white ${d2cFontVariables}`}
-        titleClassName="text-zinc-950"
-        isHighlighted={isHighlighted}
-      >
-        <div className="h-full">{feed}</div>
-      </Board>
-      {overlays}
-    </>
-  );
+  </div>;
+  const overlays = <>
+    {selectedIdea && <DiagnosticoIdeaDetailSheet idea={selectedIdea} collab={decisions.get(selectedIdea.id) === 'dismissed' ? null : collabs.get(selectedIdea.id)} isPro
+      decisionPending={Boolean(collabs.get(selectedIdea.id)) && !decisions.has(selectedIdea.id) && !c.state.matches.some(match => match.pautaId === selectedIdea.id)}
+      onDecide={decision => { action(selectedIdea.id, decision === 'interested' ? 'collab-interest' : 'collab-decline'); setOpenIdeaId(null); }}
+      onSaveIdea={() => { action(selectedIdea.id, 'save'); setOpenIdeaId(null); }}
+      awaitingOtherSide={decisions.get(selectedIdea.id) === 'interested' && !c.state.matches.some(match => match.pautaId === selectedIdea.id)}
+      onOpenCreatorMediaKit={setMediaKitSlug} onUpgrade={upgrade} onClose={() => setOpenIdeaId(null)}
+      onMarkPosted={() => { void c.mutate(selectedIdea.id, 'save', 'posted'); setOpenIdeaId(null); }}
+    />}
+    {selectedMatch && matchIdea && <DiagnosticoCollabMatchOverlay pauta={matchIdea} collab={selectedMatch.collab} viewerName={session?.user?.name || 'Você'} viewerAvatarUrl={session?.user?.image || null}
+      variant={selectedMatch.isNew ? 'celebration' : 'revisit'} onOpenIdea={id => { closeMatch(); setOpenIdeaId(id); }} onClose={closeMatch}
+      onEnd={selectedMatch.collab.proposalId ? async () => { if (ending) return; setEnding(true); try { await c.end(selectedMatch.collab.proposalId!); closeMatch(); } finally { setEnding(false); } } : undefined} />}
+    {mediaKitSlug && <MediaKitSheet slug={mediaKitSlug} onClose={() => setMediaKitSlug(null)} />}
+  </>;
+  if (embedded) return <>{feed}{overlays}</>;
+  if (dedicatedView) return <><div className={`grid h-full min-h-0 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] ${d2cFontVariables}`}><CollabsWorkspaceSummary bootstrapStatus={bootstrapStatus} pautas={pautas} suggestedMatches={collabs.size} confirmedMatches={c.state.matches.length} /><section aria-label="Ideias e parcerias" className="ds-notebook-section !mb-0 min-h-0 min-w-0 overflow-y-auto !p-0">{feed}</section></div>{overlays}</>;
+  return <><Board title="Collabs" showTitleMarker={showTitleMarker} titleMarkerVariant="chip" variant="card" showChevron={false} showOptions={false} contentClassName={`bg-white ${d2cFontVariables}`} titleClassName="text-zinc-950" isHighlighted={isHighlighted}>{feed}</Board>{overlays}</>;
 }
 
 function CollabsWorkspaceSummary({

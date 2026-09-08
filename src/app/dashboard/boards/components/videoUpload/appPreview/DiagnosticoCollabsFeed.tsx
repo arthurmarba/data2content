@@ -11,7 +11,9 @@
 //
 // Ver docs/brief-collabs-gamificada-fable.md para as decisões travadas.
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { useEffect, useMemo, useState } from "react";
+import { useCollabDialog } from "./useCollabDialog";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
@@ -64,7 +66,12 @@ function WhatsAppIcon({ color = "currentColor", size = 14 }: { color?: string; s
 interface Props {
   pautas: ContentIdeaListItem[];
   isPro: boolean;
+  canUseIdeas?: boolean;
+  hasMoreSaved?: boolean;
+  onLoadMoreSaved?: () => void;
+  onCancelInterest?: (id: string) => void;
   whatsappLinked: boolean;
+  whatsappUnavailableReason?: string | null;
   isGeneratingIdeas: boolean;
   /** "map_incomplete" => sem mapa (estado travado que devolve ao Perfil). */
   ideaGenerationBlocker?: "premium_required" | "quota_exceeded" | "map_incomplete" | "failed" | null;
@@ -82,6 +89,7 @@ interface Props {
   confirmedMatches?: ReadonlyArray<{ pautaId: string; collab: NarrativeCollabMatch }>;
   /** Reabre a tela do match (revisit) a partir de Combinadas / status no card. */
   onOpenMatch?: (pautaId: string) => void;
+  onCardShown?: (id: string) => void;
   onOpenIdea?: (id: string) => void;
   /** Estado local de mutação; impede que falhas de persistência recoloquem o card no deck. */
   pautaActionStates?: ReadonlyMap<string, PautaActionState>;
@@ -271,17 +279,7 @@ function FeedHeader({
                 </span>
               ) : null}
             </button>
-            {hasSavedItems ? (
-              <HeaderIconButton
-                onClick={onOpenSalvas}
-                ariaLabel={savedCount > 0 ? `Ver ideias salvas (${savedCount})` : "Ver ideia sendo salva"}
-                badge={savedCount}
-                badgeTone="neutral"
-                pulseKey={savedCount}
-              >
-                <BookmarkSolidIcon size={17} />
-              </HeaderIconButton>
-            ) : null}
+            <button type="button" onClick={onOpenSalvas} aria-label={`Ver ideias salvas (${savedCount})`} className="min-h-11 rounded-full border px-3 text-xs font-semibold">Salvas {savedCount > 0 ? savedCount : ''}</button>
           </>
         )}
       </div>
@@ -306,6 +304,7 @@ function CollabSheet({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const dialogRef = useCollabDialog(onClose);
   return (
     <div
       className="fixed inset-0 z-[270] flex items-end justify-center ds-scrim"
@@ -313,6 +312,8 @@ function CollabSheet({
       onClick={onClose}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -346,7 +347,7 @@ function CombinadasSheet({
   matches,
   pautaById,
   isPro,
-  whatsappLinked,
+  whatsappLinked, whatsappUnavailableReason,
   onOpenMatch,
   onConnectWhatsApp,
   onUpgrade,
@@ -356,6 +357,7 @@ function CombinadasSheet({
   pautaById: Map<string, ContentIdeaListItem>;
   isPro: boolean;
   whatsappLinked: boolean;
+  whatsappUnavailableReason?: string | null;
   onOpenMatch?: (pautaId: string) => void;
   onConnectWhatsApp?: () => void;
   onUpgrade?: (context?: PaywallContext) => void;
@@ -396,12 +398,11 @@ function CombinadasSheet({
           </div>
         )}
       </div>
-      {/* Alerta de WhatsApp — "te aviso quando der match" mora junto dos matches. */}
-      <div style={{ borderTop: `1px solid ${CS_LINE}`, margin: "16px 0 0", padding: "13px 20px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      {WHATSAPP_ALERTS_VISIBLE && <div style={{ borderTop: `1px solid ${CS_LINE}`, margin: "16px 0 0", padding: "13px 20px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontSize: 12.5, color: TEXT_BODY_HEX, lineHeight: 1.4 }}>
-          Avisamos no WhatsApp quando outra pessoa escolher a mesma ideia.
+          {whatsappUnavailableReason || "Receba um aviso quando a parceria for confirmada pelos dois."}
         </span>
-        {whatsappLinked ? (
+        {whatsappUnavailableReason ? null : whatsappLinked ? (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
             borderRadius: 8, padding: "6px 11px", background: "var(--ds-color-success-soft)", color: "var(--ds-color-success)",
@@ -425,7 +426,7 @@ function CombinadasSheet({
             Receber
           </button>
         )}
-      </div>
+      </div>}
     </CollabSheet>
   );
 }
@@ -440,7 +441,7 @@ function SalvasSheet({
   onOpenIdea,
   onUnsavePauta,
   onRetryPautaAction,
-  onClose,
+  onClose, hasMoreSaved, onLoadMoreSaved, onCancelInterest,
 }: {
   shelfPautas: ContentIdeaListItem[];
   awaitingByPauta: Map<string, NarrativeCollabMatch>;
@@ -450,13 +451,19 @@ function SalvasSheet({
   onUnsavePauta?: (id: string) => void;
   onRetryPautaAction?: (id: string) => void;
   onClose: () => void;
+  hasMoreSaved?: boolean; onLoadMoreSaved?: () => void; onCancelInterest?: (id: string) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const shown = shelfPautas.filter(pauta => `${pauta.title} ${pauta.territory}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));
   return (
     <CollabSheet title="Ideias salvas" onClose={onClose}>
       <div style={{ padding: "0 16px 20px" }}>
-        {shelfPautas.length > 0 ? (
+        <label className="mb-4 block text-sm">Buscar nas ideias carregadas<input className="mt-1 min-h-11 w-full rounded-lg border p-2" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        {shown.length > 0 ? (
           <div style={{ display: "grid", gap: 12 }}>
-            {shelfPautas.map((pauta) => (
+            {shown.map((pauta) => (
+              <div key={pauta.id}>
+              {pauta.status === "posted" && <p className="px-3 py-2 text-xs font-semibold">Publicada</p>}
               <PautaCard
                 key={pauta.id}
                 pauta={pauta}
@@ -467,6 +474,8 @@ function SalvasSheet({
                 onUnsavePauta={onUnsavePauta}
                 onRetryPautaAction={onRetryPautaAction}
               />
+                {awaitingByPauta.has(pauta.id) && onCancelInterest && <button className="min-h-11 px-3 text-sm underline" onClick={() => onCancelInterest(pauta.id)}>Cancelar meu interesse</button>}
+              </div>
             ))}
           </div>
         ) : (
@@ -474,6 +483,7 @@ function SalvasSheet({
             As ideias que você salvar aparecerão aqui.
           </p>
         )}
+        {hasMoreSaved && <button className="ds-button mt-4" onClick={onLoadMoreSaved}>Carregar mais ideias salvas</button>}
       </div>
     </CollabSheet>
   );
@@ -693,7 +703,7 @@ function AwaitingCollabRow({ collab, whatsappLinked }: { collab: NarrativeCollab
         Interesse registrado
       </span>
       <p style={{ fontSize: 11.5, color: TEXT_SECONDARY_HEX, lineHeight: 1.45, margin: "6px 0 0" }}>
-        Se houver interesse dos dois lados, {whatsappLinked ? "avisamos você no WhatsApp" : "a collab aparecerá aqui"}.
+        Se houver interesse dos dois lados, {WHATSAPP_ALERTS_VISIBLE && whatsappLinked ? "avisamos você no WhatsApp" : "a collab aparecerá aqui"}.
       </p>
     </div>
   );
@@ -952,8 +962,8 @@ function RoundCompleteActions({
 
 export function DiagnosticoCollabsFeed({
   pautas,
-  isPro,
-  whatsappLinked,
+  isPro, canUseIdeas = isPro, hasMoreSaved, onLoadMoreSaved, onCancelInterest,
+  whatsappLinked, whatsappUnavailableReason,
   isGeneratingIdeas,
   ideaGenerationBlocker,
   ideaQuotaResetAt,
@@ -964,7 +974,7 @@ export function DiagnosticoCollabsFeed({
   collabDecisions,
   confirmedMatches,
   onOpenMatch,
-  onOpenIdea,
+  onOpenIdea, onCardShown,
   pautaActionStates,
   onRetryPautaAction,
   onSavePauta,
@@ -1038,7 +1048,7 @@ export function DiagnosticoCollabsFeed({
 
     // Free: a 2ª pauta da geração vira o card misterioso — id fixo (não posição
     // do deck), pra não "pular" de card conforme as decisões avançam.
-    const mysteryId = !isPro
+    const mysteryId = !isPro && !canUseIdeas
       ? pautas.find((pauta) => pauta.opportunityBrief?.kind === "collab_optional")?.id ?? null
       : null;
 
@@ -1052,9 +1062,10 @@ export function DiagnosticoCollabsFeed({
       // Rejeitada é PERMANENTE: descartada nunca reaparece — nem no deck, nem na
       // estante. (O read service já filtra "dismissed"; isto cobre o otimismo
       // local da sessão, antes do reload.)
-      if (locallyDismissed || decliningPartner || pauta.status === "dismissed" || pauta.status === "posted") continue;
+      if (locallyDismissed || decliningPartner || pauta.status === "dismissed") continue;
+      if (pauta.status === "posted") { shelf.push(pauta); continue; }
 
-      const collab = isPro ? pautaCollabs?.get(pauta.id) ?? null : null;
+      const collab = pautaCollabs?.get(pauta.id) ?? null;
       const collabDecision = collabDecisions?.get(pauta.id);
       const isMatched = matched.has(pauta.id);
       const isSaved = locallySaved || pauta.status === "saved";
@@ -1105,7 +1116,7 @@ export function DiagnosticoCollabsFeed({
     });
 
     return { proposedDeck, shelfPautas: shelf, awaitingByPauta: awaiting };
-  }, [pautas, pautaCollabs, collabDecisions, confirmedMatches, isPro, pautaActionStates]);
+  }, [pautas, pautaCollabs, collabDecisions, confirmedMatches, isPro, canUseIdeas, pautaActionStates]);
 
   const confirmedSavedCount = useMemo(
     () => shelfPautas.filter((pauta) => pauta.status === "saved").length,
@@ -1233,7 +1244,7 @@ export function DiagnosticoCollabsFeed({
       {hasPautas ? (
         // A MESA — inclusive vazia. O stack possui um único estado final para
         // qualquer rodada sem cards, evitando CTA órfão e variações de layout.
-        <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+        <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "10px 20px 8px", flex: "1 0 480px", minHeight: 480, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
           {bootstrapPending ? (
             <StackSkeleton />
           ) : bootstrapFailed ? (
@@ -1242,11 +1253,11 @@ export function DiagnosticoCollabsFeed({
             <DiagnosticoCollabStack
               key={deckRoundFingerprint}
               items={deckItems}
-              isPro={isPro}
+              isPro={canUseIdeas}
               shelfCount={confirmedSavedCount}
               clearedActions={
                 <RoundCompleteActions
-                  isPro={isPro}
+                  isPro={canUseIdeas}
                   isGeneratingIdeas={isGeneratingIdeas}
                   ideaGenerationBlocker={ideaGenerationBlocker}
                   ideaQuotaResetAt={ideaQuotaResetAt}
@@ -1255,6 +1266,7 @@ export function DiagnosticoCollabsFeed({
                 />
               }
               onDecide={handleDeckDecision}
+              onCardShown={onCardShown}
               onOpenIdea={onOpenIdea}
               onUpgrade={() => onUpgrade?.("narrative_map")}
             />
@@ -1295,7 +1307,7 @@ export function DiagnosticoCollabsFeed({
           ) : null}
           {ideaGenerationBlocker !== "quota_exceeded" ? (
             <GenerateButton
-              isPro={isPro}
+              isPro={canUseIdeas}
               isGeneratingIdeas={isGeneratingIdeas}
               onGenerate={onGenerate}
               onUpgrade={onUpgrade}
@@ -1307,6 +1319,7 @@ export function DiagnosticoCollabsFeed({
 
       {openSheet === "combinadas" ? (
         <CombinadasSheet
+          whatsappUnavailableReason={whatsappUnavailableReason}
           matches={confirmedMatches ?? []}
           pautaById={pautaById}
           isPro={isPro}
@@ -1321,6 +1334,7 @@ export function DiagnosticoCollabsFeed({
         />
       ) : openSheet === "salvas" ? (
         <SalvasSheet
+          hasMoreSaved={hasMoreSaved} onLoadMoreSaved={onLoadMoreSaved} onCancelInterest={onCancelInterest}
           shelfPautas={shelfPautas}
           awaitingByPauta={awaitingByPauta}
           whatsappLinked={whatsappLinked}

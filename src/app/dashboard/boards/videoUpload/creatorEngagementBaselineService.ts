@@ -53,6 +53,7 @@ type MetricLike = {
   stats?: Record<string, unknown>;
   narrativeForm?: string[] | string | null;
   sceneElements?: {
+    version?: number;
     framingIds?: string[];
     aestheticIds?: string[];
     subjects?: string[];
@@ -144,7 +145,7 @@ export function buildCreatorEngagementBaselineFromMetrics(
   return {
     postsAnalyzed: ranked.length,
     windowDays: WINDOW_DAYS,
-    confidence: ranked.length >= 12 ? "high" : ranked.length >= 5 ? "medium" : "low",
+    confidence: metrics.filter(metric => Boolean(metric.sceneElements?.version)).length >= 3 && metrics.filter(metric => Boolean(metric.sceneElements?.version)).length / Math.max(1, metrics.length) >= 0.8 ? "medium" : "low",
     medianEngagementRate: median(ranked.map((item) => item.rates.engagement)),
     medianDeepEngagementRate: median(ranked.map((item) => item.rates.deep)),
     topPostsCount: topCount,

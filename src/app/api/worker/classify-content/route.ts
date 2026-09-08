@@ -1,3 +1,4 @@
+import { enqueuePublishedReading } from '@/app/lib/creatorWeeklyReport/queue';
 /**
  * @fileoverview API Endpoint (Worker) for classifying content based on its description.
  * @version 5.0.1 - Fixed a code path that did not return a value.
@@ -68,6 +69,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
 
         if (metricDoc.classificationStatus === 'completed') {
             logger.info(`${TAG} Métrica ${metricId} já classificada. Tarefa ignorada.`);
+            await enqueuePublishedReading(metricId);
             return NextResponse.json({ message: "Métrica já classificada." }, { status: 200 });
         }
         if (!metricDoc.description || metricDoc.description.trim() === "") {
@@ -82,6 +84,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                   },
                 }
             );
+            await enqueuePublishedReading(metricId);
             return NextResponse.json({ message: "Classificação textual vazia concluída." }, { status: 200 });
         }
 
@@ -94,6 +97,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
         };
 
         await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
+        await enqueuePublishedReading(metricId);
         logger.info(
             `${TAG} Metric ${metricId} classificado. provider=${aiResult.provider} model=${aiResult.model}`,
         );

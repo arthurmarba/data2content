@@ -8,6 +8,8 @@ import { logger } from "@/app/lib/logger";
 import { SCENE_EVALUATION_VERSION } from "@/app/lib/relatorio/sceneEvaluation";
 import { findPendingReadingBatch } from "@/app/lib/relatorio/contentReadingState";
 
+import { enqueueProfileRefresh, enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -51,6 +53,8 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectToDatabase();
+    const { recoverCollabJobs } = await import("@/app/lib/collabs/jobs");
+    await recoverCollabJobs();
     const now = new Date();
     const requeueBefore = new Date(now.getTime() - REQUEUE_AFTER_MS);
     const contentSince = new Date(now.getTime() - 365 * 86_400_000);
@@ -76,6 +80,8 @@ export async function POST(request: NextRequest) {
     ).lean().exec()) as unknown as Array<{ _id: Types.ObjectId }>;
     const subscriberIds = subscribers.map((user) => user._id);
     for (const id of subscriberIds) {
+      await enqueueProfileRefresh(String(id));
+      await enqueueInstagramMapEnrichment(String(id));
       try {
         await qstash.publishJSON({ url: `${appBaseUrl}/api/worker/refresh-script-evidence`,
           body: { userId: String(id) }, retries: 2,

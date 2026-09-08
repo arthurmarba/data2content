@@ -9,7 +9,8 @@
  *
  * Returns either the generated ideas or a structured error.
  */
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
+import CollabJob from "@/app/models/CollabJob";
 import crypto from "node:crypto";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -22,6 +23,7 @@ import {
   type ContentIdeasMapContext,
 } from "./contentIdeasGeminiPromptBuilder";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
+import { editorialIssues, distinctStories, type EditorialIdea } from '@/app/lib/collabs/quality';
 import { selectDiverseContentIdeas } from "./contentIdeasBatchDiversity";
 import {
   sanitizeContentIdeaScriptBlueprint,
@@ -76,6 +78,7 @@ export interface ContentIdeasGenerationResult {
 }
 
 export interface GenerateContentIdeasParams {
+  generationId?: string;
   userId: string;
   context: ContentIdeasMapContext;
   count?: number;
@@ -191,9 +194,7 @@ function sanitizeIdea(
   const matchedTerritory = allowedTerritories.find((t) => {
     const allowed = normalizeStr(t);
     return (
-      allowed === rawNorm ||
-      rawNorm.startsWith(allowed) ||
-      allowed.startsWith(rawNorm)
+      allowed === rawNorm
     );
   });
   if (!matchedTerritory) {
@@ -262,14 +263,13 @@ function sanitizeIdea(
   const opportunityBrief = sanitizeContentIdeaOpportunityBrief({
     version: 1,
     kind: opportunityKind,
-    whyNow: typeof raw.whyNow === "string" ? raw.whyNow : null,
+    whyNow: signals?.evidence?.length ? "Uma possibilidade a partir dos assuntos observados nos seus vídeos analisados." : "Uma possibilidade para explorar os assuntos do seu Mapa.",
     collabReason: typeof raw.collabReason === "string" ? raw.collabReason : null,
     evidenceSummary: buildOpportunityEvidenceSummary(signals?.postsAnalyzed ?? 0),
-    evidenceLevel: signals?.confidence === "high"
-      ? "strong"
-      : signals?.confidence === "medium"
-        ? "medium"
-        : "exploratory",
+    evidence: signals?.evidence ?? [],
+    policyVersion: signals?.policyVersion,
+    readingCoverage: signals?.readingCoverage,
+    evidenceLevel: (signals?.evidence?.length ?? 0) >= 3 && (signals?.readingCoverage ?? 0) >= 0.8 ? "medium" : "exploratory",
     postsAnalyzed: signals?.postsAnalyzed ?? 0,
     timing: context.opportunityContext?.timing ?? null,
   })!;
@@ -324,14 +324,16 @@ export async function generateContentIdeas(
   // ar). Sem saved/posted, o modelo podia recriar um tema quase idêntico ao que o
   // criador já aceitou — reaparecer o que ele guardou. Dismissed vem via context.
   let liveTitles: string[] = [];
+  let history: EditorialIdea[] = [];
   try {
     await connectToDatabase();
     const liveDocs = await CreatorContentIdea.find({
       userId: new Types.ObjectId(params.userId),
       status: { $in: ["active", "saved", "posted"] },
     })
-      .select("title")
-      .lean<Array<{ title: string }>>();
+      .select("title angle hook territory").sort({ generatedAt: -1 }).limit(200)
+      .lean<EditorialIdea[]>();
+    history = liveDocs;
     liveTitles = liveDocs.map((d) => d.title).filter(Boolean);
   } catch (err) {
     // Non-fatal: freshness is best-effort. Generation still proceeds.
@@ -349,9 +351,14 @@ export async function generateContentIdeas(
     focusedFormat: params.focusedFormat ?? null,
   });
 
+  if (params.generationId) {
+    const existing = await CreatorContentIdea.find({ generationJobId: params.generationId }).lean<ICreatorContentIdea[]>();
+    if (existing.length) return { ok: true, ideas: existing.map(generatedIdeaDTO) };
+  }
   // ── Call Gemini ───────────────────────────────────────────────────────────
-  let rawText: string | null = null;
+  let rawText: string | null = params.generationId ? (await CollabJob.findById(params.generationId).select("checkpoint").lean())?.checkpoint ?? null : null;
   try {
+    if (!rawText) {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
@@ -365,6 +372,7 @@ export async function generateContentIdeas(
         // sanitiza cada campo antes de persistir, então mantemos a garantia sem
         // enviar a restrição incompatível ao provedor.
         maxOutputTokens: 10000,
+        httpOptions: { timeout: 90000 },
         // gemini-2.5-flash é um modelo "thinking": sem este teto, os tokens de
         // raciocínio consomem o maxOutputTokens e o JSON sai truncado/vazio →
         // parseGeminiJson null → invalid_gemini_response (500). Extração estruturada
@@ -377,6 +385,8 @@ export async function generateContentIdeas(
     });
     logGeminiUsage("pautas", DEFAULT_MODEL, response);
     rawText = response.text ?? null;
+    if (params.generationId && rawText) await CollabJob.updateOne({ _id: params.generationId }, { $set: { checkpoint: rawText } });
+    }
   } catch (err) {
     console.error("[contentIdeas] Gemini call failed:", err);
     return {
@@ -422,7 +432,8 @@ export async function generateContentIdeas(
   // ── Composição diversa da rodada ──────────────────────────────────────────
   // Não basta trocar palavras no título: a rodada alterna gesto criativo,
   // território, cena/asset e formato. Rephrases vistos não voltam como fallback.
-  const finalIdeas = selectDiverseContentIdeas(sanitized, avoidTitles, count);
+  const reviewed = params.generationId ? sanitized.filter(idea => editorialIssues(idea, allowedTerritories, params.context.narrative.label).length === 0) : sanitized;
+  const finalIdeas = selectDiverseContentIdeas(distinctStories(reviewed, history), avoidTitles, count);
   if (finalIdeas.length < count) {
     console.log(
       "[contentIdeas:generate] diversidade limitou a rodada a",
@@ -450,9 +461,11 @@ export async function generateContentIdeas(
 
     logUsageEvent(params.userId, "pauta_created", "pautas", { count: finalIdeas.length, platform: "mobile" });
 
+    const persist = async (session?: mongoose.ClientSession) => {
     const docs = await CreatorContentIdea.insertMany(
       finalIdeas.map((idea) => ({
         userId: new Types.ObjectId(params.userId),
+        generationJobId: params.generationId,
         status: "active",
         source: "gemini_v1",
         title: idea.title,
@@ -473,6 +486,7 @@ export async function generateContentIdeas(
         modelVersion: DEFAULT_MODEL,
         generatedAt,
       })),
+      session ? { session } : {},
     );
 
     // Rotate out the previous batch: any idea that was still `active` before this
@@ -483,15 +497,33 @@ export async function generateContentIdeas(
     await CreatorContentIdea.updateMany(
       {
         userId: new Types.ObjectId(params.userId),
+        generationJobId: params.generationId,
         status: "active",
         _id: { $nin: newIds },
       },
       { $set: { status: "superseded" } },
+      session ? { session } : {},
     );
+    return docs;
+    };
+    const docs = params.generationId ? await mongoose.connection.transaction(session => persist(session)) : await persist();
 
     return {
       ok: true,
-      ideas: (docs as Array<ICreatorContentIdea>).map((d) => ({
+      ideas: (docs as Array<ICreatorContentIdea>).map(generatedIdeaDTO),
+    };
+  } catch (err) {
+    console.error("[contentIdeas] Persistence failed:", err);
+    return {
+      ok: false,
+      errorCode: "persistence_failed",
+      message: "Pautas geradas, mas não conseguimos salvá-las. Tente novamente.",
+    };
+  }
+}
+
+function generatedIdeaDTO(d: ICreatorContentIdea): NonNullable<ContentIdeasGenerationResult["ideas"]>[number] {
+  return {
         id: d._id.toString(),
         title: d.title,
         angle: d.angle,
@@ -513,14 +545,6 @@ export async function generateContentIdeas(
         resonanceNote: d.resonanceNote ?? null,
         opportunityBrief: sanitizeContentIdeaOpportunityBrief(d.opportunityBrief)!,
         generatedAt: d.generatedAt.toISOString(),
-      })),
-    };
-  } catch (err) {
-    console.error("[contentIdeas] Persistence failed:", err);
-    return {
-      ok: false,
-      errorCode: "persistence_failed",
-      message: "Pautas geradas, mas não conseguimos salvá-las. Tente novamente.",
-    };
-  }
+
+  };
 }

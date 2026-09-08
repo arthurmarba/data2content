@@ -126,7 +126,7 @@ export async function matchCollabsForPautas(
   viewerUserId: string,
   pautas: PautaForMatch[],
   narrativeLabel: string,
-  options?: { geminiCallCap?: number },
+  options?: { geminiCallCap?: number; requireEvidence?: boolean },
 ): Promise<Map<string, NarrativeCollabMatch | null>> {
   const result = new Map<string, NarrativeCollabMatch | null>();
   for (const p of pautas) result.set(p.id, null);
@@ -184,6 +184,8 @@ export async function matchCollabsForPautas(
     });
   }
 
+  if (options?.requireEvidence && allowLLM && llmAssignments.size === 0) throw new Error('matching_unavailable');
+
   for (const pauta of withTerritory) {
     const label = pauta.territory.trim();
     let eligible: typeof poolResult.pool[number] | undefined;
@@ -199,7 +201,7 @@ export async function matchCollabsForPautas(
     // tenha a oportunidade de avaliar a dupla.
     const incomingCandidateId = (incomingByTerritory.get(normalizeTerritoryLabel(label)) ?? [])
       .find((candidateId) => !excludeIds.has(candidateId) && poolById.has(candidateId));
-    if (incomingCandidateId) {
+    if (incomingCandidateId && !options?.requireEvidence) {
       eligible = poolById.get(incomingCandidateId);
       fitReason = fallbackFitReason(label);
     }
@@ -222,7 +224,7 @@ export async function matchCollabsForPautas(
 
     // ── 2) Fallback determinístico — LLM não rodou, não endereçou, ou escolheu
     // alguém indisponível. Sobreposição de palavra do território (coerente). ──────
-    if (!eligible && !llmSaidNull) {
+    if (!eligible && !llmSaidNull && !options?.requireEvidence) {
       const best = poolResult.pool
         .filter((e) => !excludeIds.has(e.userId))
         .map((e) => {
@@ -244,6 +246,7 @@ export async function matchCollabsForPautas(
       }
     }
 
+    if (options?.requireEvidence && (!usedAssignedCandidate || !assignment?.sharedIdea || !assignment?.viewerContribution || !assignment?.partnerContribution || !assignment?.collabBlueprint)) continue;
     if (!eligible) continue; // território sem criador que o cubra de verdade → null
 
     // Presencial só se os dois moram na mesma cidade — senão remoto (formato à
@@ -256,8 +259,8 @@ export async function matchCollabsForPautas(
     const candidateTerritories = poolResult.candidateTerritoriesById.get(eligible.userId) ?? [];
     const differentSubject = candidateTerritories.find((territory) => territory.toLocaleLowerCase("pt-BR") !== label.toLocaleLowerCase("pt-BR"));
     const contributions = {
-      viewer: assignment?.viewerContribution ?? `Sua experiência com ${label}.`,
-      partner: assignment?.partnerContribution ?? (differentSubject
+      viewer: (usedAssignedCandidate ? assignment?.viewerContribution : null) ?? `Sua experiência com ${label}.`,
+      partner: (usedAssignedCandidate ? assignment?.partnerContribution : null) ?? (differentSubject
         ? `A experiência com ${differentSubject}.`
         : "Uma forma diferente de lidar com o mesmo assunto."),
     };
@@ -273,6 +276,7 @@ export async function matchCollabsForPautas(
       collabBlueprint,
       contributions,
     );
+    if (usedAssignedCandidate && assignment?.sharedIdea) match.sharedIdea = assignment.sharedIdea;
     result.set(pauta.id, match);
   }
 

@@ -92,6 +92,7 @@ describe("enrichMapaSeedWithVideoForUser", () => {
       expect.objectContaining({ maturidade: "instagram_enriched" }),
       richSynthesis,
       expect.objectContaining({ narrativeLocked: false, toneLocked: false }),
+      expect.objectContaining({ source: "video" }),
     );
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
@@ -109,6 +110,7 @@ describe("enrichMapaSeedWithVideoForUser", () => {
       expect.anything(),
       richSynthesis,
       expect.objectContaining({ narrativeLocked: false, toneLocked: true }),
+      expect.objectContaining({ source: "video" }),
     );
   });
 

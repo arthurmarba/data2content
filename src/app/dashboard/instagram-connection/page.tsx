@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -79,8 +80,8 @@ export default function InstagramConnectionPage() {
               Conexões
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-500">
-              Gerencie as integrações da Meta usadas para ler suas métricas e
-              entregar alertas. Você pode revogar o acesso quando quiser.
+              Gerencie a conexão usada para ler suas métricas do Instagram.
+              Você pode revogar o acesso quando quiser.
             </p>
           </header>
 
@@ -237,7 +238,7 @@ export default function InstagramConnectionPage() {
               ) : null}
             </section>
 
-            <section
+            {WHATSAPP_ALERTS_VISIBLE && <section
               id="whatsapp"
               className="border-t border-zinc-200/80 p-5 sm:p-7"
               aria-labelledby="whatsapp-connection-title"
@@ -305,7 +306,7 @@ export default function InstagramConnectionPage() {
                   </div>
                 )}
               </div>
-            </section>
+            </section>}
           </div>
         </div>
       </main>

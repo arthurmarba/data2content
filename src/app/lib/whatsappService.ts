@@ -124,7 +124,8 @@ export async function sendTemplateMessage(
     to: string,
     templateName: string,
     components: ITemplateComponent[],
-    lang: string = 'pt_BR'
+    lang: string = 'pt_BR',
+    options: { maxAttempts?: number; apiVersion?: string } = {}
 ): Promise<string> {
     const TAG = '[sendTemplateMessage]';
     validateEnvVariables();
@@ -135,7 +136,9 @@ export async function sendTemplateMessage(
       throw new Error("Envio bloqueado (opt-out ou kill switch ativo).");
     }
 
-    const url = `${BASE_URL}/${PHONE_NUMBER_ID}/messages`;
+    if (options.apiVersion && !/^v\d+\.\d+$/.test(options.apiVersion)) throw new Error('Versão da API inválida.');
+    const templateBase = options.apiVersion ? `https://graph.facebook.com/${options.apiVersion}` : BASE_URL;
+    const url = `${templateBase}/${PHONE_NUMBER_ID}/messages`;
     const payload = {
         messaging_product: "whatsapp",
         to: phoneNumber,
@@ -147,9 +150,10 @@ export async function sendTemplateMessage(
         },
     };
 
+    const maxAttempts = Math.max(1, Math.min(MAX_RETRIES, options.maxAttempts || MAX_RETRIES));
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
             logger.debug(`${TAG} Tentativa ${attempt}/${MAX_RETRIES} de enviar template '${templateName}' para ${phoneNumber}`);
 
@@ -160,6 +164,7 @@ export async function sendTemplateMessage(
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(20000),
             });
 
             if (response.ok) {
@@ -188,7 +193,7 @@ export async function sendTemplateMessage(
                 
                 lastError = new Error(errorText);
 
-                if (isRetryableStatusCode(response.status) && attempt < MAX_RETRIES) {
+                if (isRetryableStatusCode(response.status) && attempt < maxAttempts) {
                     const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
                     logger.warn(`${TAG} Erro recuperável (status ${response.status}). Tentando novamente em ${retryDelay / 1000}s...`);
                     await delay(retryDelay);
@@ -202,7 +207,7 @@ export async function sendTemplateMessage(
             lastError = new Error(`Exceção na tentativa ${attempt}: ${errorMessage}`);
             logger.error(`${TAG} Exceção na tentativa ${attempt} de enviar template para ${phoneNumber}:`, error);
 
-            if (attempt < MAX_RETRIES) {
+            if (attempt < maxAttempts) {
                 const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
                 await delay(retryDelay);
                 continue;

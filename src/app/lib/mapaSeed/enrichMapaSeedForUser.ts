@@ -1,8 +1,13 @@
+import { createHash } from 'node:crypto';
+import { canonicalToneById } from '@/app/lib/relatorio/mapRegistry';
+import { acquireReading, checkpointReading, finishReading } from '@/app/lib/relatorio/contentReadingState';
+import type { IMapaData } from '@/app/models/MapaSeed';
+import type { InstagramPatterns } from './analyzeInstagramPosts';
 // src/app/lib/mapaSeed/enrichMapaSeedForUser.ts
 //
 // Enriquece o MapaSeed de um usuário com seus posts recentes do Instagram.
 // Chamado pelo worker QStash após sync de dados do Instagram.
-// Operação non-fatal: nunca lança — erros são logados e ignorados.
+// Chamadas antigas seguem tolerantes a falhas; a fila recebe o estado explícito.
 
 import { logger } from "@/app/lib/logger";
 import { getInstagramConnectionDetails } from "@/app/lib/instagram/db/userActions";
@@ -11,6 +16,7 @@ import { analyzeInstagramPosts } from "./analyzeInstagramPosts";
 import { enrichMapaWithInstagram } from "./enrichMapaWithInstagram";
 import MapaSeedModel from "@/app/models/MapaSeed";
 import MetricModel from "@/app/models/Metric";
+import ContentReadingState from '@/app/models/ContentReadingState';
 import { getMapConfirmationsSnapshot } from "@/app/dashboard/boards/videoUpload/mapConfirmationsService";
 import { connectToDatabase } from "@/app/lib/mongoose";
 
@@ -27,7 +33,9 @@ const MAX_MEDIA_PAGES = 3;
 // evitando re-processamento desnecessário em reconexões rápidas.
 const MIN_HOURS_BETWEEN_ENRICHMENTS = 12;
 
-export async function enrichMapaSeedWithInstagram(userId: string): Promise<void> {
+export async function enrichMapaSeedWithInstagram(userId: string): Promise<'complete' | 'deferred' | void> {
+  let lease: { token: string; result?: Record<string, any> | null } | null = null;
+  const readingKey = `mapa:instagram:${userId}`;
   try {
     await connectToDatabase();
 
@@ -93,41 +101,70 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
     const posts = collected.slice(0, TARGET_POSTS);
     logger.info(`${TAG} ${posts.length} posts recuperados (${pages} página(s)) para userId=${userId}.`);
 
-    // Ressonância (saves+shares) por post — usada só internamente para priorizar
-    // quais thumbnails recebem leitura visual no Gemini. Non-fatal: sem isso, a
-    // seleção visual cai para recência.
-    const resonanceByMediaId = await buildResonanceMap(
-      userId,
-      posts.map((p) => p.id).filter(Boolean),
-    );
-
-    const padroes = await analyzeInstagramPosts(posts, { resonanceByMediaId });
+    const extracted = await MetricModel.find({ user: userId, instagramMediaId: { $in: posts.map(post => post.id) }, 'sceneElements.version': { $exists: true } })
+      .select('instagramMediaId postLink type sceneElements').lean();
+    const sourceRevision = createHash('sha256').update(JSON.stringify({
+      posts: posts.map(post => ({ id: post.id, caption: post.caption })),
+      readings: extracted.map(metric => ({ id: metric.instagramMediaId, scene: metric.sceneElements })).sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    })).digest('hex');
+    if (mapaDoc.instagramSourceRevision === sourceRevision) return;
+    lease = await acquireReading(readingKey, `${sourceRevision}:${mapaDoc.__v ?? 0}`);
+    if (!lease) return;
+    await MapaSeedModel.updateOne({ _id: mapaDoc._id }, { $set: { enrichmentStatus: { attemptedAt: new Date(), state: 'processing' } } }, { timestamps: false });
+    if (extracted.length < 3 && !lease.result?.patterns) {
+      const provider = await ContentReadingState.findById('provider:gemini').select('state').lean();
+      if (provider && provider.state !== 'healthy') throw new Error('Leitura visual temporariamente indisponível');
+    }
+    // A extração visual já paga é a fonte preferencial; só o primeiro mapa sem
+    // corpus suficiente usa a leitura de mídia do onboarding.
+    const list = (values: unknown[]) => [...new Set(values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))].slice(0, 20);
+    const padroes: InstagramPatterns = lease.result?.patterns ?? (extracted.length >= 3 ? {
+      temas_recorrentes: list(extracted.flatMap(metric => metric.sceneElements?.subjects ?? [])),
+      tom_real: list(extracted.flatMap(metric => metric.sceneElements?.toneIds ?? []).map(id => canonicalToneById(id)?.label ?? id)).join(', '),
+      formatos_usados: list(extracted.map(metric => metric.type === 'IMAGE' ? 'Foto' : metric.type === 'CAROUSEL_ALBUM' ? 'Carrossel' : 'Vídeo')),
+      assets_identificados: list(extracted.flatMap(metric => metric.sceneElements?.objects ?? [])),
+      ausencias_notaveis: [], amostragem: extracted.length >= 10 ? 'suficiente' : 'baixa',
+    } : await analyzeInstagramPosts(posts, { resonanceByMediaId: await buildResonanceMap(userId, posts.map(post => post.id)) }));
+    if (!lease.result?.patterns) await checkpointReading(readingKey, lease.token, { patterns: padroes });
 
     // Estabilidade do núcleo (G3): se o criador já confirmou narrativa/tom, o IG
     // não sobrescreve. Non-fatal — sem confirmações, locks ficam falsos (comportamento
     // anterior: IG enriquece livremente o núcleo ainda não confirmado).
-    const confirmations = await getMapConfirmationsSnapshot(userId).catch(() => null);
+    const confirmations = await getMapConfirmationsSnapshot(userId);
     const locks = {
       narrativeLocked: confirmations?.narrative === "confirmed",
       toneLocked: confirmations?.tone === "confirmed",
     };
 
-    const mapaEnriquecido = await enrichMapaWithInstagram(
+    const mapaEnriquecido: IMapaData = lease.result?.mapa ?? await enrichMapaWithInstagram(
       mapaDoc.mapa,
       padroes,
       locks,
+      { source: 'instagram', revision: sourceRevision, evidence: extracted.length >= 3
+        ? extracted.map(metric => ({ id: String(metric.instagramMediaId), url: metric.postLink ?? null }))
+        : posts.map(post => ({ id: post.id })) },
     );
 
+    await checkpointReading(readingKey, lease.token, { patterns: padroes, mapa: mapaEnriquecido });
     mapaDoc.mapa = mapaEnriquecido;
     mapaDoc.instagramEnrichedAt = new Date();
+    mapaDoc.instagramSourceRevision = sourceRevision;
+    mapaDoc.enrichmentStatus = { attemptedAt: new Date(), state: 'complete' };
     await mapaDoc.save();
+    await finishReading(readingKey, lease.token);
 
     logger.info(
       `${TAG} MapaSeed enriquecido para userId=${userId}. Maturidade: ${mapaEnriquecido.maturidade}`,
     );
+    return 'complete';
   } catch (err) {
+    if (lease) await finishReading(readingKey, lease.token, 'Falha temporária no enriquecimento do mapa').catch(() => undefined);
+    await MapaSeedModel.updateOne({ userId }, { $set: { enrichmentStatus: {
+      attemptedAt: new Date(), state: 'deferred', reason: 'map_enrichment_failed', nextAttemptAt: new Date(Date.now() + 30 * 60000),
+    } } }).catch(() => undefined);
     // Non-fatal: nunca quebra o caller
-    logger.warn(`${TAG} Falha ao enriquecer MapaSeed para userId=${userId} (ignorada):`, err);
+    logger.warn(`${TAG} Falha ao enriquecer MapaSeed para userId=${userId}:`, err);
+    return 'deferred';
   }
 }
 

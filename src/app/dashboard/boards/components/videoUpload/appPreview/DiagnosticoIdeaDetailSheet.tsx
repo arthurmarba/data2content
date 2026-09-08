@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useCollabDialog } from "./useCollabDialog";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
@@ -31,6 +32,7 @@ interface Props {
   onDecide?: (decision: "interested" | "dismissed") => void;
   /** Salva a ideia para gravar; funciona tanto no plano solo quanto como alternativa à parceria. */
   onSaveIdea?: () => void;
+  onMarkPosted?: () => void;
   awaitingOtherSide?: boolean;
   onOpenCreatorMediaKit?: (slug: string) => void;
   onUpgrade?: () => void;
@@ -71,7 +73,7 @@ export function DiagnosticoIdeaDetailSheet({
   isPro = false,
   decisionPending = false,
   onDecide,
-  onSaveIdea,
+  onSaveIdea, onMarkPosted,
   awaitingOtherSide = false,
   onOpenCreatorMediaKit,
   onUpgrade,
@@ -88,25 +90,7 @@ export function DiagnosticoIdeaDetailSheet({
     [idea],
   );
 
-  useEffect(() => {
-    const previouslyFocused = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    titleRef.current?.focus({ preventScroll: true });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused?.focus({ preventScroll: true });
-    };
-  }, [onClose]);
+  const dialogRef = useCollabDialog(onClose);
 
   const handlePlanChange = useCallback((plan: "solo" | "collab") => {
     if (plan === activePlan) return;
@@ -129,6 +113,8 @@ export function DiagnosticoIdeaDetailSheet({
       onClick={onClose}
     >
       <motion.section
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="idea-detail-title"
@@ -175,6 +161,10 @@ export function DiagnosticoIdeaDetailSheet({
               )}
               <DiagnosticoCloseButton onClose={onClose} edgeAlign />
             </div>
+            <p className="px-5 py-2 text-xs text-zinc-600">Cena proposta: adapte falas e acontecimentos à sua experiência real.</p>
+            {onMarkPosted && idea.status !== 'posted' && <button className="min-h-11 px-5 text-sm underline" onClick={onMarkPosted}>Marcar como publicada</button>}
+            {idea.opportunityBrief?.evidence?.length ? <details className="px-5 py-3 text-xs"><summary className="cursor-pointer py-2">Publicações usadas nesta leitura</summary><p>Leitura de {idea.opportunityBrief.postsAnalyzed} publicações. Sugestão para testar; não é promessa de resultado.</p><ul className="mt-2 space-y-2">{idea.opportunityBrief.evidence.map(item => <li key={item.postId}>{item.postLink && /^https:\/\/(www\.)?instagram\.com\//i.test(item.postLink) ? <a href={item.postLink} target="_blank" rel="noopener noreferrer" className="underline">Publicação de {new Date(item.publishedAt).toLocaleDateString('pt-BR')}</a> : <>Publicação de {new Date(item.publishedAt).toLocaleDateString('pt-BR')}</>}</li>)}</ul></details> : null}
+
           </div>
 
           <div className="px-5 pb-5 pt-3 sm:px-7 sm:pt-4">
@@ -265,7 +255,7 @@ export function DiagnosticoIdeaDetailSheet({
               Você escolheu gravar com {collab.name.split(" ")[0]}.
             </p>
             <p className="mt-1 text-[12.5px] leading-[1.4] text-[var(--ds-color-text-secondary)]">
-              Se essa pessoa também escolher, avisamos aqui e no WhatsApp conectado.
+              Se essa pessoa também escolher, a parceria aparecerá aqui em Collabs.
             </p>
           </div>
         ) : activePlan === "solo" && onSaveIdea && idea.status !== "saved" ? (

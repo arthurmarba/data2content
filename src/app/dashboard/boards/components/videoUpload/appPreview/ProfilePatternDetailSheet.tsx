@@ -42,8 +42,8 @@ function rowsFromDetail(
   if (!group) return [];
   return group.items
     .filter((item) => typeof item.index === "number" && Number.isFinite(item.index))
+    .sort((a, b) => (b.score ?? b.index ?? 0) - (a.score ?? a.index ?? 0))
     .map((item) => ({ key: item.id, label: item.label, index: item.index as number }))
-    .sort((a, b) => b.index - a.index)
     .slice(0, 4);
 }
 
@@ -181,6 +181,8 @@ export function ProfilePatternDetailSheet({
   if (typeof document === "undefined") return null;
 
   const action = patternActionOf(highlight);
+  const selectedItem = detail?.groups.find(group => group.id === highlight.groupId)?.items.find(item => item.label === highlight.value);
+  const metricLabel = selectedItem?.comparisonMetric === 'shares' ? 'compartilhamentos' : selectedItem?.comparisonMetric === 'saved' ? 'salvamentos' : 'visualizações';
   const ownRows = rowsFromDetail(detail, highlight.groupId);
   const territoryRows = context?.territory?.rankings[highlight.groupId] ?? [];
   const series = trendSeriesOf(highlight, context);
@@ -248,10 +250,23 @@ export function ProfilePatternDetailSheet({
           <p className="mt-3.5 text-[12.5px] leading-[1.5] text-[var(--ds-color-text-secondary)]">{trendText}</p>
         ) : null}
 
+        {selectedItem?.comparisonMetric ? (
+          <p className="mt-3 text-[12px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
+            Resultado acumulado em {metricLabel}, comparado com a mediana de posts do mesmo formato no período de 90 dias do relatório. {selectedItem.nPosts} {selectedItem.nPosts === 1 ? 'post' : 'posts'} na amostra.
+            {!selectedItem.consistent ? ' Ainda é uma hipótese para testar.' : ''}
+          </p>
+        ) : null}
+        {selectedItem?.publishedAt ? (
+          <p className="mt-2 text-[12px] text-[var(--ds-color-text-secondary)]">
+            Exemplo publicado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(selectedItem.publishedAt))}.
+            {selectedItem.postLink ? <> <a href={selectedItem.postLink} target="_blank" rel="noreferrer" className="underline">Ver post original</a></> : null}
+          </p>
+        ) : null}
+
         {/* Lado a lado mesmo no celular, e não empilhados: a tela inteira existe
             para comparar duas barras. Empilhado, a comparação vira memória —
             você rola até o segundo ranking e tenta lembrar do primeiro. */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className={`mt-6 grid gap-3 ${territoryRows.length > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <BarList title="Seu ranking" rows={ownRows} tone="own" highlightLabel={highlight.value} />
           {territoryRows.length > 0 ? (
             <BarList

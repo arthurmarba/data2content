@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { Sparkles } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import WhatsAppConnectInline from "@/app/dashboard/WhatsAppConnectInline";
@@ -11,6 +12,10 @@ import GlassCard from "@/components/GlassCard";
  * Mobile já conta com a barra de ações fixa, então evitamos duplicar CTA.
  */
 export default function DiscoverBillingGate() {
+  return WHATSAPP_ALERTS_VISIBLE ? <DiscoverAlerts /> : null;
+}
+
+function DiscoverAlerts() {
   const { hasPremiumAccess, isLoading } = useBillingStatus();
 
   if (isLoading) {

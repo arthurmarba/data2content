@@ -174,7 +174,7 @@ export function ProfilePatternSections({
     <>
       {rules.length > 0 ? (
         <section aria-labelledby="pattern-rules-title">
-          <ProfileSectionHeader id="pattern-rules-title" title="O que já é regra" tag={reportTag ?? null} />
+          <ProfileSectionHeader id="pattern-rules-title" title="Padrões consistentes" tag={reportTag ?? null} />
           <PatternGrid cards={rules} lockedIds={lockedIds} context={context} onOpen={handleOpen} />
         </section>
       ) : null}

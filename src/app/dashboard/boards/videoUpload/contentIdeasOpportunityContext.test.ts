@@ -18,7 +18,7 @@ describe("chooseContentIdeaTiming", () => {
     expect(result).toMatchObject({
       dayLabel: "Terça-feira",
       shortLabel: "Terça, 19h–21h",
-      confidence: "high",
+      confidence: "medium",
       sampleSize: 10,
     });
   });

@@ -1,43 +1,18 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
-import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
-import { listContentIdeasForUser } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
-
-export async function POST() {
-  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
-}
-
-export async function PUT() {
-  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
-}
-
-export async function PATCH() {
-  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
-}
-
-export async function DELETE() {
-  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
-}
-
-/**
- * GET /api/dashboard/mobile-strategic-profile/content-ideas
- *
- * Returns the creator's active + saved pautas. Dismissed ones are filtered out.
- */
-export async function GET() {
-  if (!isMobileStrategicProfileEnabled()) {
-    return NextResponse.json({ message: "Recurso não habilitado." }, { status: 404 });
-  }
-
-  const authOptions = await resolveAuthOptions();
-  const session = await getServerSession(authOptions);
-  const userId = (session as any)?.user?.id as string | undefined;
-
-  if (!userId) {
-    return NextResponse.json({ message: "Não autenticado." }, { status: 401 });
-  }
-
-  const ideas = await listContentIdeasForUser(userId);
-  return NextResponse.json({ ok: true, ideas });
+import type { Session } from 'next-auth';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
+import { listContentIdeasForUser } from '@/app/dashboard/boards/videoUpload/contentIdeasReadService';
+import { isMobileStrategicProfileEnabled } from '@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag';
+import { quotaStatus } from '@/app/lib/collabs/jobs';
+export async function GET(request: Request) {
+  if (!isMobileStrategicProfileEnabled()) return NextResponse.json({ ok: false }, { status: 404 });
+  const id = (await getServerSession(await resolveAuthOptions()) as Session | null)?.user?.id;
+  if (!id) return NextResponse.json({ ok: false }, { status: 401 });
+  try {
+    const params = new URL(request.url).searchParams;
+    const status = params.get('status') === 'library' ? 'library' : params.get('status') === 'posted' ? 'posted' : params.get('status') === 'saved' ? 'saved' : undefined;
+    const [ideas, quota] = await Promise.all([listContentIdeasForUser(id, { status, cursor: params.get('cursor') || undefined, activeOnly: params.get('activeOnly') === 'true' }), quotaStatus(id)]);
+    return NextResponse.json({ ok: true, ideas, nextCursor: status && ideas.length === 30 ? ideas[ideas.length - 1]!.id : null, quota });
+  } catch { return NextResponse.json({ ok: false, reason: 'ideas_unavailable' }, { status: 503 }); }
 }

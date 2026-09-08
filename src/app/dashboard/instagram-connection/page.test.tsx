@@ -72,13 +72,13 @@ describe("InstagramConnectionPage", () => {
       "href",
       "/dashboard/instagram/connect?next=instagram-connection",
     );
-    expect(screen.getByText("Conecte o Instagram primeiro")).toBeInTheDocument();
+    expect(screen.queryByText("Alertas no WhatsApp")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("whatsapp-connection-control"),
     ).not.toBeInTheDocument();
   });
 
-  it("mostra Instagram e vinculação do WhatsApp no mesmo hub para assinantes Pro", () => {
+  it("mantém Instagram e oculta vinculação e alertas para assinantes Pro", () => {
     mockInstagram({
       ...disconnectedStatus,
       isConnected: true,
@@ -91,15 +91,11 @@ describe("InstagramConnectionPage", () => {
 
     expect(screen.getByText("Sincronização Ativa")).toBeInTheDocument();
     expect(screen.getByText("@conta_teste")).toBeInTheDocument();
-    expect(screen.getByTestId("whatsapp-connection-control")).toBeInTheDocument();
-    expect(screen.getByText("Controle de vinculação do WhatsApp")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir Chat AI" })).toHaveAttribute(
-      "href",
-      "/dashboard/chat",
-    );
+    expect(screen.queryByTestId("whatsapp-connection-control")).not.toBeInTheDocument();
+    expect(screen.queryByText(/WhatsApp/)).not.toBeInTheDocument();
   });
 
-  it("mantém o Instagram conectado e apresenta o Plano Pro para liberar alertas", () => {
+  it("mantém o Instagram conectado sem oferecer alertas no plano gratuito", () => {
     mockInstagram({
       ...disconnectedStatus,
       isConnected: true,
@@ -110,11 +106,7 @@ describe("InstagramConnectionPage", () => {
     render(<InstagramConnectionPage />);
 
     expect(screen.getByText("Sincronização Ativa")).toBeInTheDocument();
-    expect(screen.getByText("Plano Pro")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver Plano Pro" })).toHaveAttribute(
-      "href",
-      "/pro",
-    );
+    expect(screen.queryByRole("link", { name: "Ver Plano Pro" })).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("whatsapp-connection-control"),
     ).not.toBeInTheDocument();

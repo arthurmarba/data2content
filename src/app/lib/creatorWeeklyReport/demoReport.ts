@@ -170,3 +170,11 @@ export const CREATOR_WEEKLY_REPORT_DEMO: CreatorWeeklyReportPayload = {
     },
   ],
 };
+
+// Os exemplos ilustram um padrão já validado; dados reais em piloto não recebem
+// essa promoção antes de completar a avaliação retrospectiva.
+for (const detail of CREATOR_WEEKLY_REPORT_DEMO.details) {
+  for (const group of detail.groups) {
+    for (const item of group.items) item.consistent = item.nPosts >= 6 && (item.index ?? 0) >= 1.2;
+  }
+}

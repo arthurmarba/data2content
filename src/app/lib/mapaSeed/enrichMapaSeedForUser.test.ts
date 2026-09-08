@@ -1,7 +1,9 @@
 // src/app/lib/mapaSeed/enrichMapaSeedForUser.test.ts
 
 import { enrichMapaSeedWithInstagram } from "./enrichMapaSeedForUser";
+jest.mock('@/app/models/ContentReadingState', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: async () => null }) }) } }));
 
+jest.mock('@/app/lib/relatorio/contentReadingState', () => ({ acquireReading: jest.fn().mockResolvedValue({ token: 'lease' }), checkpointReading: jest.fn().mockResolvedValue(undefined), finishReading: jest.fn().mockResolvedValue(undefined) }));
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 jest.mock("@/app/lib/mongoose", () => ({
@@ -18,6 +20,7 @@ const mockMapaCreate = jest.fn();
 jest.mock("@/app/models/MapaSeed", () => ({
   __esModule: true,
   default: {
+    updateOne: jest.fn().mockResolvedValue({}),
     findOne: (...args: unknown[]) => mockMapaFindOne(...args),
     create: (...args: unknown[]) => mockMapaCreate(...args),
   },
@@ -98,6 +101,7 @@ describe("enrichMapaSeedWithInstagram", () => {
       expect.objectContaining({ maturidade: "seed" }),
       fakePadroes,
       expect.objectContaining({ narrativeLocked: false, toneLocked: false }),
+      expect.objectContaining({ source: "instagram" }),
     );
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
@@ -116,6 +120,7 @@ describe("enrichMapaSeedWithInstagram", () => {
       expect.anything(),
       fakePadroes,
       expect.objectContaining({ narrativeLocked: true, toneLocked: false }),
+      expect.objectContaining({ source: "instagram" }),
     );
   });
 
@@ -236,7 +241,7 @@ describe("enrichMapaSeedWithInstagram", () => {
     mockAnalyzePosts.mockResolvedValue(fakePadroes);
     mockEnrichMapa.mockRejectedValue(new Error("AI timeout"));
 
-    await expect(enrichMapaSeedWithInstagram("user123")).resolves.toBeUndefined();
+    await expect(enrichMapaSeedWithInstagram("user123")).resolves.toBe('deferred');
     expect(mockMapaSave).not.toHaveBeenCalled();
   });
 
@@ -244,7 +249,7 @@ describe("enrichMapaSeedWithInstagram", () => {
     const { connectToDatabase } = require("@/app/lib/mongoose");
     (connectToDatabase as jest.Mock).mockRejectedValueOnce(new Error("db down"));
 
-    await expect(enrichMapaSeedWithInstagram("user123")).resolves.toBeUndefined();
+    await expect(enrichMapaSeedWithInstagram("user123")).resolves.toBe('deferred');
   });
 
   it("limita posts ao alvo (60) mesmo quando mais são retornados", async () => {

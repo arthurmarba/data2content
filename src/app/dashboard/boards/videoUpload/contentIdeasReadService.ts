@@ -55,16 +55,17 @@ export interface ContentIdeaListItem {
  * Reads the creator's active + saved ideas. Dismissed ones stay hidden.
  * Latest first. Capped at 30 to avoid pagination V1.
  */
-export async function listContentIdeasForUser(userId: string): Promise<ContentIdeaListItem[]> {
+export async function listContentIdeasForUser(userId: string, options: { status?: "saved" | "posted" | "library"; cursor?: string; activeOnly?: boolean } = {}): Promise<ContentIdeaListItem[]> {
   if (!userId || !Types.ObjectId.isValid(userId)) return [];
 
   try {
     await connectToDatabase();
     const docs = await CreatorContentIdea.find({
       userId: new Types.ObjectId(userId),
-      status: { $in: ["active", "saved", "posted"] },
+      status: (options.status === "library" ? { $in: ["saved", "posted"] } : options.status) || (options.activeOnly ? "active" : { $in: ["active", "saved", "posted"] }),
+      ...(options.cursor && Types.ObjectId.isValid(options.cursor) ? { _id: { $lt: new Types.ObjectId(options.cursor) } } : {}),
     })
-      .sort({ generatedAt: -1, _id: -1 })
+      .sort(options.status ? { _id: -1 } : { generatedAt: -1, _id: -1 })
       .limit(30)
       .lean<ICreatorContentIdea[]>();
 
@@ -113,7 +114,7 @@ export async function listContentIdeasForUser(userId: string): Promise<ContentId
     });
   } catch (err) {
     console.error("[contentIdeas:read] Erro silencioso:", err);
-    return [];
+    throw err;
   }
 }
 
@@ -196,6 +197,9 @@ export async function updateContentIdeaStatus(
 
   try {
     await connectToDatabase();
+    const { saveProposal } = await import("@/app/lib/collabs/proposals");
+    const proposal = await saveProposal(userId, ideaId, status);
+    if (proposal) return { ...proposal, status: proposal.status as CreatorContentIdeaStatus };
     const result = await CreatorContentIdea.findOneAndUpdate(
       { _id: new Types.ObjectId(ideaId), userId: new Types.ObjectId(userId) },
       { $set: { status } },

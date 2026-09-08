@@ -4,6 +4,7 @@
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { sanitizeChipArray } from "@/app/lib/mapaSeed/normalizeChipLabel";
+import type { MapSuggestion } from '@/app/lib/mapaSeed/mapSuggestions';
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export interface DismissedChip {
 }
 
 export interface IMapaData {
+  suggestions?: MapSuggestion[];
   narrativa_central: string;
   territorios: string[];
   temas: string[];
@@ -92,6 +94,9 @@ export interface ILeituraInaugural {
 // ─── Document interface ───────────────────────────────────────────────────────
 
 export interface IMapaSeed extends Document {
+  instagramSourceRevision?: string | null;
+  videoSourceRevision?: string | null;
+  enrichmentStatus?: { attemptedAt: Date; state: string; reason?: string | null; nextAttemptAt?: Date | null };
   userId: Types.ObjectId;
   onboardingAnswers: IOnboardingAnswers;
   mapa: IMapaData;
@@ -130,6 +135,7 @@ const OnboardingAnswersSchema = new Schema<IOnboardingAnswers>(
 
 const MapaDataSchema = new Schema<IMapaData>(
   {
+    suggestions: { type: [Schema.Types.Mixed], default: undefined },
     // Pode nascer vazia quando o MapaSeed é auto-criado no enriquecimento de
     // Instagram (usuário conecta o IG sem ter MapaSeed): a própria análise do
     // Instagram preenche a narrativa logo em seguida. Default "" em vez de required.
@@ -206,6 +212,9 @@ const LeituraInauguralSchema = new Schema<ILeituraInaugural>(
 
 const MapaSeedSchema = new Schema<IMapaSeed>(
   {
+    instagramSourceRevision: { type: String, default: null },
+    videoSourceRevision: { type: String, default: null },
+    enrichmentStatus: { type: Schema.Types.Mixed, default: null },
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -237,6 +246,7 @@ const MapaSeedSchema = new Schema<IMapaSeed>(
   {
     timestamps: true,
     collection: "mapasseed",
+    optimisticConcurrency: true,
   }
 );
 

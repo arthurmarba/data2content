@@ -35,13 +35,15 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `weekly-whatsapp-message` | `src/app/api/cron/weekly-whatsapp-message/route.ts` |
 | `whatsapp-trial` | `src/app/api/cron/whatsapp-trial/route.ts` |
 
-## Worker — 8 trabalhos enfileirados
+## Worker — 10 trabalhos enfileirados
 
 | Trabalho | Arquivo |
 | --- | --- |
 | `backfill-post-cover` | `src/app/api/worker/backfill-post-cover/route.ts` |
 | `classify-content` | `src/app/api/worker/classify-content/route.ts` |
 | `classify-published-scene` | `src/app/api/worker/classify-published-scene/route.ts` |
+| `collabs` | `src/app/api/worker/collabs/route.ts` |
+| `enrich-mapa-instagram` | `src/app/api/worker/enrich-mapa-instagram/route.ts` |
 | `enrich-mapa-video` | `src/app/api/worker/enrich-mapa-video/route.ts` |
 | `generate-creator-weekly-report` | `src/app/api/worker/generate-creator-weekly-report/route.ts` |
 | `process-story-webhook` | `src/app/api/worker/process-story-webhook/route.ts` |

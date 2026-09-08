@@ -13,6 +13,8 @@ export interface ICreatorWeeklyReport extends Document {
   periodEndsAt: Date;
   generatedAt: Date;
   sourceMetricsUpdatedAt: Date | null;
+  sourceRevision?: string;
+  previousPayload?: CreatorWeeklyReportPayload;
   coverage: CreatorWeeklyReportPayload["coverage"];
   payload: CreatorWeeklyReportPayload;
   safeErrorCode: string | null;
@@ -41,6 +43,8 @@ const creatorWeeklyReportSchema = new Schema<ICreatorWeeklyReport>(
     periodEndsAt: { type: Date, required: true },
     generatedAt: { type: Date, required: true },
     sourceMetricsUpdatedAt: { type: Date, default: null },
+    sourceRevision: { type: String, default: null },
+    previousPayload: { type: Schema.Types.Mixed, default: null },
     coverage: { type: Schema.Types.Mixed, required: true },
     payload: { type: Schema.Types.Mixed, required: true },
     safeErrorCode: { type: String, default: null },

@@ -28,16 +28,7 @@ function getMonthRange(now: Date): { start: Date; end: Date; monthKey: string } 
  * Each call to `POST /content-ideas/generate` that succeeds counts as one batch,
  * regardless of how many ideas were generated in that batch.
  *
- * We count distinct `generatedAt` timestamps rounded to the nearest second —
- * practically this means we count stored ideas generated in the current month,
- * grouped by their batch (ideas from the same batch share the same `generatedAt`
- * to the minute, so counting distinct minutes is a good proxy).
- *
- * Simple approximation: count total ideas generated this month and divide by
- * average batch size (3). This avoids needing a separate "generation event" model.
- *
- * For production accuracy, store a `ContentIdeaGenerationEvent` — but this is
- * sufficient for launch quota enforcement.
+ * Cada timestamp exato representa um lote legado. Novos pedidos usam o ledger atômico de Collabs.
  */
 export async function countContentIdeaGenerationsThisMonth(
   userId: string,
@@ -45,14 +36,8 @@ export async function countContentIdeaGenerationsThisMonth(
   await connectToDatabase();
   const { start, end } = getMonthRange(new Date());
 
-  // Count total ideas generated this month for this user
-  const count = await CreatorContentIdea.countDocuments({
-    userId,
-    generatedAt: { $gte: start, $lt: end },
-  });
-
-  // Divide by 3 (default batch size) and round up to estimate batches
-  return Math.ceil(count / 3);
+  const batches = await CreatorContentIdea.distinct("generatedAt", { userId, generatedAt: { $gte: start, $lt: end } });
+  return batches.length;
 }
 
 export interface ContentIdeasQuotaResult {
@@ -80,8 +65,7 @@ export async function checkContentIdeasQuota(opts: {
       ? CONTENT_IDEAS_QUOTA.pro
       : CONTENT_IDEAS_QUOTA.free;
 
-  const nextMonthKey = `${monthKey.slice(0, 4)}-${String(Number(monthKey.slice(5, 7)) % 12 + 1).padStart(2, "0")}`;
-  const resetAt = `${nextMonthKey}-01T00:00:00.000Z`;
+  const resetAt = end.toISOString();
 
   if (limit === Infinity) {
     return { allowed: true, usedBatches: 0, limitBatches: limit, resetAt };

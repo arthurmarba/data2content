@@ -36,7 +36,7 @@ const GEMINI_MODEL = process.env.GEMINI_COLLAB_MODEL || "gemini-2.5-flash";
 // O card não pode ficar bloqueado indefinidamente por uma resposta criativa.
 // Ao estourar este limite, o matcher por-pauta usa seu ranking determinístico e
 // o blueprint de fallback — ambos já são específicos ao território e à distância.
-const COLLAB_ASSIGNMENT_MAX_WAIT_MS = 3500;
+const COLLAB_ASSIGNMENT_MAX_WAIT_MS = 60000;
 const CANDIDATE_POOL_SIZE = 30; // Pool final (após ranking) — o matcher por-pauta dedupa por território
 // Quantos seeds VARRER antes de rankear. Maior que o pool final: dá ao ranker
 // uma escolha real (os mais compatíveis com o viewer), em vez de "os primeiros
@@ -55,6 +55,12 @@ const EMPTY_COLLAB_CREATIVE_SIGNALS: CollabCreativeSignals = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface NarrativeCollabMatch {
+  sharedIdea?: { title: string; angle: string; hook: string };
+  proposalId?: string;
+  proposalVersion?: number;
+  expiresAt?: string;
+  planNeedsReview?: boolean;
+  proposalState?: 'expired' | 'ended';
   id: string;
   name: string;
   username: string | null;
@@ -290,208 +296,8 @@ export interface NarrativeCandidatePool {
 export async function buildNarrativeCandidatePool(
   viewerUserId: string,
 ): Promise<NarrativeCandidatePool | null> {
-  if (!viewerUserId || !Types.ObjectId.isValid(viewerUserId)) return null;
-
-  try {
-    await connectToDatabase();
-
-    const { default: MapaSeed } = await import("@/app/models/MapaSeed");
-
-    // Mapa do PRÓPRIO viewer — base do ranking de relevância abaixo.
-    const viewerSeed = await MapaSeed.findOne({ userId: new Types.ObjectId(viewerUserId) })
-      .select("mapa.narrativa_central mapa.territorios mapa.temas mapa.assets mapa.tom mapa.formatos")
-      .lean<{ mapa?: { narrativa_central?: string; territorios?: string[]; temas?: string[]; assets?: string[]; tom?: string; formatos?: string[] } } | null>();
-    const viewerCreativeSignals: CollabCreativeSignals = viewerSeed?.mapa
-      ? {
-          themes: (viewerSeed.mapa.temas ?? []).filter(Boolean).slice(0, 5),
-          assets: (viewerSeed.mapa.assets ?? []).filter(Boolean).slice(0, 5),
-          tone: viewerSeed.mapa.tom?.trim() || null,
-          formats: (viewerSeed.mapa.formatos ?? []).filter(Boolean).slice(0, 4),
-          visualStyle: [],
-        }
-      : EMPTY_COLLAB_CREATIVE_SIGNALS;
-    const viewerTokens = buildViewerTokens([
-      viewerSeed?.mapa?.narrativa_central ?? "",
-      ...((viewerSeed?.mapa?.territorios ?? []).filter((t): t is string => typeof t === "string")),
-    ]);
-
-    // Varre um pool AMPLO (não só os primeiros 30) para o ranking ter escolha.
-    const seeds = await MapaSeed.find({
-      "mapa.narrativa_central": { $exists: true, $ne: "" },
-      userId: { $ne: new Types.ObjectId(viewerUserId) },
-    })
-      .select("userId mapa.narrativa_central mapa.territorios mapa.temas mapa.assets mapa.tom mapa.formatos")
-      .limit(CANDIDATE_SCAN_SIZE)
-      .lean<Array<{ userId: Types.ObjectId; mapa: { narrativa_central?: string; territorios?: string[]; temas?: string[]; assets?: string[]; tom?: string; formatos?: string[] } }>>();
-
-    if (seeds.length === 0) return { pool: [], candidateTerritoriesById: new Map(), viewerCreativeSignals };
-
-    const candidateIds = seeds.map((s) => s.userId);
-
-    const { default: UserModel } = await import("@/app/models/User");
-    const { default: CreatorVideoNarrativeDiagnosis } = await import(
-      "@/app/models/CreatorVideoNarrativeDiagnosis"
-    );
-    const { default: AccountInsightModel } = await import("@/app/models/AccountInsight");
-    const { default: CollabInterest } = await import("@/app/models/CollabInterest");
-
-    // Discoverability is explicit. Historical "interested" swipes count as an
-    // explicit collaboration action so existing participants are not stranded
-    // when the dedicated opt-in field is introduced.
-    const historicallyInterested = await CollabInterest.distinct("user", {
-      decision: "interested",
-      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-    });
-
-    const users = await UserModel.find({
-      _id: { $in: candidateIds },
-      planStatus: { $in: ["active", "non_renewing"] },
-      $or: [
-        { collabDiscoveryOptIn: true },
-        { _id: { $in: historicallyInterested } },
-      ],
-    })
-      .select("_id name username instagramUsername email image providerImage profile_picture_url isInstagramConnected instagramAccountId availableIgAccounts mediaKitSlug location")
-      .lean<Array<EligibleCandidate["user"]>>();
-    const missingAvatarIds = users
-      .filter((user) => !resolveCreatorAvatar(user))
-      .map((user) => user._id);
-    const legacyAvatarSnapshots = missingAvatarIds.length > 0
-      ? await AccountInsightModel.aggregate<{ _id: Types.ObjectId; profilePicture?: string | null }>([
-          {
-            $match: {
-              user: { $in: missingAvatarIds },
-              "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
-            },
-          },
-          { $sort: { recordedAt: -1 } },
-          {
-            $group: {
-              _id: "$user",
-              profilePicture: { $first: "$accountDetails.profile_picture_url" },
-            },
-          },
-        ])
-      : [];
-    const legacyAvatarByUserId = new Map(
-      legacyAvatarSnapshots
-        .map((snapshot) => [
-          snapshot._id.toString(),
-          resolveCreatorAvatar({
-            isInstagramConnected: true,
-            profile_picture_url: snapshot.profilePicture,
-          }),
-        ] as const)
-        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-    );
-    const userMap = new Map(users.map((user) => {
-      const avatarUrl = resolveCreatorAvatar(user) ?? legacyAvatarByUserId.get(user._id.toString()) ?? null;
-      return [user._id.toString(), { ...user, avatarUrl }] as const;
-    }));
-
-    // Leitura de vídeo é OPCIONAL agora — só enriquece o exemplo quando existe.
-    const bestReadings = await CreatorVideoNarrativeDiagnosis.aggregate<EligibleCandidate["reading"]>([
-      {
-        $match: {
-          userId: { $in: candidateIds },
-          status: "completed",
-          $or: [{ publishIntent: "yes" }, { publishIntent: null }],
-        },
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $group: {
-          _id: "$userId",
-          userId: { $first: "$userId" },
-          videoReading: { $first: "$videoReading" },
-          publishIntent: { $first: "$publishIntent" },
-          speechReading: { $first: "$speechReading" },
-          productionReading: { $first: "$productionReading" },
-        },
-      },
-    ]);
-    const readingMap = new Map(bestReadings.map((r) => [r.userId.toString(), r]));
-
-    const pool: EligibleCandidate[] = [];
-    const candidateTerritoriesById = new Map<string, string[]>();
-    for (const seed of seeds) {
-      const userId = seed.userId.toString();
-      const user = userMap.get(userId);
-      if (!user) continue; // precisa de User real (nome/avatar/mídia kit)
-      // O card principal de collab depende da presença da pessoa. Quem ainda
-      // não tem uma foto real resolvível volta ao pool quando a conta receber
-      // uma fonte válida; até lá, não vira sugestão com avatar genérico.
-      if (!user.avatarUrl) continue;
-
-      const narrativa = seed.mapa?.narrativa_central?.trim() ?? "";
-      if (!narrativa) continue;
-
-      const territorios = Array.isArray(seed.mapa?.territorios)
-        ? seed.mapa.territorios.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
-        : [];
-      if (territorios.length === 0) continue; // sem território não casa por-pauta
-
-      candidateTerritoriesById.set(userId, territorios);
-
-      // Vídeo enriquece; sem ele, sintetiza a "reading" a partir do MapaSeed.
-      const videoReading = readingMap.get(userId);
-      const reading: EligibleCandidate["reading"] = videoReading ?? {
-        userId: seed.userId,
-        videoReading: {
-          title: "",
-          summary: (seed.mapa?.temas?.find((t) => typeof t === "string" && t.trim()) ?? narrativa),
-          mainNarrative: narrativa,
-        },
-        publishIntent: null,
-      };
-
-      const visualStyle = [
-        reading.productionReading?.framing,
-        reading.productionReading?.firstFrame,
-        reading.productionReading?.editingRhythm,
-        reading.speechReading?.openingRead,
-      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0).slice(0, 4);
-      pool.push({
-        userId,
-        user,
-        reading,
-        creativeSignals: {
-          themes: (seed.mapa?.temas ?? []).filter(Boolean).slice(0, 5),
-          assets: (seed.mapa?.assets ?? []).filter(Boolean).slice(0, 5),
-          tone: seed.mapa?.tom?.trim() || null,
-          formats: (seed.mapa?.formatos ?? []).filter(Boolean).slice(0, 4),
-          visualStyle,
-        },
-      });
-    }
-
-    // Rankeia por relevância ao viewer (sobreposição de palavras significativas
-    // entre narrativa+territórios dos dois) e corta no pool final. Empate mantém
-    // a ordem original (estável). Sem tokens do viewer (mapa vazio), o score é 0
-    // pra todos → cai no comportamento antigo (primeiros N). O objetivo é DUPLO:
-    // qualidade (casa com os mais compatíveis) e simetria (um par compatível
-    // sobe no ranking dos dois lados, então ambos se veem).
-    const relevance = (entry: EligibleCandidate): number => {
-      if (viewerTokens.size === 0) return 0;
-      const text = [
-        entry.reading.videoReading.mainNarrative ?? "",
-        ...(candidateTerritoriesById.get(entry.userId) ?? []),
-      ].join(" ");
-      return significantWords(text).filter((w) => viewerTokens.has(w)).length;
-    };
-    const ranked = pool
-      .map((entry, i) => ({ entry, i, score: relevance(entry) }))
-      .sort((a, b) => (b.score - a.score) || (a.i - b.i))
-      .slice(0, CANDIDATE_POOL_SIZE)
-      .map((x) => x.entry);
-
-    // candidateTerritoriesById pode ter entradas fora do top-N; deixamos como
-    // está (é um lookup por id, os ids extras são inofensivos e não vazam).
-    return { pool: ranked, candidateTerritoriesById, viewerCreativeSignals };
-  } catch (err) {
-    console.error("[narrativeCollabMatching] buildNarrativeCandidatePool erro:", err);
-    return null;
-  }
+  const { candidatePool } = await import('@/app/lib/collabs/candidatePool');
+  return candidatePool(viewerUserId);
 }
 
 /** Localização do viewer — pra saber, no matcher, quem mora perto de quem. */
@@ -618,6 +424,7 @@ export interface CollabCandidateForLLM {
 }
 
 export interface CollabAssignment {
+  sharedIdea?: { title: string; angle: string; hook: string };
   /** id do candidato escolhido, ou null se nenhum tem laço real com o território. */
   candidateId: string | null;
   fitReason: string;
@@ -668,6 +475,7 @@ Regras de matching:
 - Todo texto deve ser curto, direto e sem termos técnicos ou metáforas.
 
 Regras do plano:
+- sharedIdea contém title, angle e hook da MESMA proposta para os dois lados. Não atribua histórias pessoais de um participante ao outro. A abertura deve ser uma pergunta ou demonstração compartilhável.
 - O plano pertence à PAUTA ESPECÍFICA: use o título, a abertura e o storyboard; não entregue uma frase genérica sobre o território.
 - Defina quem abre, quem responde, onde está a virada e como os dois fecham.
 - owner deve ser viewer, partner ou both.
@@ -697,6 +505,7 @@ Responda APENAS com JSON:
       "fitReason": "<assunto que os dois conhecem + o que a outra pessoa acrescenta>",
       "viewerContribution": "<contribuição da pessoa base, sem começar com Você>",
       "partnerContribution": "<contribuição da pessoa escolhida, sem começar com o nome>",
+      "sharedIdea": { "title": "<título comum>", "angle": "<ângulo comum>", "hook": "<abertura comum, sem inventar autobiografia>" },
       "recordingIdea": "<resumo em uma frase de como gravar>",
       "collabBlueprint": {
         "format": "<formato concreto e compatível com a distância>",
@@ -720,7 +529,8 @@ Responda APENAS com JSON:
         config: {
           // O detalhe recebe uma direção filmável, sem pedir um roteiro longo
           // para cada pauta da rodada (que tornava a primeira abertura lenta).
-          maxOutputTokens: 3600,
+          maxOutputTokens: 10000,
+          httpOptions: { timeout: 55000 },
           temperature: 0.45,
           responseMimeType: "application/json",
           thinkingConfig: { thinkingBudget: 0 },
@@ -749,7 +559,10 @@ Responda APENAS com JSON:
       const recordingIdea = simplifyUserFacingText(raw.recordingIdea, 240);
       const viewerContribution = simplifyUserFacingText(raw.viewerContribution, 180);
       const partnerContribution = simplifyUserFacingText(raw.partnerContribution, 180);
+      const shared = raw.sharedIdea as Record<string, unknown> | undefined;
+      const sharedTitle = simplifyUserFacingText(shared?.title, 160), sharedAngle = simplifyUserFacingText(shared?.angle, 400), sharedHook = simplifyUserFacingText(shared?.hook, 220);
       out.set(pautaId, {
+        sharedIdea: sharedTitle && sharedAngle && sharedHook ? { title: sharedTitle, angle: sharedAngle, hook: sharedHook } : undefined,
         candidateId,
         fitReason,
         recordingIdea,

@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { buildProfileEvolution } from "@/app/lib/creatorWeeklyReport/evolution";
+import { lastClosedWeek } from "@/app/lib/relatorio/weekWindow";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
 import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 import { buildDiagnosticoPageDataFixture } from "./diagnosticoTestFixtures";
@@ -183,7 +185,7 @@ describe("CreatorWeeklyProfileExperience", () => {
 
     // O corte é a força da evidência, não o momento da gravação: o que já se
     // repetiu o bastante para virar decisão fica separado do que ainda é aposta.
-    expect(screen.getByText("O que já é regra")).toBeInTheDocument();
+    expect(screen.getByText("Padrões consistentes")).toBeInTheDocument();
     expect(screen.getByText("O que vale testar")).toBeInTheDocument();
     // Natureza rendeu 7,5×, mas em um post só — é aposta, não regra.
     const testar = screen.getByRole("button", { name: /^Onde/ });
@@ -487,7 +489,11 @@ describe("inspiração no território", () => {
 describe("assuntos embaixo da narrativa", () => {
   it("mostra o que a leitura reconheceu, não o que o mapa declarou", () => {
     const report = JSON.parse(JSON.stringify(CREATOR_WEEKLY_REPORT_DEMO));
-    report.overview.observedSubjects = ["Culinária"];
+    report.evolution = buildProfileEvolution({
+      now: new Date('2026-09-08T12:00:00Z'),
+      week: lastClosedWeek(new Date('2026-09-08T12:00:00Z')),
+      metrics: [{ _id: 'novo', postDate: '2026-08-30', sceneElements: { version: 'v1', subjects: ['Culinária'] } }],
+    });
     const data = buildDiagnosticoPageDataFixture({
       accessState: "pro_instagram_connected",
       instagramConnected: true,

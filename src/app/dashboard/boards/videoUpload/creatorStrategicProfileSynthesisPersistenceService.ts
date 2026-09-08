@@ -134,7 +134,7 @@ export async function persistCreatorStrategicProfileSynthesis(
     // Side effect: check whether the new synthesis diverges from what the creator
     // previously confirmed and, if so, reset those dimensions to "pending" so the
     // map can re-propose. Non-fatal — failures here never block persistence.
-    void reproposeConfirmationsIfSynthesisChanged(result.userId, params.synthesis);
+    await reproposeConfirmationsIfSynthesisChanged(result.userId, params.synthesis);
 
     return {
       ok: true,

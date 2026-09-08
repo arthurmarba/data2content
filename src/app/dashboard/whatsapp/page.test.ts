@@ -6,11 +6,11 @@ jest.mock("next/navigation", () => ({
 }));
 
 describe("LegacyWhatsAppRedirect", () => {
-  it("leva o endereço antigo para a seção de WhatsApp do hub de conexões", () => {
+  it("leva o endereço antigo para o hub sem apontar uma seção oculta", () => {
     LegacyWhatsAppRedirect();
 
     expect(redirect).toHaveBeenCalledWith(
-      "/dashboard/instagram-connection#whatsapp",
+      "/dashboard/instagram-connection",
     );
   });
 });

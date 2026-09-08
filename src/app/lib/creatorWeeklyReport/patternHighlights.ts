@@ -1,3 +1,4 @@
+import { rankScore } from './evidencePolicy';
 // src/app/lib/creatorWeeklyReport/patternHighlights.ts
 //
 // Traz a RESPOSTA de cada padrão para a capa do card do Perfil.
@@ -49,6 +50,7 @@ const COVER_LABELS: Record<string, string> = {
   subjects: "Assunto",
   "subjects-repeated": "Recorrente",
   "openings-best": "Gancho",
+  "opening-mechanisms": "Jeito de começar",
   best: "Gancho",
 };
 
@@ -160,6 +162,8 @@ export interface PatternHighlight {
   analysedPosts: number;
   /** Força do sinal do item promovido. */
   evidence: CreatorWeeklyReportRankItem["evidence"] | null;
+  consistent?: boolean;
+  score?: number;
 }
 
 /** Passa do corte quem rendeu acima da mediana da própria conta. */
@@ -172,7 +176,7 @@ function promotable(
 
 /** O melhor item que rendeu acima do próprio normal. */
 function bestPromotable(group: CreatorWeeklyReportRankGroup) {
-  return [...group.items].sort((a, b) => (b.index ?? 0) - (a.index ?? 0)).find(promotable) ?? null;
+  return [...group.items].sort((a, b) => (b.score ?? rankScore(b.index, b.nPosts)) - (a.score ?? rankScore(a.index, a.nPosts))).find(promotable) ?? null;
 }
 
 function postsLabel(nPosts: number) {
@@ -219,6 +223,8 @@ function highlightFor(
       nPosts: top.nPosts,
       analysedPosts: analysed,
       evidence: top.evidence,
+      consistent: top.consistent === true,
+      score: top.score ?? rankScore(top.index, top.nPosts),
     };
   }
 

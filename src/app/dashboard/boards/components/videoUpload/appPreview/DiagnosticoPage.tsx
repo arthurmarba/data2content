@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { memo, useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
@@ -2150,8 +2151,8 @@ function PautasCard({
         </button>
       );
     }
-    // ideas prontas → botão WhatsApp (conectado ou não)
-    if (contentIdeas.length > 0) {
+    // Alertas só aparecem quando a funcionalidade estiver visível.
+    if (WHATSAPP_ALERTS_VISIBLE && contentIdeas.length > 0) {
       if (whatsappLinked) {
         return (
           <span style={{

@@ -17,6 +17,7 @@ import type { PaywallContext } from "@/types/paywall";
 import type { PatternContext } from "@/app/lib/creatorWeeklyReport/patternContextTypes";
 import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
 import type { IMapaData } from "@/app/models/MapaSeed";
+import { ProfileReadingProgress } from './ProfileReadingProgress';
 import { ProfileIdentityCard, ProfileToolCards } from "./ProfileIdentityCard";
 import { ProfileNarrativeView } from "./ProfileNarrativeView";
 import { ProfileProSheet } from "./ProfileProSheet";
@@ -257,40 +258,39 @@ export function CreatorWeeklyProfileExperience({
   useEffect(() => setWhatsappGroupLinkOpened(data.userInfo.whatsappGroupLinkOpened === true), [data.userInfo.whatsappGroupLinkOpened]);
 
   useEffect(() => {
-    if (!hasReportAccess || (liveReport?.coverage.posts90d ?? 0) > 0) return;
-    let cancelled = false;
+    if (!hasReportAccess) return;
+    const controller = new AbortController();
     let attempts = 0;
+    let inFlight = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const refresh = async () => {
+      if (inFlight || controller.signal.aborted || document.visibilityState === 'hidden') return;
+      inFlight = true;
       attempts += 1;
+      if (timer) clearTimeout(timer);
       try {
-        const response = await fetch("/api/dashboard/mobile-strategic-profile/weekly-report", { cache: "no-store" });
+        const response = await fetch('/api/dashboard/mobile-strategic-profile/weekly-report', { cache: 'no-store', signal: controller.signal });
         const payload = await response.json().catch(() => null);
-        if (!cancelled && response.ok && payload?.report) {
+        if (!controller.signal.aborted && response.ok && payload?.report) {
           setLiveReport(payload.report);
-          if ((payload.report.coverage?.posts90d ?? 0) > 0) {
-            trackMobileNarrativeEvent("mobile_weekly_report_refresh_succeeded", {
-              route: profileRoute,
-              accessState: data.accessState,
-              isPro,
-              instagramConnected: data.instagramConnected,
-              actionType: payload.report.status,
-            });
-          }
-        }
-        if (!cancelled && (payload?.report?.coverage?.posts90d ?? 0) === 0 && attempts < 10) {
-          timer = setTimeout(refresh, 6000);
+          const processing = payload.report.evolution?.status === 'processing' || (payload.report.coverage?.posts90d ?? 0) === 0;
+          if (processing && attempts < 10) timer = setTimeout(refresh, 6000);
         }
       } catch {
-        if (!cancelled && attempts < 10) timer = setTimeout(refresh, 6000);
-      }
+        if (!controller.signal.aborted && attempts < 10) timer = setTimeout(refresh, 6000);
+      } finally { inFlight = false; }
     };
+    const onFocus = () => { attempts = 0; void refresh(); };
     void refresh();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
     return () => {
-      cancelled = true;
+      controller.abort();
       if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [data.accessState, data.instagramConnected, hasReportAccess, isPro, liveReport?.coverage.posts90d, profileRoute]);
+  }, [hasReportAccess]);
 
   const declaredNarrative = mapa?.narrativa_central?.trim()
     || data.synthesis.mainNarrative?.label?.trim()
@@ -314,8 +314,10 @@ export function CreatorWeeklyProfileExperience({
   // marcando alguns chips e deixando outros sem marca: uma lista com dois
   // significados dentro. Havendo leitura, ela manda; sem leitura ainda, os
   // territórios do mapa entram como o que a pessoa declarou.
-  const observedSubjects = hasReportAccess ? liveReport?.overview.observedSubjects ?? [] : [];
-  const identitySubjects = (observedSubjects.length > 0 ? observedSubjects : territories).slice(0, 6);
+  const observedSubjects = hasReportAccess ? liveReport?.evolution?.allObservedSubjects ?? [] : [];
+  const identitySubjects = hasReportAccess && liveReport?.evolution
+    ? liveReport.evolution.subjects.map(subject => subject.label)
+    : territories.slice(0, 6);
   const handleExpandPattern = (highlight: PatternHighlight) => {
     trackMobileNarrativeEvent("mobile_weekly_report_detail_opened", {
       route: profileRoute,
@@ -365,6 +367,8 @@ export function CreatorWeeklyProfileExperience({
    */
   const reportTag = reportIsDemo
     ? "Exemplo"
+    : liveReport?.evolution && ['delayed', 'unavailable', 'partial'].includes(liveReport.evolution.status)
+      ? 'Leitura incompleta'
     : billingAttention
       ? "Pausado"
       : instagramConnectionState === "expired"
@@ -487,7 +491,7 @@ export function CreatorWeeklyProfileExperience({
             statusLine={activationState === "connected" ? (
               <ProfileNextStepField
                 state="connected"
-                lastReadAt={liveReport?.sourceMetricsUpdatedAt ?? liveReport?.generatedAt ?? null}
+                lastReadAt={liveReport?.evolution?.lastAnalyzedAt ?? null}
                 onUpgrade={onUpgrade}
                 onConnectInstagram={onConnectInstagram}
                 onDefineNorth={onOpenNorte}
@@ -505,6 +509,8 @@ export function CreatorWeeklyProfileExperience({
           />
         </div>
         </div>
+
+        {hasReportAccess ? <ProfileReadingProgress evolution={liveReport?.evolution} /> : null}
 
         {/* Saúde da conta: pede o plano, pede o Instagram, confirma — e volta a
             pedir se a conexão cair. Quando está tudo certo, o campo não ocupa
@@ -606,7 +612,7 @@ export function CreatorWeeklyProfileExperience({
             </p>
           ) : null}
           <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)] opacity-80">
-            Segunda a leitura chega. Quinta a gente conversa sobre ela.
+            Resultados da última semana fechada. A leitura recente acompanha os novos posts analisados.
           </p>
         </div>
       </div>
@@ -618,8 +624,8 @@ export function CreatorWeeklyProfileExperience({
           narrative={narrative}
           observedSubjects={observedSubjects}
           coverageLine={
-            hasReportAccess && liveReport
-              ? `Atualizada a partir de ${liveReport.coverage.postsWithScene} de ${liveReport.coverage.posts90d} posts lidos nos últimos 90 dias.`
+            hasReportAccess && liveReport?.evolution
+              ? `Assuntos reconhecidos em ${liveReport.evolution.windows.recent.analyzed} de ${liveReport.evolution.windows.recent.eligible} posts dos últimos 28 dias. A revisão da narrativa é uma etapa separada.`
               : null
           }
           onClose={() => setNarrativeOpen(false)}

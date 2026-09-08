@@ -135,6 +135,8 @@ export function rankingsFrom(document: {
  * "naquela semana você não fez isso", que é diferente de "rendeu pouco".
  */
 export function trendsFrom(payloads: CreatorWeeklyReportPayload[]): Record<string, number[]> {
+  const latestPolicy = payloads.at(-1)?.policyVersion ?? 'legacy';
+  payloads = payloads.filter(payload => (payload.policyVersion ?? 'legacy') === latestPolicy);
   const weeks = payloads.length;
   const trends: Record<string, number[]> = {};
 
@@ -180,6 +182,8 @@ export async function loadPatternContext(userId: string): Promise<PatternContext
     .filter(Boolean)
     .reverse();
 
+  const latestPolicy = payloads.at(-1)?.policyVersion ?? 'legacy';
+  const compatiblePayloads = payloads.filter(payload => (payload.policyVersion ?? 'legacy') === latestPolicy);
   const territoryId = profiles.get(userId)?.primaryTerritoryId ?? null;
   let territory: PatternContext["territory"] = null;
 
@@ -208,5 +212,5 @@ export async function loadPatternContext(userId: string): Promise<PatternContext
     }
   }
 
-  return { trends: trendsFrom(payloads), weeks: payloads.length || PATTERN_TREND_WEEKS, territory };
+  return { trends: trendsFrom(compatiblePayloads), weeks: compatiblePayloads.length, territory: latestPolicy === 'legacy' ? territory : null };
 }

@@ -8,7 +8,7 @@ atualizado: 2026-09-08
 
 # Comandos npm
 
-**92 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**96 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -48,6 +48,7 @@ atualizado: 2026-09-08
 | `npm run audit:collabs` | `tsx --env-file=.env.local ./scripts/auditCollabsMechanism.ts` |
 | `npm run audit:hook-readiness` | `tsx --env-file=.env.local ./scripts/auditHookRecommendationReadiness.ts` |
 | `npm run audit:perfil-territorio` | `tsx --env-file=.env.local ./scripts/auditPerfilTerritoryCoverage.ts` |
+| `npm run audit:profile-evolution` | `tsx --env-file=.env.local ./scripts/auditProfileEvolution.ts` |
 | `npm run audit:script-adjustment` | `tsx --env-file=.env.local ./scripts/auditScriptAdjustmentExperiment.ts` |
 | `npm run audit:script-evidence` | `tsx --env-file=.env.local ./scripts/auditCreatorScriptEvidence.ts` |
 | `npm run audit:video-postdates` | `node ./scripts/auditVideoPostDates.mjs` |
@@ -89,6 +90,7 @@ atualizado: 2026-09-08
 
 | Comando | O que roda |
 | --- | --- |
+| `npm run check:collabs-quality` | `jest --runInBand --runTestsByPath src/app/lib/collabs/quality.test.ts` |
 | `npm run check:scripts-quality` | `npm test -- --runInBand src/app/lib/scripts/ai.test.ts src/app/lib/scripts/observability.test.ts src/app/lib/scripts/promptParser.test.ts src/app/lib/scripts/intelligenceContext.test.ts src/app/lib/scripts/benchmark.test.ts src/app/lib/scripts/performanceTelemetry.test.ts && npm run benchmark:scripts` |
 
 ## classification
@@ -102,6 +104,12 @@ atualizado: 2026-09-08
 | Comando | O que roda |
 | --- | --- |
 | `npm run compliance:whatsapp` | `node scripts/compliance-whatsapp.mjs` |
+
+## configure
+
+| Comando | O que roda |
+| --- | --- |
+| `npm run configure:collabs` | `tsx --env-file=.env.local scripts/configureCollabs.ts` |
 
 ## cron
 
@@ -146,6 +154,7 @@ atualizado: 2026-09-08
 | --- | --- |
 | `npm run migrate:affiliate-financial-safety` | `tsx --env-file=.env.local ./scripts/migrateAffiliateFinancialSafety.ts` |
 | `npm run migrate:classification-canonical` | `tsx --env-file=.env.local ./scripts/migrateCanonicalCategories.ts` |
+| `npm run migrate:collabs` | `tsx --env-file=.env.local scripts/migrateCollabs.ts` |
 
 ## playwright
 

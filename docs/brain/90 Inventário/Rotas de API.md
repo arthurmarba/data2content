@@ -10,7 +10,7 @@ atualizado: 2026-09-08
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**424 rotas** em **55 grupos**.
+**428 rotas** em **55 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [cron](#cron) — 18 rotas
-- [dashboard](#dashboard) — 45 rotas
+- [dashboard](#dashboard) — 47 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
 - [dev](#dev) — 4 rotas
@@ -68,7 +68,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [videos](#videos) — 1 rota
 - [webhooks](#webhooks) — 2 rotas
 - [whatsapp](#whatsapp) — 7 rotas
-- [worker](#worker) — 8 rotas
+- [worker](#worker) — 10 rotas
 
 ## account
 
@@ -391,18 +391,20 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/dashboard/mobile-strategic-profile/analyze-real` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/collabs/creators/[creatorId]/avatar` | GET | `src/app/api/dashboard/mobile-strategic-profile/collabs/creators/[creatorId]/avatar/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/collabs/interest` | GET, PATCH, POST | `src/app/api/dashboard/mobile-strategic-profile/collabs/interest/route.ts` |
+| `/api/dashboard/mobile-strategic-profile/collabs/jobs/[id]` | GET | `src/app/api/dashboard/mobile-strategic-profile/collabs/jobs/[id]/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/collabs/per-pauta` | POST | `src/app/api/dashboard/mobile-strategic-profile/collabs/per-pauta/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/collabs/suggestions` | POST | `src/app/api/dashboard/mobile-strategic-profile/collabs/suggestions/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/confirm-map-dimension` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/confirm-map-dimension/route.ts` |
-| `/api/dashboard/mobile-strategic-profile/content-ideas` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/content-ideas/route.ts` |
+| `/api/dashboard/mobile-strategic-profile/content-ideas` | GET | `src/app/api/dashboard/mobile-strategic-profile/content-ideas/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/content-ideas/[id]` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/content-ideas/[id]/route.ts` |
-| `/api/dashboard/mobile-strategic-profile/content-ideas/generate` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/content-ideas/generate/route.ts` |
+| `/api/dashboard/mobile-strategic-profile/content-ideas/generate` | POST | `src/app/api/dashboard/mobile-strategic-profile/content-ideas/generate/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/diagnosis/[id]/content-potential-feedback` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/diagnosis/[id]/content-potential-feedback/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/diagnosis/[id]/hook-selection` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/diagnosis/[id]/hook-selection/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/diagnosis/[id]/publish-intent` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/diagnosis/[id]/publish-intent/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/diagnosis/[id]/script-adjustment-selection` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/diagnosis/[id]/script-adjustment-selection/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/last-map-visit` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/last-map-visit/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/map-seed` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/map-seed/route.ts` |
+| `/api/dashboard/mobile-strategic-profile/map-suggestions` | GET, POST | `src/app/api/dashboard/mobile-strategic-profile/map-suggestions/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/map/confirm-adjacent` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/map/confirm-adjacent/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/map/confirm-formats` | POST | `src/app/api/dashboard/mobile-strategic-profile/map/confirm-formats/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/map/detect-adjacent-narratives` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/map/detect-adjacent-narratives/route.ts` |
@@ -763,6 +765,8 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/worker/backfill-post-cover` | POST | `src/app/api/worker/backfill-post-cover/route.ts` |
 | `/api/worker/classify-content` | GET, POST | `src/app/api/worker/classify-content/route.ts` |
 | `/api/worker/classify-published-scene` | GET, POST | `src/app/api/worker/classify-published-scene/route.ts` |
+| `/api/worker/collabs` | POST | `src/app/api/worker/collabs/route.ts` |
+| `/api/worker/enrich-mapa-instagram` | POST | `src/app/api/worker/enrich-mapa-instagram/route.ts` |
 | `/api/worker/enrich-mapa-video` | POST | `src/app/api/worker/enrich-mapa-video/route.ts` |
 | `/api/worker/generate-creator-weekly-report` | POST | `src/app/api/worker/generate-creator-weekly-report/route.ts` |
 | `/api/worker/process-story-webhook` | POST | `src/app/api/worker/process-story-webhook/route.ts` |

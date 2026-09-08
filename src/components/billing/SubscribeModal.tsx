@@ -59,19 +59,15 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
       {
         title: 'Planejamento Pro',
         description:
-          'Slots com IA, previsões de alcance e alertas no WhatsApp para executar com foco diariamente.',
+          'Slots com IA e sugestões para planejar seus próximos conteúdos.',
         linkLabel: 'Ver planner',
         href: '/dashboard/planning',
       },
     ],
   },
   {
-    title: 'Alertas e relatórios proativos',
+    title: 'Relatórios no aplicativo',
     items: [
-      {
-        title: 'Estratégia no WhatsApp',
-        description: 'A IA monitora seu Instagram, identifica oportunidades e envia nudges personalizados.',
-      },
       {
         title: 'Relatórios semanais automáticos',
         description: 'Entenda sua performance em 30 segundos, sem planilhas — tudo entregue direto no app.',
@@ -251,7 +247,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                 Você não está mais criando conteúdo sozinho
             </h2>
             <p className="text-gray-600 mt-2">
-                Ative o Plano Pro: reunião semanal da comunidade, IA estrategista e alertas no seu WhatsApp.
+                Ative o Plano Pro: reunião semanal da comunidade, IA estrategista e pautas personalizadas.
             </p>
             <p className="text-xs text-gray-500 mt-1">
                 Intermediários ficam com 10%–30% de comissão e pedem exclusividade; aqui você paga só a assinatura e mantém 100% das publis.

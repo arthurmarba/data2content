@@ -53,3 +53,20 @@ escreve no ambiente configurado e deve ser tratado como operação de banco.
 ## Ligações
 
 [[10 Mapa do sistema]] · [[Trabalhos em fundo]] · [[Classificação de conteúdo]]
+
+
+## Encadeamento do Perfil
+
+Classificação concluída aciona `classify-published-scene`, que entrega a evidência
+salva a `generate-creator-weekly-report` e `enrich-mapa-instagram`, com agrupamento
+de eventos por criador. Falha de publicação na fila não invalida a evidência; o
+cron `recover-content-intelligence` é a retaguarda. O lote reserva espaço para
+pendências antigas e alterna criadores dentro de cada faixa de idade.
+
+O enriquecimento do Instagram usa posse temporária, checkpoint e revisão de
+conteúdo. Mudança apenas de métricas não provoca outra geração do mapa. A
+sincronização não espera pela IA de enriquecimento.
+
+## Collabs (setembro de 2026)
+
+`/api/worker/collabs` processa `CollabJob` com assinatura QStash, lease e checkpoint. O cron `recover-content-intelligence` republica pedidos pendentes e conclui falhas esgotadas liberando reservas. `CollabSettings` controla piloto e pausa sem apagar propostas. O aviso de match é um evento criado na mesma transação da confirmação; resposta ambígua do provedor exige revisão, não reenvio automático.

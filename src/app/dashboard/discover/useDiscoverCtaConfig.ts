@@ -115,7 +115,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           state,
           kind: "action",
           label: "Reativar Plano Pro",
-          description: "Volte a receber análises automáticas, alertas no WhatsApp e oportunidades de publicidade sem exclusividade.",
+          description: "Volte a receber análises automáticas, pautas personalizadas e oportunidades de publicidade sem exclusividade.",
           stageLabel: "Recupere o acesso ao Plano Pro",
           step: 4,
           totalSteps,

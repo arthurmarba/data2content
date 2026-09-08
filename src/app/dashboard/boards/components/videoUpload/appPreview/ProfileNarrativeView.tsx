@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileMapSuggestions } from './ProfileMapSuggestions';
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -317,7 +318,7 @@ export function ProfileNarrativeView({
   };
 
   const declaredSubjects = [...listOf(mapa, "temas"), ...listOf(mapa, "territorios")];
-  const notSeen = subjectsNotSeen(declaredSubjects, observedSubjects);
+  const notSeen = observedSubjects.length > 0 ? subjectsNotSeen(declaredSubjects, observedSubjects) : [];
 
   if (typeof document === "undefined") return null;
 
@@ -357,10 +358,12 @@ export function ProfileNarrativeView({
             </p>
           )}
           <p className="mt-3 text-[12.5px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
-            Montada com o que você respondeu no onboarding e ajustada a cada leitura dos seus posts. É esse fio que a
+            Montada com o que você declarou e com as leituras dos seus posts. Escolhas confirmadas são preservadas; novas evidências podem sugerir uma revisão. É esse fio que a
             leitura da semana usa para comparar.
           </p>
         </div>
+
+        <ProfileMapSuggestions mapa={mapa} onMapaChange={onMapaChange} />
 
         {failure ? (
           <p
@@ -398,12 +401,12 @@ export function ProfileNarrativeView({
               <>
                 <p className="mt-2.5 text-[15px] font-semibold leading-[1.36] tracking-[-0.005em] text-[var(--ds-color-ink)]">
                   {notSeen.length === 1
-                    ? `Você declarou ${notSeen[0]}, e nenhum vídeo lido falou disso ainda.`
+                    ? `Você declarou ${notSeen[0]}, e isso não foi identificado nos posts analisados deste período.`
                     : `Você declarou ${notSeen.slice(0, 3).join(", ")}${
                         // Cortar em três sem dizer que há mais faz a tela mentir
                         // por omissão: quem tem seis lacunas leria três.
                         notSeen.length > 3 ? ` e mais ${notSeen.length - 3}` : ""
-                      }, e nenhum vídeo lido falou desses assuntos ainda.`}
+                      }, e esses assuntos não foram identificados nos posts analisados deste período.`}
                 </p>
                 <p className="mt-2 text-[12px] leading-[1.45] text-[var(--ds-color-text-muted)]">
                   Ou o assunto ainda não virou post, ou ele saiu da sua narrativa. As duas respostas são úteis.
@@ -412,8 +415,8 @@ export function ProfileNarrativeView({
             ) : (
               <p className="mt-2.5 text-[15px] font-semibold leading-[1.36] text-[var(--ds-color-text-secondary)]">
                 {observedSubjects.length > 0
-                  ? "Tudo que você declarou já apareceu em vídeo."
-                  : "Nenhum vídeo foi lido ainda, então não dá para dizer o que falta."}
+                  ? "Os assuntos declarados foram identificados nos posts analisados deste período."
+                  : "Sem leitura recente disponível, não dá para dizer quais assuntos faltam neste período."}
               </p>
             )}
           </section>
@@ -424,7 +427,7 @@ export function ProfileNarrativeView({
             <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)]">{coverageLine}</p>
           ) : null}
           <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)] opacity-80">
-            Mudar a narrativa muda o que a leitura compara na próxima segunda.
+            Sua escolha orienta as próximas leituras e o relatório semanal.
           </p>
         </div>
       </div>

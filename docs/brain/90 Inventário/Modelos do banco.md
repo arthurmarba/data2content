@@ -8,7 +8,7 @@ atualizado: 2026-09-08
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **84 modelos.**
+Todo dado persistido é um modelo Mongoose. **88 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -42,9 +42,13 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **ChatSessionFeedback** | `chat_session_feedback` | `src/app/models/ChatSessionFeedback.ts` |
 | **ChatSessionReview** | `chat_session_reviews` | `src/app/models/ChatSessionReview.ts` |
 | **CollabInterest** | `—` | `src/app/models/CollabInterest.ts` |
+| **CollabJob** | `collabjobs` | `src/app/models/CollabJob.ts` |
 | **CollabMatch** | `collabmatches` | `src/app/models/CollabMatch.ts` |
+| **CollabProposal** | `collabproposals` | `src/app/models/CollabProposal.ts` |
+| **CollabSettings** | `collabsettings` | `src/app/models/CollabSettings.ts` |
 | **CommunityEvent** | `community_events` | `src/app/models/CommunityEvent.ts` |
 | **CommunityInspiration** | `—` | `src/app/models/CommunityInspiration.ts` |
+| **ContentIdeaQuota** | `contentideaquotas` | `src/app/models/ContentIdeaQuota.ts` |
 | **ContentReadingState** | `content_reading_states` | `src/app/models/ContentReadingState.ts` |
 | **CpmHistory** | `—` | `src/app/models/CpmHistory.ts` |
 | **CreatorContentIdea** | `creatorcontentideas` | `src/app/models/CreatorContentIdea.ts` |

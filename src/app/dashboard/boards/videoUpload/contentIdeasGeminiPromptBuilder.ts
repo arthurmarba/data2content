@@ -345,8 +345,8 @@ export function buildContentIdeasPrompt(
   const dismissedBlock = context.recentDismissedTitles.length > 0
     ? [
         "",
-        "Pautas que o criador já descartou (evite repetir ou propor variações próximas):",
-        ...context.recentDismissedTitles.slice(0, 8).map((t) => `  - ${t}`),
+        "Ideias já vistas, salvas, publicadas ou descartadas (evite repetir o conceito):",
+        ...context.recentDismissedTitles.slice(0, 40).map((t) => `  - ${t}`),
       ].join("\n")
     : "";
 
@@ -365,9 +365,9 @@ export function buildContentIdeasPrompt(
     if (temas.length === 0) return "";
     return [
       "",
-      "Cenas que o criador JÁ confirmou (camada-tema — cada uma é território × narrativa, quase filmável):",
+      "Cenas informadas ou observadas no Mapa (camada-tema — cada uma é território × narrativa, quase filmável):",
       ...temas.slice(0, 8).map((t) => `  - ${t}`),
-      "Estas cenas são PONTOS DE PARTIDA reais — ancore ao menos parte das pautas nelas",
+      "Estas cenas são PONTOS DE PARTIDA do contexto — ancore ao menos parte das pautas nelas",
       "em vez de inventar situações novas do zero. Uma cena confirmada já carrega o cruzamento",
       "certo (assunto + identidade); seu trabalho é transformá-la em título + hook + roteiro,",
       "não substituí-la por outra. NUNCA copie a frase do tema literalmente no título: ela é o",
@@ -424,8 +424,9 @@ export function buildContentIdeasPrompt(
   const opportunityBlock = (() => {
     const signals = context.opportunityContext?.creativeSignals;
     const timing = context.opportunityContext?.timing;
-    if (!signals && !timing) return "";
-    const lines: string[] = [];
+    const honesty = "REGRA DE VERACIDADE: não invente episódios autobiográficos. Uma cena nova é proposta para adaptar, não fato vivido. Use pergunta, demonstração ou hipótese no gancho quando faltar fonte. Não prometa resultados. Gancho e fechamento precisam tratar da mesma questão. Diferencie assuntos declarados de acontecimentos observados.";
+    if (!signals && !timing) return honesty;
+    const lines: string[] = [honesty];
     if (signals) {
       lines.push(`  - Vídeos recentes usados: ${signals.postsAnalyzed}`);
       if (signals.subject) lines.push(`  - Assunto presente entre os vídeos com melhor resposta: ${signals.subject}`);

@@ -20,6 +20,7 @@
  */
 
 import mongoose from "mongoose";
+import type { DiscoveryUser } from '@/app/lib/collabs/eligibility';
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { significantWords } from "@/app/dashboard/boards/videoUpload/collabComplementarity";
@@ -44,6 +45,8 @@ function daysAgo(date: Date | null | undefined) {
 }
 
 async function main() {
+  mongoose.set('autoIndex', false); mongoose.set('autoCreate', false);
+  const { eligible, discoveryState, premium } = await import('@/app/lib/collabs/eligibility');
   await connectToDatabase();
   const db = mongoose.connection.db;
   if (!db) throw new Error("sem conexão");
@@ -169,41 +172,21 @@ async function main() {
     "mapa.territorios.0": { $exists: true },
   });
 
-  // O último filtro é o avatar: sem foto, o candidato não entra no pool.
-  const elegiveis = await seeds
-    .aggregate<{ total: number }>([
-      {
-        $match: {
-          "mapa.narrativa_central": { $exists: true, $ne: "" },
-          "mapa.territorios.0": { $exists: true },
-        },
-      },
-      { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "u" } },
-      { $unwind: "$u" },
-      {
-        $match: {
-          $or: [
-            { "u.profile_picture_url": { $exists: true, $nin: [null, ""] } },
-            { "u.image": { $exists: true, $nin: [null, ""] } },
-            { "u.providerImage": { $exists: true, $nin: [null, ""] } },
-          ],
-        },
-      },
-      { $count: "total" },
-    ])
-    .toArray();
-  const comAvatar = elegiveis[0]?.total ?? 0;
-
-  console.log("\n═══ 5. O FUNIL DO POOL DE CANDIDATOS ═══\n");
-  console.log(`Mapas gravados ........................... ${comMapa}`);
-  console.log(`  ├─ com narrativa central preenchida .... ${comNarrativa}  (${pct(comNarrativa, comMapa)})  ${bar(comNarrativa, comMapa)}`);
-  console.log(`  ├─ E com ao menos 1 território ......... ${comTerritorio}  (${pct(comTerritorio, comMapa)})  ${bar(comTerritorio, comMapa)}`);
-  console.log(`  └─ E com avatar (entra no pool) ........ ${comAvatar}  (${pct(comAvatar, comMapa)})  ${bar(comAvatar, comMapa)}`);
-  console.log(`\nUsuários no total ........................ ${await users.countDocuments({})}`);
+  const accounts = await users.find<DiscoveryUser & { _id: mongoose.Types.ObjectId }>({}, { projection: { role: 1, planStatus: 1, currentPeriodEnd: 1, cancelAtPeriodEnd: 1, collabDiscoveryOptIn: 1, collabDiscoveryOptInDate: 1, collabDiscoveryStatus: 1, username: 1, instagramUsername: 1 } }).toArray();
+  const validMaps = await seeds.distinct('userId', { 'mapa.narrativa_central': { $nin: [null, ''] }, 'mapa.territorios.0': { $exists: true } });
+  const mapped = new Set(validMaps.map(String));
+  console.log('\nFunil atual: acesso → participação explícita → contato → mapa');
+  console.log(JSON.stringify({ total: accounts.length, premium: accounts.filter(user => premium(user)).length, available: accounts.filter(user => premium(user) && discoveryState(user) === 'available').length, contact: accounts.filter(user => eligible(user)).length, ready: accounts.filter(user => eligible(user) && mapped.has(String(user._id))).length, ambiguous: accounts.filter(user => discoveryState(user) === 'unknown').length }, null, 2));
+  const proposals = db.collection('collabproposals'), jobs = db.collection('collabjobs');
+  console.log('Propostas comuns:', await proposals.countDocuments({}));
+  console.log('Mostradas aos dois:', await proposals.countDocuments({ 'exposed.1': { $exists: true } }));
+  console.log('Confirmadas:', await proposals.countDocuments({ matchedAt: { $ne: null }, endedAt: null }));
+  console.log('Jobs por estado:', await jobs.aggregate([{ $group: { _id: { kind: '$kind', state: '$state', reason: '$error' }, total: { $sum: 1 }, attempts: { $sum: '$attempts' } } }]).toArray());
 
   // ── 6. Existe sobreposição de território? ─────────────────────────────────
   //
-  // Passado o pool, o match por-pauta exige que o TERRITÓRIO da pauta e um
+  // Diagnóstico lexical legado; o motor novo não usa esta contagem como veto.
+  // Antes, o matching exigia que o TERRITÓRIO da pauta e um
   // território do candidato compartilhem ao menos uma palavra significativa
   // (`territoryRelevance` > 0). Se essa sobreposição não existe na base, nenhum
   // ajuste de prompt ou de peso resolve — o problema é vocabulário, não código.
@@ -247,7 +230,7 @@ async function main() {
   // construção, e nenhum ajuste no matching muda isso.
   const kindTotals = await ideas
     .aggregate<{ _id: string | null; total: number }>([
-      { $group: { _id: "$opportunityKind", total: { $sum: 1 } } },
+      { $group: { _id: "$opportunityBrief.kind", total: { $sum: 1 } } },
     ])
     .toArray();
   const semTerritorio = await ideas.countDocuments({

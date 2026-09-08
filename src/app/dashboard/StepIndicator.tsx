@@ -1,4 +1,5 @@
 "use client";
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { FaCheckCircle, FaCircle } from "react-icons/fa";
 
 interface StepIndicatorProps {
@@ -11,7 +12,7 @@ export default function StepIndicator({ planActive, instagramConnected, whatsapp
   const steps = [
     { title: "Assinar Plano", completed: planActive },
     { title: "Conectar Instagram", completed: instagramConnected },
-    { title: "Vincular WhatsApp", completed: whatsappConnected },
+    ...(WHATSAPP_ALERTS_VISIBLE ? [{ title: "Vincular WhatsApp", completed: whatsappConnected }] : []),
   ];
   const currentIndex = steps.findIndex((s) => !s.completed);
   return (

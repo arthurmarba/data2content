@@ -289,3 +289,19 @@ describe("matchCollabsForPautas — distância (presencial × remoto)", () => {
     });
   });
 });
+
+describe('propostas comuns exigem contribuição comprovável', () => {
+  it('sem resposta da IA não transforma palavras iguais em recomendação', async () => {
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry('c1', ['Paternidade'])));
+    await expect(matchCollabsForPautas('viewer', [{ id: 'p1', territory: 'Paternidade' }], 'narrativa', { requireEvidence: true })).rejects.toThrow('matching_unavailable');
+    expect(mockBuildMatch).not.toHaveBeenCalled();
+  });
+  it('um interesse recebido não troca a pessoa escolhida por uma proposta nova', async () => {
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry('c1', ['Paternidade']), poolEntry('c2', ['Paternidade'])));
+    mockIncomingInterests.mockResolvedValue([{ userId: 'c2', pautaTerritoryNorm: 'paternidade' }]);
+    mockAssign.mockResolvedValue(new Map([['p1', { candidateId: 'c1', fitReason: 'Cada pessoa traz uma prática concreta', recordingIdea: 'Comparar rotinas', viewerContribution: 'Mostra a manhã', partnerContribution: 'Mostra a noite', sharedIdea: { title: 'Duas rotinas', angle: 'Comparação', hook: 'O que muda?' }, collabBlueprint: { version: 2, openingOwner: 'viewer', scenes: [] } }]]));
+    const result = await matchCollabsForPautas('viewer', [{ id: 'p1', territory: 'Paternidade' }], 'narrativa', { requireEvidence: true });
+    expect(result.get('p1')?.id).toBe('c1');
+    expect(result.get('p1')?.partnerContribution).toBe('Mostra a noite');
+  });
+});

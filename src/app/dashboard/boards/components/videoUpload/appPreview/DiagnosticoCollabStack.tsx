@@ -540,7 +540,7 @@ export function DiagnosticoCollabStack({
   shelfCount,
   clearedActions,
   onDecide,
-  onOpenIdea,
+  onOpenIdea, onCardShown,
   onUpgrade,
 }: {
   items: CollabStackItem[];
@@ -551,6 +551,7 @@ export function DiagnosticoCollabStack({
   clearedActions?: ReactNode;
   onDecide: (pautaId: string, decision: CollabStackDecision) => void;
   onOpenIdea?: (pautaId: string) => void;
+  onCardShown?: (pautaId: string) => void;
   onUpgrade?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
@@ -570,6 +571,8 @@ export function DiagnosticoCollabStack({
   const decidingRef = useRef(false);
 
   const top = items[0] ?? null;
+  const topId = top?.pauta.id;
+  useEffect(() => { if (topId) onCardShown?.(topId); }, [topId, onCardShown]);
   const behind = items.slice(1, 3);
   // Deck vazio SEMPRE mostra a recompensa + próximo passo — nunca branco. Antes
   // exigia roundTotal>0 ("triou nesta sessão"): num mount fresco com 0 cartões

@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import WhatsAppConnectInline from "@/app/dashboard/WhatsAppConnectInline";
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 
@@ -8,6 +9,10 @@ interface Props {
 }
 
 export function DiagnosticoWhatsAppSheet({ onClose }: Props) {
+  return WHATSAPP_ALERTS_VISIBLE ? <WhatsAppSheetContent onClose={onClose} /> : null;
+}
+
+function WhatsAppSheetContent({ onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-[260] flex items-end justify-center ds-scrim"

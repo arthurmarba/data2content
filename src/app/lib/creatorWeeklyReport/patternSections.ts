@@ -30,7 +30,7 @@ import type { PatternHighlight } from "./patternHighlights";
  * corte dele é contínuo e depende de K; aqui o corte precisa ser um número que
  * dá para explicar em voz alta na reunião.
  */
-export const RULE_CUT = 3;
+export const RULE_CUT = 6;
 
 export interface PatternSectionCard {
   highlight: PatternHighlight;
@@ -108,10 +108,10 @@ export function buildPatternSections(
   const rest = highlights.filter((highlight) => highlight.kind !== "answer");
 
   const byIndex = (a: PatternSectionCard, b: PatternSectionCard) =>
-    (b.highlight.index ?? 0) - (a.highlight.index ?? 0);
+    (b.highlight.score ?? 0) - (a.highlight.score ?? 0);
 
-  const rules = answers.filter((highlight) => (highlight.nPosts ?? 0) >= ruleCut).map(toCard);
-  const tests = answers.filter((highlight) => (highlight.nPosts ?? 0) < ruleCut).map(toCard);
+  const rules = answers.filter((highlight) => highlight.consistent === true && (highlight.nPosts ?? 0) >= ruleCut).map(toCard);
+  const tests = answers.filter((highlight) => !(highlight.consistent === true && (highlight.nPosts ?? 0) >= ruleCut)).map(toCard);
 
   return {
     rules: packGrid(rules.sort(byIndex)),

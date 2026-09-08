@@ -67,154 +67,10 @@ beforeEach(() => {
 });
 
 describe("registerCollabDecision", () => {
-  it("sem recíproco: registra o interesse e fica aguardando (matched=false)", async () => {
-    mockFindOneAndUpdate
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: baseInput.pautaTitle }) // upsert próprio
-      .mockResolvedValueOnce(null); // claim do recíproco falha
-
-    const result = await registerCollabDecision(baseInput);
-
-    expect(result).toEqual({ ok: true, matched: false, match: null });
-    // Upsert idempotente por (user, pauta), com expiração de interesse
-    const [ownQuery, ownUpdate] = mockFindOneAndUpdate.mock.calls[0];
-    expect(ownQuery).toMatchObject({ pautaId: "pauta-1" });
-    expect(ownUpdate.$set.decision).toBe("interested");
-    expect(ownUpdate.$set.expiresAt).toBeInstanceOf(Date);
-    // "como gravar" + modo persistem no snapshot — precisam sobreviver pro pós-match.
-    expect(ownUpdate.$set).toHaveProperty("recordingIdea");
-    expect(ownUpdate.$set).toHaveProperty("collabBlueprint");
-    expect(ownUpdate.$set).toHaveProperty("collabMode");
-    expect(ownUpdate.$set.viewerContribution).toBe("Experiência de pai na rotina");
-    expect(ownUpdate.$set.partnerContribution).toBe("Experiência de mãe que trabalha fora");
-    // Território normalizado gravado (lowercase, sem acento) — base do match por tema.
-    expect(ownUpdate.$set.pautaTerritoryNorm).toBe("paternidade");
-    // O recíproco é buscado EXIGINDO o mesmo território normalizado.
-    const [recipQuery] = mockFindOneAndUpdate.mock.calls[1];
-    expect(recipQuery).toMatchObject({
-      user: expect.anything(),
-      partner: expect.anything(),
-      decision: "interested",
-      matchedAt: null,
-      pautaTerritoryNorm: "paternidade",
-    });
-    expect(mockSendWhatsApp).not.toHaveBeenCalled();
-  });
-
-  it("sem território: registra mas NÃO busca recíproco (não casa temas diferentes)", async () => {
-    mockFindOneAndUpdate.mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "x" });
-
-    const result = await registerCollabDecision({ ...baseInput, pautaTerritory: "" });
-
-    expect(result).toEqual({ ok: true, matched: false, match: null });
-    // Só o upsert próprio rodou — nenhuma busca de recíproco.
-    expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
-  });
-
-  it("recíproco em território DIFERENTE não casa (query não encontra)", async () => {
-    // O mock do recíproco devolve null porque a query filtra por pautaTerritoryNorm.
-    mockFindOneAndUpdate
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: baseInput.pautaTitle })
-      .mockResolvedValueOnce(null); // sem recíproco no MESMO território
-
-    const result = await registerCollabDecision({ ...baseInput, pautaTerritory: "Trabalho" });
-
-    expect(result.matched).toBe(false);
-    const [recipQuery] = mockFindOneAndUpdate.mock.calls[1];
-    expect(recipQuery.pautaTerritoryNorm).toBe("trabalho");
-  });
-
-  it("com recíproco vigente: casa os dois, notifica os dois lados e devolve o parceiro", async () => {
-    const ownDoc = {
-      _id: new Types.ObjectId(),
-      pautaTitle: baseInput.pautaTitle,
-      fitReason: baseInput.fitReason,
-      sharedSignal: "Paternidade",
-      viewerContribution: baseInput.viewerContribution,
-      partnerContribution: baseInput.partnerContribution,
-    };
-    const reciprocalDoc = { _id: new Types.ObjectId(), pautaTitle: "Pauta da Marina" };
-    mockFindOneAndUpdate
-      .mockResolvedValueOnce(ownDoc)
-      .mockResolvedValueOnce(reciprocalDoc);
-    mockUserFindById
-      .mockReturnValueOnce(leanChain(viewerUser))
-      .mockReturnValueOnce(leanChain(partnerUser));
-
-    const result = await registerCollabDecision(baseInput);
-
-    expect(result.ok).toBe(true);
-    expect(result.matched).toBe(true);
-    // Quem topa por último vê a festa ao vivo → o próprio doc já nasce celebrado.
-    const [, ownMatchUpdate] = mockUpdateOne.mock.calls[0];
-    expect(ownMatchUpdate.$set.celebratedAt).toBeInstanceOf(Date);
-    expect(result.match).toMatchObject({
-      id: partnerId,
-      name: "Marina Braga",
-      username: "marinabraga",
-      narrativeFitReason: "fala de dinheiro sem culpa",
-      viewerContribution: "Experiência de pai na rotina",
-      partnerContribution: "Experiência de mãe que trabalha fora",
-      narrativeMatch: true,
-    });
-    // Claim atômico do recíproco: só casa quem ainda não casou e não expirou
-    const [claimQuery, claimUpdate] = mockFindOneAndUpdate.mock.calls[1];
-    expect(claimQuery).toMatchObject({ decision: "interested", matchedAt: null });
-    expect(claimUpdate.$set.matchedAt).toBeInstanceOf(Date);
-    expect(claimUpdate.$unset).toEqual({ expiresAt: 1 });
-    // O próprio doc também vira match imortal
-    expect(mockUpdateOne).toHaveBeenCalledWith(
-      { _id: ownDoc._id },
-      expect.objectContaining({ $unset: { expiresAt: 1 } }),
-    );
-    // Aviso só no match, pros DOIS lados
-    expect(mockSendWhatsApp).toHaveBeenCalledTimes(2);
-    expect(mockSendWhatsApp.mock.calls.map((c) => c[0]).sort()).toEqual(["+551188", "+551199"]);
-    expect(mockSendWhatsApp.mock.calls[0][1]).toContain("escolheram fazer um vídeo juntos");
-  });
-
-  it("não duplica avisos quando a mesma dupla já tem match canônico", async () => {
-    mockFindOneAndUpdate
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "Ideia A", fitReason: null, sharedSignal: null })
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "Ideia B" });
-    mockUserFindById
-      .mockReturnValueOnce(leanChain(viewerUser))
-      .mockReturnValueOnce(leanChain(partnerUser));
-    mockCollabMatchCreate.mockRejectedValueOnce(Object.assign(new Error("duplicate"), { code: 11000 }));
-
-    const result = await registerCollabDecision(baseInput);
-
-    expect(result.matched).toBe(true);
-    expect(mockSendWhatsApp).not.toHaveBeenCalled();
-  });
-
-  it("'não agora' é silencioso: registra e nunca busca recíproco nem notifica", async () => {
-    mockFindOneAndUpdate.mockResolvedValueOnce({ _id: new Types.ObjectId() });
-
-    const result = await registerCollabDecision({ ...baseInput, decision: "dismissed" });
-
-    expect(result).toEqual({ ok: true, matched: false, match: null });
-    expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1); // só o upsert próprio
-    expect(mockSendWhatsApp).not.toHaveBeenCalled();
-  });
-
-  it("falha de WhatsApp não derruba o match", async () => {
-    mockFindOneAndUpdate
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "t", fitReason: null, sharedSignal: null })
-      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "t2" });
-    mockUserFindById
-      .mockReturnValueOnce(leanChain(viewerUser))
-      .mockReturnValueOnce(leanChain(partnerUser));
-    mockSendWhatsApp.mockRejectedValue(new Error("meta down"));
-
-    const result = await registerCollabDecision(baseInput);
-    expect(result.matched).toBe(true);
-    expect(result.match?.name).toBe("Marina Braga");
-  });
-
-  it("rejeita ids inválidos e self-match", async () => {
-    expect((await registerCollabDecision({ ...baseInput, partnerId: "nope" })).ok).toBe(false);
-    expect((await registerCollabDecision({ ...baseInput, partnerId: userId })).ok).toBe(false);
+  it("rejeita clientes antigos sem gravar parceiro nem criar confirmação por território", async () => {
+    expect(await registerCollabDecision(baseInput)).toEqual({ ok: false, matched: false, match: null, error: 'refresh_required' });
     expect(mockFindOneAndUpdate).not.toHaveBeenCalled();
+    expect(mockSendWhatsApp).not.toHaveBeenCalled();
   });
 });
 
@@ -233,8 +89,8 @@ describe("getCollabInterestState", () => {
     const state = await getCollabInterestState(userId);
 
     expect(state.ok).toBe(true);
-    expect(state.decisions).toEqual([
-      { pautaId: "p-pendente", decision: "interested" },
+    expect(state.decisions).toMatchObject([
+      { pautaId: "p-pendente", decision: "interested", collab: { id: partnerId } },
       { pautaId: "p-dispensada", decision: "dismissed" },
     ]);
     expect(state.matches).toHaveLength(2);

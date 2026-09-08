@@ -61,79 +61,32 @@ function response(body: unknown, ok = true) {
   } as unknown as Response;
 }
 
-describe("CollabsPinnedBoard — bootstrap real", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockBilling.hasPremiumAccess = true;
-    global.fetch = jest.fn();
-  });
-
-  it("mantém o deck bloqueado até os matches de collab terminarem", async () => {
-    let resolveMatches!: (value: Response) => void;
-    const matchesPending = new Promise<Response>((resolve) => {
-      resolveMatches = resolve;
-    });
+describe("CollabsPinnedBoard — fontes independentes", () => {
+  beforeEach(() => { jest.clearAllMocks(); global.fetch = jest.fn(); });
+  it("carrega parceiros persistidos sem depender de ideias ativas nem chamar IA", async () => {
     (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/content-ideas")) return Promise.resolve(response({ ideas: [{ id: "pauta-1", opportunityBrief: { kind: "collab_optional" } }] }));
-      if (url.endsWith("/strategic-map/summary")) return Promise.resolve(response({ summary: { narrative: "Autonomia" } }));
-      if (url.endsWith("/collabs/interest")) return Promise.resolve(response({ ok: true, decisions: [], matches: [] }));
-      if (url.endsWith("/collabs/per-pauta")) return matchesPending;
-      throw new Error(`Unexpected request: ${url}`);
+      if (url.includes('/content-ideas?')) return Promise.resolve(response({ ideas: [] }));
+      if (url.endsWith('/collabs/interest')) return Promise.resolve(response({ ok: true, decisions: [{ pautaId: 'p1', decision: 'interested', collab: { id: 'original' } }], matches: [], suggestions: {}, ideas: [] }));
+      throw new Error(url);
     });
-
     render(<CollabsPinnedBoard />);
-
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
-    expect(screen.getByTestId("bootstrap-status")).toHaveTextContent("loading");
-    expect(screen.getByTestId("match-count")).toHaveTextContent("0");
-
-    await act(async () => {
-      resolveMatches(response({ ok: true, matches: { "pauta-1": { id: "creator-1" } } }));
-    });
-
-    await waitFor(() => expect(screen.getByTestId("bootstrap-status")).toHaveTextContent("ready"));
-    expect(screen.getByTestId("match-count")).toHaveTextContent("1");
-    const matchRequest = (global.fetch as jest.Mock).mock.calls.find(([url]) => String(url).endsWith("/collabs/per-pauta"));
-    expect(JSON.parse(matchRequest?.[1]?.body as string).pautas[0].opportunityKind).toBe("collab_optional");
+    await waitFor(() => expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('ready'));
+    expect(screen.getByTestId('match-count')).toHaveTextContent('1');
+    expect((global.fetch as jest.Mock).mock.calls.every(([url]) => !String(url).endsWith('/collabs/per-pauta'))).toBe(true);
   });
-
-  it("expõe falha de bootstrap e permite tentar novamente", async () => {
-    let ideasAttempts = 0;
+  it("preserva o histórico se a leitura das ideias falha e permite repetir", async () => {
+    let fail = true;
     (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/content-ideas")) {
-        ideasAttempts += 1;
-        return Promise.resolve(ideasAttempts === 1 ? response({}, false) : response({ ideas: [] }));
-      }
-      if (url.endsWith("/strategic-map/summary")) return Promise.resolve(response({ summary: { narrative: "Autonomia" } }));
-      if (url.endsWith("/collabs/interest")) return Promise.resolve(response({ ok: true, decisions: [], matches: [] }));
-      throw new Error(`Unexpected request: ${url}`);
+      if (url.includes('/content-ideas?')) return Promise.resolve(response({ ideas: [] }, !fail));
+      return Promise.resolve(response({ ok: true, decisions: [], matches: [{ pautaId: 'p1', collab: { id: 'original' } }], suggestions: {}, ideas: [] }));
     });
-
     render(<CollabsPinnedBoard />);
-
-    await waitFor(() => expect(screen.getByTestId("bootstrap-status")).toHaveTextContent("error"));
-    expect(screen.getByText("Não foi possível carregar suas ideias e parcerias.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-
-    await waitFor(() => expect(screen.getByTestId("bootstrap-status")).toHaveTextContent("ready"));
-    expect(global.fetch).toHaveBeenCalledTimes(6);
-  });
-
-  it("não chama a rota Pro de matches para usuário free", async () => {
-    mockBilling.hasPremiumAccess = false;
-    (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/content-ideas")) return Promise.resolve(response({ ideas: [{ id: "pauta-1" }] }));
-      if (url.endsWith("/strategic-map/summary")) return Promise.resolve(response({ summary: { narrative: "Autonomia" } }));
-      throw new Error(`Unexpected request: ${url}`);
-    });
-
-    render(<CollabsPinnedBoard />);
-
-    await waitFor(() => expect(screen.getByTestId("bootstrap-status")).toHaveTextContent("ready"));
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.getByTestId('match-count')).toHaveTextContent('1'));
+    expect(screen.getByRole('alert')).toHaveTextContent('Uma parte');
+    fail = false; fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByTestId('match-count')).toHaveTextContent('1');
   });
 });

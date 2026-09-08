@@ -26,9 +26,7 @@ import CollabInterest, {
   type CollabInterestDecision,
   type ICollabInterest,
 } from "@/app/models/CollabInterest";
-import CollabMatch from "@/app/models/CollabMatch";
 import UserModel from "@/app/models/User";
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { logger } from "@/app/lib/logger";
 import { resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
@@ -70,7 +68,7 @@ export interface RegisterCollabDecisionResult {
 export interface CollabInterestState {
   ok: boolean;
   /** Decisões pendentes (sem match) — hidrata a pilha/aguardando do front. */
-  decisions: Array<{ pautaId: string; decision: CollabInterestDecision }>;
+  decisions: Array<{ pautaTitle?: string; territory?: string | null; pautaId: string; decision: CollabInterestDecision; collab?: NarrativeCollabMatch; expiresAt?: string }>;
   /**
    * Matches confirmados — hidrata a fileira Combinadas + status no card.
    * `isNew` = casou enquanto o criador estava fora e ele ainda não viu a
@@ -143,6 +141,7 @@ function buildMatchPayload(
     viewerContribution: interest.viewerContribution ?? null,
     partnerContribution: interest.partnerContribution ?? null,
     narrativeMatch: true,
+    planNeedsReview: true,
   };
 }
 
@@ -162,195 +161,14 @@ function normalizeTerritory(t?: string | null): string {
     .trim();
 }
 
-function canonicalMatchKey(firstInterestId: unknown, secondInterestId: unknown): string {
-  return [String(firstInterestId), String(secondInterestId)].sort().join(":");
-}
-
-/**
- * Aviso calmo no match — um por lado, falha silenciosa (nunca derruba o match).
- *
- * LIMITAÇÃO conhecida (decisão de ops pendente): usa free-text
- * (`sendWhatsAppMessage`), que a Meta só entrega DENTRO da janela de 24h desde
- * a última mensagem do criador pro número. Um match com quem não falou nas
- * últimas 24h NÃO recebe o aviso. Pra entrega garantida (proativa fora da
- * janela) é preciso um TEMPLATE aprovado no Meta Business e trocar por
- * `sendTemplateMessage` (já existe em whatsappService.ts). Criar/aprovar o
- * template é tarefa no painel da Meta — não dá pra fazer só no código.
- */
-async function notifyMatchedPair(
-  a: { user: PartnerUserLean; pautaTitle: string; partnerName: string },
-  b: { user: PartnerUserLean; pautaTitle: string; partnerName: string },
-): Promise<void> {
-  const sendTo = async (target: PartnerUserLean, partnerName: string, pautaTitle: string) => {
-    if (!target.whatsappVerified || !target.whatsappPhone) return;
-    const firstName = partnerName.trim().split(" ")[0] || partnerName;
-    const body =
-      `Você e ${firstName} escolheram fazer um vídeo juntos. ` +
-      `Ideia: "${pautaTitle}". Abra o app para ver o plano e falar pelo Instagram.`;
-    await sendWhatsAppMessage(target.whatsappPhone, body);
-  };
-  const results = await Promise.allSettled([
-    sendTo(a.user, a.partnerName, a.pautaTitle),
-    sendTo(b.user, b.partnerName, b.pautaTitle),
-  ]);
-  for (const r of results) {
-    if (r.status === "rejected") {
-      logger.warn(`${TAG} aviso de match no WhatsApp falhou (non-fatal)`, r.reason);
-    }
-  }
-}
-
 // ─── Registro da decisão ──────────────────────────────────────────────────────
 
 export async function registerCollabDecision(
   input: RegisterCollabDecisionInput,
 ): Promise<RegisterCollabDecisionResult> {
-  const { userId, partnerId, pautaId, decision } = input;
-  if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(partnerId)) {
-    return { ok: false, matched: false, match: null, error: "invalid_ids" };
-  }
-  if (userId === partnerId) {
-    return { ok: false, matched: false, match: null, error: "self_match" };
-  }
-
-  await connectToDatabase();
-  const userOid = new Types.ObjectId(userId);
-  const partnerOid = new Types.ObjectId(partnerId);
-  const now = new Date();
-  const pautaTitle = cleanIdeaText(input.pautaTitle);
-  const territoryNorm = normalizeTerritory(input.pautaTerritory);
-
-  // 1. Upsert da própria decisão (idempotente por user+pauta; re-swipe sobrescreve).
-  //    matchedAt não é tocado aqui — um doc já casado não volta a "pendente".
-  const ttlDays = decision === "interested" ? COLLAB_INTEREST_TTL_DAYS : COLLAB_DISMISSED_TTL_DAYS;
-  const own = await CollabInterest.findOneAndUpdate(
-    { user: userOid, pautaId },
-    {
-      $set: {
-        partner: partnerOid,
-        decision,
-        pautaTitle,
-        pautaTerritory: input.pautaTerritory ?? null,
-        pautaTerritoryNorm: territoryNorm,
-        fitReason: input.fitReason ?? null,
-        sharedSignal: input.sharedSignal ?? null,
-        recordingIdea: input.recordingIdea ?? null,
-        collabBlueprint: input.collabBlueprint ?? null,
-        collabMode: input.collabMode ?? null,
-        viewerContribution: simplifyUserFacingText(input.viewerContribution, 180),
-        partnerContribution: simplifyUserFacingText(input.partnerContribution, 180),
-        expiresAt: daysFromNow(ttlDays),
-      },
-    },
-    { upsert: true, new: true },
-  );
-
-  // "Não agora" para aqui — silencioso por decisão de produto.
-  if (decision !== "interested") {
-    return { ok: true, matched: false, match: null };
-  }
-
-  // O parceiro precisa ter uma chance real de avaliar a dupla. Invalidamos o
-  // deck dele sem enviar aviso; na próxima abertura, o matcher prioriza este
-  // criador no mesmo território de forma totalmente privada.
-  await invalidateCachedPerPautaMatches(partnerId);
-
-  // Sem território não há como exigir "mesmo tema" — não casa (fica aguardando).
-  // Na prática toda pauta tem território (o matcher é por-território), mas isto
-  // protege contra dado incompleto casar dois lados em temas diferentes.
-  if (!territoryNorm) {
-    return { ok: true, matched: false, match: null };
-  }
-
-  // 2. Reivindica o recíproco vigente (atômico — ver nota de concorrência no topo).
-  //    Agora exige MESMO território: os dois só casam quando toparam o mesmo tema
-  //    — a collab fica óbvia e coerente (gravam sobre a mesma coisa).
-  const reciprocal = await CollabInterest.findOneAndUpdate(
-    {
-      user: partnerOid,
-      partner: userOid,
-      decision: "interested",
-      matchedAt: null,
-      pautaTerritoryNorm: territoryNorm,
-      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
-    },
-    { $set: { matchedAt: now }, $unset: { expiresAt: 1 } },
-    { new: true },
-  );
-
-  if (!reciprocal) {
-    // Sem recíproco (ainda): interesse fica aguardando o outro lado.
-    return { ok: true, matched: false, match: null };
-  }
-
-  // 3. UMA ideia de gravação pros DOIS lados. Cada lado gerou a sua ("como
-  //    gravar juntos") ao topar — no mesmo território, mas com texto possivelmente
-  //    diferente. A collab é uma coisa só: escolhemos uma (a de quem topou
-  //    primeiro = o doc recíproco; fallback pro deste lado) e gravamos nos dois
-  //    docs, pra ambos verem exatamente a mesma orientação. O modo (presencial/
-  //    remoto) já é simétrico (mesma checagem de cidade), então basta um.
-  const sharedRecordingIdea = reciprocal.recordingIdea ?? own.recordingIdea ?? null;
-  const sharedCollabBlueprint = reciprocal.collabBlueprint ?? own.collabBlueprint ?? null;
-  const sharedMode = own.collabMode ?? reciprocal.collabMode ?? null;
-
-  // O próprio doc também vira match, deixa de expirar E já nasce celebrado: quem
-  // topou por último (este request) vê a festa ao vivo, então não deve revê-la na
-  // próxima visita. O outro doc fica sem celebratedAt.
-  await CollabInterest.updateOne(
-    { _id: own._id },
-    { $set: { matchedAt: now, celebratedAt: now, recordingIdea: sharedRecordingIdea, collabBlueprint: sharedCollabBlueprint, collabMode: sharedMode }, $unset: { expiresAt: 1 } },
-  );
-  // Recíproco recebe a MESMA ideia/modo (o dele pode ter sido escolhido, mas
-  // reescrever é idempotente e garante consistência se o fallback entrou).
-  await CollabInterest.updateOne(
-    { _id: reciprocal._id },
-    { $set: { recordingIdea: sharedRecordingIdea, collabBlueprint: sharedCollabBlueprint, collabMode: sharedMode } },
-  );
-  // Reflete no objeto em memória pro payload de retorno deste lado.
-  own.recordingIdea = sharedRecordingIdea;
-  own.collabBlueprint = sharedCollabBlueprint;
-  own.collabMode = sharedMode;
-
-  // Um documento canônico por par de decisões torna este match idempotente sem
-  // impedir que as mesmas pessoas façam outra collab futura no mesmo assunto.
-  // Dois swipes simultâneos podem reivindicar documentos de interesse
-  // diferentes, mas apenas um deles cria este registro e envia os avisos.
-  const [userA, userB] = [userId, partnerId].sort();
-  let shouldNotify = false;
-  try {
-    await CollabMatch.create({
-      pairKey: canonicalMatchKey(own._id, reciprocal._id),
-      userA: new Types.ObjectId(userA),
-      userB: new Types.ObjectId(userB),
-      territoryNorm,
-    });
-    shouldNotify = true;
-  } catch (error) {
-    const code = (error as { code?: unknown })?.code;
-    if (code !== 11000) {
-      logger.warn(`${TAG} match confirmado, mas o registro canônico falhou`, error);
-    }
-  }
-
-  // 4. Perfis pros payloads + aviso.
-  const [viewer, partner] = await Promise.all([
-    UserModel.findById(userOid).select(PARTNER_FIELDS).lean<PartnerUserLean>(),
-    UserModel.findById(partnerOid).select(PARTNER_FIELDS).lean<PartnerUserLean>(),
-  ]);
-  if (!partner) {
-    // Parceiro sumiu entre o match e o fetch — improvável; match fica registrado.
-    logger.warn(`${TAG} match registrado mas parceiro ${partnerId} não encontrado`);
-    return { ok: true, matched: true, match: null };
-  }
-
-  if (viewer && shouldNotify) {
-    await notifyMatchedPair(
-      { user: viewer, pautaTitle: cleanIdeaText(own.pautaTitle), partnerName: partner.name ?? "outro criador" },
-      { user: partner, pautaTitle: cleanIdeaText(reciprocal.pautaTitle), partnerName: viewer.name ?? "outro criador" },
-    );
-  }
-
-  return { ok: true, matched: true, match: buildMatchPayload(partner, own) };
+  // Escritas novas exigem proposta versionada. Este adaptador só existe para
+  // clientes legados receberem uma resposta clara em vez de criar matches por território.
+  return { ok: false, matched: false, match: null, error: "refresh_required" };
 }
 
 // ─── Hidratação do estado ─────────────────────────────────────────────────────
@@ -374,14 +192,16 @@ export async function getCollabInterestState(userId: string): Promise<CollabInte
   const matched = docs.filter((d) => d.matchedAt);
 
   let matches: CollabInterestState["matches"] = [];
-  if (matched.length > 0) {
-    const partnerIds = [...new Set(matched.map((d) => d.partner.toString()))];
+  let partnersById = new Map<string, PartnerUserLean>();
+  if (docs.length > 0) {
+    const partnerIds = [...new Set(docs.map((d) => String(d.partner)))];
     const partners = await UserModel.find({ _id: { $in: partnerIds } })
       .select(PARTNER_FIELDS)
       .lean<PartnerUserLean[]>();
     const byId = new Map(partners.map((p) => [p._id.toString(), p]));
+    partnersById = byId;
     matches = matched.flatMap((d) => {
-      const partner = byId.get(d.partner.toString());
+      const partner = byId.get(String(d.partner)) || (d.partner ? { _id: d.partner, name: 'Perfil indisponível' } : null);
       // isNew = casou mas este criador ainda não viu a comemoração (estava fora
       // quando o outro topou) → o shell dispara a festa na volta.
       return partner ? [{
@@ -399,7 +219,7 @@ export async function getCollabInterestState(userId: string): Promise<CollabInte
 
   return {
     ok: true,
-    decisions: pending.map((d) => ({ pautaId: d.pautaId, decision: d.decision })),
+    decisions: pending.map((d) => ({ pautaId: d.pautaId, pautaTitle: d.pautaTitle, territory: d.pautaTerritory, decision: d.decision, expiresAt: d.expiresAt?.toISOString(), collab: partnersById.has(String(d.partner)) ? buildMatchPayload(partnersById.get(String(d.partner))!, d) : undefined })),
     matches,
   };
 }

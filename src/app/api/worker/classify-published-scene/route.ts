@@ -1,3 +1,4 @@
+import { enqueueProfileRefresh, enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
 /**
  * POST /api/worker/classify-published-scene
  *
@@ -113,6 +114,8 @@ async function processReading(metricId: string, lease: { token: string; result: 
     await upsertPublishedContentEvidence({ metricId, scene: lease.result });
     await MetricModel.updateOne({ _id: metric._id }, { $set: { sceneElements: sceneElementsUpdate(lease.result as any) } });
     await enqueueScriptEvidenceMaintenance(String(metric.user));
+    await enqueueProfileRefresh(String(metric.user));
+    await enqueueInstagramMapEnrichment(String(metric.user));
     return NextResponse.json({ ok: true, recoveredFromCheckpoint: true });
   }
   if (!metric.instagramMediaId) {
@@ -146,7 +149,7 @@ async function processReading(metricId: string, lease: { token: string; result: 
     return NextResponse.json({ message: "Criador sem token do Instagram." });
   }
 
-  if (!(await claimGeminiAvailability())) return NextResponse.json({ message: "Provedor temporariamente pausado; leitura adiada." });
+  if (!(await claimGeminiAvailability())) return NextResponse.json({ message: "Provedor temporariamente pausado por saldo; leitura adiada." });
   const media = await freshMedia(metric.instagramMediaId, token);
   const outcome = media.mediaType === "VIDEO" && media.mediaUrl
     ? await evaluateSceneAgainstMap({
@@ -201,6 +204,8 @@ async function processReading(metricId: string, lease: { token: string; result: 
     { $set: { sceneElements: sceneElementsUpdate(outcome.result) } },
   );
   await enqueueScriptEvidenceMaintenance(String(metric.user));
+  await enqueueProfileRefresh(String(metric.user));
+  await enqueueInstagramMapEnrichment(String(metric.user));
 
   logger.info(
     `${TAG} ${metricId}: ${outcome.result.assetRoleIds.join(", ") || "(nenhum asset)"} · ` +

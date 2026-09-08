@@ -1,3 +1,6 @@
+import { PROFILE_POLICY_VERSION, observedSubjects, selectSubjectCover, uniqueMetrics, isVideo, isReadable } from './evolution';
+import { chooseComparisonMetric, evaluateConsistency, CONSISTENT_POLICY_VALIDATED, rankScore, formatCohort, type ComparisonMetric } from './evidencePolicy';
+import { classifyCreatorHookPattern, CREATOR_HOOK_PATTERN_LABELS } from '@/app/dashboard/boards/videoUpload/creatorHookEvidence';
 import {
   canonicalAestheticById,
   canonicalAssetRoleById,
@@ -14,7 +17,6 @@ import {
 import {
   CREATOR_WEEKLY_REPORT_SCHEMA_VERSION,
   type CreatorWeeklyReportDetail,
-  type CreatorWeeklyReportEvidence,
   type CreatorWeeklyReportPayload,
   type CreatorWeeklyReportRankGroup,
   type CreatorWeeklyReportRankItem,
@@ -24,6 +26,11 @@ import {
 type MetricStats = Record<string, unknown>;
 
 export interface CreatorWeeklyReportMetricInput {
+  _id?: unknown;
+  type?: string;
+  createdAt?: Date | string | null;
+  classificationStatus?: string | null;
+  d7Stats?: MetricStats | null;
   instagramMediaId?: string | null;
   postLink?: string | null;
   postDate: Date | string;
@@ -44,6 +51,8 @@ export interface CreatorWeeklyReportMetricInput {
     aestheticIds?: unknown;
     openingLine?: unknown;
     version?: unknown;
+    analyzedAt?: Date | string | null;
+    screenTitle?: unknown;
   } | null;
 }
 
@@ -54,10 +63,11 @@ type PreparedMetric = Omit<CreatorWeeklyReportMetricInput, "postDate"> & {
   shares: number | null;
 };
 
+type Baseline = { shares: number | null; saved: number | null; views: number | null; dimension: ComparisonMetric | null; reference: PreparedMetric[]; now: Date };
+
 type ExtractedItem = { id: string; label: string };
 
 const MAX_RANK_ITEMS = 10;
-const EVIDENCE_K = 5;
 
 function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -87,18 +97,6 @@ function indexAgainst(value: number | null, baseline: number | null): number | n
   return value / baseline;
 }
 
-function evidenceFor(nPosts: number): CreatorWeeklyReportEvidence {
-  const confidence = nPosts <= 0 ? 0 : nPosts / (nPosts + EVIDENCE_K);
-  if (confidence < 0.35) return "indicio";
-  if (confidence < 0.6) return "sinal";
-  return "tendencia";
-}
-
-function rankStrength(index: number | null, nPosts: number): number {
-  if (index === null || !Number.isFinite(index)) return 0;
-  return 1 + (index - 1) * (nPosts / (nPosts + EVIDENCE_K));
-}
-
 function normalizeText(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const text = value.trim().replace(/\s+/g, " ");
@@ -120,19 +118,15 @@ function stringList(value: unknown): string[] {
   return result;
 }
 
-function bestPerformanceIndex(
-  metrics: Pick<PreparedMetric, "shares" | "saved" | "views">,
-  baseline: { shares: number | null; saved: number | null; views: number | null },
-): number | null {
-  return (
-    indexAgainst(metrics.shares, baseline.shares) ??
-    indexAgainst(metrics.saved, baseline.saved) ??
-    indexAgainst(metrics.views, baseline.views)
-  );
+function bestPerformanceIndex(metric: PreparedMetric, baseline: Baseline): number | null {
+  const dimension = baseline.dimension;
+  if (!dimension) return null;
+  const peers = baseline.reference.filter(peer => formatCohort(peer) === formatCohort(metric));
+  return indexAgainst(metric[dimension], median(peers.map(peer => peer[dimension])));
 }
 
 function prepareMetrics(metrics: CreatorWeeklyReportMetricInput[]): PreparedMetric[] {
-  return metrics
+  return uniqueMetrics(metrics)
     .map((metric) => {
       const postDate = metric.postDate instanceof Date ? metric.postDate : new Date(metric.postDate);
       if (Number.isNaN(postDate.getTime())) return null;
@@ -153,7 +147,7 @@ function buildRankGroup(params: {
   subtitle: string;
   metrics: PreparedMetric[];
   weekStartsAt: Date;
-  baseline: { shares: number | null; saved: number | null; views: number | null };
+  baseline: Baseline;
   extract: (metric: PreparedMetric) => ExtractedItem[];
   minimumPosts?: number;
 }): CreatorWeeklyReportRankGroup {
@@ -169,27 +163,29 @@ function buildRankGroup(params: {
   const items: CreatorWeeklyReportRankItem[] = [];
   for (const [id, group] of groups) {
     if (group.metrics.length < (params.minimumPosts ?? 1)) continue;
-    const aggregate = {
-      shares: median(group.metrics.map((metric) => metric.shares)),
-      saved: median(group.metrics.map((metric) => metric.saved)),
-      views: median(group.metrics.map((metric) => metric.views)),
-    };
+    const index = median(group.metrics.map(metric => bestPerformanceIndex(metric, params.baseline)));
+    const candidateConsistent = evaluateConsistency(group.metrics, params.baseline.reference, params.baseline.now, params.id.startsWith('opening') ? 'opening' : !['weekday', 'time-slot'].includes(params.id));
     items.push({
       id,
       label: group.label,
       nPosts: group.metrics.length,
-      index: bestPerformanceIndex(aggregate, params.baseline),
-      evidence: evidenceFor(group.metrics.length),
+      index: index,
+      score: rankScore(index, group.metrics.length),
+      comparisonMetric: params.baseline.dimension ?? undefined,
+      candidateConsistent,
+      consistent: CONSISTENT_POLICY_VALIDATED && candidateConsistent,
+      evidence: 'indicio',
       weeklyOccurrences: group.metrics.filter((metric) => metric.postDate >= params.weekStartsAt).length,
     });
   }
 
-  items.sort((a, b) => rankStrength(b.index, b.nPosts) - rankStrength(a.index, a.nPosts));
+  items.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   return {
     id: params.id,
     title: params.title,
     subtitle: params.subtitle,
+    ...(params.id === 'opening-mechanisms' ? { grouping: { version: 'hook_mechanism_heuristic_v1', source: 'sceneElements.openingLine', confidence: 'descriptive' as const } } : {}),
     items: items.slice(0, MAX_RANK_ITEMS),
   };
 }
@@ -200,7 +196,7 @@ function buildTextExtremesGroup(params: {
   subtitle: string;
   metrics: PreparedMetric[];
   weekStartsAt: Date;
-  baseline: { shares: number | null; saved: number | null; views: number | null };
+  baseline: Baseline;
   extract: (metric: PreparedMetric) => string | null;
   ascending?: boolean;
 }): CreatorWeeklyReportRankGroup {
@@ -212,6 +208,11 @@ function buildTextExtremesGroup(params: {
         id: `${params.id}-${metric.instagramMediaId ?? metric.postDate.toISOString()}`,
         label,
         nPosts: 1,
+        postId: String(metric._id ?? metric.instagramMediaId ?? ''),
+        postLink: metric.postLink ?? null,
+        publishedAt: metric.postDate.toISOString(),
+        comparisonMetric: params.baseline.dimension ?? undefined,
+        consistent: false,
         index: bestPerformanceIndex(metric, params.baseline),
         evidence: "indicio" as const,
         weeklyOccurrences: metric.postDate >= params.weekStartsAt ? 1 : 0,
@@ -238,7 +239,7 @@ function truncateDescription(value: string | null | undefined): string {
 
 function buildWeeklyVideo(
   weekMetrics: PreparedMetric[],
-  baseline: { shares: number | null; saved: number | null; views: number | null },
+  baseline: Baseline,
 ): CreatorWeeklyReportVideo | null {
   const sorted = [...weekMetrics].sort((a, b) => {
     const aIndex = bestPerformanceIndex(a, baseline);
@@ -291,7 +292,10 @@ export function buildCreatorWeeklyReport(params: {
     (metric) => metric.postDate >= params.week.startsAt && metric.postDate <= params.week.endsAt,
   );
   const sceneMetrics = metrics.filter((metric) => Boolean(metric.sceneElements?.version));
-  const baseline = {
+  const baseline: Baseline = {
+    dimension: chooseComparisonMetric(metrics),
+    reference: metrics,
+    now: generatedAt,
     shares: median(metrics.map((metric) => metric.shares)),
     saved: median(metrics.map((metric) => metric.saved)),
     views: median(metrics.map((metric) => metric.views)),
@@ -423,11 +427,22 @@ export function buildCreatorWeeklyReport(params: {
   ].filter((group) => group.items.length > 0);
 
   const openingGroups = [
+    buildRankGroup({
+      id: 'opening-mechanisms', title: 'Jeitos de começar', subtitle: 'Agrupamento por mecanismo observado; ainda em validação.',
+      metrics: sceneMetrics.filter(isVideo), weekStartsAt: params.week.startsAt, baseline,
+      minimumPosts: 2,
+      extract: metric => {
+        const opening = normalizeText(metric.sceneElements?.openingLine);
+        if (!opening) return [];
+        const id = classifyCreatorHookPattern(opening);
+        return [{ id, label: CREATOR_HOOK_PATTERN_LABELS[id] }];
+      },
+    }),
     buildTextExtremesGroup({
       id: "openings-best",
       title: "Aberturas mais fortes",
       subtitle: "Como começaram os vídeos que mais renderam.",
-      metrics: sceneMetrics,
+      metrics: sceneMetrics.filter(isVideo),
       weekStartsAt: params.week.startsAt,
       baseline,
       extract: (metric) => normalizeText(metric.sceneElements?.openingLine),
@@ -436,7 +451,7 @@ export function buildCreatorWeeklyReport(params: {
       id: "openings-weak",
       title: "Aberturas que renderam menos",
       subtitle: "Serve de contraste, não de regra.",
-      metrics: sceneMetrics,
+      metrics: sceneMetrics.filter(isVideo),
       weekStartsAt: params.week.startsAt,
       baseline,
       ascending: true,
@@ -493,9 +508,8 @@ export function buildCreatorWeeklyReport(params: {
     },
   ];
 
-  const observedSubjects = Array.from(
-    new Set(sceneMetrics.flatMap((metric) => stringList(metric.sceneElements?.subjects))),
-  ).slice(0, 12);
+  const allSubjects = observedSubjects(sceneMetrics, generatedAt);
+  const subjectCover = selectSubjectCover(allSubjects, 12).map(item => item.label);
   const weeklySaved = weekMetrics.reduce((total, metric) => total + (metric.saved ?? 0), 0);
   const weeklyShares = weekMetrics.reduce((total, metric) => total + (metric.shares ?? 0), 0);
   const newestMetric = [...metrics].sort((a, b) => {
@@ -506,13 +520,14 @@ export function buildCreatorWeeklyReport(params: {
 
   return {
     schemaVersion: CREATOR_WEEKLY_REPORT_SCHEMA_VERSION,
+    policyVersion: PROFILE_POLICY_VERSION,
     weekKey: params.week.weekKey,
     period: {
       startsAt: params.week.startsAt.toISOString(),
       endsAt: params.week.endsAt.toISOString(),
       rangeLabel: params.week.rangeLabel,
     },
-    status: metrics.length > 0 && scenePercent >= 40 ? "ready" : "partial",
+    status: metrics.length > 0 && metrics.filter(isReadable).length > 0 && metrics.filter(isReadable).every(metric => Boolean(metric.sceneElements?.version)) ? "ready" : "partial",
     generatedAt: generatedAt.toISOString(),
     sourceMetricsUpdatedAt: newestMetric?.updatedAt
       ? new Date(newestMetric.updatedAt).toISOString()
@@ -534,7 +549,7 @@ export function buildCreatorWeeklyReport(params: {
         { value: formatCompactNumber(weeklySaved), label: "salvamentos" },
         { value: formatCompactNumber(weeklyShares), label: "compartilhamentos" },
       ],
-      observedSubjects,
+      observedSubjects: subjectCover,
     },
     weeklyVideo: buildWeeklyVideo(weekMetrics, baseline),
     details,

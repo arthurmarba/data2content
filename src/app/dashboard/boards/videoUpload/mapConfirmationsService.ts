@@ -1,3 +1,4 @@
+import MapaSeed from '@/app/models/MapaSeed';
 /**
  * mapConfirmationsService.ts
  *
@@ -162,6 +163,9 @@ export async function confirmMapDimension(
 
   // narrative | territories | tone
   const dimensionState = responseToState(params.response);
+  const currentMap = await MapaSeed.findOne({ userId }).select('mapa updatedAt').lean();
+  const confirmedValue = params.dimension === 'narrative' ? currentMap?.mapa.narrativa_central
+    : params.dimension === 'tone' ? currentMap?.mapa.tom : currentMap?.mapa.territorios.join(' | ');
   const fieldPrefix = params.dimension; // "narrative" | "territories" | "tone"
 
   await CreatorMapConfirmations.findOneAndUpdate(
@@ -171,6 +175,11 @@ export async function confirmMapDimension(
         [`${fieldPrefix}.state`]: dimensionState,
         [`${fieldPrefix}.response`]: params.response,
         [`${fieldPrefix}.confirmedAt`]: now,
+        [`${fieldPrefix}.confirmedValue`]: confirmedValue ?? null,
+        [`${fieldPrefix}.confirmedRevision`]: currentMap?.updatedAt?.toISOString() ?? null,
+        // Este endpoint legado não recebe o texto exibido. Guardamos a referência
+        // atual sem atribuir à pessoa a aprovação de uma frase desconhecida.
+        [`${fieldPrefix}.valueOrigin`]: confirmedValue ? "migration" : null,
         updatedAt: now,
       },
     },

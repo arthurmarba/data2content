@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 // src/app/lib/mapaSeed/enrichMapaSeedWithVideoForUser.ts
 //
 // Enriquece o MapaSeed de um usuário com a síntese das leituras de vídeo que
@@ -56,6 +57,8 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
       return;
     }
 
+    const sourceRevision = createHash('sha256').update(JSON.stringify(publishingReadings)).digest('hex');
+    if (mapaDoc.videoSourceRevision === sourceRevision) return;
     const synthesis = buildCreatorStrategicProfileSynthesis({ readings: publishingReadings });
     if (synthesis.status === "empty" || synthesis.analyzedReadingsCount < 1) {
       logger.info(`${TAG} Síntese vazia para userId=${userId} — ignorado.`);
@@ -63,7 +66,7 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
     }
 
     // Estabilidade do núcleo (G3): mesmo o vídeo respeita narrativa/tom confirmados.
-    const confirmations = await getMapConfirmationsSnapshot(userId).catch(() => null);
+    const confirmations = await getMapConfirmationsSnapshot(userId);
     const locks = {
       narrativeLocked: confirmations?.narrative === "confirmed",
       toneLocked: confirmations?.tone === "confirmed",
@@ -73,10 +76,12 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
       mapaDoc.mapa,
       synthesis,
       locks,
+      { source: 'video', revision: sourceRevision, evidence: publishingReadings.map((reading: any) => ({ id: String(reading.diagnosisId) })) },
     );
 
     mapaDoc.mapa = mapaEnriquecido;
     mapaDoc.videoEnrichedAt = new Date();
+    mapaDoc.videoSourceRevision = sourceRevision;
     await mapaDoc.save();
 
     logger.info(

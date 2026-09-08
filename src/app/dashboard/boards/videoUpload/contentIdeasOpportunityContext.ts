@@ -44,8 +44,8 @@ function chooseTiming(buckets: TimeBucket[]): ContentIdeaTimingRecommendation | 
       dayLabel: day,
       windowLabel,
       shortLabel: `${day.replace("-feira", "")}, ${formatHour(bestExact.hour)}–${formatHour(endHour)}`,
-      confidence: "high",
-      reason: "Seus posts costumam receber mais respostas nesse período.",
+      confidence: "medium",
+      reason: "Um horário para testar com base nos seus vídeos. O assunto e a execução também influenciam o resultado.",
       sampleSize: totalPosts,
     };
   }
@@ -73,7 +73,7 @@ function chooseTiming(buckets: TimeBucket[]): ContentIdeaTimingRecommendation | 
     windowLabel: period,
     shortLabel: `${day.replace("-feira", "")} ${period}`,
     confidence: "medium",
-    reason: "Esse dia teve bons resultados nos seus posts recentes.",
+    reason: "Uma possibilidade para testar com base nos vídeos analisados deste período.",
     sampleSize: totalPosts,
   };
 }
@@ -81,25 +81,11 @@ function chooseTiming(buckets: TimeBucket[]): ContentIdeaTimingRecommendation | 
 export async function buildContentIdeasOpportunityContext(
   userId: string,
 ): Promise<ContentIdeasOpportunityContext> {
-  const [baseline, timePerformance] = await Promise.all([
-    buildCreatorEngagementBaseline(userId).catch(() => null),
-    aggregateUserTimePerformance(userId, 180, "stats.total_interactions").catch(() => null),
+  const { readCreativeEvidence } = await import('@/app/lib/collabs/evidence');
+  const [creativeSignals, timePerformance] = await Promise.all([
+    readCreativeEvidence(userId),
+    aggregateUserTimePerformance(userId, 90, "stats.total_interactions", { format: "reel" }).catch(() => null),
   ]);
-
-  const creativeSignals: ContentIdeasCreativeSignals | null = baseline && baseline.postsAnalyzed > 0
-    ? {
-        postsAnalyzed: baseline.postsAnalyzed,
-        windowDays: baseline.windowDays,
-        confidence: baseline.confidence,
-        subject: baseline.patterns.subject?.label ?? null,
-        place: baseline.patterns.place?.label ?? null,
-        object: baseline.patterns.object?.label ?? null,
-        framing: baseline.patterns.framing?.label ?? null,
-        tone: baseline.patterns.tone?.label ?? null,
-        openingLines: baseline.examples.openingLines,
-        screenTitles: baseline.examples.screenTitles,
-      }
-    : null;
 
   return {
     creativeSignals,
