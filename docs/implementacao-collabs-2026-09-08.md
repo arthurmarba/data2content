@@ -52,3 +52,7 @@ A deduplicação editorial automática ainda é heurística: sinônimos e histó
 - Fila: credenciais cadastradas em produção e agendamento `content-intelligence-recovery` ativo (`20 */6 * * *`).
 - Verificação ampliada: 325 testes aprovados em 37 suítes; os 14 testes de persistência passaram separadamente com MongoDB descartável fora do sandbox (a primeira tentativa local não iniciou o processo a tempo). Total: 339 testes. Build de produção e ESLint direto aprovados após a ocultação.
 - Piloto inicial preparado para as três contas administradoras, enquanto o alcance mais amplo aguarda definição.
+
+## Bloqueio externo confirmado
+
+A chamada mínima ao modelo de pautas em 08/09 retornou HTTP 429 com créditos pré-pagos esgotados. Por isso, o piloto das três contas administradoras fica configurado, mas com geração pausada. A avaliação editorial de gerações reais e o teste de entrega de pautas pela fila dependem da reposição de saldo do Gemini. Não houve ampliação para outros usuários nem envio de WhatsApp.
