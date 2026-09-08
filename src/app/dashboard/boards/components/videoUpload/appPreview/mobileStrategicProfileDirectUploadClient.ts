@@ -1,5 +1,8 @@
+import { fetchVideoRequest } from "./videoUploadRequest";
 export type MobileStrategicProfileDirectUploadInput = {
   file: File;
+  signal?: AbortSignal;
+  onProgress?: (percent: number) => void;
   uploadUrl: string;
   method: "PUT";
   headers: Record<string, string>;
@@ -90,6 +93,27 @@ function sanitizeHeaders(headers: Record<string, string>): Record<string, string
   return safeHeaders;
 }
 
+function transfer(url: string, headers: Record<string, string>, input: MobileStrategicProfileDirectUploadInput): Promise<Response> {
+  if (!input.onProgress) return fetchVideoRequest(url, { method: "PUT", headers, body: input.file, credentials: "omit", signal: input.signal }, 180000);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const abort = () => xhr.abort();
+    const done = () => input.signal?.removeEventListener("abort", abort);
+    xhr.open("PUT", url);
+    xhr.timeout = 180000;
+    xhr.withCredentials = false;
+    Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+    xhr.upload.onprogress = event => { if (event.lengthComputable) input.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100))); };
+    xhr.onload = () => { done(); resolve(new Response(null, { status: xhr.status, headers: { "x-d2c-local-temp-upload": xhr.getResponseHeader("x-d2c-local-temp-upload") || "" } })); };
+    xhr.onerror = () => { done(); reject(new Error("A conexão caiu durante o envio.")); };
+    xhr.ontimeout = () => { done(); reject(new Error("O envio demorou demais. Confira sua conexão e tente novamente.")); };
+    xhr.onabort = () => { done(); reject(new DOMException("Envio cancelado.", "AbortError")); };
+    if (input.signal?.aborted) { reject(new DOMException("Envio cancelado.", "AbortError")); return; }
+    input.signal?.addEventListener("abort", abort, { once: true });
+    xhr.send(input.file);
+  });
+}
+
 export async function uploadVideoToTemporarySignedUrl(
   input: MobileStrategicProfileDirectUploadInput,
 ): Promise<MobileStrategicProfileDirectUploadResult> {
@@ -128,6 +152,7 @@ export async function uploadVideoToTemporarySignedUrl(
   const fetchUploadUrl = resolveFetchUploadUrl(input.uploadUrl, parsedUrl);
 
   for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
+    if (input.signal?.aborted) return { ok: false, status: "failed", errorMessage: "Envio cancelado." };
     if (hasExpired(input.expiresAt)) {
       return {
         ok: false,
@@ -137,12 +162,7 @@ export async function uploadVideoToTemporarySignedUrl(
     }
 
     try {
-      const response = await fetch(fetchUploadUrl, {
-        method: "PUT",
-        headers,
-        body: input.file,
-        credentials: "omit",
-      });
+      const response = await transfer(fetchUploadUrl, headers, input);
 
       if (response.ok) {
         if (
@@ -175,6 +195,7 @@ export async function uploadVideoToTemporarySignedUrl(
         errorMessage: HUMAN_UPLOAD_ERROR,
       };
     } catch {
+      if (input.signal?.aborted) return { ok: false, status: "failed", errorMessage: "Envio cancelado." };
       if (attempt < MAX_UPLOAD_ATTEMPTS) {
         await delay(350 * attempt);
         continue;

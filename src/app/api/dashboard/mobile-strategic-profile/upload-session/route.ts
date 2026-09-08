@@ -1,3 +1,4 @@
+import { registerUpload } from "@/app/lib/videoAnalysis/jobs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
@@ -287,6 +288,10 @@ export async function POST(request: Request) {
     if (!providerResult.ok) {
       const hasBlocker = providerResult.issues.some((issue) => issue.severity === "blocker");
       return NextResponse.json(providerResult, { status: hasBlocker ? 400 : 200 });
+    }
+
+    if (realUploadEnabled && !localDiscardUploadEnabled && providerResult.status === "signed_upload_session_created") {
+      await registerUpload(session.user.id, providerResult.uploadSession, mimeType, sizeBytes);
     }
 
     logUsageEvent(session.user.id, "video_upload_started", "video", { platform: "mobile" });

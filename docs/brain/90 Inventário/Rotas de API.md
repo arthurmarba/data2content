@@ -10,7 +10,7 @@ atualizado: 2026-09-08
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**428 rotas** em **55 grupos**.
+**430 rotas** em **55 grupos**.
 
 ## Índice
 
@@ -31,7 +31,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [chat](#chat) — 3 rotas
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
-- [cron](#cron) — 18 rotas
+- [cron](#cron) — 19 rotas
 - [dashboard](#dashboard) — 47 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -68,7 +68,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [videos](#videos) — 1 rota
 - [webhooks](#webhooks) — 2 rotas
 - [whatsapp](#whatsapp) — 7 rotas
-- [worker](#worker) — 10 rotas
+- [worker](#worker) — 11 rotas
 
 ## account
 
@@ -368,6 +368,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/cron/persist-usage-counters` | POST | `src/app/api/cron/persist-usage-counters/route.ts` |
 | `/api/cron/populate-community-inspirations` | POST | `src/app/api/cron/populate-community-inspirations/route.ts` |
 | `/api/cron/recover-content-intelligence` | GET, POST | `src/app/api/cron/recover-content-intelligence/route.ts` |
+| `/api/cron/recover-video-analyses` | POST | `src/app/api/cron/recover-video-analyses/route.ts` |
 | `/api/cron/refresh-instagram-data` | POST | `src/app/api/cron/refresh-instagram-data/route.ts` |
 | `/api/cron/regenerate-content-ideas` | GET, POST | `src/app/api/cron/regenerate-content-ideas/route.ts` |
 | `/api/cron/send-daily-tips` | POST | `src/app/api/cron/send-daily-tips/route.ts` |
@@ -762,6 +763,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
+| `/api/worker/analyze-uploaded-video` | POST | `src/app/api/worker/analyze-uploaded-video/route.ts` |
 | `/api/worker/backfill-post-cover` | POST | `src/app/api/worker/backfill-post-cover/route.ts` |
 | `/api/worker/classify-content` | GET, POST | `src/app/api/worker/classify-content/route.ts` |
 | `/api/worker/classify-published-scene` | GET, POST | `src/app/api/worker/classify-published-scene/route.ts` |

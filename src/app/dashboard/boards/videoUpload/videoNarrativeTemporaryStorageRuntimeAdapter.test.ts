@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import { S3Client } from "@aws-sdk/client-s3";
 import {
   resolveVideoNarrativeTemporaryStorageInput,

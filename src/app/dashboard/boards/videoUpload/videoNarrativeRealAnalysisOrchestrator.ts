@@ -1,3 +1,4 @@
+import { unlink } from "node:fs/promises";
 import type {
   VideoNarrativeAiProviderInput,
   VideoNarrativeAiProviderResult,
@@ -124,6 +125,7 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
     };
 
 export type VideoNarrativeRealAnalysisOrchestratorDeps = {
+  resumeMedia?: import("./videoNarrativeMediaProbe").VideoNarrativeVerifiedMediaMetadata;
   env?: EnvLike;
   requestId?: string;
   now?: () => Date;
@@ -438,7 +440,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
-  const storageInputResult = await resolveVideoNarrativeTemporaryStorageInput({
+  const storageInputResult = deps.resumeMedia ? { ok: true as const, geminiInput: { mimeType: deps.resumeMedia.mimeType, source: "temporary_storage" as const, filePath: undefined, bytes: undefined } } : await resolveVideoNarrativeTemporaryStorageInput({
     input: {
       uploadSessionId: params.payload.uploadSessionId,
       objectKey: params.payload.temporaryUpload?.objectKey ?? "",
@@ -465,7 +467,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
-  const mediaProbe = await (deps.probeMedia ?? probeVideoNarrativeMedia)({
+  try {
+  const mediaProbe = deps.resumeMedia ? { ok: true as const, metadata: deps.resumeMedia } : await (deps.probeMedia ?? probeVideoNarrativeMedia)({
     mimeType: storageInputResult.geminiInput.mimeType,
     bytes: storageInputResult.geminiInput.bytes,
     filePath: storageInputResult.geminiInput.filePath,
@@ -881,4 +884,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     },
     cleanupWarning,
   };
+  } finally {
+    if (storageInputResult.geminiInput.filePath) await unlink(storageInputResult.geminiInput.filePath).catch(() => undefined);
+  }
 }

@@ -1,3 +1,4 @@
+jest.mock("./mobileStrategicProfileAnalysisSubmitClient", () => ({ findPendingVideoAnalysis: jest.fn().mockResolvedValue(null) }));
 import fs from "fs";
 import path from "path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -373,6 +374,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -408,6 +410,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -436,6 +439,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
       fireEvent.change(fileInput, { target: { files: [fileMock] } });
 
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -461,6 +465,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -506,6 +511,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -544,6 +550,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -570,6 +577,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -614,6 +622,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -658,6 +667,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
@@ -714,6 +724,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Analisar conteúdo" })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {

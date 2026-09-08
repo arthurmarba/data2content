@@ -5,7 +5,7 @@ import path from "node:path";
 const projectRoot = process.cwd();
 const traceFile = path.join(
   projectRoot,
-  ".next/server/app/api/dashboard/mobile-strategic-profile/analyze-real/route.js.nft.json",
+  ".next/server/app/api/worker/analyze-uploaded-video/route.js.nft.json",
 );
 const ffmpegBinary = path.join(projectRoot, "node_modules/ffmpeg-static/ffmpeg");
 

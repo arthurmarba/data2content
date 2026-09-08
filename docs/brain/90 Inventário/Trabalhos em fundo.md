@@ -12,7 +12,7 @@ Duas famílias: **cron** (roda sozinho, no relógio) e **worker** (roda quando a
 
 Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura do QStash.
 
-## Cron — 18 tarefas no relógio
+## Cron — 19 tarefas no relógio
 
 | Tarefa | Arquivo |
 | --- | --- |
@@ -25,6 +25,7 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `persist-usage-counters` | `src/app/api/cron/persist-usage-counters/route.ts` |
 | `populate-community-inspirations` | `src/app/api/cron/populate-community-inspirations/route.ts` |
 | `recover-content-intelligence` | `src/app/api/cron/recover-content-intelligence/route.ts` |
+| `recover-video-analyses` | `src/app/api/cron/recover-video-analyses/route.ts` |
 | `refresh-instagram-data` | `src/app/api/cron/refresh-instagram-data/route.ts` |
 | `regenerate-content-ideas` | `src/app/api/cron/regenerate-content-ideas/route.ts` |
 | `send-daily-tips` | `src/app/api/cron/send-daily-tips/route.ts` |
@@ -35,10 +36,11 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `weekly-whatsapp-message` | `src/app/api/cron/weekly-whatsapp-message/route.ts` |
 | `whatsapp-trial` | `src/app/api/cron/whatsapp-trial/route.ts` |
 
-## Worker — 10 trabalhos enfileirados
+## Worker — 11 trabalhos enfileirados
 
 | Trabalho | Arquivo |
 | --- | --- |
+| `analyze-uploaded-video` | `src/app/api/worker/analyze-uploaded-video/route.ts` |
 | `backfill-post-cover` | `src/app/api/worker/backfill-post-cover/route.ts` |
 | `classify-content` | `src/app/api/worker/classify-content/route.ts` |
 | `classify-published-scene` | `src/app/api/worker/classify-published-scene/route.ts` |

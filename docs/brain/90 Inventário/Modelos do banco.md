@@ -8,7 +8,7 @@ atualizado: 2026-09-08
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **88 modelos.**
+Todo dado persistido é um modelo Mongoose. **89 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -99,6 +99,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **User** | `—` | `src/app/models/User.ts` |
 | **User** | `—` | `src/server/db/models/User.ts` |
 | **UserUsageSnapshot** | `user_usage_snapshots` | `src/app/models/UserUsageSnapshot.ts` |
+| **VideoAnalysisJob** | `—` | `src/app/models/VideoAnalysisJob.ts` |
 | **VideoAsset** | `videoassets` | `src/app/models/VideoAsset.ts` |
 | **WeeklyReportPrediction** | `weekly_report_predictions` | `src/app/models/WeeklyReportPrediction.ts` |
 | **WeeklyTerritoryReport** | `weekly_territory_reports` | `src/app/models/WeeklyTerritoryReport.ts` |

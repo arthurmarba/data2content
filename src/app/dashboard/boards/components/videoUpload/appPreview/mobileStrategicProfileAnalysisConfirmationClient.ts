@@ -1,3 +1,4 @@
+import { fetchVideoRequest } from "./videoUploadRequest";
 import type { MobileStrategicProfileAnalyzeConfirmationData } from "./MobileStrategicProfileAnalyzeFlow";
 import {
   buildData2ContentNarrativeContract,
@@ -75,8 +76,9 @@ export async function fetchAnalysisConfirmationDataFromReading(
   if (!id) return null;
 
   try {
-    const response = await fetch(
+    const response = await fetchVideoRequest(
       `/api/dashboard/mobile-strategic-profile/reading/${encodeURIComponent(id)}`,
+      { cache: "no-store" },
     );
     if (!response.ok) return null;
     const reading = await response.json();

@@ -1,4 +1,6 @@
 "use client";
+import { fetchVideoRequest } from "./videoUploadRequest";
+
 
 import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import { useCallback, useEffect, useMemo, useRef, startTransition, useState } from "react";
@@ -23,7 +25,7 @@ import {
 } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
-import { postMobileStrategicProfileAnalysisJson } from "./mobileStrategicProfileAnalysisSubmitClient";
+import { findPendingVideoAnalysis, postMobileStrategicProfileAnalysisJson } from "./mobileStrategicProfileAnalysisSubmitClient";
 import type {
   MobileStrategicProfileAnalyzeResult,
   MobileStrategicProfileAnalyzeFlowCompleteResult,
@@ -1284,9 +1286,13 @@ export function DiagnosticoRealShellClient({
     }
   }, [isMapReadyForExpansion, loadCreatorDirectory, openCategory]);
 
-  const handleNewReading = useCallback(() => {
+  const handleNewReading = useCallback(async () => {
     setAccessMessage(null);
     const state = data.accessState;
+    if (REAL_ANALYSIS_ENABLED && !["free_unused", "pro_needs_instagram", "pro_instagram_connected", "admin"].includes(state)) {
+      try { if (await findPendingVideoAnalysis()) { setAnalyzeFlowOpen(true); return; } }
+      catch { setAccessMessage("Não foi possível consultar sua análise agora. Tente novamente em instantes."); return; }
+    }
 
     if (
       state === "free_unused" ||
@@ -1337,6 +1343,9 @@ export function DiagnosticoRealShellClient({
 
   const handleAnalyzeSubmit = useCallback(
     async (payload: {
+      recoveryJobId?: string;
+      signal?: AbortSignal;
+      onProgress?: (stage: string) => void;
       creatorGoal: string;
       selectedGoalOption: "authority" | "authority_build" | "retention" | "format_test" | "sponsored_content";
       quickAnswers?: Array<{ id: string; value: string }>;
@@ -1351,16 +1360,16 @@ export function DiagnosticoRealShellClient({
         uploadedAt?: string;
       };
     }): Promise<MobileStrategicProfileAnalyzeResult> => {
-      if (REAL_ANALYSIS_ENABLED && !payload.temporaryUpload?.uploadSessionId) {
+      if (REAL_ANALYSIS_ENABLED && !payload.recoveryJobId && !payload.temporaryUpload?.uploadSessionId) {
         throw new Error("Envie o vídeo antes de iniciar a leitura real.");
       }
 
-      const useReal = REAL_ANALYSIS_ENABLED && Boolean(payload.temporaryUpload?.uploadSessionId);
+      const useReal = REAL_ANALYSIS_ENABLED && Boolean(payload.recoveryJobId || payload.temporaryUpload?.uploadSessionId);
       const endpoint = useReal
         ? "/api/dashboard/mobile-strategic-profile/analyze-real"
         : "/api/dashboard/mobile-strategic-profile/analyze";
 
-      const body = useReal
+      const body = payload.recoveryJobId ? { recoveryJobId: payload.recoveryJobId } : useReal
         ? {
             uploadSessionId: payload.temporaryUpload!.uploadSessionId,
             temporaryUpload: {
@@ -1393,9 +1402,11 @@ export function DiagnosticoRealShellClient({
       const { response, data: responseData } = await postMobileStrategicProfileAnalysisJson({
         endpoint,
         body,
+        signal: payload.signal,
+        onProgress: payload.onProgress,
       });
       if (!response.ok) {
-        const analysisError = new Error(responseData?.message ?? "Erro ao analisar vídeo.");
+        const analysisError = new Error(`${responseData?.message ?? "Erro ao analisar vídeo."}${responseData?.requestId ? ` Código: ${responseData.requestId.slice(-8)}.` : ""}`);
         // Surfaced by the flow to decide whether to offer "Tentar novamente".
         (analysisError as Error & { retryable?: boolean }).retryable = responseData?.retryable;
         throw analysisError;
@@ -1403,7 +1414,7 @@ export function DiagnosticoRealShellClient({
 
       const snap = responseData?.snapshot;
       const savedDiagnosisId = responseData?.videoReadingPersistence?.diagnosisId ?? null;
-      const readingConfirmationData = await fetchAnalysisConfirmationDataFromReading(savedDiagnosisId);
+      const readingConfirmationData = snap ? null : await fetchAnalysisConfirmationDataFromReading(savedDiagnosisId);
       const baseConfirmationData = readingConfirmationData ?? (snap
         ? {
             diagnosisSummary: snap.diagnosisSummary ?? null,
@@ -1532,11 +1543,13 @@ export function DiagnosticoRealShellClient({
       objectKey?: string;
       reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired";
     }) => {
-      await fetch("/api/dashboard/mobile-strategic-profile/upload-cleanup", {
+      const response = await fetchVideoRequest("/api/dashboard/mobile-strategic-profile/upload-cleanup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+
       });
+      if (!response.ok) throw new Error("Não foi possível confirmar a limpeza do envio.");
     },
     [],
   );

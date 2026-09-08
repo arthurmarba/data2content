@@ -1,3 +1,5 @@
+import { fetchVideoRequest } from "./videoUploadRequest";
+import { findPendingVideoAnalysis } from "./mobileStrategicProfileAnalysisSubmitClient";
 import { useState, useEffect, useRef } from "react";
 import { LayoutGroup } from "framer-motion";
 import {
@@ -101,6 +103,9 @@ type MobileStrategicProfileAnalyzeFlowProps = {
   completionSecondaryAction?: "another_video" | "upgrade";
   onCompletionUpgrade?: () => void;
   onSubmitAnalysis?: (payload: {
+    recoveryJobId?: string;
+    signal?: AbortSignal;
+    onProgress?: (stage: string) => void;
     creatorGoal: string;
     selectedGoalOption: "authority" | "authority_build" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
@@ -297,6 +302,15 @@ export function MobileStrategicProfileAnalyzeFlow({
   onCompletionUpgrade,
   initialThumbnailSrc = null,
 }: MobileStrategicProfileAnalyzeFlowProps) {
+  const closeRef = useRef<() => void>(() => undefined);
+  const selectionRef = useRef(0);
+  const transferRef = useRef<AbortController | null>(null);
+  const cleanupRef = useRef<{ uploadSessionId: string; objectKey?: string } | null>(null);
+  const [metadataPending, setMetadataPending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [recoveryJobId, setRecoveryJobId] = useState<string | null>(null);
+  const [checkingRecovery, setCheckingRecovery] = useState(enableRealAnalysis);
+  const [analysisStage, setAnalysisStage] = useState("queued");
   const sheetRef = useRef<HTMLElement | null>(null);
   const scriptSelectionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
@@ -332,14 +346,34 @@ export function MobileStrategicProfileAnalyzeFlow({
   const requestTemporaryUploadCleanup = (
     reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired",
   ) => {
-    if (!temporaryUploadForCleanup || !onCleanupTemporaryUpload) return;
+    const cleanup = cleanupRef.current ?? temporaryUploadForCleanup;
+    if (!cleanup || !onCleanupTemporaryUpload) return;
     onCleanupTemporaryUpload({
-      ...temporaryUploadForCleanup,
+      ...cleanup,
       reason,
     }).catch(() => {
       console.warn("Cleanup temporário não foi confirmado.");
     });
   };
+
+  useEffect(() => {
+    if (!open || !enableRealAnalysis) return;
+    const controller = new AbortController();
+    setCheckingRecovery(true);
+    findPendingVideoAnalysis(controller.signal).then(job => {
+      if (controller.signal.aborted) return;
+      if (job) { setRecoveryJobId(job.jobId); setStep("processing"); }
+    }).catch(() => {
+      if (!controller.signal.aborted) setFileValidationError("Não foi possível consultar análises em andamento. Feche e abra novamente antes de enviar.");
+    }).finally(() => { if (!controller.signal.aborted) setCheckingRecovery(false); });
+    return () => { controller.abort(); transferRef.current?.abort(); selectionRef.current++; };
+  }, [open, enableRealAnalysis]);
+
+  useEffect(() => {
+    if (step !== "confirmation") return;
+    const jobId = recoveryJobId ?? temporaryUploadForAnalysis?.uploadSessionId;
+    if (enableRealAnalysis && jobId) void fetchVideoRequest("/api/dashboard/mobile-strategic-profile/analyze-real", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acknowledge: true, jobId }) }).catch(() => undefined);
+  }, [step, enableRealAnalysis, recoveryJobId, temporaryUploadForAnalysis?.uploadSessionId]);
 
   useEffect(() => {
     if (!open) {
@@ -369,13 +403,14 @@ export function MobileStrategicProfileAnalyzeFlow({
 
   useEffect(() => {
     if (step !== "processing") return;
+    const controller = new AbortController();
 
     let active = true;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function triggerSubmit() {
       if (onSubmitAnalysis) {
-        if (enableRealAnalysis && !temporaryUploadForAnalysis?.uploadSessionId) {
+        if (enableRealAnalysis && !recoveryJobId && !temporaryUploadForAnalysis?.uploadSessionId) {
           setIsSubmitting(false);
           setErrorMsg("Não conseguimos confirmar o envio do vídeo. Volte e envie novamente.");
           return;
@@ -384,6 +419,9 @@ export function MobileStrategicProfileAnalyzeFlow({
         setErrorMsg(null);
         try {
           const result = await onSubmitAnalysis({
+            recoveryJobId: recoveryJobId ?? undefined,
+            signal: controller.signal,
+            onProgress: setAnalysisStage,
             creatorGoal: "Este conteúdo tem potencial de engajar com base no meu histórico?",
             selectedGoalOption: "retention",
             consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
@@ -416,7 +454,8 @@ export function MobileStrategicProfileAnalyzeFlow({
             setStep("confirmation");
           }
         } catch (err: any) {
-          if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
+          if (!active) return;
+          if (!enableRealAnalysis && temporaryUploadForCleanup && onCleanupTemporaryUpload) {
             try {
               await onCleanupTemporaryUpload({
                 ...temporaryUploadForCleanup,
@@ -431,10 +470,9 @@ export function MobileStrategicProfileAnalyzeFlow({
             setIsSubmitting(false);
             setErrorRetryable(err?.retryable !== false);
             setErrorMsg(err.message || "Ocorreu um erro no processamento do diagnóstico.");
-            setTemporaryUploadForCleanup(null);
-            setTemporaryUploadForAnalysis(null);
-            setUploadSessionValidated(false);
             setValidationStatus("idle");
+            setUploadSessionValidated(false);
+
           }
         }
       } else {
@@ -453,6 +491,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
     return () => {
       active = false;
+      controller.abort();
       if (fallbackTimer) {
         clearTimeout(fallbackTimer);
       }
@@ -461,11 +500,32 @@ export function MobileStrategicProfileAnalyzeFlow({
     step,
     onSubmitAnalysis,
     submitAttempt,
+    recoveryJobId,
     temporaryUploadForCleanup,
     onCleanupTemporaryUpload,
     temporaryUploadForAnalysis,
     enableRealAnalysis,
   ]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const sheet = sheetRef.current;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const items = () => Array.from(sheet?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]):not([type="file"]), [tabindex="0"]') ?? []);
+    items()[0]?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); closeRef.current(); }
+      if (event.key !== "Tab") return;
+      const nodes = items(), first = nodes[0], last = nodes[nodes.length - 1];
+      if (!sheet?.contains(document.activeElement)) { event.preventDefault(); first?.focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", keydown);
+    return () => { document.removeEventListener("keydown", keydown); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
+  }, [open]);
 
   if (!open) return null;
 
@@ -490,6 +550,10 @@ export function MobileStrategicProfileAnalyzeFlow({
         );
         return;
       }
+      const controller = new AbortController();
+      transferRef.current?.abort();
+      transferRef.current = controller;
+      setUploadProgress(0);
       setValidationStatus("validating");
       setFileValidationError(null);
       try {
@@ -497,6 +561,10 @@ export function MobileStrategicProfileAnalyzeFlow({
           buildUploadSessionPayloadFromFile(selectedFile, true, videoDurationSeconds),
         );
 
+        if (controller.signal.aborted) {
+          if (res.uploadSession) await onCleanupTemporaryUpload?.({ uploadSessionId: res.uploadSession.id, objectKey: res.uploadSession.objectKey, reason: "user_cancelled" });
+          return;
+        }
         if (res.ok && res.status === "mock_session_created") {
           if (enableRealAnalysis) {
             setValidationStatus("error");
@@ -519,6 +587,8 @@ export function MobileStrategicProfileAnalyzeFlow({
             return;
           }
 
+          cleanupRef.current = { uploadSessionId: session.id, objectKey: session.objectKey };
+          setTemporaryUploadForCleanup(cleanupRef.current);
           setValidationStatus("uploading");
           const uploadResult = await onUploadToTemporarySignedUrl({
             file: selectedFile,
@@ -526,8 +596,14 @@ export function MobileStrategicProfileAnalyzeFlow({
             method: session.method,
             headers: session.headers,
             expiresAt: session.expiresAt,
+            signal: controller.signal,
+            onProgress: setUploadProgress,
           });
 
+          if (controller.signal.aborted) {
+            await onCleanupTemporaryUpload?.({ uploadSessionId: session.id, objectKey: session.objectKey, reason: "user_cancelled" });
+            return;
+          }
           if (!uploadResult.ok) {
             setValidationStatus("error");
             setFileValidationError(uploadResult.errorMessage || "Não foi possível enviar o vídeo agora.");
@@ -541,7 +617,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           setTemporaryUploadForAnalysis({
             uploadSessionId: session.id,
             objectKey: session.objectKey,
-            mimeType: selectedFile.type || "video/mp4",
+            mimeType: buildUploadSessionPayloadFromFile(selectedFile, true).mimeType,
             sizeBytes: selectedFile.size,
             ...(videoDurationSeconds !== null ? { durationSeconds: videoDurationSeconds } : {}),
             uploadedAt: uploadResult.uploadedAt,
@@ -554,6 +630,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           setFileValidationError(getUploadSessionErrorMessage(res));
         }
       } catch {
+        if (controller.signal.aborted) return;
         setValidationStatus("error");
         setFileValidationError("Não foi possível validar o vídeo agora.");
       }
@@ -565,9 +642,14 @@ export function MobileStrategicProfileAnalyzeFlow({
   const resetFlow = (
     cleanupReason?: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired",
   ) => {
+    transferRef.current?.abort();
+    selectionRef.current++;
+    setMetadataPending(false);
+    setRecoveryJobId(null);
     if (cleanupReason) {
       requestTemporaryUploadCleanup(cleanupReason);
     }
+    cleanupRef.current = null;
     setStep("upload");
     setErrorMsg(null);
     setSelectedFile(null);
@@ -584,9 +666,13 @@ export function MobileStrategicProfileAnalyzeFlow({
   };
 
   const close = () => {
+    const jobId = recoveryJobId ?? temporaryUploadForAnalysis?.uploadSessionId;
+    if (errorMsg && jobId) void fetchVideoRequest("/api/dashboard/mobile-strategic-profile/analyze-real", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acknowledge: true, jobId }) }).catch(() => undefined);
     resetFlow("user_cancelled");
     onClose();
   };
+
+  closeRef.current = close;
 
   const buildCompleteResult = (): MobileStrategicProfileAnalyzeFlowCompleteResult | undefined => {
     const thumb = thumbnailDataUrl;
@@ -611,6 +697,9 @@ export function MobileStrategicProfileAnalyzeFlow({
       return;
     }
 
+    selectionRef.current++;
+    setRecoveryJobId(null);
+    setMetadataPending(false);
     setStep("upload");
     setSelectedFile(null);
     setVideoDurationSeconds(null);
@@ -639,7 +728,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
   // Regra de disabled para o botão Continuar
   const isContinueDisabled =
-    isSubmitting ||
+    checkingRecovery || metadataPending || isSubmitting ||
     validationStatus === "validating" ||
     validationStatus === "uploading" ||
     (step === "upload" && Boolean(onCreateUploadSession) && !selectedFile) ||
@@ -677,7 +766,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           aria-label="Fechar fluxo de análise"
           className="-m-1.5 grid h-11 w-11 place-items-center rounded-full text-zinc-500 transition-colors disabled:opacity-50"
           onClick={close}
-          disabled={isSubmitting}
+          disabled={false}
         >
           <span className="grid h-8 w-8 place-items-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -700,15 +789,22 @@ export function MobileStrategicProfileAnalyzeFlow({
         <LayoutGroup id="content-analysis-flow">
         <div className="mt-4">
 
+        {step === "upload" && checkingRecovery ? <p role="status">Consultando suas análises…</p> : null}
+        {step === "upload" && validationStatus === "uploading" ? <p role="status">Enviando vídeo: {uploadProgress}%</p> : null}
+        {step === "upload" && metadataPending ? <p role="status">Verificando o vídeo…</p> : null}
+
         {step === "upload" ? (
           onCreateUploadSession ? (
             <div>
               <input
                 type="file"
+                disabled={checkingRecovery || validationStatus === "uploading" || validationStatus === "validating"}
                 accept="video/mp4,video/quicktime,video/webm"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    const selection = ++selectionRef.current;
+                    setMetadataPending(true);
                     requestTemporaryUploadCleanup("user_cancelled");
                     setSelectedFile(file);
                     setValidationStatus("idle");
@@ -723,9 +819,11 @@ export function MobileStrategicProfileAnalyzeFlow({
                       setFileValidationError("Arquivo muito grande. Escolha um vídeo de até 300 MB.");
                     }
                     extractVideoThumbnail(file).then((url) => {
-                      if (url) setThumbnailDataUrl(url);
+                      if (selection === selectionRef.current && url) setThumbnailDataUrl(url);
                     });
                     extractVideoDurationSeconds(file).then((duration) => {
+                      if (selection !== selectionRef.current) return;
+                      setMetadataPending(false);
                       setVideoDurationSeconds(duration);
                       if (duration !== null && duration > MAX_VIDEO_DURATION_SECONDS) {
                         setValidationStatus("error");
@@ -796,6 +894,8 @@ export function MobileStrategicProfileAnalyzeFlow({
                     type="button"
                     className="ds-inline-action shrink-0 !min-h-9 !px-3 !py-1.5"
                     onClick={() => {
+                      selectionRef.current++;
+                      setMetadataPending(false);
                       requestTemporaryUploadCleanup("user_cancelled");
                       setSelectedFile(null);
                       setVideoDurationSeconds(null);
@@ -824,6 +924,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         {step === "processing" ? (
           <AnalysisProcessingExperience
+            serverStage={enableRealAnalysis ? analysisStage : undefined}
             thumbnailSrc={thumbnailDataUrl}
             active={step === "processing" && !errorMsg}
             complete={processingComplete}

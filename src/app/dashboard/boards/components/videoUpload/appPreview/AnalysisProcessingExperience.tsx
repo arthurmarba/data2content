@@ -9,7 +9,9 @@ export function AnalysisProcessingExperience({
   complete,
   resetKey,
   errorMessage,
+  serverStage,
 }: {
+  serverStage?: string;
   thumbnailSrc?: string | null;
   active: boolean;
   complete: boolean;
@@ -84,6 +86,11 @@ export function AnalysisProcessingExperience({
           </h3>
           <p className="mt-3 text-sm leading-6 text-zinc-600">{errorMessage}</p>
         </motion.div>
+      ) : serverStage && !completed ? (
+        <div className="pt-6" role="status" aria-live="polite">
+          <p className="font-display text-xl font-bold text-zinc-950">{({ queued: "Vídeo recebido", analyzing: "Analisando seu vídeo", saving: "Salvando seu relatório", reconnecting: "Reconectando" } as Record<string, string>)[serverStage] || "Preparando seu relatório"}</p>
+          <p className="mt-2 text-sm text-zinc-600">Você pode fechar e voltar pelo botão + para acompanhar.</p>
+        </div>
       ) : (
         <div className="pt-6">
           <div className="flex items-end justify-between gap-4">

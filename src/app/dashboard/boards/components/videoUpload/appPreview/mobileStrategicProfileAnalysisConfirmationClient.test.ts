@@ -20,6 +20,7 @@ describe("mobileStrategicProfileAnalysisConfirmationClient", () => {
     });
 
     expect(result).toEqual({
+      contentPotentialScan: null,
       diagnosisSummary: "O video aponta para humor cotidiano com identificacao rapida como sinal do mapa narrativo.",
       unlockedSignals: [
         "Sinal narrativo: humor cotidiano com identificacao rapida",

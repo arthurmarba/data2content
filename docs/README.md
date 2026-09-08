@@ -20,6 +20,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `implementacao-upload-mobile-2026-09-08.md` | 09/2026 | Correções do upload: análise em fila, recuperação por sessão, proteção de arquivos, cancelamento, validação e ativação operacional |
+| `auditoria-upload-mobile-2026-09-08.md` · `brain/30 Armadilhas/Retry da análise reutiliza vídeo apagado.md` | 09/2026 | Revisão do upload pelo botão +: erros independentes de saldo, sete reproduções, recuperação, segurança e prioridades |
 | `implementacao-collabs-2026-09-08.md` | 09/2026 | Implementação local, testes, limites da validação e procedimento de liberação das novas Collabs |
 | `plano-melhorias-collabs-2026-09-08.md` | 09/2026 | Plano completo: integridade das parcerias, inteligência com evidência, descoberta, pauta compartilhada, experiência, migração e validação |
 | `auditoria-collabs-2026-09-08.md` | 09/2026 | Revisão de Collabs: experiência móvel e dedicada, qualidade das pautas, descoberta, reciprocidade, falhas reproduzidas e prioridades |

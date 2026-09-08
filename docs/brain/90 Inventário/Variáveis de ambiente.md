@@ -8,7 +8,7 @@ atualizado: 2026-09-08
 
 # Variáveis de ambiente
 
-**425 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**427 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 23 |
+| `CRON_SECRET` | 25 |
 
 ## FACEBOOK
 
@@ -131,7 +131,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXTAUTH_URL` | 36 |
+| `NEXTAUTH_URL` | 37 |
 | `NEXTAUTH_SECRET` | 16 |
 | `NEXTAUTH_SESSION_DB_REVALIDATION_CACHE_TTL_MS` | 1 |
 
@@ -139,7 +139,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 65 |
+| `NEXT_PUBLIC_APP_URL` | 66 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -179,7 +179,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `OPENAI_API_KEY` | 24 |
+| `OPENAI_API_KEY` | 26 |
 | `OPENAI_MODEL` | 21 |
 | `OPENAI_TEMP` | 14 |
 | `OPENAI_BASE_URL` | 8 |
@@ -217,9 +217,9 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 31 |
-| `QSTASH_NEXT_SIGNING_KEY` | 31 |
-| `QSTASH_TOKEN` | 29 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 34 |
+| `QSTASH_NEXT_SIGNING_KEY` | 34 |
+| `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
 ## REDIS
@@ -270,6 +270,8 @@ atualizado: 2026-09-08
 | `VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID` | 3 |
 | `VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY` | 3 |
 | `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED` | 2 |
+| `VIDEO_NARRATIVE_OPENAI_FALLBACK_ENABLED` | 1 |
+| `VIDEO_NARRATIVE_OPENAI_FALLBACK_MODEL` | 1 |
 | `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWED_EMAILS` | 1 |
 
 ## WHATSAPP
@@ -311,7 +313,7 @@ atualizado: 2026-09-08
 | Variável | Usos no código |
 | --- | --- |
 | `NODE_ENV` | 121 |
-| `APP_BASE_URL` | 21 |
+| `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
 | `LLM_PROVIDER_MAPA` | 7 |

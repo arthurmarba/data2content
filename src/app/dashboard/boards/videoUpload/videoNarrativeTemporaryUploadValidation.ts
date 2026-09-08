@@ -73,7 +73,7 @@ export function validateTemporaryUploadInput(
 
   // Bloqueio de disfarces de executáveis ou arquivos nocivos
   for (const restricted of RESTRICTED_EXTENSIONS) {
-    if (lowerFileName.includes(restricted)) {
+    if (lowerFileName.split(".").slice(1).includes(restricted.replace(/^\./, ""))) {
       issues.push({
         code: "executable_disguise_blocked",
         message: "Assinatura ou extensão de arquivo executável bloqueada por motivos de segurança.",

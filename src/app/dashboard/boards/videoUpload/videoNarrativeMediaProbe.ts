@@ -93,7 +93,7 @@ async function readMediaSignalsWithFfmpeg(filePath: string): Promise<{
         "-t",
         "10",
         "-vf",
-        "select=gt(scene\\,0.25),showinfo",
+        "scale=320:-2,select=gt(scene\\,0.25),showinfo",
         "-an",
         "-f",
         "null",

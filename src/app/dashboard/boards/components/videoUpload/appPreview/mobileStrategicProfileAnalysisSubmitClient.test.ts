@@ -6,7 +6,7 @@ describe("mobileStrategicProfileAnalysisSubmitClient", () => {
     global.fetch = jest.fn();
   });
 
-  it("repete falha transitória e retorna sucesso sem expor payload bruto", async () => {
+  it("não repete a geração após uma falha do servidor", async () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: false,
@@ -24,9 +24,9 @@ describe("mobileStrategicProfileAnalysisSubmitClient", () => {
       body: { uploadSessionId: "video-temp-upload-session-abc_123" },
     });
 
-    expect(result.response.ok).toBe(true);
-    expect(result.attempts).toBe(2);
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.response.ok).toBe(false);
+    expect(result.attempts).toBe(1);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("não repete quando a leitura já foi salva para evitar duplicidade", async () => {
@@ -49,4 +49,18 @@ describe("mobileStrategicProfileAnalysisSubmitClient", () => {
     expect(result.attempts).toBe(1);
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+});
+
+it('recupera resposta perdida consultando o trabalho, sem outro POST', async () => {
+  global.fetch = jest.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ job: { state: 'completed', httpStatus: 200, result: { ok: true, videoReadingPersistence: { saved: true, diagnosisId: 'saved' } } } }) });
+  const result = await postMobileStrategicProfileAnalysisJson({ endpoint: '/api/dashboard/mobile-strategic-profile/analyze-real', body: { uploadSessionId: 'session' } });
+  expect(result.response.ok).toBe(true);
+  const calls = (global.fetch as jest.Mock).mock.calls;
+  expect(calls.filter(([, init]) => init.method === 'POST')).toHaveLength(1);
+  expect(calls[1][0]).toContain('?jobId=session');
+});
+it('retoma uma análise persistida sem reenviar o vídeo', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ job: { state: 'completed', httpStatus: 200, result: { ok: true } } }) });
+  await postMobileStrategicProfileAnalysisJson({ endpoint: '/api/dashboard/mobile-strategic-profile/analyze-real', body: { recoveryJobId: 'saved-session' } });
+  expect((global.fetch as jest.Mock).mock.calls.every(([, init]) => init.method !== 'POST')).toBe(true);
 });

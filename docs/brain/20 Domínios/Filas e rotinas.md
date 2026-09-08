@@ -70,3 +70,7 @@ sincronização não espera pela IA de enriquecimento.
 ## Collabs (setembro de 2026)
 
 `/api/worker/collabs` processa `CollabJob` com assinatura QStash, lease e checkpoint. O cron `recover-content-intelligence` republica pedidos pendentes e conclui falhas esgotadas liberando reservas. `CollabSettings` controla piloto e pausa sem apagar propostas. O aviso de match é um evento criado na mesma transação da confirmação; resposta ambígua do provedor exige revisão, não reenvio automático.
+
+## Upload de vídeo (setembro de 2026)
+
+`VideoAnalysisJob` registra a sessão assinada, dono, estado e resultado. `lib/videoAnalysis/` aceita e recupera trabalhos; `/api/worker/analyze-uploaded-video` executa a análise com assinatura QStash. Há uma análise ativa por criador, resultado por sessão e checkpoint validado da IA. Uma interrupção sem checkpoint não repete automaticamente a chamada paga. `/api/cron/recover-video-analyses`, cadastrado para cada cinco minutos, recupera trabalhos e reconcilia arquivos temporários. Publicar o código não cadastra automaticamente o agendamento: ativá-lo na QStash faz parte da liberação.

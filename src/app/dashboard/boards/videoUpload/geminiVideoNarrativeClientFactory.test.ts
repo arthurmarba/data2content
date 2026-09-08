@@ -318,7 +318,7 @@ describe("geminiVideoNarrativeClientFactory", () => {
     expect(uploadFile).toHaveBeenCalledWith(
       expect.objectContaining({
         file: expect.stringMatching(/d2c-gemini-video-.+\.mov$/),
-        config: { mimeType: "video/quicktime" },
+        config: expect.objectContaining({ mimeType: "video/quicktime", httpOptions: { timeout: 60000 } }),
       }),
     );
     expect(mockedCreatePartFromBase64).not.toHaveBeenCalled();
@@ -326,7 +326,7 @@ describe("geminiVideoNarrativeClientFactory", () => {
       "https://generativelanguage.googleapis.com/v1beta/files/video-real",
       "video/quicktime",
     );
-    expect(deleteFile).toHaveBeenCalledWith({ name: "files/video-real" });
+    expect(deleteFile).toHaveBeenCalledWith({ name: "files/video-real", config: { httpOptions: { timeout: 3000 } } });
   });
 
   it("adapter server-side classifica bloqueio de permissão da File API", async () => {
@@ -388,7 +388,7 @@ describe("geminiVideoNarrativeClientFactory", () => {
       },
     });
 
-    expect(getFile).toHaveBeenCalledWith({ name: "files/video-processing" });
+    expect(getFile).toHaveBeenCalledWith(expect.objectContaining({ name: "files/video-processing", config: expect.objectContaining({ httpOptions: { timeout: 10000 } }) }));
     expect(mockedCreatePartFromUri).toHaveBeenCalledWith(
       "https://generativelanguage.googleapis.com/v1beta/files/video-processing",
       "video/mp4",

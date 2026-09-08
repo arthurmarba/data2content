@@ -58,6 +58,13 @@ const CRONS = [
     body: '[INSTAGRAM_REFRESH] Atualizar dados e renovar tokens próximos do vencimento',
   },
   {
+    id: 'video-analysis-recovery',
+    destination: 'https://data2content.ai/api/cron/recover-video-analyses',
+    cron: '*/5 * * * *',
+    method: 'POST',
+    body: '[VIDEO_ANALYSIS] Recuperar análises interrompidas e limpar envios temporários',
+  },
+  {
     id: 'content-intelligence-recovery',
     destination: 'https://data2content.ai/api/cron/recover-content-intelligence',
     cron: '20 */6 * * *',

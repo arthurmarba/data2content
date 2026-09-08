@@ -1,3 +1,4 @@
+import { cancelVideoUpload } from "@/app/lib/videoAnalysis/jobs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
@@ -97,17 +98,8 @@ export async function POST(request: Request) {
     }
 
     if (validation.payload.objectKey) {
-      const deleted = await deleteVideoNarrativeTemporaryStorageObject({
-        objectKey: validation.payload.objectKey,
-      });
-
-      if (deleted) {
-        return NextResponse.json({
-          ok: true,
-          status: "cleanup_accepted",
-          message: "Arquivo temporário excluído com sucesso do storage.",
-        });
-      }
+      const accepted = await cancelVideoUpload(session.user.id, validation.payload.uploadSessionId, validation.payload.objectKey);
+      return NextResponse.json({ ok: accepted, status: accepted ? "cleanup_accepted" : "cleanup_rejected" }, { status: accepted ? 200 : 403 });
     }
 
     return NextResponse.json(

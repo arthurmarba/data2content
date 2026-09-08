@@ -1,4 +1,6 @@
 /** @jest-environment node */
+jest.mock("@/app/lib/videoAnalysis/jobs", () => ({ cancelVideoUpload: jest.fn().mockResolvedValue(true) }));
+import { cancelVideoUpload } from "@/app/lib/videoAnalysis/jobs";
 import { NextRequest } from "next/server";
 import { POST, GET, PUT, PATCH, DELETE } from "./route";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
@@ -110,7 +112,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
     expect(body.status).toBe("cleanup_accepted");
   });
 
-  it("também exclui em analysis_failed para não reter o vídeo", async () => {
+  it("delega a limpeza de falha ao serviço que protege trabalhos ativos", async () => {
     const res = await POST(createRequest({ ...validPayload, reason: "analysis_failed" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -121,9 +123,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
         status: "cleanup_accepted",
       }),
     );
-    expect(deleteTemporaryStorageObject).toHaveBeenCalledWith({
-      objectKey: validPayload.objectKey,
-    });
+    expect(cancelVideoUpload).toHaveBeenCalledWith(expect.any(String), validPayload.uploadSessionId, validPayload.objectKey);
   });
 
   it("não retorna secrets nem URL assinada", async () => {

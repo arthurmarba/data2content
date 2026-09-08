@@ -218,6 +218,15 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(usageDeps.recordUsageAttempt).not.toHaveBeenCalled();
   });
 
+  it("retoma checkpoint validado mesmo quando o arquivo temporário já não está disponível", async () => {
+    const runProvider = jest.fn().mockResolvedValue({ ok: true, provider: "gemini", mode: "ready", promptVersion: "v1", analysis: geminiVideoNarrativeResponseFixture, issues: [] });
+    (resolveVideoNarrativeTemporaryStorageInput as jest.Mock).mockRejectedValue(new Error("arquivo expirado"));
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({ payload, user, deps: { env, ...usageDeps, runProvider, resumeMedia: { mimeType: "video/mp4", sizeBytes: 1024, durationSeconds: 30 }, cleanupTemporaryUpload: jest.fn() } });
+    expect(result.ok).toBe(true);
+    expect(resolveVideoNarrativeTemporaryStorageInput).not.toHaveBeenCalled();
+    expect(usageDeps.probeMedia).not.toHaveBeenCalled();
+  });
+
   it("sem flags chama provider fake, não persiste leitura/snapshot e aciona cleanup", async () => {
     const runProvider = jest.fn().mockResolvedValue({
       ok: true,

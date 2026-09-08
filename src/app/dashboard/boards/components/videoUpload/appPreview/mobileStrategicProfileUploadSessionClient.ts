@@ -1,3 +1,4 @@
+import { fetchVideoRequest } from "./videoUploadRequest";
 export type UploadSessionPayload = {
   fileName: string;
   mimeType: string;
@@ -37,7 +38,7 @@ export function buildUploadSessionPayloadFromFile(
 ): UploadSessionPayload {
   return {
     fileName: file.name,
-    mimeType: file.type,
+    mimeType: file.type || ({ mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm" }[file.name.split(".").pop()?.toLowerCase() || ""] ?? ""),
     sizeBytes: file.size,
     durationSeconds,
     userConsentAccepted,
@@ -50,10 +51,11 @@ export async function requestUploadSession(
   payload: UploadSessionPayload
 ): Promise<UploadSessionResponse> {
   try {
-    const response = await fetch(
+    const response = await fetchVideoRequest(
       "/api/dashboard/mobile-strategic-profile/upload-session",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },

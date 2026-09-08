@@ -210,7 +210,8 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       Key: params.input.objectKey,
     });
 
-    const getRes = await s3.send(getCommand);
+    const downloadSignal = AbortSignal.timeout(45000);
+    const getRes = await s3.send(getCommand, { abortSignal: downloadSignal });
 
     if (!getRes.Body) {
       throw new Error("Empty body returned from storage.");
@@ -243,7 +244,7 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
         `d2c-r2-video-${randomUUID()}.${extensionForMimeType(params.input.mimeType)}`,
       );
       try {
-        await pipeline(getRes.Body as Readable, createWriteStream(filePath));
+        await pipeline(getRes.Body as Readable, createWriteStream(filePath), { signal: downloadSignal });
       } catch (streamError) {
         await unlink(filePath).catch(() => undefined);
         throw streamError;
@@ -353,9 +354,9 @@ export async function deleteVideoNarrativeTemporaryStorageObject(params: {
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: params.objectKey }));
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: params.objectKey }), { abortSignal: AbortSignal.timeout(5000) });
       try {
-        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: params.objectKey }));
+        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: params.objectKey }), { abortSignal: AbortSignal.timeout(5000) });
       } catch (error) {
         if (isMissing(error)) return true;
         throw error;

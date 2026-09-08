@@ -1,4 +1,5 @@
 /** @jest-environment node */
+jest.mock("@/app/lib/videoAnalysis/jobs", () => ({ registerUpload: jest.fn().mockResolvedValue(undefined) }));
 import { NextRequest } from "next/server";
 import { POST, GET, PUT, PATCH, DELETE } from "./route";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";

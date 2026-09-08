@@ -84,6 +84,7 @@ function shouldUseOpenAiFallback(error: unknown): boolean {
 async function waitForGeminiFileReady(
   ai: GoogleGenAI,
   file: { name?: string; uri?: string; mimeType?: string; state?: string; error?: unknown },
+  signal?: AbortSignal,
 ): Promise<{ name?: string; uri?: string; mimeType?: string }> {
   if (!file.name && file.uri) return file;
   if (file.state === "FAILED") throw new Error("gemini_file_processing_failed");
@@ -95,7 +96,8 @@ async function waitForGeminiFileReady(
     if (poll > 0) {
       await delay(GEMINI_FILE_PROCESSING_POLL_MS);
     }
-    current = await ai.files.get({ name: file.name });
+    signal?.throwIfAborted();
+    current = await ai.files.get({ name: file.name, config: { abortSignal: signal, httpOptions: { timeout: 10000 } } });
     if (current.state === "FAILED") throw new Error("gemini_file_processing_failed");
     if (current.state !== "PROCESSING" && current.uri) return current;
   }
@@ -107,14 +109,18 @@ async function uploadGeminiFileFromPath(params: {
   ai: GoogleGenAI;
   filePath: string;
   mimeType: string;
+  signal?: AbortSignal;
 }): Promise<{ name?: string; uri: string; mimeType: string }> {
   const mimeType = normalizeGeminiVideoMimeType(params.mimeType);
+  let uploadedName: string | undefined;
   try {
+    params.signal?.throwIfAborted();
     const uploaded = await params.ai.files.upload({
       file: params.filePath,
-      config: { mimeType },
+      config: { mimeType, abortSignal: params.signal, httpOptions: { timeout: 60000 } },
     });
-    const ready = await waitForGeminiFileReady(params.ai, uploaded);
+    uploadedName = uploaded.name;
+    const ready = await waitForGeminiFileReady(params.ai, uploaded, params.signal);
     if (!ready.uri) throw new Error("gemini_file_uri_missing");
     return {
       name: ready.name ?? uploaded.name,
@@ -122,6 +128,8 @@ async function uploadGeminiFileFromPath(params: {
       mimeType: normalizeGeminiVideoMimeType(ready.mimeType ?? mimeType),
     };
   } catch (error) {
+    if (uploadedName) await params.ai.files.delete({ name: uploadedName, config: { httpOptions: { timeout: 3000 } } }).catch(() => undefined);
+    if (params.signal?.aborted) throw error;
     if (error instanceof Error && error.message.startsWith("gemini_file_")) {
       throw error;
     }
@@ -136,6 +144,7 @@ async function uploadBytesToGeminiFile(params: {
   ai: GoogleGenAI;
   bytes: Uint8Array | Buffer;
   mimeType: string;
+  signal?: AbortSignal;
 }): Promise<{ name?: string; uri: string; mimeType: string }> {
   const mimeType = normalizeGeminiVideoMimeType(params.mimeType);
   const tempPath = path.join(
@@ -146,7 +155,7 @@ async function uploadBytesToGeminiFile(params: {
   try {
     // writeFile accepts Uint8Array | Buffer directly — no Buffer.from copy needed.
     await writeFile(tempPath, params.bytes);
-    return await uploadGeminiFileFromPath({ ai: params.ai, filePath: tempPath, mimeType });
+    return await uploadGeminiFileFromPath({ ai: params.ai, filePath: tempPath, mimeType, signal: params.signal });
   } finally {
     await unlink(tempPath).catch(() => undefined);
   }
@@ -542,7 +551,7 @@ export function createGeminiVideoNarrativeClient(
     };
   }
 
-  const ai = new GoogleGenAI({ apiKey: params.apiKey });
+  const ai = new GoogleGenAI({ apiKey: params.apiKey, httpOptions: { retryOptions: { attempts: 1 } } });
   const model = params.model ?? DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL;
 
   return {
@@ -600,7 +609,7 @@ export function createVideoNarrativeGeminiClientAdapter(
     };
   }
 
-  const ai = new GoogleGenAI({ apiKey: params.apiKey });
+  const ai = new GoogleGenAI({ apiKey: params.apiKey, httpOptions: { retryOptions: { attempts: 1 } } });
   const fallbackModel = params.model ?? DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL;
 
   return {
@@ -613,6 +622,7 @@ export function createVideoNarrativeGeminiClientAdapter(
         responseSchemaInstruction,
         model,
         maxOutputTokens,
+        generationTimeoutMs,
         videoInput,
         signal,
       }) {
@@ -628,6 +638,7 @@ export function createVideoNarrativeGeminiClientAdapter(
             const uploaded = await uploadGeminiFileFromPath({
               ai,
               filePath: videoInput.filePath,
+              signal,
               mimeType: normalizeGeminiVideoMimeType(videoInput.mimeType),
             });
             uploadedGeminiFileName = uploaded.name;
@@ -640,6 +651,7 @@ export function createVideoNarrativeGeminiClientAdapter(
                 ai,
                 bytes,
                 mimeType,
+                signal,
               });
               uploadedGeminiFileName = uploaded.name;
               parts.push(createPartFromUri(uploaded.uri, uploaded.mimeType));
@@ -648,12 +660,14 @@ export function createVideoNarrativeGeminiClientAdapter(
             }
           }
 
+          signal?.throwIfAborted();
           const selectedModel = model || fallbackModel;
           const response = await ai.models.generateContent({
             model: selectedModel,
             contents: createUserContent(parts),
             config: {
               systemInstruction,
+              httpOptions: { timeout: generationTimeoutMs ?? 90000 },
               maxOutputTokens,
               responseMimeType: "application/json",
               mediaResolution: "MEDIA_RESOLUTION_LOW" as MediaResolution,
@@ -693,7 +707,7 @@ export function createVideoNarrativeGeminiClientAdapter(
             await unlink(videoInput.filePath).catch(() => undefined);
           }
           if (uploadedGeminiFileName) {
-            await ai.files.delete({ name: uploadedGeminiFileName }).catch(() => undefined);
+            await ai.files.delete({ name: uploadedGeminiFileName, config: { httpOptions: { timeout: 3000 } } }).catch(() => undefined);
           }
         }
       },

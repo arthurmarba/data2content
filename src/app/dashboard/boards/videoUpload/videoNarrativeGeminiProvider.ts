@@ -19,6 +19,7 @@ export type VideoNarrativeGeminiClientAdapter = {
     responseSchemaInstruction: string;
     model: string;
     maxOutputTokens: number;
+    generationTimeoutMs?: number;
     videoInput?: {
       mimeType: string;
       bytes?: Uint8Array | Buffer;
@@ -169,10 +170,11 @@ export async function runVideoNarrativeGeminiProvider(params: {
           responseSchemaInstruction: prompt.responseSchemaInstruction,
           model: resolved.config.model!,
           maxOutputTokens: resolved.config.maxOutputTokens,
+          generationTimeoutMs: resolved.config.timeoutMs,
           videoInput: params.videoInput,
           signal,
         }),
-      resolved.config.timeoutMs,
+      resolved.config.timeoutMs + (params.videoInput?.filePath || (params.videoInput?.bytes?.byteLength ?? 0) > 20 * 1024 * 1024 ? 60000 : 0),
     );
     const parsed = parseVideoNarrativeGeminiResponse(response.text ?? "");
 
