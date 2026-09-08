@@ -1,6 +1,7 @@
 // /src/app/dashboard/WhatsAppPanel.tsx
 "use client";
 
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import React, { useState, useEffect, useRef } from "react";
 import { FaWhatsapp, FaSpinner, FaCheckCircle, FaCopy } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,7 +16,11 @@ interface WhatsAppPanelProps {
   upsellOnly?: boolean; // quando true, renderiza apenas o upsell Plano Pro
 }
 
-export default function WhatsAppPanel({
+export default function WhatsAppPanel(props: WhatsAppPanelProps) {
+  return WHATSAPP_ALERTS_VISIBLE ? <WhatsAppPanelContent {...props} /> : null;
+}
+
+function WhatsAppPanelContent({
   userId,
   canAccessFeatures,
   onActionRedirect,

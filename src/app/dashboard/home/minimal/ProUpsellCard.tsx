@@ -3,6 +3,7 @@
 "use client";
 
 import React from "react";
+import { WHATSAPP_ALERTS_VISIBLE } from "@/app/lib/productFeatures";
 import type { HomePlanSummary } from "../types";
 import { Sparkles, Calendar, Compass, MessageCircle } from "lucide-react";
 
@@ -45,7 +46,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
           Aproveite seus atalhos de planejamento
         </h3>
         <p className="mt-2 text-sm text-zinc-500">
-          Descubra tendências, planeje com IA e responda propostas direto do WhatsApp.
+          Descubra tendências, planeje com IA e acompanhe propostas no aplicativo.
         </p>
         <div className="mt-5 overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(250,250,250,0.74))]">
           <button
@@ -64,14 +65,14 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
             <Compass className="h-4 w-4" />
             Descoberta de tendências
           </button>
-          <button
+          {WHATSAPP_ALERTS_VISIBLE && <button
             type="button"
             className="dashboard-type-control inline-flex w-full items-center gap-2 border-t border-zinc-100/90 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onNavigate("/planning/whatsapp")}
           >
             <MessageCircle className="h-4 w-4" />
             Alertas no WhatsApp
-          </button>
+          </button>}
         </div>
       </div>
     );
@@ -85,7 +86,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
           Plano Pro
         </div>
         <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-zinc-950">
-          Descobertas, planner com IA e alertas no WhatsApp.
+          Descobertas e planejamento com IA para o seu conteúdo.
         </h3>
         <p className="mt-2 text-sm text-zinc-600">
           Ganhe acompanhamento contínuo sem poluir sua operação diária.
@@ -103,10 +104,10 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
           <Compass className="h-4 w-4 text-zinc-400" />
           Descoberta de tendências
         </div>
-        <div className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-700">
+        {WHATSAPP_ALERTS_VISIBLE && <div className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-700">
           <MessageCircle className="h-4 w-4 text-zinc-400" />
           Alertas no WhatsApp
-        </div>
+        </div>}
       </div>
       <button
         type="button"

@@ -14,7 +14,6 @@ export const emptyStates = {
     bullets: [
       "Descoberta de tendências",
       "Planner com IA",
-      "Alertas no WhatsApp",
     ],
     ctaLabel: "Desbloquear Plano Pro",
   },
