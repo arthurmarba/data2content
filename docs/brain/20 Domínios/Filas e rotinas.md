@@ -74,3 +74,5 @@ sincronização não espera pela IA de enriquecimento.
 ## Upload de vídeo (setembro de 2026)
 
 `VideoAnalysisJob` registra a sessão assinada, dono, estado e resultado. `lib/videoAnalysis/` aceita e recupera trabalhos; `/api/worker/analyze-uploaded-video` executa a análise com assinatura QStash. Há uma análise ativa por criador, resultado por sessão e checkpoint validado da IA. Uma interrupção sem checkpoint não repete automaticamente a chamada paga. `/api/cron/recover-video-analyses`, cadastrado para cada cinco minutos, recupera trabalhos e reconcilia arquivos temporários. Publicar o código não cadastra automaticamente o agendamento: ativá-lo na QStash faz parte da liberação.
+
+Na liberação do upload em 08/09/2026, a QStash recusou `deduplicationId` com `:` (HTTP 400). O identificador do upload agora usa SHA-256 hexadecimal da sessão e do minuto. Mock de fila precisa validar esse contrato; aceitar qualquer string esconde trabalho que nunca chega ao trabalhador. O agendamento `video-analysis-recovery` foi ativado em produção na mesma data, isoladamente das rotinas de mensagens.

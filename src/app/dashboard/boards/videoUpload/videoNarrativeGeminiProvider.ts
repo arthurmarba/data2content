@@ -94,7 +94,8 @@ function isPermissionDeniedProviderError(error: unknown): boolean {
 export function isQuotaExhaustedProviderError(error: unknown): boolean {
   const status = getExternalErrorStatus(error);
   const message = getExternalErrorMessage(error);
-  return status === 429 || /RESOURCE_EXHAUSTED|quota|credits? (?:are )?depleted|prepayment/i.test(message);
+  // Com uma única tentativa, o SDK pode descartar status e corpo do HTTP 429.
+  return status === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|quota|credits? (?:are )?depleted|prepayment/i.test(message);
 }
 
 export async function runVideoNarrativeGeminiProvider(params: {

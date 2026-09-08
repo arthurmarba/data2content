@@ -19,3 +19,5 @@ O ID do diagnóstico deriva da sessão e há índice único declarado por usuár
 Ao corrigir, alinhar repetição, retenção temporária e recuperação por sessão no servidor. Manter a regra de não guardar vídeo/sessão no localStorage ou sessionStorage. A coleção antiga `creator_video_narrative_real_analysis_usage` não recebe mais as falhas dessa rota; coleção vazia não significa operação saudável.
 
 Ver [auditoria completa](../../auditoria-upload-mobile-2026-09-08.md).
+
+Na validação em produção, Gemini devolveu HTTP 429 com créditos pré-pagos esgotados. Com `retryOptions.attempts: 1`, o SDK entregou apenas `Error("Retryable HTTP Error: Too Many Requests")`, sem `status` nem corpo; o classificador também precisa reconhecer essa forma. O código de cota agrega HTTP 429, que pode representar limite de requisições ou créditos: a mensagem ao usuário não deve afirmar falta de saldo sem evidência adicional do provedor.

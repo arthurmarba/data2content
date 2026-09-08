@@ -43,7 +43,7 @@ Os nomes das variáveis existentes foram mantidos. São necessários QStash, sua
 - Evidências locais: `output/playwright/upload-fixes-error-mobile.png` e `output/playwright/upload-fixes-reopened-mobile.png`.
 - Inventário do cérebro regenerado com `npm run brain`.
 
-Não foi realizada chamada paga de análise nesta validação. Safari/iPhone e Chrome/Android físicos, arquivos 4K/HEVC representativos e o percurso completo R2 → Gemini → diagnóstico em produção continuam sendo verificações de liberação; o ensaio em navegador usa vídeo sintético e serviços simulados.
+A validação local não chamou a IA. Na liberação em produção houve envio de vídeo sintético ao armazenamento e execução pelo trabalhador, mas o Gemini recusou a análise com HTTP 429. Safari/iPhone e Chrome/Android físicos, arquivos 4K/HEVC representativos e uma análise bem-sucedida até o diagnóstico continuam sem validação real.
 
 ## Publicação e ativação
 
@@ -52,3 +52,14 @@ O cadastro do novo cron a cada cinco minutos está em `src/scripts/scheduleCrons
 Antes de liberar, conferir o índice único esparso `activeKey` em `VideoAnalysisJob`, a assinatura do trabalhador, a entrega da fila e a inclusão do FFmpeg no manifesto. A aplicação também garante a criação dos índices ao registrar a primeira sessão. O teste de liberação deve cobrir envio, conclusão, reabertura e interrupção de conexão, verificando um único diagnóstico e uma única chamada paga por tentativa aceita.
 
 Sessões emitidas pela versão antiga não têm registro no modelo novo: se atravessarem a publicação, o usuário poderá precisar enviar novamente. Reverter apenas o front para a versão síncrona não é compatível com o contrato HTTP 202 do novo endpoint; frontend e backend precisam ser publicados juntos.
+
+
+## Liberação em produção — 08/09/2026
+
+- Implementação inicial publicada no commit `db09a209`; índice único esparso `activeKey` conferido no banco.
+- Recuperação `video-analysis-recovery` ativada na QStash a cada cinco minutos. A chamada autenticada ao cron retornou 200; acessos sem autenticação ao acompanhamento, trabalhador e cron retornaram 401.
+- O teste real usou apenas vídeo sintético e a conta administrativa de Arthur. Envio ao armazenamento retornou 200; aceitação e submissão duplicada retornaram 202 para a mesma sessão; fechar o acompanhamento preservou o trabalho. Ao concluir com erro, houve uma tentativa, liberação da reserva e recuperação da mesma resposta ao reabrir.
+- Esse teste descobriu que a QStash rejeita `deduplicationId` contendo `:`. A publicação foi corrigida para hash SHA-256 hexadecimal, com teste que reproduz a rejeição. Falha ao publicar continua recuperável e passa a gerar aviso estruturado no servidor.
+- A chave de produção do Gemini respondeu HTTP 429 `RESOURCE_EXHAUSTED`, informando créditos pré-pagos esgotados. O SDK com uma tentativa omite o corpo e entrega `Retryable HTTP Error: Too Many Requests`; essa forma também passou a ser classificada como limitação do provedor, com teste de regressão. Não é possível distinguir limite de taxa de falta de créditos apenas pela mensagem reduzida do SDK.
+- Após essas correções, os 24 testes direcionados de fila, persistência e classificador do Gemini passaram, e `npm run build` concluiu novamente com o FFmpeg no trabalhador.
+- O percurso com diagnóstico concluído permanece dependente da disponibilidade do Gemini; não houve compra de créditos nem mudança de cobrança.

@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { logger } from '@/app/lib/logger';
 import { Client } from '@upstash/qstash';
 import Job, { type VideoAnalysisJobRecord } from '@/app/models/VideoAnalysisJob';
 import User from '@/app/models/User';
@@ -26,9 +27,12 @@ export async function publishVideoAnalysis(id: string) {
   const base = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
   if (!token || !base.startsWith('https://')) return false;
   try {
-    await new Client({ token }).publishJSON({ url: `${base}/api/worker/analyze-uploaded-video`, body: { jobId: id }, retries: 2, deduplicationId: `video:${id}:${Math.floor(Date.now() / 60000)}` });
+    await new Client({ token }).publishJSON({ url: `${base}/api/worker/analyze-uploaded-video`, body: { jobId: id }, retries: 2, deduplicationId: createHash("sha256").update(`video:${id}:${Math.floor(Date.now() / 60000)}`).digest("hex") });
     return true;
-  } catch { return false; }
+  } catch (error) {
+    logger.warn("[VideoAnalysis] Falha ao publicar trabalho na fila", { jobId: id, status: (error as { status?: number }).status, errorName: error instanceof Error ? error.name : "unknown" });
+    return false;
+  }
 }
 export function publicVideoJob(job: VideoAnalysisJobRecord) {
   return { jobId: job._id, state: job.state, stage: job.state === 'running' ? (job.checkpoint ? 'saving' : 'analyzing') : job.state, ...(job.state === 'completed' || job.state === 'failed' ? { result: job.result, httpStatus: job.httpStatus } : {}), requestId: job._id };

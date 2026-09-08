@@ -169,6 +169,18 @@ describe("videoNarrativeGeminiProvider", () => {
     expect(JSON.stringify(result)).not.toContain("credits");
   });
 
+  it("reconhece o HTTP 429 quando o SDK descarta o status e o corpo", async () => {
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_123", role: "admin" },
+      env: enabledEnv,
+      client: { generateContent: jest.fn().mockRejectedValue(new Error("Retryable HTTP Error: Too Many Requests")) },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues?.[0].code).toBe("gemini_quota_exhausted");
+    expect(JSON.stringify(result)).not.toContain("Too Many Requests");
+  });
+
   it("registra o provider efetivo quando o fallback retorna uma análise válida", async () => {
     const client: VideoNarrativeGeminiClientAdapter = {
       generateContent: jest.fn().mockResolvedValue({
