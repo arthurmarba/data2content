@@ -6,7 +6,7 @@ tipo: domínio
 
 Uma pauta nasce de narrativa + território. A dupla precisa acrescentar contribuição concreta, não apenas compartilhar palavras. A experiência continua sendo um baralho com Salvas e Combinadas.
 
-## Caminho atual (implementação local de setembro de 2026)
+## Caminho atual (publicado em setembro de 2026)
 
 - Página dedicada e aba do Perfil usam `CollabsPinnedBoard` + `useCollabsController`.
 - Regras novas estão em `src/app/lib/collabs/`; `boards/videoUpload` contém adaptadores e o gerador histórico.
@@ -32,7 +32,7 @@ A pilha tem cartões posicionados absolutamente: precisa de altura mínima no co
 
 WhatsApp requer template aprovado, versão da Graph API configurada, credenciais, vínculo e ausência de opt-out. Avisos nascem na transação do match. Envio ambíguo vira `delivery_needs_review`; não reenviar cegamente. A confirmação permanece no app mesmo sem aviso externo.
 
-Detalhes e limites de verificação em `docs/implementacao-collabs-2026-09-08.md`; decisões e rubrica em `docs/plano-melhorias-collabs-2026-09-08.md`. Liberação em produção e avaliação humana de pautas reais ainda não foram executadas.
+Detalhes e limites de verificação em `docs/implementacao-collabs-2026-09-08.md`; decisões e rubrica em `docs/plano-melhorias-collabs-2026-09-08.md`. Interface publicada em 08/09/2026. O piloto nas três contas administradoras está configurado, mas a geração permanece pausada: o Gemini de produção confirmou HTTP 429 por créditos esgotados. A avaliação editorial de pautas reais depende da reposição do saldo.
 
 ## Ligações
 

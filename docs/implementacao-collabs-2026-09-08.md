@@ -1,4 +1,4 @@
-# Collabs: implementação local e liberação
+# Collabs: implementação e liberação
 
 Data: 08/09/2026. Referência: [plano completo](plano-melhorias-collabs-2026-09-08.md).
 
@@ -28,7 +28,7 @@ As reproduções temporárias que afirmavam o comportamento defeituoso foram des
 
 ## Liberação operacional
 
-O dry-run da migração foi executado: zero combinações com expiração indevida, zero parceiros ausentes, 554 contas com participação não informada e dois caches legados. Nenhuma migração de contas, ativação do piloto, chamada editorial de IA em produção ou envio de WhatsApp foi executado nesta implementação. Os comandos abaixo usam `.env.local` e, portanto, podem apontar para o banco real.
+O dry-run da migração foi executado: zero combinações com expiração indevida, zero parceiros ausentes, 554 contas com participação não informada e dois caches legados. Esse era o estado ao concluir a implementação local; a preparação e a publicação executadas depois estão registradas abaixo. Os comandos abaixo usam `.env.local` e, portanto, podem apontar para o banco real.
 
 1. Publicar código capaz de ler propostas novas e legadas. Manter essa compatibilidade em qualquer recuo.
 2. Executar `npm run migrate:collabs -- --dry-run` e revisar as contagens. O script é somente leitura por padrão; com `--apply`, cria índices aditivos e retira expiração indevida de combinações legadas. Não infere consentimento, não gera pautas e não cria aceites.
@@ -56,3 +56,11 @@ A deduplicação editorial automática ainda é heurística: sinônimos e histó
 ## Bloqueio externo confirmado
 
 A chamada mínima ao modelo de pautas em 08/09 retornou HTTP 429 com créditos pré-pagos esgotados. Por isso, o piloto das três contas administradoras fica configurado, mas com geração pausada. A avaliação editorial de gerações reais e o teste de entrega de pautas pela fila dependem da reposição de saldo do Gemini. Não houve ampliação para outros usuários nem envio de WhatsApp.
+
+## Publicação concluída
+
+Em 08/09/2026, o pacote de aplicação `d3ac0101` foi compilado na Vercel e promovido a produção: `https://data2content-owtg12pvo-arthurmarbas-projects.vercel.app` (deploy `dpl_HYfVpcQfcspgVwkzv5bQ1G1ztN2Y`).
+
+O worker recusou chamadas sem assinatura (401), o estado de Collabs recusou leitura sem sessão (401) e o preview de desenvolvimento ficou indisponível em produção (404). O navegador local confirmou Combinadas sem oferta de WhatsApp em 390×844 e 1440×1000, com dados simulados; capturas em `output/playwright/collabs-whatsapp-hidden-{mobile,desktop}.png`.
+
+A configuração foi relida com o ambiente atual de produção: geração pausada, piloto restrito a Arthur, Ronaldo e Karen e template de WhatsApp de Collabs desativado. O erro de saldo do Gemini foi reproduzido também com a credencial atual de produção. Nenhuma pauta real nova foi entregue nesta validação. Após repor o saldo, executar a avaliação editorial do piloto antes de ampliar o acesso.
