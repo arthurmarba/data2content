@@ -6,6 +6,9 @@ import { collectPublicEventCalls } from "./collectors/publicEventCalls";
 import { collectSquid } from "./collectors/squid";
 import { sortOpportunities } from "./normalization";
 import type { CampaignRadarBatch } from "./types";
+import { collectionBlockReason, collectionPolicy } from "./collectionPolicy";
+import { sourceRegistryEntry } from "./sourceRegistry";
+import { withCollectionBudget } from "./http";
 
 export function campaignReportDate(now: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -23,13 +26,30 @@ export async function collectCampaignRadar(params?: {
   influencerBrasilMaxProjects?: number;
   squidMaxArticles?: number;
 }): Promise<CampaignRadarBatch> {
+  return withCollectionBudget(() => collectBatch(params));
+}
+
+async function collectBatch(params: Parameters<typeof collectCampaignRadar>[0]): Promise<CampaignRadarBatch> {
   const now = params?.now ?? new Date();
+  async function guarded(sourceId: string, collect: () => Promise<{ opportunities: CampaignRadarBatch["opportunities"]; coverage: CampaignRadarBatch["sources"][number] }>) {
+    const source = sourceRegistryEntry(sourceId)!;
+    try {
+      const blocked = collectionBlockReason(collectionPolicy(sourceId), now);
+      if (blocked) throw new Error(blocked);
+      return await collect();
+    } catch (error) {
+      return { opportunities: [], coverage: { sourceId, sourcePlatform: source.sourcePlatform, discoveryUrl: source.publicCheckUrl,
+        fetchedAt: now.toISOString(), discoveredDocuments: 0, emittedOpportunities: 0,
+        warnings: [error instanceof Error ? error.message : "Falha na coleta."],
+      } };
+    }
+  }
   const [influencerBrasil, squid, creatorAds, playNest, ninetyNineFreelas, publicEventCalls] = await Promise.all([
-    collectInfluencerBrasil({ now, maxProjects: params?.influencerBrasilMaxProjects }),
-    collectSquid({ now, maxArticles: params?.squidMaxArticles }),
-    collectCreatorAds({ now }),
-    collectPlayNest({ now }),
-    collectNinetyNineFreelas({ now }),
+    guarded("influencer-brasil", () => collectInfluencerBrasil({ now, maxProjects: params?.influencerBrasilMaxProjects })),
+    guarded("squid-public-campaigns", () => collectSquid({ now, maxArticles: params?.squidMaxArticles })),
+    guarded("creator-ads-public-calls", () => collectCreatorAds({ now })),
+    guarded("playnest-public-programs", () => collectPlayNest({ now })),
+    guarded("ninety-nine-freelas-public", () => collectNinetyNineFreelas({ now })),
     collectPublicEventCalls({ now }),
   ]);
 

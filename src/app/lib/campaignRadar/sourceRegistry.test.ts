@@ -65,9 +65,33 @@ describe("campaign radar source registry", () => {
     }
   });
 
-  test("keeps every source out of the plugin until distribution is explicitly approved", () => {
-    for (const entry of campaignRadarSourceRegistry) {
-      expect(entry.pluginDistribution.status).not.toBe("approved");
+  test("keeps sources with restrictive terms out of the plugin", () => {
+    // A liberação de 07/09/2026 vale para chamadas abertas de eventos e marcas.
+    // Quem proíbe coleta ou redistribuição nos próprios termos continua fora.
+    for (const sourceId of [
+      "influencer-brasil",
+      "creator-ads-public-calls",
+      "animextreme-public-creators",
+      "ninety-nine-freelas-public",
+      "workana-public",
+      "threads-posts-publicos",
+      "whatsapp-canais-publi",
+    ]) {
+      expect(isSourceApprovedForPlugin(sourceId)).toBe(false);
+    }
+  });
+
+  test("every approved source records basis, evidence and who decided", () => {
+    const approved = campaignRadarSourceRegistry.filter(
+      (entry) => entry.pluginDistribution.status === "approved",
+    );
+    expect(approved.length).toBeGreaterThan(0);
+    for (const entry of approved) {
+      expect(entry.pluginDistribution.authorizationBasis).not.toBeNull();
+      expect(entry.pluginDistribution.evidenceReference).toBeTruthy();
+      expect(entry.pluginDistribution.reviewedBy).toBeTruthy();
+      expect(entry.pluginDistribution.reviewedAt).toBeTruthy();
+      expect(isSourceApprovedForPlugin(entry.sourceId)).toBe(true);
     }
   });
 

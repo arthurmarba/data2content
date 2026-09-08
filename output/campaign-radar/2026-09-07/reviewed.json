@@ -1,0 +1,3913 @@
+{
+  "schemaVersion": "campaign_radar_batch_v1",
+  "generatedAt": "2026-09-07T18:00:00.000Z",
+  "reportDate": "2026-09-07",
+  "coverageStatement": "Varredura manual de 07/09/2026 em páginas públicas, somada à coleta automática liberada (Up!ABC e Tijuca Geek). Todas as entradas nascem pendentes de revisão humana.",
+  "sources": [
+    {
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "discoveryUrl": "https://influencerbrasil.com.br/sitemap-projects.xml",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 18,
+      "emittedOpportunities": 18,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "the-insiders-public-campaigns",
+      "sourcePlatform": "The Insiders Brasil",
+      "discoveryUrl": "https://www.theinsidersnet.com/pt-br/campaigns/overview",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 2,
+      "emittedOpportunities": 2,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "popline-creators-public-campaigns",
+      "sourcePlatform": "POPline Creators",
+      "discoveryUrl": "https://poplinecreators.com.br/",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 1,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "keune-creators",
+      "sourcePlatform": "Keune Creators",
+      "discoveryUrl": "https://www.keune.com.br/m/blog/69a1af88047f0967a61e987a/faca-parte-do-nosso-time-de-keune-creators",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 1,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "bgs-credenciamento",
+      "sourcePlatform": "Brasil Game Show",
+      "discoveryUrl": "https://credenciamento.brasilgameshow.com.br/",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 1,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "threads-posts-publicos",
+      "sourcePlatform": "Threads (posts públicos)",
+      "discoveryUrl": "https://www.threads.com/@maisinfluencer",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 4,
+      "emittedOpportunities": 4,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "discoveryUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 13,
+      "emittedOpportunities": 13,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "discoveryUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "fetchedAt": "2026-09-07T18:00:00.000Z",
+      "discoveredDocuments": 35,
+      "emittedOpportunities": 35,
+      "warnings": [
+        "Captura manual de 07/09/2026; nenhuma coleta automática foi executada nesta origem."
+      ]
+    },
+    {
+      "sourceId": "upabc-public-coverage",
+      "sourcePlatform": "Up!ABC",
+      "discoveryUrl": "https://ajuda.upabc.com.br/index.php?catid=16&id=45&view=article",
+      "fetchedAt": "2026-09-07T23:03:31.208Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 1,
+      "warnings": [
+        "radar_collection_blocked"
+      ]
+    },
+    {
+      "sourceId": "tijuca-geek-public-coverage",
+      "sourcePlatform": "Tijuca Geek Festival",
+      "discoveryUrl": "https://www.tijucageekfestival.com.br/",
+      "fetchedAt": "2026-09-07T23:03:31.208Z",
+      "discoveredDocuments": 1,
+      "emittedOpportunities": 1,
+      "warnings": []
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "varredura-2026-09-07:001:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/seguro-residencial-para-quem-esta-migrando-para-o-litoral-com-assistencia-pet",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Seguro Residencial para quem está migrando para o litoral com assistência PET",
+      "brand": null,
+      "summary": "Campanha ativa para creators com afinidade com Seguros e Telemedicina, produção prevista para Instagram e TikTok em Reels, Stories e Feed. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: 07/09/2026 - 21/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 3 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-21",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators com afinidade com Seguros e Telemedicina, produção prevista para Instagram e TikTok em Reels, Stories e Feed. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: 07/09/2026 - 21/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:002:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/nova-linha-em-teste",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Nova linha em teste",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Moda & Beleza e Lifestyle, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: R$ 280. Vagas: 6. Janela da campanha: 13/09/2026 - 26/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado",
+        "Moda",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 280 (investimento do projeto para 6 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-26",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Moda & Beleza e Lifestyle, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: R$ 280. Vagas: 6. Janela da campanha: 13/09/2026 - 26/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:003:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/desafio-de-vendas-em-24-horas",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Desafio de vendas em 24 horas",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Moda & Beleza, produção prevista para Instagram e TikTok em Reels, Feed e Live. Investimento publicado: R$ 3.000 a R$ 7.000. Vagas: 5. Janela da campanha: 06/09/2026 - 08/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado",
+        "Moda"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Foto ou feed",
+        "Live"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 3.000 a R$ 7.000 (investimento do projeto para 5 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-08",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Moda & Beleza, produção prevista para Instagram e TikTok em Reels, Feed e Live. Investimento publicado: R$ 3.000 a R$ 7.000. Vagas: 5. Janela da campanha: 06/09/2026 - 08/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:004:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/provador-para-o-e-commerce",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Provador para o e commerce",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Moda & Beleza e Lifestyle, produção prevista para Instagram e TikTok em Reels e Feed. Investimento publicado: R$ 300. Vagas: 5. Janela da campanha: 12/09/2026 - 20/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado",
+        "Moda",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 300 (investimento do projeto para 5 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-20",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Moda & Beleza e Lifestyle, produção prevista para Instagram e TikTok em Reels e Feed. Investimento publicado: R$ 300. Vagas: 5. Janela da campanha: 12/09/2026 - 20/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:005:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/primeira-prova-da-nova-safra",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Primeira prova da nova safra",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Gastronomia e Lifestyle, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: R$ 150. Vagas: 12. Janela da campanha: 10/09/2026 - 17/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Gastronomia",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 150 (investimento do projeto para 12 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-17",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Gastronomia e Lifestyle, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: R$ 150. Vagas: 12. Janela da campanha: 10/09/2026 - 17/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:006:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/bar-conceituado-no-tatuape",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Bar conceituado no Tatuapé",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Moda & Beleza, Gastronomia e Entretenimento, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: Até R$ 1.000. Vagas: 5. Janela da campanha: 11/09/2026 - 13/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado",
+        "Gastronomia",
+        "Moda",
+        "Entretenimento"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 5 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-13",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Moda & Beleza, Gastronomia e Entretenimento, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: Até R$ 1.000. Vagas: 5. Janela da campanha: 11/09/2026 - 13/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:007:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/ugc-pronto-para-anuncios",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "UGC pronto para anúncios",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Tecnologia e Lifestyle, produção prevista para Instagram e TikTok em Reels e Shorts. Investimento publicado: R$ 320 a R$ 450. Vagas: 4. Janela da campanha: 10/09/2026 - 17/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Tecnologia",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [
+        "Reel",
+        "Short"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 320 a R$ 450 (investimento do projeto para 4 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-17",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Tecnologia e Lifestyle, produção prevista para Instagram e TikTok em Reels e Shorts. Investimento publicado: R$ 320 a R$ 450. Vagas: 4. Janela da campanha: 10/09/2026 - 17/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:008:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/divulgacao-de-climatizadores-por-assinatura-para-academias-galpoes-supermercados-entre-outras-empresas",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Divulgação de Climatizadores por Assinatura para academias, galpões e supermercados",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Negócios, produção prevista para Instagram em Stories e Feed. Investimento publicado: A partir de R$ 300. Vagas: 1. Janela da campanha: 07/09/2026 - 09/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Negócios e finanças"
+      ],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [
+        "Stories",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "A partir de R$ 300 (investimento do projeto para 1 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-09",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Negócios, produção prevista para Instagram em Stories e Feed. Investimento publicado: A partir de R$ 300. Vagas: 1. Janela da campanha: 07/09/2026 - 09/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:009:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/divulgacao-de-curso-de-ingles-aprenda-a-falar-ingles",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Divulgação de curso de inglês – Aprenda a falar inglês",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Educação, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: 03/09/2026 - 17/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Educação"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 3 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-17",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Educação, produção prevista para Instagram e TikTok em Reels e Stories. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: 03/09/2026 - 17/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:010:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/video-recomendando-a",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Vídeo recomendando a marca",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Tecnologia, Educação e Outros, produção prevista para Instagram em Stories e Feed. Investimento publicado: Até R$ 1.000. Vagas: 20. Janela da campanha: 01/09/2026 - 30/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Tecnologia",
+        "Educação"
+      ],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [
+        "Stories",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 20 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-30",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Tecnologia, Educação e Outros, produção prevista para Instagram em Stories e Feed. Investimento publicado: Até R$ 1.000. Vagas: 20. Janela da campanha: 01/09/2026 - 30/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:011:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/girl-find-your-flow",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Girl marca Find Your Flow",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Shorts. Investimento publicado: Até R$ 1.000. Vagas: 1. Janela da campanha: 01/09/2026 - 30/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Fitness e saúde",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [
+        "Reel",
+        "Stories",
+        "Short"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 1 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-30",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Shorts. Investimento publicado: Até R$ 1.000. Vagas: 1. Janela da campanha: 01/09/2026 - 30/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:012:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/campanha-em-canais-digitais-brasileiros-publico-18",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Campanha em canais digitais brasileiros — público 18+",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Tecnologia e Entretenimento, produção prevista para TikTok em Live e Shorts. Investimento publicado: R$ 1.000 a R$ 3.000. Vagas: 20. Janela da campanha: 25/08/2026 - 25/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Tecnologia",
+        "Entretenimento"
+      ],
+      "platforms": [
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [
+        "Live",
+        "Short"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 1.000 a R$ 3.000 (investimento do projeto para 20 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-25",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Tecnologia e Entretenimento, produção prevista para TikTok em Live e Shorts. Investimento publicado: R$ 1.000 a R$ 3.000. Vagas: 20. Janela da campanha: 25/08/2026 - 25/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:013:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/meu-primeiro-5k",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Meu primeiro 5K",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Shorts. Investimento publicado: R$ 320 a R$ 480. Vagas: 4. Janela da campanha: 14/08/2026 - 13/09/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Fitness e saúde",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [
+        "Reel",
+        "Stories",
+        "Short"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 320 a R$ 480 (investimento do projeto para 4 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-13",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Shorts. Investimento publicado: R$ 320 a R$ 480. Vagas: 4. Janela da campanha: 14/08/2026 - 13/09/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:014:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/seja-uma-embaixadora",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Seja uma Embaixadora marca",
+      "brand": null,
+      "summary": "Programa de embaixadoras para creators de Educação, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Feed. Investimento publicado: R$ 200. Vagas: 15. Janela da campanha: 17/08/2026 - 02/10/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Educação"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [
+        "Reel",
+        "Stories",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "R$ 200 (investimento do projeto para 15 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-10-02",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Programa de embaixadoras para creators de Educação, produção prevista para Instagram, TikTok e YouTube em Reels, Stories e Feed. Investimento publicado: R$ 200. Vagas: 15. Janela da campanha: 17/08/2026 - 02/10/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:015:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/whatsapp-channel-manager-recruitment",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "WhatsApp Channel Manager Recruitment",
+      "brand": null,
+      "summary": "Recrutamento de longa duração para creators de Fitness & Saúde e Entretenimento, produção prevista para Instagram, TikTok e YouTube. Investimento publicado: A partir de R$ 15.000. Vagas: 100. Janela da campanha: 24/08/2026 - 24/08/2027.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Fitness e saúde",
+        "Entretenimento"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok",
+        "YouTube"
+      ],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "A partir de R$ 15.000 (investimento do projeto para 100 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2027-08-24",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Recrutamento de longa duração para creators de Fitness & Saúde e Entretenimento, produção prevista para Instagram, TikTok e YouTube. Investimento publicado: A partir de R$ 15.000. Vagas: 100. Janela da campanha: 24/08/2026 - 24/08/2027."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:016:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/lancamento-de-nova-marca",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Lançamento de Nova Marca",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Lifestyle, produção prevista para Instagram em Reels e Stories. Investimento publicado: A partir de R$ 15.000. Vagas: 100. Janela da campanha: 17/08/2026 - 31/12/2026.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "A partir de R$ 15.000 (investimento do projeto para 100 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-12-31",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Lifestyle, produção prevista para Instagram em Reels e Stories. Investimento publicado: A partir de R$ 15.000. Vagas: 100. Janela da campanha: 17/08/2026 - 31/12/2026."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:017:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/creators-tm-streetwear-fitness-lifestyle",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Creators marca ™ Streetwear, Fitness & Lifestyle",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Moda & Beleza, produção prevista para Instagram e TikTok em Reels e Stories. A listagem não publica prazo. Investimento publicado: Até R$ 1.000. Vagas: 5. Janela da campanha: -.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado",
+        "Moda"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 5 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Moda & Beleza, produção prevista para Instagram e TikTok em Reels e Stories. A listagem não publica prazo. Investimento publicado: Até R$ 1.000. Vagas: 5. Janela da campanha: -."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:018:influencer-brasil",
+      "sourceId": "influencer-brasil",
+      "sourcePlatform": "Influencer Brasil",
+      "sourceUrl": "https://influencerbrasil.com.br/projetos",
+      "applicationUrl": "https://influencerbrasil.com.br/projeto/creators-fitness-nutricao",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Marca Creators Fitness & Nutrição",
+      "brand": null,
+      "summary": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram e TikTok em Reels, Stories e Feed. A listagem não publica prazo. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: -.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Fitness e saúde",
+        "Lifestyle"
+      ],
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "formats": [
+        "Reel",
+        "Stories",
+        "Foto ou feed"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Até R$ 1.000 (investimento do projeto para 3 vaga(s); não confirmado como cachê individual)",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Campanha ativa para creators de Fitness & Saúde e Lifestyle, produção prevista para Instagram e TikTok em Reels, Stories e Feed. A listagem não publica prazo. Investimento publicado: Até R$ 1.000. Vagas: 3. Janela da campanha: -."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:019:the-insiders-public-campaigns",
+      "sourceId": "the-insiders-public-campaigns",
+      "sourcePlatform": "The Insiders Brasil",
+      "sourceUrl": "https://www.theinsidersnet.com/pt-br/campaigns/overview",
+      "applicationUrl": "https://www.theinsidersnet.com/pt-br/campaigns/info/77359/atalaveiaecompleto2609.htm",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "A TAL DA CASTANHA — campanha aberta na The Insiders",
+      "brand": "A Tal da Castanha",
+      "summary": "A vitrine pública da The Insiders Brasil mostra a campanha 'A TAL DA CASTANHA' com inscrição aberta ('Inscreva-se!') em 07/09/2026. O modelo da plataforma é permuta: o creator recebe o produto para testar e publicar sua experiência nas redes. Briefing completo, contrapartida e prazo só aparecem depois do login.",
+      "opportunityType": "barter",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "barter",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_creator",
+        "sourceText": "Permuta: produto enviado para teste e publicação.",
+        "confirmed": false,
+        "includesProduct": true
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "A vitrine pública da The Insiders Brasil mostra a campanha 'A TAL DA CASTANHA' com inscrição aberta ('Inscreva-se!') em 07/09/2026. O modelo da plataforma é permuta: o creator recebe o produto para testar e publicar sua experiência nas redes. Briefing completo, contrapartida e prazo só aparecem depois do login."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:020:the-insiders-public-campaigns",
+      "sourceId": "the-insiders-public-campaigns",
+      "sourcePlatform": "The Insiders Brasil",
+      "sourceUrl": "https://www.theinsidersnet.com/pt-br/campaigns/overview",
+      "applicationUrl": "https://www.theinsidersnet.com/pt-br/campaigns/info/77186/philipsgrooming2608.htm",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Aparadores e Barbeadores Philips — campanha aberta na The Insiders",
+      "brand": "Philips",
+      "summary": "A vitrine pública da The Insiders Brasil mostra a campanha de aparadores e barbeadores da Philips com inscrição aberta ('Inscreva-se!') em 07/09/2026. Modelo de permuta: produto enviado para teste e publicação. Briefing, contrapartida e prazo só aparecem depois do login.",
+      "opportunityType": "barter",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "barter",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_creator",
+        "sourceText": "Permuta: produto enviado para teste e publicação.",
+        "confirmed": false,
+        "includesProduct": true
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "A vitrine pública da The Insiders Brasil mostra a campanha de aparadores e barbeadores da Philips com inscrição aberta ('Inscreva-se!') em 07/09/2026. Modelo de permuta: produto enviado para teste e publicação. Briefing, contrapartida e prazo só aparecem depois do login."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:021:popline-creators-public-campaigns",
+      "sourceId": "popline-creators-public-campaigns",
+      "sourcePlatform": "POPline Creators",
+      "sourceUrl": "https://poplinecreators.com.br/",
+      "applicationUrl": "https://poplinecreators.com.br/",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "POPline Creators — campanhas ativas de música e cultura pop",
+      "brand": "POPline Creators",
+      "summary": "A home pública da POPline Creators lista campanhas ativas em 07/09/2026, entre elas HITMAKER | Rock in Rio, AFROPUNK Salvador, Rock The Mountain, Festival Zepelim 2026, Primavera Sound São Paulo, Festival Planeta Brasil 2026 e ações de artistas da Universal Music (Ludmilla, Pabllo Vittar, Pedro Sampaio, Jota Quest, Lauana Prado, Matheus & Kauan). A plataforma anuncia campanhas com cachê, mas valor, entregas e prazo de cada campanha só aparecem para quem tem conta. Território de música, festivais e cultura pop.",
+      "opportunityType": "creator_program",
+      "territories": [
+        "Entretenimento"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "A plataforma anuncia 'campanhas com cachê'; nenhum valor é publicado sem conta.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "A home pública da POPline Creators lista campanhas ativas em 07/09/2026, entre elas HITMAKER | Rock in Rio, AFROPUNK Salvador, Rock The Mountain, Festival Zepelim 2026, Primavera Sound São Paulo, Festival Planeta Brasil 2026 e ações de artistas da Universal Music (Ludmilla, Pabllo Vittar, Pedro Sampaio, Jota Quest, Lauana Prado, Matheus & Kauan). A plataforma anuncia campanhas com cachê, mas valor, entregas e prazo de cada campanha só aparecem para quem tem conta. Território de música, festivais e cultura pop."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:022:keune-creators",
+      "sourceId": "keune-creators",
+      "sourcePlatform": "Keune Creators",
+      "sourceUrl": "https://www.keune.com.br/m/blog/69a1af88047f0967a61e987a/faca-parte-do-nosso-time-de-keune-creators",
+      "applicationUrl": "https://docs.google.com/forms/d/e/1FAIpQLScFspn9bwjBzn-VtuvVE9DtsMFPZmeCSLFpcRRXg8zi6pEnyg/viewform",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Keune Creators — squad de creators de haircare com ciclos trimestrais",
+      "brand": "Keune Haircosmetics",
+      "summary": "A Keune mantém o programa Keune Creators com inscrição pública por formulário. A partir de 2026 o projeto passou a operar em ciclos trimestrais, reunindo criadores de todo o Brasil. Os selecionados recebem acesso antecipado a lançamentos, ações exclusivas, visibilidade no perfil oficial da marca, bônus por vendas, comissão sobre resultados e cupom de desconto para a audiência. A página da marca diz que as inscrições estão abertas, mas o texto ainda anuncia resultado 'na primeira quinzena de abril': confirmar com a marca qual ciclo está aberto antes de publicar. O formulário é do Google e exige conta Google.",
+      "opportunityType": "creator_program",
+      "territories": [
+        "Negócios e finanças"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "variable",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_sale",
+        "sourceText": "Bônus por vendas e comissão sobre resultados, além de produtos e visibilidade.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "A Keune mantém o programa Keune Creators com inscrição pública por formulário. A partir de 2026 o projeto passou a operar em ciclos trimestrais, reunindo criadores de todo o Brasil. Os selecionados recebem acesso antecipado a lançamentos, ações exclusivas, visibilidade no perfil oficial da marca, bônus por vendas, comissão sobre resultados e cupom de desconto para a audiência. A página da marca diz que as inscrições estão abertas, mas o texto ainda anuncia resultado 'na primeira quinzena de abril': confirmar com a marca qual ciclo está aberto antes de publicar. O formulário é do Google e exige conta Google."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada vista na vitrine em 07/09/2026, mas com ressalva no próprio texto: fica a confirmar."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:023:bgs-credenciamento",
+      "sourceId": "bgs-credenciamento",
+      "sourcePlatform": "Brasil Game Show",
+      "sourceUrl": "https://www.brasilgameshow.com.br/credenciamento",
+      "applicationUrl": "https://credenciamento.brasilgameshow.com.br/",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Brasil Game Show 2026 — credenciamento de influenciadores",
+      "brand": "Brasil Game Show",
+      "summary": "O portal de credenciamento da Brasil Game Show tem categoria própria de Influenciadores, aberta sem login. Os pedidos vão até 19 de setembro de 2026 e passam por avaliação individual; o evento acontece de 09 a 12 de outubro de 2026, em São Paulo. A contrapartida é a credencial de cobertura para produzir conteúdo na feira, não cachê. Território de games e cultura pop.",
+      "opportunityType": "barter",
+      "territories": [
+        "Entretenimento"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [
+        "Avaliação individual do pedido pela organização",
+        "Credenciamento válido para maiores de 16 anos"
+      ],
+      "deliverables": [
+        "Cobertura do evento nas redes do creator"
+      ],
+      "compensation": {
+        "type": "barter",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_creator",
+        "sourceText": "Credencial de cobertura; não há cachê publicado.",
+        "confirmed": false,
+        "includesProduct": true
+      },
+      "applicationDeadline": "2026-09-19",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "O portal de credenciamento da Brasil Game Show tem categoria própria de Influenciadores, aberta sem login. Os pedidos vão até 19 de setembro de 2026 e passam por avaliação individual; o evento acontece de 09 a 12 de outubro de 2026, em São Paulo. A contrapartida é a credencial de cobertura para produzir conteúdo na feira, não cachê. Território de games e cultura pop."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:024:threads-posts-publicos",
+      "sourceId": "threads-posts-publicos",
+      "sourcePlatform": "Threads (posts públicos)",
+      "sourceUrl": "https://www.threads.com/@maisinfluencer/post/Dcg--c9nNnC",
+      "applicationUrl": "https://www.threads.com/@maisinfluencer/post/Dcg--c9nNnC",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Campanha de cervejas | fãs de rock — evento em Recife dia 19/09",
+      "brand": null,
+      "summary": "Post público da @maisinfluencer em 26/08/2026 buscando creators para campanha de uma marca de cervejas, com participação em evento presencial em Recife no dia 19/09/2026. A curadoria é focada em perfis com conexão genuína com o universo do rock. A marca não é revelada no post e as condições ficam no grupo de jobs da conta. Território de música e entretenimento, região Nordeste.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Entretenimento"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [
+        "A candidatura passa por um grupo de WhatsApp de terceiro, não por página da marca"
+      ],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado no post; a condição fica no grupo de jobs.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": "2026-09-19",
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Post público da @maisinfluencer em 26/08/2026 buscando creators para campanha de uma marca de cervejas, com participação em evento presencial em Recife no dia 19/09/2026. A curadoria é focada em perfis com conexão genuína com o universo do rock. A marca não é revelada no post e as condições ficam no grupo de jobs da conta. Território de música e entretenimento, região Nordeste."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada conferida em aberto na fonte em 07/09/2026, com prazo publicado."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:025:threads-posts-publicos",
+      "sourceId": "threads-posts-publicos",
+      "sourcePlatform": "Threads (posts públicos)",
+      "sourceUrl": "https://www.threads.com/@maisinfluencer/post/Dcbx8OUHJdS",
+      "applicationUrl": "https://www.threads.com/@maisinfluencer/post/Dcbx8OUHJdS",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Campanha de eletrônicos e tecnologia | lançamento com prioridade para perfis de moda",
+      "brand": null,
+      "summary": "Post público da @maisinfluencer em 24/08/2026: mapeamento de creators para o lançamento de produtos de uma marca de eletrônicos e tecnologia, com volume maior de influenciadores e prioridade para perfis de moda. Um comentário de 25/08 diz que a comunidade já estava cheia; confirmar se a porta segue aberta. Marca e cachê não aparecem no post.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Moda",
+        "Tecnologia"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [
+        "A candidatura passa por um grupo de WhatsApp de terceiro, não por página da marca"
+      ],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado no post; a condição fica no grupo de jobs.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Post público da @maisinfluencer em 24/08/2026: mapeamento de creators para o lançamento de produtos de uma marca de eletrônicos e tecnologia, com volume maior de influenciadores e prioridade para perfis de moda. Um comentário de 25/08 diz que a comunidade já estava cheia; confirmar se a porta segue aberta. Marca e cachê não aparecem no post."
+        }
+      ],
+      "review": {
+        "status": "rejected",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Comentário público na própria chamada indica que a porta (grupo de jobs) estava fechada ou lotada."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:026:threads-posts-publicos",
+      "sourceId": "threads-posts-publicos",
+      "sourcePlatform": "Threads (posts públicos)",
+      "sourceUrl": "https://www.threads.com/@maisinfluencer/post/DcKc081HI5t",
+      "applicationUrl": "https://www.threads.com/@maisinfluencer/post/DcKc081HI5t",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Campanha de cosméticos capilares | beleza e profissionais de cabelo",
+      "brand": null,
+      "summary": "Post público da @maisinfluencer em 17/08/2026: mapeamento de creators para campanha de uma marca de cosméticos capilares, aberto tanto a influenciadores de beleza quanto a profissionais especialistas em cabelo. Atenção: um comentário de 26/08 afirma que o grupo de jobs estava fechado para novas entradas. Marca e cachê não aparecem no post.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [
+        "A candidatura passa por um grupo de WhatsApp de terceiro, não por página da marca"
+      ],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado no post; a condição fica no grupo de jobs.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Post público da @maisinfluencer em 17/08/2026: mapeamento de creators para campanha de uma marca de cosméticos capilares, aberto tanto a influenciadores de beleza quanto a profissionais especialistas em cabelo. Atenção: um comentário de 26/08 afirma que o grupo de jobs estava fechado para novas entradas. Marca e cachê não aparecem no post."
+        }
+      ],
+      "review": {
+        "status": "rejected",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Comentário público na própria chamada indica que a porta (grupo de jobs) estava fechada ou lotada."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:027:threads-posts-publicos",
+      "sourceId": "threads-posts-publicos",
+      "sourcePlatform": "Threads (posts públicos)",
+      "sourceUrl": "https://www.threads.com/@maisinfluencer/post/DbEz9qfnFYF",
+      "applicationUrl": "https://www.threads.com/@maisinfluencer/post/DbEz9qfnFYF",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Campanha de haircare no Rock in Rio 2026 | quem já vai ao festival",
+      "brand": null,
+      "summary": "Post público da @maisinfluencer em 21/07/2026 mapeando influenciadoras que já irão ao Rock in Rio 2026 para uma campanha de uma marca de produtos para cabelo. Os comentários seguiam ativos em 06/09/2026, com creators informando os dias em que vão ao festival — sinal de que a seleção ainda corria. Marca, entregas e cachê não aparecem no post.",
+      "opportunityType": "open_application",
+      "territories": [
+        "Beleza e autocuidado"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [
+        "A candidatura passa por um grupo de WhatsApp de terceiro, não por página da marca"
+      ],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado no post; a condição fica no grupo de jobs.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Post público da @maisinfluencer em 21/07/2026 mapeando influenciadoras que já irão ao Rock in Rio 2026 para uma campanha de uma marca de produtos para cabelo. Os comentários seguiam ativos em 06/09/2026, com creators informando os dias em que vão ao festival — sinal de que a seleção ainda corria. Marca, entregas e cachê não aparecem no post."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada vista na vitrine em 07/09/2026, mas com ressalva no próprio texto: fica a confirmar."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:028:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criacao-de-videos-ugc-para-campanha-de-seguro-auto-no-meta-ads-com-direitos-de-imagem",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeos UGC para campanha de seguro auto no Meta Ads",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeos UGC autênticos de 30 a 40 segundos para anúncios de um seguro auto, com direitos de imagem. Faixa informada: menos de USD 50. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeos UGC autênticos de 30 a 40 segundos para anúncios de um seguro auto, com direitos de imagem. Faixa informada: menos de USD 50. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:029:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/gravacao-de-video-ugc-1",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de vídeo UGC a partir de copy pronta",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Gravar um vídeo estilo UGC a partir de uma copy de 210 palavras, nicho de relacionamento. Faixa informada: menos de USD 50. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Gravar um vídeo estilo UGC a partir de uma copy de 210 palavras, nicho de relacionamento. Faixa informada: menos de USD 50. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:030:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criacao-de-video-ugc-para-material-educacional-infantil-para-anuncios",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeo UGC para material educacional infantil",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeo UGC para anúncios de material educacional infantil. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Maternidade e família"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeo UGC para anúncios de material educacional infantil. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:031:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/profissional-para-gravacao-de-videos-de-treinamento-de-produto",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de vídeos de treinamento de produto",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Profissional para gravar vídeos de treinamento de produto. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Profissional para gravar vídeos de treinamento de produto. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:032:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criacao-de-video-ugc-vertical-para-produto-no-mercado-livre-clips",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeo UGC vertical para produto no Mercado Livre Clips",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeo UGC vertical para produto no Mercado Livre Clips. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeo UGC vertical para produto no Mercado Livre Clips. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:033:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criacao-de-video-publicitario-ugc-para-sistema-de-seguranca-com-ia",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeo publicitário UGC para sistema de segurança com IA",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeo publicitário UGC para um sistema de segurança com inteligência artificial. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Tecnologia"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeo publicitário UGC para um sistema de segurança com inteligência artificial. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:034:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/atriz-fluente-em-espanhol-para-video-ugc-de-infoproduto",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz fluente em espanhol para vídeo UGC de infoproduto",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Atriz fluente em espanhol para vídeo UGC de infoproduto. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Atriz fluente em espanhol para vídeo UGC de infoproduto. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:035:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criacao-de-video-depoimento-profissional-e-natural-para-aplicativo-de-doramas",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeo depoimento para aplicativo de doramas",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeo depoimento profissional e natural para um aplicativo de doramas. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeo depoimento profissional e natural para um aplicativo de doramas. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:036:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criador-de-conteudo-ugc-para-videos-de-marketing-digital-de-desenvolvimento-de-sistemas-e-sites",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criador de conteúdo UGC para vídeos de marketing de desenvolvimento de sistemas e sites",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeos UGC de marketing digital para uma empresa de desenvolvimento de sistemas e sites. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Tecnologia"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeos UGC de marketing digital para uma empresa de desenvolvimento de sistemas e sites. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:037:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/especialista-em-criacao-de-conteudo-ugc-para-videos-dinamicos-no-instagram-reels",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Especialista em conteúdo UGC para vídeos dinâmicos no Instagram Reels",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeos UGC dinâmicos para Instagram Reels. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [
+        "Reel",
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeos UGC dinâmicos para Instagram Reels. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:038:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/producao-de-videos-curtos-e-autenticos-de-tarefas-domesticas-para-conteudo-ugc",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Produção de vídeos curtos e autênticos de tarefas domésticas para UGC",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Vídeos curtos e autênticos de tarefas domésticas em formato UGC. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Vídeos curtos e autênticos de tarefas domésticas em formato UGC. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:039:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/criador-de-conteudo-gerado-pelo-usuario-ugc-experiente-para-divulgacao-de-saas",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criador de conteúdo UGC experiente para divulgação de SaaS",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Creator experiente em UGC para divulgar um SaaS. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Creator experiente em UGC para divulgar um SaaS. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:040:workana-public",
+      "sourceId": "workana-public",
+      "sourcePlatform": "Workana",
+      "sourceUrl": "https://www.workana.com/pt/jobs?query=ugc",
+      "applicationUrl": "https://www.workana.com/job/freelancer-para-producao-de-videos-replicaveis-em-escala-com-celulares",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Produção de vídeos replicáveis em escala gravados com celular",
+      "brand": null,
+      "summary": "Projeto público no Workana em 07/09/2026: Produção de vídeos replicáveis em escala, gravados com celular. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Faixa em dólar na listagem; confirmar na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público no Workana em 07/09/2026: Produção de vídeos replicáveis em escala, gravados com celular. A listagem mostra data de publicação e faixa de valor em dólar; enviar proposta exige conta."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:041:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atriz-apresentadora-para-video-promocional-de-sorteio-sao-paulo-sp-780897",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz/apresentadora para vídeo promocional de sorteio - São Paulo/SP",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atriz/apresentadora para vídeo promocional de sorteio - São Paulo/SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atriz/apresentadora para vídeo promocional de sorteio - São Paulo/SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:042:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-3-videos-ugc-para-anuncios-782235",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de 3 vídeos UGC para anúncios",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de 3 vídeos UGC para anúncios. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de 3 vídeos UGC para anúncios. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:043:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criador-de-conteudo-ugc-em-video-para-marca-de-suplementos-781902",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criador de conteúdo UGC em vídeo para marca de suplementos",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criador de conteúdo UGC em vídeo para marca de suplementos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criador de conteúdo UGC em vídeo para marca de suplementos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:044:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/gravar-video-ugc-em-ingles-781643",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravar vídeo UGC em inglês",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Gravar vídeo UGC em inglês. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Educação"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Gravar vídeo UGC em inglês. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:045:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-videos-ugc-para-criativos-de-grupos-de-whatsapp-780667",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeos UGC para criativos de grupos de WhatsApp",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para criativos de grupos de WhatsApp. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Tecnologia"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para criativos de grupos de WhatsApp. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:046:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-videos-ugc-para-criativos-de-grupos-de-whatsapp-780641",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeos UGC para criativos de grupos de WhatsApp",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para criativos de grupos de WhatsApp. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Tecnologia"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para criativos de grupos de WhatsApp. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:047:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/gravacao-de-ugc-para-video-publicitario-780376",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de UGC para vídeo publicitário",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Gravação de UGC para vídeo publicitário. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Gravação de UGC para vídeo publicitário. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:048:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-3-videos-ugc-para-anuncios-780323",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de 3 vídeos UGC para anúncios",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de 3 vídeos UGC para anúncios. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de 3 vídeos UGC para anúncios. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:049:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-video-ugc-sobre-fitness-ciclo-menstrual-e-nutricao-780041",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeo UGC sobre fitness, ciclo menstrual e nutrição",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeo UGC sobre fitness, ciclo menstrual e nutrição. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Fitness e saúde"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeo UGC sobre fitness, ciclo menstrual e nutrição. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:050:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/gravacao-de-criativos-ugc-masculino-para-funil-de-aplicacao-779919",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de criativos UGC masculino para funil de aplicação",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Gravação de criativos UGC masculino para funil de aplicação. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Gravação de criativos UGC masculino para funil de aplicação. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:051:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/gravacao-de-video-institucional-para-tiktok-live-779643",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de vídeo institucional para TikTok LIVE",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Gravação de vídeo institucional para TikTok LIVE. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [
+        "TikTok"
+      ],
+      "formats": [
+        "Vídeo",
+        "Live"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Gravação de vídeo institucional para TikTok LIVE. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:052:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criativos-ugc-e-anuncios-para-e-commerce-de-joias-personalizadas-778839",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criativos UGC e anúncios para e-commerce de joias personalizadas",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criativos UGC e anúncios para e-commerce de joias personalizadas. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criativos UGC e anúncios para e-commerce de joias personalizadas. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:053:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/producao-de-videos-ugc-curtos-em-ingles-778374",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Produção de vídeos UGC curtos em inglês",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Produção de vídeos UGC curtos em inglês. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Educação"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Produção de vídeos UGC curtos em inglês. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:054:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criar-videos-ugc-com-depoimento-por-pessoa-acima-de-50-anos-777653",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criar vídeos UGC com depoimento por pessoa acima de 50 anos",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criar vídeos UGC com depoimento por pessoa acima de 50 anos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criar vídeos UGC com depoimento por pessoa acima de 50 anos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:055:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/divulgacao-de-restaurante-delivery-por-influencer-em-nova-friburgo-780385",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Divulgação de restaurante delivery por influencer em Nova Friburgo",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Divulgação de restaurante delivery por influencer em Nova Friburgo. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Gastronomia"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Divulgação de restaurante delivery por influencer em Nova Friburgo. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:056:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/influencer-para-startup-de-microservicos-777096",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Influencer para startup de microserviços",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Influencer para startup de microserviços. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Influencer para startup de microserviços. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:057:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/ator-apresentador-de-50-a-65-anos-para-video-de-instrucoes-782227",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Ator/apresentador de 50 a 65 anos para vídeo de instruções",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Ator/apresentador de 50 a 65 anos para vídeo de instruções. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Ator/apresentador de 50 a 65 anos para vídeo de instruções. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:058:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atriz-apresentadora-para-video-de-instrucoes-de-produto-782226",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz/apresentadora para vídeo de instruções de produto",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atriz/apresentadora para vídeo de instruções de produto. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atriz/apresentadora para vídeo de instruções de produto. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:059:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atuacao-de-ator-para-depoimento-em-video-778020",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atuação de ator para depoimento em video",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atuação de ator para depoimento em video. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atuação de ator para depoimento em video. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:060:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/ator-apresentador-profissional-para-video-comercial-781730",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Ator/apresentador profissional para vídeo comercial",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Ator/apresentador profissional para vídeo comercial. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Ator/apresentador profissional para vídeo comercial. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:061:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/gravacao-de-3-videos-curtos-para-anuncios-no-meta-ads-779903",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Gravação de 3 vídeos curtos para anúncios no Meta ADS",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Gravação de 3 vídeos curtos para anúncios no Meta ADS. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Gravação de 3 vídeos curtos para anúncios no Meta ADS. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:062:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atriz-para-gravacao-de-videos-para-redes-sociais-777437",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz para gravação de vídeos para redes sociais",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atriz para gravação de vídeos para redes sociais. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atriz para gravação de vídeos para redes sociais. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:063:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atores-e-modelos-sp-capital-774909",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atores e modelos (SP - Capital)",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atores e modelos (SP - Capital). Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atores e modelos (SP - Capital). Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:064:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atriz-para-gravacao-de-vsl-de-vendas-e-criativos-774862",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz para gravação de VSL de vendas e criativos",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atriz para gravação de VSL de vendas e criativos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Negócios e finanças"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atriz para gravação de VSL de vendas e criativos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:065:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/atriz-garota-propaganda-para-video-promocional-de-1-minuto-774618",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Atriz/garota-propaganda para vídeo promocional de 1 minuto",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Atriz/garota-propaganda para vídeo promocional de 1 minuto. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Atriz/garota-propaganda para vídeo promocional de 1 minuto. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:066:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/ator-ou-expert-para-gravacao-de-video-institucional-homens-781183",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Ator ou expert para gravação de vídeo institucional - homens",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Ator ou expert para gravação de vídeo institucional - homens. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Ator ou expert para gravação de vídeo institucional - homens. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:067:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/apresentador-para-producao-de-conteudo-financeiro-778570",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Apresentador para produção de conteúdo financeiro",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Apresentador para produção de conteúdo financeiro. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Negócios e finanças"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Apresentador para produção de conteúdo financeiro. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:068:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/apresentador-a-para-videos-e-podcast-engenharia-arquitetura-e-construcao-sp-777761",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Apresentador(a) para vídeos e podcast - engenharia, arquitetura e construção - SP",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Apresentador(a) para vídeos e podcast - engenharia, arquitetura e construção - SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Apresentador(a) para vídeos e podcast - engenharia, arquitetura e construção - SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:069:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/apresentadora-presencial-para-videos-comerciais-em-sp-775686",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Apresentadora presencial para vídeos comerciais em SP",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Apresentadora presencial para vídeos comerciais em SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Apresentadora presencial para vídeos comerciais em SP. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:070:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criacao-de-videos-ugc-para-anuncios-de-marca-financeira-777104",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criação de vídeos UGC para anúncios de marca financeira",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para anúncios de marca financeira. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Negócios e finanças"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criação de vídeos UGC para anúncios de marca financeira. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:071:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criadora-ugc-brasileira-para-video-publicitario-776343",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criadora UGC brasileira para vídeo publicitário",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criadora UGC brasileira para vídeo publicitário. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criadora UGC brasileira para vídeo publicitário. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:072:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criadores-ugc-kol-influencers-para-fone-bluetooth-brasil-777448",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criadores UGC/KOL/Influencers para fone Bluetooth (Brasil)",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criadores UGC/KOL/Influencers para fone Bluetooth (Brasil). Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criadores UGC/KOL/Influencers para fone Bluetooth (Brasil). Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:073:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criadores-ugc-em-espanhol-e-ingles-para-campanha-internacional-de-ads-776969",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criadores UGC em espanhol e inglês para campanha internacional de Ads",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criadores UGC em espanhol e inglês para campanha internacional de Ads. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [
+        "Educação"
+      ],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criadores UGC em espanhol e inglês para campanha internacional de Ads. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:074:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/producao-de-videos-ugc-sobre-hortas-e-cultivo-em-casa-775180",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Produção de vídeos UGC sobre hortas e cultivo em casa",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Produção de vídeos UGC sobre hortas e cultivo em casa. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Produção de vídeos UGC sobre hortas e cultivo em casa. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "varredura-2026-09-07:075:ninety-nine-freelas-public",
+      "sourceId": "ninety-nine-freelas-public",
+      "sourcePlatform": "99Freelas",
+      "sourceUrl": "https://www.99freelas.com.br/projects?q=ugc",
+      "applicationUrl": "https://www.99freelas.com.br/project/criador-ugc-videos-para-criativos-774640",
+      "applicationLabel": "Conferir candidatura",
+      "requiresAccount": true,
+      "title": "Criador UGC - vídeos para criativos",
+      "brand": null,
+      "summary": "Projeto público publicado no 99Freelas buscando creator: Criador UGC - vídeos para criativos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma.",
+      "opportunityType": "ugc",
+      "territories": [],
+      "platforms": [],
+      "formats": [
+        "Vídeo"
+      ],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": "Não publicado na listagem; conferir na página do projeto.",
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T18:00:00.000Z",
+      "lastVerifiedAt": "2026-09-07T18:00:00.000Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "captura_manual",
+          "excerpt": "Projeto público publicado no 99Freelas buscando creator: Criador UGC - vídeos para criativos. Descrição, prazo e faixa de valor aparecem na página do projeto; enviar proposta exige conta na plataforma."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Vista na listagem pública em 07/09/2026, sem prazo publicado pela fonte; a validade passa a ser a idade da descoberta."
+      }
+    },
+    {
+      "id": "tijuca-geek-public-coverage:e2f38d2e02c5f341",
+      "sourceId": "tijuca-geek-public-coverage",
+      "sourcePlatform": "Tijuca Geek Festival",
+      "sourceUrl": "https://www.tijucageekfestival.com.br/",
+      "applicationUrl": "https://forms.gle/mDY8BQ7tMNe2FQFBA",
+      "applicationLabel": "Solicitar credenciamento",
+      "requiresAccount": true,
+      "title": "Tijuca Geek Festival — credenciamento de influencers",
+      "brand": "Tijuca Geek Festival",
+      "summary": "Credenciamento de creators para produzir e publicar conteúdo sobre o evento no Rio de Janeiro. Os benefícios variam conforme o alcance, de ingresso e credencial a acompanhante e press kit premium.",
+      "opportunityType": "barter",
+      "territories": [
+        "Entretenimento"
+      ],
+      "platforms": [
+        "Instagram"
+      ],
+      "formats": [
+        "Cobertura de evento",
+        "Foto",
+        "Vídeo"
+      ],
+      "requirements": [
+        "Idade mínima de 17 anos e pelo menos 500 seguidores.",
+        "Conta pública no Instagram; perfis privados são recusados.",
+        "Evento presencial no Rio de Janeiro, em 13 de setembro de 2026."
+      ],
+      "deliverables": [
+        "Produzir e publicar conteúdo sobre o evento conforme orientações da produção."
+      ],
+      "compensation": {
+        "type": "barter",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "per_delivery",
+        "sourceText": "Acesso gratuito e benefícios por faixa de seguidores; não há cachê informado.",
+        "confirmed": true,
+        "includesProduct": true
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T23:03:31.208Z",
+      "lastVerifiedAt": "2026-09-07T23:03:31.208Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "elegibilidade",
+          "excerpt": "Mínimo de 500 seguidores, 17 anos e conta pública no Instagram."
+        },
+        {
+          "field": "benefícios",
+          "excerpt": "Acesso gratuito; kits e acompanhante variam conforme a faixa de seguidores."
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada pública de cobertura conferida pela coleta liberada em 07/09/2026."
+      }
+    },
+    {
+      "id": "upabc-public-coverage:ec876c294ad1f73c",
+      "sourceId": "upabc-public-coverage",
+      "sourcePlatform": "Up!ABC",
+      "sourceUrl": "https://ajuda.upabc.com.br/index.php?catid=16&id=45&view=article",
+      "applicationUrl": "https://www.pulsocriativo.com.br/sys/imprensa/publico/?e=21",
+      "applicationLabel": "Conferir credenciamento",
+      "requiresAccount": false,
+      "title": "Up!ABC — chamada de cobertura para criadores",
+      "brand": "Up!ABC",
+      "summary": "Página pública de credenciamento para cobertura. Conferir edição, disponibilidade e condições no canal oficial.",
+      "opportunityType": "barter",
+      "territories": [
+        "Entretenimento"
+      ],
+      "platforms": [],
+      "formats": [],
+      "requirements": [],
+      "deliverables": [],
+      "compensation": {
+        "type": "unknown",
+        "minimum": null,
+        "maximum": null,
+        "currency": "BRL",
+        "basis": "unknown",
+        "sourceText": null,
+        "confirmed": false,
+        "includesProduct": false
+      },
+      "applicationDeadline": null,
+      "publishedAt": null,
+      "discoveredAt": "2026-09-07T23:03:31.208Z",
+      "lastVerifiedAt": "2026-09-07T23:03:31.208Z",
+      "status": "open",
+      "evidence": [
+        {
+          "field": "chamada",
+          "excerpt": "Credenciamento para Cobertura do Up!ABC"
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "reviewedAt": "2026-09-07T21:00:00.000Z",
+        "reviewedBy": "varredura-claude-2026-09-07",
+        "notes": "Chamada pública de cobertura conferida pela coleta liberada em 07/09/2026."
+      }
+    }
+  ]
+}

@@ -6,15 +6,17 @@ import CampaignRadarWeeklySelectionModel from "@/app/models/CampaignRadarWeeklyS
 import type { CatalogCampaignOpportunity } from "./catalog";
 import {
   getOrAssignWeeklyFreeOpportunity,
+  listPublicCampaignRadarCatalog,
   replaceCampaignRadarCatalog,
   saoPauloDateKey,
+  UNDATED_MAX_AGE_DAYS,
 } from "./repository";
 import type { CampaignRadarBatch } from "./types";
 
 jest.mock("@/app/lib/mongoose", () => ({ connectToDatabase: jest.fn() }));
 jest.mock("@/app/models/CampaignRadarOpportunity", () => ({
   __esModule: true,
-  default: { bulkWrite: jest.fn(), updateMany: jest.fn() },
+  default: { bulkWrite: jest.fn(), updateMany: jest.fn(), find: jest.fn() },
 }));
 jest.mock("@/app/models/CampaignRadarWeeklySelection", () => ({
   __esModule: true,
@@ -148,5 +150,39 @@ describe("campaign radar repository", () => {
     expect(mockOpportunityModel.bulkWrite).toHaveBeenCalledTimes(1);
     expect(mockOpportunityModel.updateMany).toHaveBeenCalledTimes(1);
     expect(endSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("catálogo público e chamadas sem prazo", () => {
+  function captureFilter() {
+    const lean = jest.fn(async () => []);
+    const limit = jest.fn(() => ({ lean }));
+    const sort = jest.fn(() => ({ limit }));
+    (mockOpportunityModel as unknown as { find: jest.Mock }).find = jest.fn(() => ({ sort }));
+    return () => (mockOpportunityModel as unknown as { find: jest.Mock }).find.mock.calls[0]![0];
+  }
+
+  test("aceita prazo futuro ou descoberta recente quando não há prazo", async () => {
+    const getFilter = captureFilter();
+    const now = new Date("2026-09-07T15:00:00.000Z");
+
+    await listPublicCampaignRadarCatalog({ now });
+
+    const clauses = getFilter().$or;
+    expect(clauses).toHaveLength(2);
+    expect(clauses[0].applicationDeadline.$gte).toEqual(new Date("2026-09-07T00:00:00.000Z"));
+    expect(clauses[1].applicationDeadline).toBeNull();
+    const cutoff = clauses[1].discoveredAt.$gte as Date;
+    expect(Math.round((now.getTime() - cutoff.getTime()) / 86_400_000)).toBe(UNDATED_MAX_AGE_DAYS);
+  });
+
+  test("a janela das sem prazo é configurável e limitada", async () => {
+    const getFilter = captureFilter();
+    const now = new Date("2026-09-07T15:00:00.000Z");
+
+    await listPublicCampaignRadarCatalog({ now, undatedMaxAgeDays: 900 });
+
+    const cutoff = getFilter().$or[1].discoveredAt.$gte as Date;
+    expect(Math.round((now.getTime() - cutoff.getTime()) / 86_400_000)).toBe(60);
   });
 });

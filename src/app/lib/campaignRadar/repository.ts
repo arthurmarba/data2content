@@ -5,6 +5,7 @@ import CampaignRadarWeeklySelectionModel from "@/app/models/CampaignRadarWeeklyS
 import { normalizeOpportunityForCatalog, type CatalogCampaignOpportunity } from "./catalog";
 import { campaignRadarWeekKey, selectWeeklyFreeOpportunity } from "./matching";
 import type { CampaignOpportunity, CampaignRadarBatch } from "./types";
+import { campaignRadarSourceRegistry, isSourceApprovedForPlugin } from "./sourceRegistry";
 
 function asDate(value: string | null): Date | null {
   if (!value) return null;
@@ -12,7 +13,7 @@ function asDate(value: string | null): Date | null {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
-function persistenceRecord(opportunity: CatalogCampaignOpportunity) {
+export function persistenceRecord(opportunity: CatalogCampaignOpportunity) {
   return {
     opportunityId: opportunity.id,
     catalogBatchId: opportunity.catalogBatchId,
@@ -105,7 +106,15 @@ export async function replaceCampaignRadarCatalog(batch: CampaignRadarBatch) {
       }
 
       await CampaignRadarOpportunityModel.updateMany(
-        { catalogBatchId: { $ne: preview.catalogBatchId }, activeInCatalog: true },
+        {
+          catalogBatchId: { $not: /^campaign-radar-admin:/ },
+          activeInCatalog: true,
+          $or: [
+            { opportunityId: { $nin: normalized.map((item) => item.id) } },
+            // Sem prazo publicado, a idade é o único critério de validade.
+            { applicationDeadline: null, discoveredAt: { $lt: undatedCutoff(new Date()) } },
+          ],
+        },
         { $set: { activeInCatalog: false } },
         { session },
       );
@@ -178,6 +187,20 @@ export interface ListCampaignRadarCatalogOptions {
   includePrograms?: boolean;
   now?: Date;
   maxAgeDays?: number;
+  /** Janela para chamadas sem prazo publicado, contada da descoberta. */
+  undatedMaxAgeDays?: number;
+}
+
+/**
+ * Fonte que não publica prazo (99Freelas, Workana, The Insiders, POPline) só some
+ * quando envelhece. O relógio é a descoberta — quando a chamada entrou aqui —, não
+ * a última verificação, que se renova a cada varredura e nunca deixaria expirar.
+ */
+export const UNDATED_MAX_AGE_DAYS = 14;
+
+export function undatedCutoff(now: Date, days: number = UNDATED_MAX_AGE_DAYS): Date {
+  const window = Math.max(1, Math.min(60, days));
+  return new Date(now.getTime() - window * 24 * 60 * 60 * 1000);
 }
 
 export function saoPauloDateKey(now: Date): string {
@@ -201,12 +224,16 @@ export async function listPublicCampaignRadarCatalog(
 
   await connectToDatabase();
   const records = await CampaignRadarOpportunityModel.find({
+    sourceId: { $in: campaignRadarSourceRegistry.filter((source) => isSourceApprovedForPlugin(source.sourceId)).map((source) => source.sourceId) },
     activeInCatalog: true,
     sourceVisibility: "publicly_observable",
     status: "open",
     "review.status": "approved",
     lastVerifiedAt: { $gte: freshSince },
-    applicationDeadline: { $gte: todayStart },
+    $or: [
+      { applicationDeadline: { $gte: todayStart } },
+      { applicationDeadline: null, discoveredAt: { $gte: undatedCutoff(now, options.undatedMaxAgeDays ?? UNDATED_MAX_AGE_DAYS) } },
+    ],
     opportunityType: options.includePrograms
       ? { $nin: ["challenge"] }
       : { $nin: ["challenge", "creator_program"] },

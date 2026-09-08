@@ -3,6 +3,7 @@ import path from "node:path";
 import { campaignReportDate } from "../../src/app/lib/campaignRadar/collect";
 import { fetchPublicText, mapWithConcurrency } from "../../src/app/lib/campaignRadar/http";
 import { campaignRadarSourceRegistry } from "../../src/app/lib/campaignRadar/sourceRegistry";
+import { collectionBlockReason, collectionPolicy } from "../../src/app/lib/campaignRadar/collectionPolicy";
 
 function arg(name: string): string | null {
   return process.argv.find((value) => value.startsWith(`--${name}=`))?.slice(name.length + 3) ?? null;
@@ -26,6 +27,13 @@ async function main() {
   );
 
   const entries = await mapWithConcurrency(campaignRadarSourceRegistry, 4, async (source) => {
+    const blockedReason = collectionBlockReason(collectionPolicy(source.sourceId), now);
+    if (blockedReason) return {
+      sourceId: source.sourceId, sourcePlatform: source.sourcePlatform, publicCheckUrl: source.publicCheckUrl,
+      inventoryVisibility: source.inventoryVisibility, collectionModes: source.collectionModes,
+      reportPolicy: source.reportPolicy, pluginDistribution: source.pluginDistribution,
+      status: "skipped", signals: [], checkedAt: null, error: blockedReason,
+    };
     try {
       const body = searchable(await fetchPublicText(source.publicCheckUrl));
       const signals = source.expectedPublicSignals.map((signal) => ({
@@ -71,6 +79,7 @@ async function main() {
       verified: entries.filter((entry) => entry.status === "verified").length,
       changed: entries.filter((entry) => entry.status === "changed").length,
       unreachable: entries.filter((entry) => entry.status === "unreachable").length,
+      skipped: entries.filter((entry) => entry.status === "skipped").length,
     },
     entries,
   };

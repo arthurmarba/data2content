@@ -20,6 +20,9 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `radar-coleta-gratuita-operacao.md` | 09/2026 | Implementação, operação administrativa, coleta sem APIs pagas e próximos passos |
+| `radar-varredura-2026-09-07.md` | 09/2026 | Varredura manual de 07/09: o que está aberto hoje, squads de marca e origens novas |
+| `radar-fontes-verificadas.md` | 09/2026 | Catálogo das origens já conferidas: o que rende, o que é vitrine, eventos e falsos positivos |
 | `plano-roteiros-baseados-em-conteudos-vencedores.md` | 09/2026 | Auditoria e plano: seleção de vencedores, fala real, geração no MCP, qualidade e custo |
 | `plano-gerador-gancho-video.md` | 09/2026 | Gerador de gancho para vídeo |
 | `plano-ajuste-inteligente-roteiro-video.md` | 09/2026 | Ajuste de roteiro a partir do vídeo |

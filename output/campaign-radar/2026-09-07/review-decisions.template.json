@@ -1,0 +1,382 @@
+{
+ "schemaVersion": "campaign_radar_review_v1",
+ "reviewedAt": "2026-09-07T18:00:00.000Z",
+ "reviewedBy": "arthur",
+ "decisions": [
+  {
+   "id": "varredura-2026-09-07:001:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Seguro Residencial para quem está migrando para o litoral com assistência PET"
+  },
+  {
+   "id": "varredura-2026-09-07:002:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Nova linha em teste"
+  },
+  {
+   "id": "varredura-2026-09-07:003:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Desafio de vendas em 24 horas"
+  },
+  {
+   "id": "varredura-2026-09-07:004:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Provador para o e commerce"
+  },
+  {
+   "id": "varredura-2026-09-07:005:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Primeira prova da nova safra"
+  },
+  {
+   "id": "varredura-2026-09-07:006:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Bar conceituado no Tatuapé"
+  },
+  {
+   "id": "varredura-2026-09-07:007:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: UGC pronto para anúncios"
+  },
+  {
+   "id": "varredura-2026-09-07:008:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Divulgação de Climatizadores por Assinatura para academias, galpões e supermercados"
+  },
+  {
+   "id": "varredura-2026-09-07:009:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Divulgação de curso de inglês – Aprenda a falar inglês"
+  },
+  {
+   "id": "varredura-2026-09-07:010:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Vídeo recomendando a marca"
+  },
+  {
+   "id": "varredura-2026-09-07:011:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Girl marca Find Your Flow"
+  },
+  {
+   "id": "varredura-2026-09-07:012:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Campanha em canais digitais brasileiros — público 18+"
+  },
+  {
+   "id": "varredura-2026-09-07:013:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Meu primeiro 5K"
+  },
+  {
+   "id": "varredura-2026-09-07:014:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Seja uma Embaixadora marca"
+  },
+  {
+   "id": "varredura-2026-09-07:015:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: WhatsApp Channel Manager Recruitment"
+  },
+  {
+   "id": "varredura-2026-09-07:016:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Lançamento de Nova Marca"
+  },
+  {
+   "id": "varredura-2026-09-07:017:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Creators marca ™ Streetwear, Fitness & Lifestyle"
+  },
+  {
+   "id": "varredura-2026-09-07:018:influencer-brasil",
+   "status": "pending",
+   "notes": "Influencer Brasil: Marca Creators Fitness & Nutrição"
+  },
+  {
+   "id": "varredura-2026-09-07:019:the-insiders-public-campaigns",
+   "status": "pending",
+   "notes": "The Insiders Brasil: A TAL DA CASTANHA — campanha aberta na The Insiders"
+  },
+  {
+   "id": "varredura-2026-09-07:020:the-insiders-public-campaigns",
+   "status": "pending",
+   "notes": "The Insiders Brasil: Aparadores e Barbeadores Philips — campanha aberta na The Insiders"
+  },
+  {
+   "id": "varredura-2026-09-07:021:popline-creators-public-campaigns",
+   "status": "pending",
+   "notes": "POPline Creators: POPline Creators — campanhas ativas de música e cultura pop"
+  },
+  {
+   "id": "varredura-2026-09-07:022:keune-creators",
+   "status": "pending",
+   "notes": "Keune Creators: Keune Creators — squad de creators de haircare com ciclos trimestrais"
+  },
+  {
+   "id": "varredura-2026-09-07:023:bgs-credenciamento",
+   "status": "pending",
+   "notes": "Brasil Game Show: Brasil Game Show 2026 — credenciamento de influenciadores"
+  },
+  {
+   "id": "varredura-2026-09-07:024:threads-posts-publicos",
+   "status": "pending",
+   "notes": "Threads (posts públicos): Campanha de cervejas | fãs de rock — evento em Recife dia 19/09"
+  },
+  {
+   "id": "varredura-2026-09-07:025:threads-posts-publicos",
+   "status": "pending",
+   "notes": "Threads (posts públicos): Campanha de eletrônicos e tecnologia | lançamento com prioridade para perfis de moda"
+  },
+  {
+   "id": "varredura-2026-09-07:026:threads-posts-publicos",
+   "status": "pending",
+   "notes": "Threads (posts públicos): Campanha de cosméticos capilares | beleza e profissionais de cabelo"
+  },
+  {
+   "id": "varredura-2026-09-07:027:threads-posts-publicos",
+   "status": "pending",
+   "notes": "Threads (posts públicos): Campanha de haircare no Rock in Rio 2026 | quem já vai ao festival"
+  },
+  {
+   "id": "varredura-2026-09-07:028:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criação de vídeos UGC para campanha de seguro auto no Meta Ads"
+  },
+  {
+   "id": "varredura-2026-09-07:029:workana-public",
+   "status": "pending",
+   "notes": "Workana: Gravação de vídeo UGC a partir de copy pronta"
+  },
+  {
+   "id": "varredura-2026-09-07:030:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criação de vídeo UGC para material educacional infantil"
+  },
+  {
+   "id": "varredura-2026-09-07:031:workana-public",
+   "status": "pending",
+   "notes": "Workana: Gravação de vídeos de treinamento de produto"
+  },
+  {
+   "id": "varredura-2026-09-07:032:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criação de vídeo UGC vertical para produto no Mercado Livre Clips"
+  },
+  {
+   "id": "varredura-2026-09-07:033:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criação de vídeo publicitário UGC para sistema de segurança com IA"
+  },
+  {
+   "id": "varredura-2026-09-07:034:workana-public",
+   "status": "pending",
+   "notes": "Workana: Atriz fluente em espanhol para vídeo UGC de infoproduto"
+  },
+  {
+   "id": "varredura-2026-09-07:035:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criação de vídeo depoimento para aplicativo de doramas"
+  },
+  {
+   "id": "varredura-2026-09-07:036:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criador de conteúdo UGC para vídeos de marketing de desenvolvimento de sistemas e sites"
+  },
+  {
+   "id": "varredura-2026-09-07:037:workana-public",
+   "status": "pending",
+   "notes": "Workana: Especialista em conteúdo UGC para vídeos dinâmicos no Instagram Reels"
+  },
+  {
+   "id": "varredura-2026-09-07:038:workana-public",
+   "status": "pending",
+   "notes": "Workana: Produção de vídeos curtos e autênticos de tarefas domésticas para UGC"
+  },
+  {
+   "id": "varredura-2026-09-07:039:workana-public",
+   "status": "pending",
+   "notes": "Workana: Criador de conteúdo UGC experiente para divulgação de SaaS"
+  },
+  {
+   "id": "varredura-2026-09-07:040:workana-public",
+   "status": "pending",
+   "notes": "Workana: Produção de vídeos replicáveis em escala gravados com celular"
+  },
+  {
+   "id": "varredura-2026-09-07:041:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atriz/apresentadora para vídeo promocional de sorteio - São Paulo/SP"
+  },
+  {
+   "id": "varredura-2026-09-07:042:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de 3 vídeos UGC para anúncios"
+  },
+  {
+   "id": "varredura-2026-09-07:043:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criador de conteúdo UGC em vídeo para marca de suplementos"
+  },
+  {
+   "id": "varredura-2026-09-07:044:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Gravar vídeo UGC em inglês"
+  },
+  {
+   "id": "varredura-2026-09-07:045:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de vídeos UGC para criativos de grupos de WhatsApp"
+  },
+  {
+   "id": "varredura-2026-09-07:046:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de vídeos UGC para criativos de grupos de WhatsApp"
+  },
+  {
+   "id": "varredura-2026-09-07:047:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Gravação de UGC para vídeo publicitário"
+  },
+  {
+   "id": "varredura-2026-09-07:048:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de 3 vídeos UGC para anúncios"
+  },
+  {
+   "id": "varredura-2026-09-07:049:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de vídeo UGC sobre fitness, ciclo menstrual e nutrição"
+  },
+  {
+   "id": "varredura-2026-09-07:050:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Gravação de criativos UGC masculino para funil de aplicação"
+  },
+  {
+   "id": "varredura-2026-09-07:051:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Gravação de vídeo institucional para TikTok LIVE"
+  },
+  {
+   "id": "varredura-2026-09-07:052:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criativos UGC e anúncios para e-commerce de joias personalizadas"
+  },
+  {
+   "id": "varredura-2026-09-07:053:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Produção de vídeos UGC curtos em inglês"
+  },
+  {
+   "id": "varredura-2026-09-07:054:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criar vídeos UGC com depoimento por pessoa acima de 50 anos"
+  },
+  {
+   "id": "varredura-2026-09-07:055:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Divulgação de restaurante delivery por influencer em Nova Friburgo"
+  },
+  {
+   "id": "varredura-2026-09-07:056:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Influencer para startup de microserviços"
+  },
+  {
+   "id": "varredura-2026-09-07:057:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Ator/apresentador de 50 a 65 anos para vídeo de instruções"
+  },
+  {
+   "id": "varredura-2026-09-07:058:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atriz/apresentadora para vídeo de instruções de produto"
+  },
+  {
+   "id": "varredura-2026-09-07:059:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atuação de ator para depoimento em video"
+  },
+  {
+   "id": "varredura-2026-09-07:060:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Ator/apresentador profissional para vídeo comercial"
+  },
+  {
+   "id": "varredura-2026-09-07:061:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Gravação de 3 vídeos curtos para anúncios no Meta ADS"
+  },
+  {
+   "id": "varredura-2026-09-07:062:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atriz para gravação de vídeos para redes sociais"
+  },
+  {
+   "id": "varredura-2026-09-07:063:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atores e modelos (SP - Capital)"
+  },
+  {
+   "id": "varredura-2026-09-07:064:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atriz para gravação de VSL de vendas e criativos"
+  },
+  {
+   "id": "varredura-2026-09-07:065:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Atriz/garota-propaganda para vídeo promocional de 1 minuto"
+  },
+  {
+   "id": "varredura-2026-09-07:066:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Ator ou expert para gravação de vídeo institucional - homens"
+  },
+  {
+   "id": "varredura-2026-09-07:067:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Apresentador para produção de conteúdo financeiro"
+  },
+  {
+   "id": "varredura-2026-09-07:068:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Apresentador(a) para vídeos e podcast - engenharia, arquitetura e construção - SP"
+  },
+  {
+   "id": "varredura-2026-09-07:069:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Apresentadora presencial para vídeos comerciais em SP"
+  },
+  {
+   "id": "varredura-2026-09-07:070:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criação de vídeos UGC para anúncios de marca financeira"
+  },
+  {
+   "id": "varredura-2026-09-07:071:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criadora UGC brasileira para vídeo publicitário"
+  },
+  {
+   "id": "varredura-2026-09-07:072:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criadores UGC/KOL/Influencers para fone Bluetooth (Brasil)"
+  },
+  {
+   "id": "varredura-2026-09-07:073:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criadores UGC em espanhol e inglês para campanha internacional de Ads"
+  },
+  {
+   "id": "varredura-2026-09-07:074:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Produção de vídeos UGC sobre hortas e cultivo em casa"
+  },
+  {
+   "id": "varredura-2026-09-07:075:ninety-nine-freelas-public",
+   "status": "pending",
+   "notes": "99Freelas: Criador UGC - vídeos para criativos"
+  }
+ ]
+}

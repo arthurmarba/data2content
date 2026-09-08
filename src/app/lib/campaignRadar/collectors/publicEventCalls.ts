@@ -75,6 +75,20 @@ export function parseUpAbc(helpHtml: string, formHtml: string, now: Date): Campa
   const helpText = htmlToLines(helpHtml).join(" ");
   const formText = htmlToLines(formHtml).join(" ");
   if (!/Credenciamento para Cobertura do Up!ABC/i.test(helpText)) return null;
+  if (!formHtml) {
+    // A página de ajuda basta para uma candidata interna; detalhes do formulário não foram lidos.
+    return {
+      id: stableOpportunityId("upabc-public-coverage", UPABC_URL, "public-help"),
+      sourceId: "upabc-public-coverage", sourcePlatform: "Up!ABC", sourceUrl: UPABC_URL,
+      applicationUrl: UPABC_FORM, applicationLabel: "Conferir credenciamento", requiresAccount: false,
+      title: "Up!ABC — chamada de cobertura para criadores", brand: "Up!ABC",
+      summary: "Página pública de credenciamento para cobertura. Conferir edição, disponibilidade e condições no canal oficial.",
+      opportunityType: "barter", territories: ["Entretenimento"], platforms: [], formats: [], requirements: [], deliverables: [],
+      compensation: { type: "unknown", minimum: null, maximum: null, currency: "BRL", basis: "unknown", sourceText: null, confirmed: false, includesProduct: false },
+      applicationDeadline: null, publishedAt: null, discoveredAt: now.toISOString(), lastVerifiedAt: now.toISOString(),
+      status: "uncertain", evidence: [{ field: "chamada", excerpt: "Credenciamento para Cobertura do Up!ABC" }], review: pendingReview(),
+    };
+  }
   if (!/100 fotos por dia de cobertura/i.test(formText) || !/<form\b/i.test(formHtml)) return null;
 
   return {
@@ -210,7 +224,11 @@ export async function collectPublicEventCalls(params?: { now?: Date }): Promise<
       fetchedAt: now.toISOString(),
       discoveredDocuments: source.requestUrls.filter((url) => !warnings.has(url)).length,
       emittedOpportunities: parsed.filter((item) => item.sourceId === source.id).length,
-      warnings: source.requestUrls.flatMap((url) => warnings.get(url) ?? []),
+      warnings: [
+        ...source.requestUrls.flatMap((url) => warnings.get(url) ?? []),
+        ...(source.requestUrls.some((url) => !warnings.has(url)) && !parsed.some((item) => item.sourceId === source.id)
+          ? ["A página foi consultada, mas os sinais esperados da chamada não foram encontrados. Revisar a origem."] : []),
+      ],
     })),
   };
 }

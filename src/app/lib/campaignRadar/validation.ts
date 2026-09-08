@@ -45,7 +45,7 @@ const compensationSchema = z.object({
   }
 });
 
-const opportunitySchema = z.object({
+export const opportunitySchema = z.object({
   id: z.string().trim().min(1).max(240),
   sourceId: z.string().trim().min(1).max(120),
   sourcePlatform: z.string().trim().min(1).max(160),

@@ -2,6 +2,7 @@ import type { McpAccountState } from "./accountState";
 import {
   getOrAssignWeeklyFreeOpportunity,
   listPublicCampaignRadarCatalog,
+  UNDATED_MAX_AGE_DAYS,
 } from "@/app/lib/campaignRadar/repository";
 import {
   isConfirmedIndividualPay,
@@ -19,6 +20,14 @@ const FREE_ACCESS_NOTICE =
 function maxAgeDays(): number {
   const parsed = Number.parseInt(process.env.CAMPAIGN_RADAR_MAX_AGE_DAYS ?? "8", 10);
   return Number.isFinite(parsed) ? Math.max(1, Math.min(30, parsed)) : 8;
+}
+
+function undatedMaxAgeDays(): number {
+  const parsed = Number.parseInt(
+    process.env.CAMPAIGN_RADAR_UNDATED_MAX_AGE_DAYS ?? String(UNDATED_MAX_AGE_DAYS),
+    10,
+  );
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(60, parsed)) : UNDATED_MAX_AGE_DAYS;
 }
 
 function compensationLabel(match: RankedCampaignOpportunity): string {
@@ -158,6 +167,7 @@ export async function findMcpCampaignOpportunities({
     includePrograms: Boolean(search.includePrograms && accountState.accessLevel === "pro"),
     now,
     maxAgeDays: maxAgeDays(),
+    undatedMaxAgeDays: undatedMaxAgeDays(),
   });
 
   const creatorDescription = accountState.creatorNorth;

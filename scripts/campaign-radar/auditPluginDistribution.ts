@@ -47,11 +47,14 @@ if (summary.invalid > 0) {
 }
 
 if (
+  // Pendente não bloqueia liberação: o registro também documenta becos sem saída,
+  // e o catálogo já filtra tudo que não está aprovado. O que bloqueia é não haver
+  // fonte liberada ou haver registro inconsistente.
   hasFlag("require-release-ready") &&
-  (summary.approved === 0 || summary.pendingLegalReview > 0)
+  (summary.approved === 0 || summary.invalid > 0)
 ) {
   console.error(
-    `Liberação bloqueada: ${summary.approved} fonte(s) aprovada(s), ${summary.pendingLegalReview} pendente(s) e ${summary.blocked} bloqueada(s).`,
+    `Liberação bloqueada: ${summary.approved} fonte(s) aprovada(s), ${summary.invalid} inválida(s), ${summary.pendingLegalReview} pendente(s) e ${summary.blocked} bloqueada(s).`,
   );
   process.exit(2);
 }

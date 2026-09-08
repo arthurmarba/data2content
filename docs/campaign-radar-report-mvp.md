@@ -1,5 +1,9 @@
 # Radar Data2Content de Oportunidades Públicas - MVP do relatório
 
+> Atualização de 07/09/2026: o escopo histórico de fontes abaixo não é autorização atual de coleta.
+> Consulte `radar-coleta-gratuita-operacao.md`. Coletores e auditoria agora bloqueiam fontes não
+> revisadas, pagas ou proibidas antes da rede; captura manual e coleta alimentam a revisão administrativa.
+
 ## Objetivo
 
 Gerar um PDF periódico com oportunidades para creators encontradas em páginas públicas, revisadas por uma pessoa e acompanhadas do link para a plataforma de origem.
@@ -106,13 +110,48 @@ fail-closed: uma fonte só recebe `sourceVisibility: publicly_observable` quando
 Enquanto isso não for preenchido, o dry-run mostrará `publiclyQueryableRecords: 0`. Esse resultado é
 esperado e impede a exposição acidental de conteúdo de terceiros durante o desenvolvimento.
 
+### Por que o catálogo do MCP pode estar vazio
+
+Três travas independentes, em ordem. A consulta do MCP (`listPublicCampaignRadarCatalog`) só devolve
+um registro quando **todas** passam:
+
+1. **Autorização da fonte** — `pluginDistribution.status: approved` no registro. Em 07/09/2026:
+   4 de 47 aprovadas (Up!ABC, Tijuca Geek, Brasil Game Show e Keune), 30 pendentes, 13 bloqueadas.
+
+   Essas quatro entraram com a base `public_open_call`: chamada aberta que a própria organização
+   publica para atrair creators, sem proibição identificada na página. **Não é licença** — é decisão
+   registrada do responsável, com evidência e data, revogável a qualquer momento (revogar tira do
+   MCP inclusive registros já importados). Plataforma cujos termos proíbem coleta ou redistribuição
+   — Influencer Brasil, 99Freelas, Workana, Creator Ads, Threads — continua fora, e é onde está o
+   volume: 71 das 75 aprovadas da edição de 07/09 seguem restritas.
+2. **Estado e validade** — a consulta exige `status: "open"` e uma destas duas: prazo publicado no
+   futuro, **ou** nenhum prazo e descoberta dentro da janela de `UNDATED_MAX_AGE_DAYS` (14 dias,
+   ajustável por `CAMPAIGN_RADAR_UNDATED_MAX_AGE_DAYS`, teto de 60).
+
+   A maioria das fontes com volume — 99Freelas, Workana, The Insiders, POPline — não publica prazo
+   nenhum. Excluí-las seria perder 55 das 73 da edição de 07/09. Para essas, o relógio é a
+   **descoberta**, não a última verificação: verificação se renova a cada varredura e nunca deixaria
+   a chamada expirar. Passada a janela, a troca de lote desativa o registro (`activeInCatalog:
+   false`) na mesma transação que aposenta o lote anterior.
+
+   No card do PDF elas aparecem como "sem prazo · vista em DD/MM", para o creator julgar a idade.
+3. **Flags** — `MCP_CAMPAIGN_RADAR_ENABLED` e `NEXT_PUBLIC_CAMPAIGN_RADAR_ENABLED`, nas duas casas
+   (`.env.local` e Vercel).
+
+A visibilidade é gravada na importação **e** revalidada na consulta: aprovar uma fonte depois exige
+importar o lote de novo. Ligar as flags antes da autorização entrega uma ferramenta que responde
+"nada encontrado" e um card de perfil que promete o que não existe — por isso elas continuam
+desligadas.
+
 Antes de ligar as flags, o release deve passar também por:
 
 ```bash
 npm run campaign-radar:audit-plugin-sources -- --require-release-ready
 ```
 
-O comando exige ao menos uma fonte aprovada e nenhuma fonte pendente. Fontes bloqueadas permanecem
+O comando exige ao menos uma fonte aprovada e nenhum registro inconsistente. Fonte pendente não
+bloqueia mais: o registro também documenta becos sem saída, e o catálogo já filtra tudo que não
+está aprovado. Fontes bloqueadas permanecem
 fora do catálogo sem impedir o uso das fontes que tiverem autorização válida. `robots.txt` é um
 controle técnico de rastreamento e nunca é tratado como licença de redistribuição.
 
@@ -214,6 +253,27 @@ pdftoppm -png output/pdf/radar-d2c-AAAA-MM-DD.pdf tmp/pdfs/radar-d2c-AAAA-MM-DD/
 ```
 
 Verifique capa, quebras de página, cards, acentos, rodapés e botões. Um PDF só está pronto para envio depois dessa inspeção.
+
+## Design do relatório
+
+O layout do PDF segue o projeto `Radar de publis.dc.html`, no Claude Design
+(`dff5b87a-63a6-429c-8e4b-5349e15c8124`). Implementado em `render_report.py` em 07/09/2026.
+
+O que o desenho define e o gerador respeita:
+
+- capa com a régua de leitura dos valores fixada no rodapé da página, sem caixa;
+- cada seção começa em página nova, com título à esquerda e a contagem à direita sobre um filete
+  grosso;
+- dentro da seção, grupos por mês de prazo — por fonte na seção "Valor a confirmar";
+- o card é uma grade de duas colunas: à esquerda identidade (território, formato, onde publicar) e
+  compromisso (você entrega, para participar, contexto); à direita, separada por filete, a coluna do
+  dinheiro com valor, ressalva, chamada e verificação. O botão rosa saiu: a candidatura é um link de
+  texto;
+- rodapé com assinatura à esquerda e data da edição à direita, com entreletras.
+
+Duas notas de implementação para quem for mexer: no reportlab a tabela nasce centrada, então todo
+bloco usa `hAlign="LEFT"`; e entreletras só existe em objeto de texto do canvas, por isso o rodapé
+usa `beginText` em vez de `drawString`.
 
 ## Regra financeira
 
