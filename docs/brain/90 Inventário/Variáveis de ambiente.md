@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-07
+atualizado: 2026-09-08
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Variáveis de ambiente
 
-**424 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**425 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 16 |
+| `CRON_SECRET` | 17 |
 
 ## FACEBOOK
 
@@ -108,9 +108,9 @@ atualizado: 2026-09-07
 | `MCP_OAUTH_ALLOWED_ALGORITHMS` | 3 |
 | `MCP_ADMIN_ALLOWED_USER_IDS` | 2 |
 | `MCP_ADMIN_REQUIRED_SCOPE` | 2 |
+| `MCP_ADMIN_TEST_MONGO_URI` | 2 |
 | `MCP_ADMIN_AUDIT_RETENTION_DAYS` | 1 |
 | `MCP_ADMIN_HTTP_SMOKE_URL` | 1 |
-| `MCP_ADMIN_TEST_MONGO_URI` | 1 |
 | `MCP_OAUTH_ACCESS_TOKEN_TTL_SECONDS` | 1 |
 | `MCP_OAUTH_CODE_TTL_SECONDS` | 1 |
 | `MCP_OAUTH_REFRESH_TOKEN_TTL_DAYS` | 1 |
@@ -121,8 +121,8 @@ atualizado: 2026-09-07
 
 | Variável | Usos no código |
 | --- | --- |
-| `MONGODB_URI` | 9 |
-| `MONGODB_DB_NAME` | 4 |
+| `MONGODB_URI` | 11 |
+| `MONGODB_DB_NAME` | 5 |
 | `MONGODB_MAX_POOL_SIZE` | 1 |
 | `MONGODB_SERVER_SELECTION_TIMEOUT_MS` | 1 |
 | `MONGODB_SOCKET_TIMEOUT_MS` | 1 |
@@ -324,9 +324,9 @@ atualizado: 2026-09-07
 | `SCRIPTS_OPENAI_FALLBACK_ENABLED` | 6 |
 | `CLASSIFICATION_WORKER_URL` | 5 |
 | `D2C_VIP_EXPIRES_AT` | 5 |
+| `DB_NAME` | 5 |
 | `WEEKLY_MEETING_JOIN_URL` | 5 |
 | `CHROME_BIN` | 4 |
-| `DB_NAME` | 4 |
 | `PLAYWRIGHT_CHROMIUM_BIN` | 4 |
 | `PLAYWRIGHT_EXECUTABLE_PATH` | 4 |
 | `ADMIN_TOKEN` | 3 |
@@ -378,6 +378,7 @@ atualizado: 2026-09-07
 | `APPLY` | 1 |
 | `BRAND_NARRATIVE_SMOKE_USER_ID` | 1 |
 | `CAMPAIGN_RADAR_MAX_AGE_DAYS` | 1 |
+| `CAMPAIGN_RADAR_UNDATED_MAX_AGE_DAYS` | 1 |
 | `CAMPAIGNS_PRICING_CORE_V1` | 1 |
 | `CHAT_AI_INSTIGATING_QUESTION` | 1 |
 | `CHAT_AI_URL` | 1 |

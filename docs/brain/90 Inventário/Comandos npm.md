@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-07
+atualizado: 2026-09-08
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Comandos npm
 
-**90 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**92 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -128,6 +128,12 @@ atualizado: 2026-09-07
 | `npm run flag:scripts-intelligence:v2` | `tsx --env-file=.env.local ./scripts/setScriptsIntelligenceFlag.ts` |
 | `npm run flag:scripts-style-training:v1` | `tsx --env-file=.env.local ./scripts/setScriptsStyleTrainingFlag.ts` |
 
+## maintenance
+
+| Comando | O que roda |
+| --- | --- |
+| `npm run maintenance:mongo-storage` | `node --env-file=.env.local scripts/maintainMongoStorage.mjs` |
+
 ## mcp
 
 | Comando | O que roda |
@@ -246,6 +252,7 @@ atualizado: 2026-09-07
 | `npm run test:demographics` | `tsx --env-file=.env.local ./scripts/testDemographics.ts` |
 | `npm run test:e2e` | `playwright test` |
 | `npm run test:mcp` | `jest --watchAll=false --runInBand src/app/lib/mcp` |
+| `npm run test:mongo-storage` | `node --test scripts/maintainMongoStorage.test.mjs` |
 
 ## typecheck
 

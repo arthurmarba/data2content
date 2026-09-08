@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-08T00:51:19.864Z",
+  "dataBytes": 297181545,
+  "indexBytes": 93671424,
+  "clusterLogicalPlusIndexesBytes": 392346280,
+  "snapshots": {
+    "count": 186312,
+    "size": 116848666,
+    "indexSizes": {
+      "_id_": 8974336,
+      "metric_1": 6717440,
+      "date_1": 6561792,
+      "idx_metric_date_unique": 9175040,
+      "idx_metric_history": 9117696,
+      "idx_metric_dayNumber": 7421952,
+      "dayNumber_1": 7258112
+    },
+    "freeStorageSize": 18071552
+  },
+  "pdfTtl": {
+    "v": 2,
+    "key": {
+      "expiresAt": 1
+    },
+    "name": "expiresAt_1",
+    "background": true,
+    "expireAfterSeconds": 0
+  }
+}

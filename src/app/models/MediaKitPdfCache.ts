@@ -16,7 +16,7 @@ const MediaKitPdfCacheSchema = new Schema<IMediaKitPdfCache>(
     contentType: { type: String, default: 'application/pdf' },
     data: { type: Buffer, required: true },
     size: { type: Number, required: true },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true }
 );

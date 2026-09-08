@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-07
+atualizado: 2026-09-08
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-07
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **82 modelos.**
+Todo dado persistido é um modelo Mongoose. **84 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -29,7 +29,9 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **BrandProposal** | `—` | `src/app/models/BrandProposal.ts` |
 | **Campaign** | `—` | `src/app/models/Campaign.ts` |
 | **CampaignLink** | `—` | `src/app/models/CampaignLink.ts` |
+| **CampaignRadarCandidate** | `campaign_radar_candidates` | `src/app/models/CampaignRadarCandidate.ts` |
 | **CampaignRadarOpportunity** | `campaign_radar_opportunities` | `src/app/models/CampaignRadarOpportunity.ts` |
+| **CampaignRadarRun** | `campaign_radar_runs` | `src/app/models/CampaignRadarRun.ts` |
 | **CampaignRadarWeeklySelection** | `campaign_radar_weekly_selections` | `src/app/models/CampaignRadarWeeklySelection.ts` |
 | **CarouselCaseDraft** | `—` | `src/app/models/CarouselCaseDraft.ts` |
 | **ChatEvalCase** | `chat_eval_cases` | `src/app/models/ChatEvalCase.ts` |

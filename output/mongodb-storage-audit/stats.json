@@ -1,0 +1,4961 @@
+{
+  "at": "2026-09-08T00:06:34.686Z",
+  "database": "data2content",
+  "stats": {
+    "db": "data2content",
+    "collections": 86,
+    "views": 0,
+    "objects": 429078,
+    "avgObjSize": 1044.6056218216734,
+    "dataSize": 448217291,
+    "storageSize": 216633344,
+    "totalFreeStorageSize": 0,
+    "numExtents": 0,
+    "indexes": 510,
+    "indexSize": 67153920,
+    "indexFreeStorageSize": 0,
+    "fileSize": 0,
+    "nsSizeMB": 0,
+    "ok": 1
+  },
+  "collections": [
+    {
+      "name": "daily_metric_snapshots",
+      "count": 315550,
+      "size": 197880561,
+      "storageSize": 51646464,
+      "totalIndexSize": 29507584,
+      "indexSizes": {
+        "_id_": 5865472,
+        "metric_1": 2916352,
+        "date_1": 3080192,
+        "idx_metric_date_unique": 5828608,
+        "idx_metric_history": 5840896,
+        "idx_metric_dayNumber": 3825664,
+        "dayNumber_1": 2150400
+      },
+      "freeStorageSize": 1290240,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "metric_1",
+          "key": {
+            "metric": 1
+          }
+        },
+        {
+          "name": "date_1",
+          "key": {
+            "date": 1
+          }
+        },
+        {
+          "name": "idx_metric_date_unique",
+          "key": {
+            "metric": 1,
+            "date": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "idx_metric_history",
+          "key": {
+            "metric": 1,
+            "date": -1
+          }
+        },
+        {
+          "name": "idx_metric_dayNumber",
+          "key": {
+            "metric": 1,
+            "dayNumber": 1
+          }
+        },
+        {
+          "name": "dayNumber_1",
+          "key": {
+            "dayNumber": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "metrics",
+      "count": 35588,
+      "size": 113070030,
+      "storageSize": 61079552,
+      "totalIndexSize": 15826944,
+      "indexSizes": {
+        "_id_": 663552,
+        "postDate_1": 552960,
+        "format_1": 303104,
+        "proposal_1": 483328,
+        "context_1": 364544,
+        "instagramMediaId_1": 1671168,
+        "source_1": 221184,
+        "classificationStatus_1": 294912,
+        "user_1_createdAt_-1": 716800,
+        "user_1_postDate_-1": 741376,
+        "user_1_instagramMediaId_1": 1302528,
+        "idx_durationStats": 1048576,
+        "user_1_type_1_postDate_-1": 733184,
+        "type_1": 237568,
+        "tone_1": 348160,
+        "references_1": 237568,
+        "stats.total_interactions_-1": 577536,
+        "isPubli_1": 176128,
+        "user_1_postDate_-1_updatedAt_-1__id_-1": 3096576,
+        "contentIntent_1": 393216,
+        "narrativeForm_1": 278528,
+        "contentSignals_1": 356352,
+        "stance_1": 294912,
+        "proofStyle_1": 327680,
+        "commercialMode_1": 237568,
+        "classificationLastQueuedAt_1": 167936
+      },
+      "freeStorageSize": 12546048,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "postDate_1",
+          "key": {
+            "postDate": 1
+          }
+        },
+        {
+          "name": "format_1",
+          "key": {
+            "format": 1
+          }
+        },
+        {
+          "name": "proposal_1",
+          "key": {
+            "proposal": 1
+          }
+        },
+        {
+          "name": "context_1",
+          "key": {
+            "context": 1
+          }
+        },
+        {
+          "name": "instagramMediaId_1",
+          "key": {
+            "instagramMediaId": 1
+          }
+        },
+        {
+          "name": "source_1",
+          "key": {
+            "source": 1
+          }
+        },
+        {
+          "name": "classificationStatus_1",
+          "key": {
+            "classificationStatus": 1
+          }
+        },
+        {
+          "name": "user_1_createdAt_-1",
+          "key": {
+            "user": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "user_1_postDate_-1",
+          "key": {
+            "user": 1,
+            "postDate": -1
+          }
+        },
+        {
+          "name": "user_1_instagramMediaId_1",
+          "key": {
+            "user": 1,
+            "instagramMediaId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "idx_durationStats",
+          "key": {
+            "user": 1,
+            "postDate": -1,
+            "stats.video_duration_seconds": 1
+          }
+        },
+        {
+          "name": "user_1_type_1_postDate_-1",
+          "key": {
+            "user": 1,
+            "type": 1,
+            "postDate": -1
+          }
+        },
+        {
+          "name": "type_1",
+          "key": {
+            "type": 1
+          }
+        },
+        {
+          "name": "tone_1",
+          "key": {
+            "tone": 1
+          }
+        },
+        {
+          "name": "references_1",
+          "key": {
+            "references": 1
+          }
+        },
+        {
+          "name": "stats.total_interactions_-1",
+          "key": {
+            "stats.total_interactions": -1
+          }
+        },
+        {
+          "name": "isPubli_1",
+          "key": {
+            "isPubli": 1
+          }
+        },
+        {
+          "name": "user_1_postDate_-1_updatedAt_-1__id_-1",
+          "key": {
+            "user": 1,
+            "postDate": -1,
+            "updatedAt": -1,
+            "_id": -1
+          }
+        },
+        {
+          "name": "contentIntent_1",
+          "key": {
+            "contentIntent": 1
+          }
+        },
+        {
+          "name": "narrativeForm_1",
+          "key": {
+            "narrativeForm": 1
+          }
+        },
+        {
+          "name": "contentSignals_1",
+          "key": {
+            "contentSignals": 1
+          }
+        },
+        {
+          "name": "stance_1",
+          "key": {
+            "stance": 1
+          }
+        },
+        {
+          "name": "proofStyle_1",
+          "key": {
+            "proofStyle": 1
+          }
+        },
+        {
+          "name": "commercialMode_1",
+          "key": {
+            "commercialMode": 1
+          }
+        },
+        {
+          "name": "classificationLastQueuedAt_1",
+          "key": {
+            "classificationLastQueuedAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mediakitpdfcaches",
+      "count": 51,
+      "size": 70287386,
+      "storageSize": 69427200,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "cacheKey_1": 36864,
+        "expiresAt_1": 36864
+      },
+      "freeStorageSize": 7221248,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "cacheKey_1",
+          "key": {
+            "cacheKey": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "accountinsights",
+      "count": 31236,
+      "size": 31840827,
+      "storageSize": 16240640,
+      "totalIndexSize": 5009408,
+      "indexSizes": {
+        "_id_": 589824,
+        "user_1": 397312,
+        "instagramAccountId_1": 421888,
+        "fetchDate_1": 159744,
+        "user_1_instagramAccountId_1_fetchDate_-1": 413696,
+        "instagramAccountId_1_fetchDate_-1": 421888,
+        "recordedAt_1": 389120,
+        "user_1_instagramAccountId_1_recordedAt_-1": 765952,
+        "instagramAccountId_1_recordedAt_-1": 753664,
+        "user_1_recordedAt_-1": 696320
+      },
+      "freeStorageSize": 864256,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "instagramAccountId_1",
+          "key": {
+            "instagramAccountId": 1
+          }
+        },
+        {
+          "name": "fetchDate_1",
+          "key": {
+            "fetchDate": 1
+          }
+        },
+        {
+          "name": "user_1_instagramAccountId_1_fetchDate_-1",
+          "key": {
+            "user": 1,
+            "instagramAccountId": 1,
+            "fetchDate": -1
+          }
+        },
+        {
+          "name": "instagramAccountId_1_fetchDate_-1",
+          "key": {
+            "instagramAccountId": 1,
+            "fetchDate": -1
+          }
+        },
+        {
+          "name": "recordedAt_1",
+          "key": {
+            "recordedAt": 1
+          }
+        },
+        {
+          "name": "user_1_instagramAccountId_1_recordedAt_-1",
+          "key": {
+            "user": 1,
+            "instagramAccountId": 1,
+            "recordedAt": -1
+          }
+        },
+        {
+          "name": "instagramAccountId_1_recordedAt_-1",
+          "key": {
+            "instagramAccountId": 1,
+            "recordedAt": -1
+          }
+        },
+        {
+          "name": "user_1_recordedAt_-1",
+          "key": {
+            "user": 1,
+            "recordedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "count": 554,
+      "size": 4901510,
+      "storageSize": 2306048,
+      "totalIndexSize": 2191360,
+      "indexSizes": {
+        "_id_": 53248,
+        "email_1": 61440,
+        "provider_1": 36864,
+        "providerAccountId_1": 61440,
+        "facebookProviderAccountId_1": 45056,
+        "instagramAccountId_1": 36864,
+        "username_1": 45056,
+        "linkToken_1": 45056,
+        "whatsappVerificationCode_1": 36864,
+        "whatsappPhone_1": 36864,
+        "affiliateCode_1": 45056,
+        "lastProcessedPaymentId_1": 36864,
+        "planStatus_1": 36864,
+        "inferredExpertiseLevel_1": 36864,
+        "name_text": 77824,
+        "mediaKitToken_1": 36864,
+        "mediaKitSlug_1": 45056,
+        "gender_1": 36864,
+        "location.state_1": 36864,
+        "stripeCustomerId_1": 45056,
+        "idx_commission_pending_due": 36864,
+        "idx_affiliate_debt_by_currency": 36864,
+        "idx_whatsapp_code_and_exp": 36864,
+        "name_1": 53248,
+        "whatsappTrialActive_1": 36864,
+        "whatsappTrialExpiresAt_1": 36864,
+        "idx_whatsapp_trial_active_exp": 36864,
+        "proTrialStatus_1": 36864,
+        "proTrialExpiresAt_1": 36864,
+        "creatorContext.id_1": 36864,
+        "idx_creator_survey_updated_at": 36864,
+        "idx_creator_survey_stage": 36864,
+        "idx_creator_survey_pains": 36864,
+        "idx_creator_survey_hardest": 36864,
+        "idx_creator_survey_monetization": 36864,
+        "idx_creator_survey_next_platform": 36864,
+        "idx_creator_survey_platform_reasons": 36864,
+        "idx_creator_survey_niches": 45056,
+        "idx_creator_survey_brand_territories": 45056,
+        "idx_creator_followers": 40960,
+        "idx_creator_media_count": 40960,
+        "idx_creator_country": 36864,
+        "idx_creator_city": 36864,
+        "whatsappOptOut_1": 36864,
+        "instagramReconnectFlowId_1": 45056,
+        "accountState_1": 36864,
+        "mergedIntoUserId_1": 36864,
+        "preSignupLoginToken_1": 32768,
+        "postCreationTrial.instagramAccountId_1": 36864,
+        "lastLoginAt_1": 36864,
+        "lastActiveAt_1": 36864,
+        "affiliateStatus_1": 36864,
+        "affiliateFirstCommissionAt_1": 36864,
+        "collabDiscoveryOptIn_1": 36864
+      },
+      "freeStorageSize": 487424,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "email_1",
+          "key": {
+            "email": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "provider_1",
+          "key": {
+            "provider": 1
+          }
+        },
+        {
+          "name": "providerAccountId_1",
+          "key": {
+            "providerAccountId": 1
+          }
+        },
+        {
+          "name": "facebookProviderAccountId_1",
+          "key": {
+            "facebookProviderAccountId": 1
+          }
+        },
+        {
+          "name": "instagramAccountId_1",
+          "key": {
+            "instagramAccountId": 1
+          }
+        },
+        {
+          "name": "username_1",
+          "key": {
+            "username": 1
+          }
+        },
+        {
+          "name": "linkToken_1",
+          "key": {
+            "linkToken": 1
+          }
+        },
+        {
+          "name": "whatsappVerificationCode_1",
+          "key": {
+            "whatsappVerificationCode": 1
+          }
+        },
+        {
+          "name": "whatsappPhone_1",
+          "key": {
+            "whatsappPhone": 1
+          }
+        },
+        {
+          "name": "affiliateCode_1",
+          "key": {
+            "affiliateCode": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "lastProcessedPaymentId_1",
+          "key": {
+            "lastProcessedPaymentId": 1
+          }
+        },
+        {
+          "name": "planStatus_1",
+          "key": {
+            "planStatus": 1
+          }
+        },
+        {
+          "name": "inferredExpertiseLevel_1",
+          "key": {
+            "inferredExpertiseLevel": 1
+          }
+        },
+        {
+          "name": "name_text",
+          "key": {
+            "_fts": "text",
+            "_ftsx": 1
+          }
+        },
+        {
+          "name": "mediaKitToken_1",
+          "key": {
+            "mediaKitToken": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "mediaKitSlug_1",
+          "key": {
+            "mediaKitSlug": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "gender_1",
+          "key": {
+            "gender": 1
+          }
+        },
+        {
+          "name": "location.state_1",
+          "key": {
+            "location.state": 1
+          }
+        },
+        {
+          "name": "stripeCustomerId_1",
+          "key": {
+            "stripeCustomerId": 1
+          }
+        },
+        {
+          "name": "idx_commission_pending_due",
+          "key": {
+            "commissionLog.status": 1,
+            "commissionLog.availableAt": 1
+          }
+        },
+        {
+          "name": "idx_affiliate_debt_by_currency",
+          "key": {
+            "affiliateDebtByCurrency.brl": 1,
+            "affiliateDebtByCurrency.usd": 1
+          }
+        },
+        {
+          "name": "idx_whatsapp_code_and_exp",
+          "key": {
+            "whatsappVerificationCode": 1,
+            "whatsappVerificationCodeExpiresAt": 1
+          }
+        },
+        {
+          "name": "name_1",
+          "key": {
+            "name": 1
+          }
+        },
+        {
+          "name": "whatsappTrialActive_1",
+          "key": {
+            "whatsappTrialActive": 1
+          }
+        },
+        {
+          "name": "whatsappTrialExpiresAt_1",
+          "key": {
+            "whatsappTrialExpiresAt": 1
+          }
+        },
+        {
+          "name": "idx_whatsapp_trial_active_exp",
+          "key": {
+            "whatsappTrialActive": 1,
+            "whatsappTrialExpiresAt": 1
+          }
+        },
+        {
+          "name": "proTrialStatus_1",
+          "key": {
+            "proTrialStatus": 1
+          }
+        },
+        {
+          "name": "proTrialExpiresAt_1",
+          "key": {
+            "proTrialExpiresAt": 1
+          }
+        },
+        {
+          "name": "creatorContext.id_1",
+          "key": {
+            "creatorContext.id": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_updated_at",
+          "key": {
+            "creatorProfileExtended.updatedAt": -1
+          }
+        },
+        {
+          "name": "idx_creator_survey_stage",
+          "key": {
+            "creatorProfileExtended.stage": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_pains",
+          "key": {
+            "creatorProfileExtended.mainPains": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_hardest",
+          "key": {
+            "creatorProfileExtended.hardestStage": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_monetization",
+          "key": {
+            "creatorProfileExtended.hasDoneSponsoredPosts": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_next_platform",
+          "key": {
+            "creatorProfileExtended.nextPlatform": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_platform_reasons",
+          "key": {
+            "creatorProfileExtended.mainPlatformReasons": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_niches",
+          "key": {
+            "creatorProfileExtended.niches": 1
+          }
+        },
+        {
+          "name": "idx_creator_survey_brand_territories",
+          "key": {
+            "creatorProfileExtended.brandTerritories": 1
+          }
+        },
+        {
+          "name": "idx_creator_followers",
+          "key": {
+            "followers_count": -1
+          }
+        },
+        {
+          "name": "idx_creator_media_count",
+          "key": {
+            "media_count": -1
+          }
+        },
+        {
+          "name": "idx_creator_country",
+          "key": {
+            "location.country": 1
+          }
+        },
+        {
+          "name": "idx_creator_city",
+          "key": {
+            "location.city": 1
+          }
+        },
+        {
+          "name": "whatsappOptOut_1",
+          "key": {
+            "whatsappOptOut": 1
+          }
+        },
+        {
+          "name": "instagramReconnectFlowId_1",
+          "key": {
+            "instagramReconnectFlowId": 1
+          }
+        },
+        {
+          "name": "accountState_1",
+          "key": {
+            "accountState": 1
+          }
+        },
+        {
+          "name": "mergedIntoUserId_1",
+          "key": {
+            "mergedIntoUserId": 1
+          }
+        },
+        {
+          "name": "preSignupLoginToken_1",
+          "key": {
+            "preSignupLoginToken": 1
+          }
+        },
+        {
+          "name": "postCreationTrial.instagramAccountId_1",
+          "key": {
+            "postCreationTrial.instagramAccountId": 1
+          }
+        },
+        {
+          "name": "lastLoginAt_1",
+          "key": {
+            "lastLoginAt": 1
+          }
+        },
+        {
+          "name": "lastActiveAt_1",
+          "key": {
+            "lastActiveAt": 1
+          }
+        },
+        {
+          "name": "affiliateStatus_1",
+          "key": {
+            "affiliateStatus": 1
+          }
+        },
+        {
+          "name": "affiliateFirstCommissionAt_1",
+          "key": {
+            "affiliateFirstCommissionAt": 1
+          }
+        },
+        {
+          "name": "collabDiscoveryOptIn_1",
+          "key": {
+            "collabDiscoveryOptIn": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "geminishadowcomparisons",
+      "count": 2536,
+      "size": 4551927,
+      "storageSize": 2154496,
+      "totalIndexSize": 307200,
+      "indexSizes": {
+        "_id_": 94208,
+        "tag_1": 53248,
+        "tag_1_ts_-1": 73728,
+        "ts_1": 86016
+      },
+      "freeStorageSize": 327680,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "tag_1",
+          "key": {
+            "tag": 1
+          }
+        },
+        {
+          "name": "tag_1_ts_-1",
+          "key": {
+            "tag": 1,
+            "ts": -1
+          }
+        },
+        {
+          "name": "ts_1",
+          "key": {
+            "ts": 1
+          },
+          "expireAfterSeconds": 5184000
+        }
+      ]
+    },
+    {
+      "name": "plannerreccaches",
+      "count": 403,
+      "size": 4086151,
+      "storageSize": 1863680,
+      "totalIndexSize": 126976,
+      "indexSizes": {
+        "_id_": 45056,
+        "userId_1": 36864,
+        "userId_1_platform_1_weekStart_1": 45056
+      },
+      "freeStorageSize": 147456,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "userId_1_platform_1_weekStart_1",
+          "key": {
+            "userId": 1,
+            "platform": 1,
+            "weekStart": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "creatorweeklyreports",
+      "count": 254,
+      "size": 3154336,
+      "storageSize": 1486848,
+      "totalIndexSize": 192512,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "userId_1_weekKey_1": 36864,
+        "userId_1_periodEndsAt_-1": 36864,
+        "status_1_updatedAt_1": 45056
+      },
+      "freeStorageSize": 335872,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "userId_1_weekKey_1",
+          "key": {
+            "userId": 1,
+            "weekKey": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_periodEndsAt_-1",
+          "key": {
+            "userId": 1,
+            "periodEndsAt": -1
+          }
+        },
+        {
+          "name": "status_1_updatedAt_1",
+          "key": {
+            "status": 1,
+            "updatedAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "published_content_evidence",
+      "count": 350,
+      "size": 3111377,
+      "storageSize": 1966080,
+      "totalIndexSize": 286720,
+      "indexSizes": {
+        "_id_": 45056,
+        "userId_1": 36864,
+        "metricId_1": 45056,
+        "instagramMediaId_1": 45056,
+        "publishedAt_1": 36864,
+        "userId_1_publishedAt_-1": 40960,
+        "userId_1_scriptLink.scriptId_1": 36864
+      },
+      "freeStorageSize": 851968,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "metricId_1",
+          "key": {
+            "metricId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "instagramMediaId_1",
+          "key": {
+            "instagramMediaId": 1
+          }
+        },
+        {
+          "name": "publishedAt_1",
+          "key": {
+            "publishedAt": 1
+          }
+        },
+        {
+          "name": "userId_1_publishedAt_-1",
+          "key": {
+            "userId": 1,
+            "publishedAt": -1
+          }
+        },
+        {
+          "name": "userId_1_scriptLink.scriptId_1",
+          "key": {
+            "userId": 1,
+            "scriptLink.scriptId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "geminiusagelogs",
+      "count": 16903,
+      "size": 2999564,
+      "storageSize": 860160,
+      "totalIndexSize": 1044480,
+      "indexSizes": {
+        "_id_": 380928,
+        "tag_1": 147456,
+        "tag_1_ts_-1": 278528,
+        "ts_1": 237568
+      },
+      "freeStorageSize": 118784,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "tag_1",
+          "key": {
+            "tag": 1
+          }
+        },
+        {
+          "name": "tag_1_ts_-1",
+          "key": {
+            "tag": 1,
+            "ts": -1
+          }
+        },
+        {
+          "name": "ts_1",
+          "key": {
+            "ts": 1
+          },
+          "expireAfterSeconds": 7776000
+        }
+      ]
+    },
+    {
+      "name": "communityinspirations",
+      "count": 3066,
+      "size": 2681091,
+      "storageSize": 958464,
+      "totalIndexSize": 1552384,
+      "indexSizes": {
+        "_id_": 94208,
+        "postId_Instagram_1": 155648,
+        "originalCreatorId_1": 61440,
+        "proposal_1": 61440,
+        "context_1": 61440,
+        "format_1": 61440,
+        "performanceHighlights_Qualitative_1": 90112,
+        "primaryObjectiveAchieved_Qualitative_1": 61440,
+        "tags_IA_1": 61440,
+        "addedToCommunityAt_1": 86016,
+        "status_1": 61440,
+        "proposal_1_context_1_primaryObjectiveAchieved_Qualitative_1_status_1": 114688,
+        "format_1_primaryObjectiveAchieved_Qualitative_1_status_1": 61440,
+        "originalCreatorId_1_status_1": 65536,
+        "internalMetricsSnapshot.saveRate_1": 86016,
+        "status_1_addedToCommunityAt_-1_internalMetricsSnapshot.saveRate_-1": 122880,
+        "tone_1": 61440,
+        "reference_1": 61440,
+        "tone_1_primaryObjectiveAchieved_Qualitative_1_status_1": 61440,
+        "reference_1_status_1": 61440
+      },
+      "freeStorageSize": 143360,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "postId_Instagram_1",
+          "key": {
+            "postId_Instagram": 1
+          }
+        },
+        {
+          "name": "originalCreatorId_1",
+          "key": {
+            "originalCreatorId": 1
+          }
+        },
+        {
+          "name": "proposal_1",
+          "key": {
+            "proposal": 1
+          }
+        },
+        {
+          "name": "context_1",
+          "key": {
+            "context": 1
+          }
+        },
+        {
+          "name": "format_1",
+          "key": {
+            "format": 1
+          }
+        },
+        {
+          "name": "performanceHighlights_Qualitative_1",
+          "key": {
+            "performanceHighlights_Qualitative": 1
+          }
+        },
+        {
+          "name": "primaryObjectiveAchieved_Qualitative_1",
+          "key": {
+            "primaryObjectiveAchieved_Qualitative": 1
+          }
+        },
+        {
+          "name": "tags_IA_1",
+          "key": {
+            "tags_IA": 1
+          }
+        },
+        {
+          "name": "addedToCommunityAt_1",
+          "key": {
+            "addedToCommunityAt": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "proposal_1_context_1_primaryObjectiveAchieved_Qualitative_1_status_1",
+          "key": {
+            "proposal": 1,
+            "context": 1,
+            "primaryObjectiveAchieved_Qualitative": 1,
+            "status": 1
+          }
+        },
+        {
+          "name": "format_1_primaryObjectiveAchieved_Qualitative_1_status_1",
+          "key": {
+            "format": 1,
+            "primaryObjectiveAchieved_Qualitative": 1,
+            "status": 1
+          }
+        },
+        {
+          "name": "originalCreatorId_1_status_1",
+          "key": {
+            "originalCreatorId": 1,
+            "status": 1
+          }
+        },
+        {
+          "name": "internalMetricsSnapshot.saveRate_1",
+          "key": {
+            "internalMetricsSnapshot.saveRate": 1
+          }
+        },
+        {
+          "name": "status_1_addedToCommunityAt_-1_internalMetricsSnapshot.saveRate_-1",
+          "key": {
+            "status": 1,
+            "addedToCommunityAt": -1,
+            "internalMetricsSnapshot.saveRate": -1
+          }
+        },
+        {
+          "name": "tone_1",
+          "key": {
+            "tone": 1
+          }
+        },
+        {
+          "name": "reference_1",
+          "key": {
+            "reference": 1
+          }
+        },
+        {
+          "name": "tone_1_primaryObjectiveAchieved_Qualitative_1_status_1",
+          "key": {
+            "tone": 1,
+            "primaryObjectiveAchieved_Qualitative": 1,
+            "status": 1
+          }
+        },
+        {
+          "name": "reference_1_status_1",
+          "key": {
+            "reference": 1,
+            "status": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "creatorcontentideas",
+      "count": 964,
+      "size": 2151196,
+      "storageSize": 1097728,
+      "totalIndexSize": 241664,
+      "indexSizes": {
+        "_id_": 53248,
+        "userId_1": 45056,
+        "status_1": 36864,
+        "userId_1_status_1_generatedAt_-1": 53248,
+        "userId_1_generatedAt_-1": 53248
+      },
+      "freeStorageSize": 57344,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "userId_1_status_1_generatedAt_-1",
+          "key": {
+            "userId": 1,
+            "status": 1,
+            "generatedAt": -1
+          }
+        },
+        {
+          "name": "userId_1_generatedAt_-1",
+          "key": {
+            "userId": 1,
+            "generatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mediakitaccesslogs",
+      "count": 16248,
+      "size": 1642725,
+      "storageSize": 794624,
+      "totalIndexSize": 778240,
+      "indexSizes": {
+        "_id_": 331776,
+        "user_1": 151552,
+        "timestamp_-1": 294912
+      },
+      "freeStorageSize": 126976,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "timestamp_-1",
+          "key": {
+            "timestamp": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "publicalculations",
+      "count": 396,
+      "size": 697151,
+      "storageSize": 163840,
+      "totalIndexSize": 126976,
+      "indexSizes": {
+        "_id_": 45056,
+        "userId_1": 36864,
+        "userId_1_createdAt_-1": 45056
+      },
+      "freeStorageSize": 28672,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "alerts",
+      "count": 487,
+      "size": 690890,
+      "storageSize": 344064,
+      "totalIndexSize": 208896,
+      "indexSizes": {
+        "_id_": 45056,
+        "user_1": 36864,
+        "readAt_1": 36864,
+        "user_1_createdAt_-1": 45056,
+        "user_1_readAt_1_createdAt_-1": 45056
+      },
+      "freeStorageSize": 114688,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "readAt_1",
+          "key": {
+            "readAt": 1
+          }
+        },
+        {
+          "name": "user_1_createdAt_-1",
+          "key": {
+            "user": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "user_1_readAt_1_createdAt_-1",
+          "key": {
+            "user": 1,
+            "readAt": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "creatorvideonarrativediagnoses",
+      "count": 59,
+      "size": 660328,
+      "storageSize": 380928,
+      "totalIndexSize": 331776,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "diagnosisId_1": 36864,
+        "status_1": 36864,
+        "creator_video_narrative_diagnosis_user_diagnosis_unique": 36864,
+        "userId_1_createdAt_-1": 36864,
+        "linkedInstagramMediaId_1": 36864,
+        "userId_1_historyVisibility_1_createdAt_-1": 36864,
+        "scriptAdjustmentExperimentCohort_1": 36864
+      },
+      "freeStorageSize": 110592,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "diagnosisId_1",
+          "key": {
+            "diagnosisId": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "creator_video_narrative_diagnosis_user_diagnosis_unique",
+          "key": {
+            "userId": 1,
+            "diagnosisId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "linkedInstagramMediaId_1",
+          "key": {
+            "linkedInstagramMediaId": 1
+          }
+        },
+        {
+          "name": "userId_1_historyVisibility_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "historyVisibility": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "scriptAdjustmentExperimentCohort_1",
+          "key": {
+            "scriptAdjustmentExperimentCohort": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "audience_demographic_snapshots",
+      "count": 285,
+      "size": 631583,
+      "storageSize": 565248,
+      "totalIndexSize": 143360,
+      "indexSizes": {
+        "_id_": 45056,
+        "user_1_recordedAt_-1": 53248,
+        "instagramAccountId_1": 45056
+      },
+      "freeStorageSize": 278528,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1_recordedAt_-1",
+          "key": {
+            "user": 1,
+            "recordedAt": -1
+          }
+        },
+        {
+          "name": "instagramAccountId_1",
+          "key": {
+            "instagramAccountId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "weekly_territory_reports",
+      "count": 54,
+      "size": 500263,
+      "storageSize": 163840,
+      "totalIndexSize": 184320,
+      "indexSizes": {
+        "_id_": 36864,
+        "weekKey_1": 36864,
+        "territoryId_1": 36864,
+        "weekKey_1_territoryId_1": 36864,
+        "territoryId_1_weekStartsAt_-1": 36864
+      },
+      "freeStorageSize": 53248,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "weekKey_1",
+          "key": {
+            "weekKey": 1
+          }
+        },
+        {
+          "name": "territoryId_1",
+          "key": {
+            "territoryId": 1
+          }
+        },
+        {
+          "name": "weekKey_1_territoryId_1",
+          "key": {
+            "weekKey": 1,
+            "territoryId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "territoryId_1_weekStartsAt_-1",
+          "key": {
+            "territoryId": 1,
+            "weekStartsAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "messages",
+      "count": 464,
+      "size": 411729,
+      "storageSize": 311296,
+      "totalIndexSize": 126976,
+      "indexSizes": {
+        "_id_": 45056,
+        "threadId_1": 36864,
+        "threadId_1_createdAt_1": 45056
+      },
+      "freeStorageSize": 102400,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "threadId_1",
+          "key": {
+            "threadId": 1
+          }
+        },
+        {
+          "name": "threadId_1_createdAt_1",
+          "key": {
+            "threadId": 1,
+            "createdAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "post_creation_funnel_events",
+      "count": 879,
+      "size": 381937,
+      "storageSize": 126976,
+      "totalIndexSize": 475136,
+      "indexSizes": {
+        "_id_": 61440,
+        "userId_1": 45056,
+        "draftId_1": 45056,
+        "eventName_1": 45056,
+        "stage_1": 36864,
+        "step_1": 45056,
+        "slotId_1": 45056,
+        "scriptId_1": 45056,
+        "post_creation_funnel_events_user_created_at": 53248,
+        "post_creation_funnel_events_event_created_at": 53248
+      },
+      "freeStorageSize": 36864,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "draftId_1",
+          "key": {
+            "draftId": 1
+          }
+        },
+        {
+          "name": "eventName_1",
+          "key": {
+            "eventName": 1
+          }
+        },
+        {
+          "name": "stage_1",
+          "key": {
+            "stage": 1
+          }
+        },
+        {
+          "name": "step_1",
+          "key": {
+            "step": 1
+          }
+        },
+        {
+          "name": "slotId_1",
+          "key": {
+            "slotId": 1
+          }
+        },
+        {
+          "name": "scriptId_1",
+          "key": {
+            "scriptId": 1
+          }
+        },
+        {
+          "name": "post_creation_funnel_events_user_created_at",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "post_creation_funnel_events_event_created_at",
+          "key": {
+            "eventName": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "aigeneratedposts",
+      "count": 122,
+      "size": 362163,
+      "storageSize": 196608,
+      "totalIndexSize": 221184,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "platform_1": 36864,
+        "planId_1": 36864,
+        "slotId_1": 36864,
+        "ai_generated_posts_user_client_request_unique": 36864
+      },
+      "freeStorageSize": 53248,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "platform_1",
+          "key": {
+            "platform": 1
+          }
+        },
+        {
+          "name": "planId_1",
+          "key": {
+            "planId": 1
+          }
+        },
+        {
+          "name": "slotId_1",
+          "key": {
+            "slotId": 1
+          }
+        },
+        {
+          "name": "ai_generated_posts_user_client_request_unique",
+          "key": {
+            "userId": 1,
+            "clientRequestId": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "clientRequestId": {
+              "$exists": true,
+              "$type": "string"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mapasseed",
+      "count": 136,
+      "size": 181438,
+      "storageSize": 200704,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864
+      },
+      "freeStorageSize": 94208,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "script_entries",
+      "count": 138,
+      "size": 176631,
+      "storageSize": 221184,
+      "totalIndexSize": 516096,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "source_1": 36864,
+        "linkType_1": 36864,
+        "script_entries_user_updated_at": 36864,
+        "script_entries_user_link_type": 36864,
+        "script_entries_user_planner_slot_unique": 36864,
+        "isAdminRecommendation_1": 36864,
+        "script_entries_user_recommendation_time": 36864,
+        "script_entries_user_admin_annotation_time": 36864,
+        "postedAt_1": 36864,
+        "script_entries_user_posted_time": 36864,
+        "script_entries_user_posted_metric": 36864,
+        "script_entries_user_client_request_unique": 36864
+      },
+      "freeStorageSize": 118784,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "source_1",
+          "key": {
+            "source": 1
+          }
+        },
+        {
+          "name": "linkType_1",
+          "key": {
+            "linkType": 1
+          }
+        },
+        {
+          "name": "script_entries_user_updated_at",
+          "key": {
+            "userId": 1,
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "script_entries_user_link_type",
+          "key": {
+            "userId": 1,
+            "linkType": 1
+          }
+        },
+        {
+          "name": "script_entries_user_planner_slot_unique",
+          "key": {
+            "userId": 1,
+            "plannerRef.weekStart": 1,
+            "plannerRef.slotId": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "linkType": "planner_slot",
+            "plannerRef.weekStart": {
+              "$exists": true
+            },
+            "plannerRef.slotId": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "name": "isAdminRecommendation_1",
+          "key": {
+            "isAdminRecommendation": 1
+          }
+        },
+        {
+          "name": "script_entries_user_recommendation_time",
+          "key": {
+            "userId": 1,
+            "isAdminRecommendation": 1,
+            "recommendedAt": -1,
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "script_entries_user_admin_annotation_time",
+          "key": {
+            "userId": 1,
+            "adminAnnotationUpdatedAt": -1,
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "postedAt_1",
+          "key": {
+            "postedAt": 1
+          }
+        },
+        {
+          "name": "script_entries_user_posted_time",
+          "key": {
+            "userId": 1,
+            "postedAt": -1
+          }
+        },
+        {
+          "name": "script_entries_user_posted_metric",
+          "key": {
+            "userId": 1,
+            "postedContent.metricId": 1
+          },
+          "partialFilterExpression": {
+            "postedContent.metricId": {
+              "$exists": true
+            }
+          }
+        },
+        {
+          "name": "script_entries_user_client_request_unique",
+          "key": {
+            "userId": 1,
+            "clientRequestId": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "clientRequestId": {
+              "$exists": true,
+              "$type": "string"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "brandnarrativeprofiles",
+      "count": 78,
+      "size": 152561,
+      "storageSize": 73728,
+      "totalIndexSize": 442368,
+      "indexSizes": {
+        "_id_": 36864,
+        "slug_1": 36864,
+        "normalizedName_1": 36864,
+        "category_1": 36864,
+        "territories_1": 36864,
+        "contexts_1": 36864,
+        "narrativeForms_1": 36864,
+        "contentIntents_1": 36864,
+        "commercialModes_1": 36864,
+        "validationStatus_1_status_1": 36864,
+        "usageStats.reportsGenerated_-1": 36864,
+        "archivedAt_1": 36864
+      },
+      "freeStorageSize": 28672,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "slug_1",
+          "key": {
+            "slug": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "normalizedName_1",
+          "key": {
+            "normalizedName": 1
+          }
+        },
+        {
+          "name": "category_1",
+          "key": {
+            "category": 1
+          }
+        },
+        {
+          "name": "territories_1",
+          "key": {
+            "territories": 1
+          }
+        },
+        {
+          "name": "contexts_1",
+          "key": {
+            "contexts": 1
+          }
+        },
+        {
+          "name": "narrativeForms_1",
+          "key": {
+            "narrativeForms": 1
+          }
+        },
+        {
+          "name": "contentIntents_1",
+          "key": {
+            "contentIntents": 1
+          }
+        },
+        {
+          "name": "commercialModes_1",
+          "key": {
+            "commercialModes": 1
+          }
+        },
+        {
+          "name": "validationStatus_1_status_1",
+          "key": {
+            "validationStatus": 1,
+            "status": 1
+          }
+        },
+        {
+          "name": "usageStats.reportsGenerated_-1",
+          "key": {
+            "usageStats.reportsGenerated": -1
+          }
+        },
+        {
+          "name": "archivedAt_1",
+          "key": {
+            "archivedAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "usage_events",
+      "count": 962,
+      "size": 145457,
+      "storageSize": 86016,
+      "totalIndexSize": 249856,
+      "indexSizes": {
+        "_id_": 61440,
+        "userId_1": 45056,
+        "category_1": 36864,
+        "usage_events_user_created_at": 53248,
+        "usage_events_event_created_at": 53248
+      },
+      "freeStorageSize": 32768,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "category_1",
+          "key": {
+            "category": 1
+          }
+        },
+        {
+          "name": "usage_events_user_created_at",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "usage_events_event_created_at",
+          "key": {
+            "eventName": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "planner_plans",
+      "count": 78,
+      "size": 126742,
+      "storageSize": 102400,
+      "totalIndexSize": 147456,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "weekStart_1": 36864,
+        "uniq_user_platform_week": 36864
+      },
+      "freeStorageSize": 49152,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "weekStart_1",
+          "key": {
+            "weekStart": 1
+          }
+        },
+        {
+          "name": "uniq_user_platform_week",
+          "key": {
+            "userId": 1,
+            "platform": 1,
+            "weekStart": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "post_creation_drafts",
+      "count": 137,
+      "size": 108376,
+      "storageSize": 77824,
+      "totalIndexSize": 147456,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "stage_1": 36864,
+        "post_creation_drafts_user_updated_at": 36864
+      },
+      "freeStorageSize": 36864,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "stage_1",
+          "key": {
+            "stage": 1
+          }
+        },
+        {
+          "name": "post_creation_drafts_user_updated_at",
+          "key": {
+            "userId": 1,
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mcp_oauth_refresh_tokens",
+      "count": 192,
+      "size": 104205,
+      "storageSize": 86016,
+      "totalIndexSize": 237568,
+      "indexSizes": {
+        "_id_": 36864,
+        "tokenHash_1": 53248,
+        "clientId_1": 36864,
+        "userId_1": 36864,
+        "expiresAt_1": 36864,
+        "userId_1_clientId_1_revokedAt_1": 36864
+      },
+      "freeStorageSize": 40960,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "tokenHash_1",
+          "key": {
+            "tokenHash": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "clientId_1",
+          "key": {
+            "clientId": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        },
+        {
+          "name": "userId_1_clientId_1_revokedAt_1",
+          "key": {
+            "userId": 1,
+            "clientId": 1,
+            "revokedAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "brandproposals",
+      "count": 25,
+      "size": 93640,
+      "storageSize": 86016,
+      "totalIndexSize": 368640,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "mediaKitSlug_1": 36864,
+        "status_1": 36864,
+        "userId_1_createdAt_-1": 36864,
+        "mediaKitSlug_1_createdAt_-1": 36864,
+        "budgetIntent_1": 36864,
+        "receivedAt_1": 36864,
+        "openedAt_1": 36864,
+        "userId_1_openedAt_1_status_1": 36864
+      },
+      "freeStorageSize": 40960,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "mediaKitSlug_1",
+          "key": {
+            "mediaKitSlug": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "mediaKitSlug_1_createdAt_-1",
+          "key": {
+            "mediaKitSlug": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "budgetIntent_1",
+          "key": {
+            "budgetIntent": 1
+          }
+        },
+        {
+          "name": "receivedAt_1",
+          "key": {
+            "receivedAt": 1
+          }
+        },
+        {
+          "name": "openedAt_1",
+          "key": {
+            "openedAt": 1
+          }
+        },
+        {
+          "name": "userId_1_openedAt_1_status_1",
+          "key": {
+            "userId": 1,
+            "openedAt": 1,
+            "status": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "brandnarrativereports",
+      "count": 7,
+      "size": 89078,
+      "storageSize": 86016,
+      "totalIndexSize": 221184,
+      "indexSizes": {
+        "_id_": 36864,
+        "publicSlug_1": 36864,
+        "userId_1_createdAt_-1": 36864,
+        "brand.brandName_1": 36864,
+        "status_1": 36864,
+        "createdAt_-1": 36864
+      },
+      "freeStorageSize": 40960,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "publicSlug_1",
+          "key": {
+            "publicSlug": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "brand.brandName_1",
+          "key": {
+            "brand.brandName": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "createdAt_-1",
+          "key": {
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "postreviews",
+      "count": 108,
+      "size": 66030,
+      "storageSize": 102400,
+      "totalIndexSize": 184320,
+      "indexSizes": {
+        "_id_": 36864,
+        "postId_1": 36864,
+        "status_1": 36864,
+        "status_1_updatedAt_-1": 36864,
+        "updatedAt_-1": 36864
+      },
+      "freeStorageSize": 49152,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "postId_1",
+          "key": {
+            "postId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "status_1_updatedAt_-1",
+          "key": {
+            "status": 1,
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "updatedAt_-1",
+          "key": {
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "cpmhistories",
+      "count": 401,
+      "size": 41304,
+      "storageSize": 45056,
+      "totalIndexSize": 122880,
+      "indexSizes": {
+        "_id_": 45056,
+        "segment_1": 36864,
+        "segment_1_createdAt_-1": 40960
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "segment_1",
+          "key": {
+            "segment": 1
+          }
+        },
+        {
+          "name": "segment_1_createdAt_-1",
+          "key": {
+            "segment": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "script_style_profiles",
+      "count": 32,
+      "size": 31581,
+      "storageSize": 53248,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864
+      },
+      "freeStorageSize": 24576,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "creatorstrategicprofilesnapshots",
+      "count": 15,
+      "size": 27454,
+      "storageSize": 45056,
+      "totalIndexSize": 147456,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "status_1": 36864,
+        "lastAnalyzedAt_-1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "lastAnalyzedAt_-1",
+          "key": {
+            "lastAnalyzedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "collabinterests",
+      "count": 15,
+      "size": 27333,
+      "storageSize": 45056,
+      "totalIndexSize": 221184,
+      "indexSizes": {
+        "_id_": 36864,
+        "user_1_pautaId_1": 36864,
+        "partner_1_user_1_decision_1_matchedAt_1": 36864,
+        "user_1_matchedAt_1": 36864,
+        "expiresAt_1": 36864,
+        "partner_1_user_1_decision_1_matchedAt_1_pautaTerritoryNorm_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1_pautaId_1",
+          "key": {
+            "user": 1,
+            "pautaId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "partner_1_user_1_decision_1_matchedAt_1",
+          "key": {
+            "partner": 1,
+            "user": 1,
+            "decision": 1,
+            "matchedAt": 1
+          }
+        },
+        {
+          "name": "user_1_matchedAt_1",
+          "key": {
+            "user": 1,
+            "matchedAt": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        },
+        {
+          "name": "partner_1_user_1_decision_1_matchedAt_1_pautaTerritoryNorm_1",
+          "key": {
+            "partner": 1,
+            "user": 1,
+            "decision": 1,
+            "matchedAt": 1,
+            "pautaTerritoryNorm": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mcp_oauth_clients",
+      "count": 52,
+      "size": 27224,
+      "storageSize": 45056,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "clientId_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "clientId_1",
+          "key": {
+            "clientId": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "creatormapconfirmations",
+      "count": 56,
+      "size": 26529,
+      "storageSize": 45056,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "mcp_admin_audit_events",
+      "count": 36,
+      "size": 23216,
+      "storageSize": 45056,
+      "totalIndexSize": 294912,
+      "indexSizes": {
+        "_id_": 36864,
+        "invocationId_1": 36864,
+        "requestId_1": 36864,
+        "actorUserId_1": 36864,
+        "tool_1": 36864,
+        "actorUserId_1_createdAt_-1": 36864,
+        "targetCreatorIds_1_createdAt_-1": 36864,
+        "expiresAt_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "invocationId_1",
+          "key": {
+            "invocationId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "requestId_1",
+          "key": {
+            "requestId": 1
+          }
+        },
+        {
+          "name": "actorUserId_1",
+          "key": {
+            "actorUserId": 1
+          }
+        },
+        {
+          "name": "tool_1",
+          "key": {
+            "tool": 1
+          }
+        },
+        {
+          "name": "actorUserId_1_createdAt_-1",
+          "key": {
+            "actorUserId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "targetCreatorIds_1_createdAt_-1",
+          "key": {
+            "targetCreatorIds": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "name": "strategicreports",
+      "count": 3,
+      "size": 12073,
+      "storageSize": 36864,
+      "totalIndexSize": 315392,
+      "indexSizes": {
+        "_id_": 36864,
+        "user_1": 36864,
+        "periodDays_1": 36864,
+        "version_1": 36864,
+        "status_1": 36864,
+        "generatedAt_1": 36864,
+        "expiresAt_1": 36864,
+        "user_1_periodDays_1_version_1_status_1_generatedAt_-1": 36864,
+        "requestedBy_1": 20480
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "periodDays_1",
+          "key": {
+            "periodDays": 1
+          }
+        },
+        {
+          "name": "version_1",
+          "key": {
+            "version": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "generatedAt_1",
+          "key": {
+            "generatedAt": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          }
+        },
+        {
+          "name": "user_1_periodDays_1_version_1_status_1_generatedAt_-1",
+          "key": {
+            "user": 1,
+            "periodDays": 1,
+            "version": 1,
+            "status": 1,
+            "generatedAt": -1
+          }
+        },
+        {
+          "name": "requestedBy_1",
+          "key": {
+            "requestedBy": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "chat_message_logs",
+      "count": 6,
+      "size": 11375,
+      "storageSize": 45056,
+      "totalIndexSize": 405504,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "sessionId_1": 36864,
+        "threadId_1": 36864,
+        "messageId_1": 36864,
+        "sessionId_1_createdAt_-1": 36864,
+        "role_1_createdAt_-1": 36864,
+        "createdAt_1": 36864,
+        "createdAt_-1_promptVariant_1_experimentId_1_modelVersion_1_ragEnabled_1": 36864,
+        "createdAt_-1_hadFallback_1": 36864,
+        "createdAt_-1_role_1_intent_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "sessionId_1",
+          "key": {
+            "sessionId": 1
+          }
+        },
+        {
+          "name": "threadId_1",
+          "key": {
+            "threadId": 1
+          }
+        },
+        {
+          "name": "messageId_1",
+          "key": {
+            "messageId": 1
+          }
+        },
+        {
+          "name": "sessionId_1_createdAt_-1",
+          "key": {
+            "sessionId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "role_1_createdAt_-1",
+          "key": {
+            "role": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "createdAt_1",
+          "key": {
+            "createdAt": 1
+          },
+          "expireAfterSeconds": 15552000
+        },
+        {
+          "name": "createdAt_-1_promptVariant_1_experimentId_1_modelVersion_1_ragEnabled_1",
+          "key": {
+            "createdAt": -1,
+            "promptVariant": 1,
+            "experimentId": 1,
+            "modelVersion": 1,
+            "ragEnabled": 1
+          }
+        },
+        {
+          "name": "createdAt_-1_hadFallback_1",
+          "key": {
+            "createdAt": -1,
+            "hadFallback": 1
+          }
+        },
+        {
+          "name": "createdAt_-1_role_1_intent_1",
+          "key": {
+            "createdAt": -1,
+            "role": 1,
+            "intent": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "script_outcome_profiles",
+      "count": 5,
+      "size": 10851,
+      "storageSize": 45056,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "threads",
+      "count": 63,
+      "size": 10731,
+      "storageSize": 45056,
+      "totalIndexSize": 184320,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "isFavorite_1": 36864,
+        "lastActivityAt_1": 36864,
+        "userId_1_lastActivityAt_-1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "isFavorite_1",
+          "key": {
+            "isFavorite": 1
+          }
+        },
+        {
+          "name": "lastActivityAt_1",
+          "key": {
+            "lastActivityAt": 1
+          }
+        },
+        {
+          "name": "userId_1_lastActivityAt_-1",
+          "key": {
+            "userId": 1,
+            "lastActivityAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "creator_script_dna_profiles",
+      "count": 2,
+      "size": 9023,
+      "storageSize": 45056,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "generatedAt_1": 36864
+      },
+      "freeStorageSize": 20480,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "generatedAt_1",
+          "key": {
+            "generatedAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "affiliateinvoiceindexes",
+      "count": 37,
+      "size": 5198,
+      "storageSize": 36864,
+      "totalIndexSize": 147456,
+      "indexSizes": {
+        "_id_": 36864,
+        "affiliateUserId_1": 36864,
+        "uniq_invoice_affiliate": 36864,
+        "invoiceId_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "affiliateUserId_1",
+          "key": {
+            "affiliateUserId": 1
+          }
+        },
+        {
+          "name": "uniq_invoice_affiliate",
+          "key": {
+            "invoiceId": 1,
+            "affiliateUserId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "invoiceId_1",
+          "key": {
+            "invoiceId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "chat_sessions",
+      "count": 2,
+      "size": 3159,
+      "storageSize": 36864,
+      "totalIndexSize": 294912,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "threadId_1": 36864,
+        "userId_1_startedAt_-1": 36864,
+        "endedAt_1": 36864,
+        "lastActivityAt_-1": 36864,
+        "startedAt_1": 36864,
+        "startedAt_-1_ragEnabled_1_promptVariant_1_experimentId_1_modelVersion_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "threadId_1",
+          "key": {
+            "threadId": 1
+          }
+        },
+        {
+          "name": "userId_1_startedAt_-1",
+          "key": {
+            "userId": 1,
+            "startedAt": -1
+          }
+        },
+        {
+          "name": "endedAt_1",
+          "key": {
+            "endedAt": 1
+          }
+        },
+        {
+          "name": "lastActivityAt_-1",
+          "key": {
+            "lastActivityAt": -1
+          }
+        },
+        {
+          "name": "startedAt_1",
+          "key": {
+            "startedAt": 1
+          },
+          "expireAfterSeconds": 15552000
+        },
+        {
+          "name": "startedAt_-1_ragEnabled_1_promptVariant_1_experimentId_1_modelVersion_1",
+          "key": {
+            "startedAt": -1,
+            "ragEnabled": 1,
+            "promptVariant": 1,
+            "experimentId": 1,
+            "modelVersion": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "sharedlinks",
+      "count": 9,
+      "size": 1811,
+      "storageSize": 36864,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "token_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "token_1",
+          "key": {
+            "token": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "weekly_report_predictions",
+      "count": 3,
+      "size": 1743,
+      "storageSize": 36864,
+      "totalIndexSize": 184320,
+      "indexSizes": {
+        "_id_": 36864,
+        "weekKey_1": 36864,
+        "territoryId_1": 36864,
+        "weekKey_1_territoryId_1": 36864,
+        "resolvedAt_1_weekKey_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "weekKey_1",
+          "key": {
+            "weekKey": 1
+          }
+        },
+        {
+          "name": "territoryId_1",
+          "key": {
+            "territoryId": 1
+          }
+        },
+        {
+          "name": "weekKey_1_territoryId_1",
+          "key": {
+            "weekKey": 1,
+            "territoryId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "resolvedAt_1_weekKey_1",
+          "key": {
+            "resolvedAt": 1,
+            "weekKey": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "chat_session_reviews",
+      "count": 6,
+      "size": 1507,
+      "storageSize": 36864,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "sessionId_1": 36864,
+        "status_1_updatedAt_-1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "sessionId_1",
+          "key": {
+            "sessionId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "status_1_updatedAt_-1",
+          "key": {
+            "status": 1,
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaigns",
+      "count": 2,
+      "size": 1406,
+      "storageSize": 36864,
+      "totalIndexSize": 167936,
+      "indexSizes": {
+        "_id_": 36864,
+        "status_1": 36864,
+        "createdAt_-1": 36864,
+        "source_1_createdAt_-1": 36864,
+        "originMediaKitSlug_1_createdAt_-1": 20480
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "createdAt_-1",
+          "key": {
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "source_1_createdAt_-1",
+          "key": {
+            "source": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "originMediaKitSlug_1_createdAt_-1",
+          "key": {
+            "originMediaKitSlug": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mediakitpackages",
+      "count": 3,
+      "size": 838,
+      "storageSize": 36864,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "userId_1_order_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "userId_1_order_1",
+          "key": {
+            "userId": 1,
+            "order": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "planning_recommendation_feedback",
+      "count": 2,
+      "size": 780,
+      "storageSize": 36864,
+      "totalIndexSize": 221184,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864,
+        "objectiveMode_1": 36864,
+        "timePeriod_1": 36864,
+        "uniq_user_objective_period_action": 36864,
+        "userId_1_updatedAt_-1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "objectiveMode_1",
+          "key": {
+            "objectiveMode": 1
+          }
+        },
+        {
+          "name": "timePeriod_1",
+          "key": {
+            "timePeriod": 1
+          }
+        },
+        {
+          "name": "uniq_user_objective_period_action",
+          "key": {
+            "userId": 1,
+            "objectiveMode": 1,
+            "timePeriod": 1,
+            "actionId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_updatedAt_-1",
+          "key": {
+            "userId": 1,
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "affiliatebuyercommissionindexes",
+      "count": 4,
+      "size": 664,
+      "storageSize": 36864,
+      "totalIndexSize": 147456,
+      "indexSizes": {
+        "_id_": 36864,
+        "buyerUserId_1": 36864,
+        "affiliateUserId_1": 36864,
+        "invoiceId_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "buyerUserId_1",
+          "key": {
+            "buyerUserId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "affiliateUserId_1",
+          "key": {
+            "affiliateUserId": 1
+          }
+        },
+        {
+          "name": "invoiceId_1",
+          "key": {
+            "invoiceId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "affiliatemigrationaudits",
+      "count": 3,
+      "size": 648,
+      "storageSize": 36864,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "userId_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mediakitslugaliases",
+      "count": 4,
+      "size": 581,
+      "storageSize": 36864,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "slug_1": 36864,
+        "user_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "slug_1",
+          "key": {
+            "slug": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "agencies",
+      "count": 2,
+      "size": 443,
+      "storageSize": 36864,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "inviteCode_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "inviteCode_1",
+          "key": {
+            "inviteCode": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "featureflags",
+      "count": 2,
+      "size": 433,
+      "storageSize": 36864,
+      "totalIndexSize": 73728,
+      "indexSizes": {
+        "_id_": 36864,
+        "key_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "key_1",
+          "key": {
+            "key": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "campaignlinks",
+      "count": 1,
+      "size": 200,
+      "storageSize": 36864,
+      "totalIndexSize": 278528,
+      "indexSizes": {
+        "_id_": 36864,
+        "proposalId_1": 36864,
+        "userId_1": 36864,
+        "entityType_1": 36864,
+        "entityId_1": 36864,
+        "campaign_links_unique_entity_per_proposal": 36864,
+        "userId_1_proposalId_1_updatedAt_-1": 36864,
+        "campaign_links_user_entity_lookup": 20480
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "proposalId_1",
+          "key": {
+            "proposalId": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "entityType_1",
+          "key": {
+            "entityType": 1
+          }
+        },
+        {
+          "name": "entityId_1",
+          "key": {
+            "entityId": 1
+          }
+        },
+        {
+          "name": "campaign_links_unique_entity_per_proposal",
+          "key": {
+            "proposalId": 1,
+            "entityType": 1,
+            "entityId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_proposalId_1_updatedAt_-1",
+          "key": {
+            "userId": 1,
+            "proposalId": 1,
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "campaign_links_user_entity_lookup",
+          "key": {
+            "userId": 1,
+            "entityType": 1,
+            "entityId": 1,
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "perpautacollabcaches",
+      "count": 1,
+      "size": 175,
+      "storageSize": 36864,
+      "totalIndexSize": 110592,
+      "indexSizes": {
+        "_id_": 36864,
+        "user_1_cacheKey_1": 36864,
+        "expiresAt_1": 36864
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1_cacheKey_1",
+          "key": {
+            "user": 1,
+            "cacheKey": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "name": "affiliatesubscriptionindexes",
+      "count": 1,
+      "size": 128,
+      "storageSize": 36864,
+      "totalIndexSize": 131072,
+      "indexSizes": {
+        "_id_": 36864,
+        "affiliateUserId_1": 36864,
+        "uniq_subscription_affiliate": 36864,
+        "subscriptionId_1": 20480
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "affiliateUserId_1",
+          "key": {
+            "affiliateUserId": 1
+          }
+        },
+        {
+          "name": "uniq_subscription_affiliate",
+          "key": {
+            "subscriptionId": 1,
+            "affiliateUserId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "subscriptionId_1",
+          "key": {
+            "subscriptionId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mcp_oauth_consent_requests",
+      "count": 0,
+      "size": 0,
+      "storageSize": 32768,
+      "totalIndexSize": 163840,
+      "indexSizes": {
+        "_id_": 32768,
+        "requestHash_1": 32768,
+        "userId_1": 32768,
+        "clientId_1": 32768,
+        "expiresAt_1": 32768
+      },
+      "freeStorageSize": 12288,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "requestHash_1",
+          "key": {
+            "requestHash": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "clientId_1",
+          "key": {
+            "clientId": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "name": "plannerplans",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 32768,
+      "indexSizes": {
+        "_id_": 4096,
+        "userId_1": 4096,
+        "platform_1": 4096,
+        "weekStart_1": 4096,
+        "slots.slotId_1": 4096,
+        "slots.status_1": 4096,
+        "slots.isExperiment_1": 4096,
+        "idx_user_platform_week": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "platform_1",
+          "key": {
+            "platform": 1
+          }
+        },
+        {
+          "name": "weekStart_1",
+          "key": {
+            "weekStart": 1
+          }
+        },
+        {
+          "name": "slots.slotId_1",
+          "key": {
+            "slots.slotId": 1
+          }
+        },
+        {
+          "name": "slots.status_1",
+          "key": {
+            "slots.status": 1
+          }
+        },
+        {
+          "name": "slots.isExperiment_1",
+          "key": {
+            "slots.isExperiment": 1
+          }
+        },
+        {
+          "name": "idx_user_platform_week",
+          "key": {
+            "userId": 1,
+            "platform": 1,
+            "weekStart": 1
+          },
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "script_evidence_sessions",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 20480,
+      "indexSizes": {
+        "_id_": 4096,
+        "userId_1": 4096,
+        "clientRequestId_1": 4096,
+        "expiresAt_1": 4096,
+        "userId_1_packId_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "clientRequestId_1",
+          "key": {
+            "clientRequestId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        },
+        {
+          "name": "userId_1_packId_1",
+          "key": {
+            "userId": 1,
+            "packId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign_radar_candidates",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 16384,
+      "indexSizes": {
+        "_id_": 4096,
+        "key_1": 4096,
+        "decision_1": 4096,
+        "applicationKey_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "key_1",
+          "key": {
+            "key": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "decision_1",
+          "key": {
+            "decision": 1
+          }
+        },
+        {
+          "name": "applicationKey_1",
+          "key": {
+            "applicationKey": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "chat_eval_runs",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 8192,
+      "indexSizes": {
+        "_id_": 4096,
+        "status_1_createdAt_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "status_1_createdAt_-1",
+          "key": {
+            "status": 1,
+            "createdAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "collabmatches",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 12288,
+      "indexSizes": {
+        "_id_": 4096,
+        "pairKey_1": 4096,
+        "userA_1_userB_1_territoryNorm_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "pairKey_1",
+          "key": {
+            "pairKey": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userA_1_userB_1_territoryNorm_1",
+          "key": {
+            "userA": 1,
+            "userB": 1,
+            "territoryNorm": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "addeals",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 24576,
+      "indexSizes": {
+        "_id_": 4096,
+        "userId_1": 4096,
+        "relatedPostId_1": 4096,
+        "sourceCalculationId_1": 4096,
+        "userId_1_dealDate_-1": 4096,
+        "linkedCalculationSegment_1_dealDate_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "relatedPostId_1",
+          "key": {
+            "relatedPostId": 1
+          }
+        },
+        {
+          "name": "sourceCalculationId_1",
+          "key": {
+            "sourceCalculationId": 1
+          }
+        },
+        {
+          "name": "userId_1_dealDate_-1",
+          "key": {
+            "userId": 1,
+            "dealDate": -1
+          }
+        },
+        {
+          "name": "linkedCalculationSegment_1_dealDate_-1",
+          "key": {
+            "linkedCalculationSegment": 1,
+            "dealDate": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "__quota_probe__",
+      "count": 0,
+      "size": 0,
+      "storageSize": 32768,
+      "totalIndexSize": 32768,
+      "indexSizes": {
+        "_id_": 32768
+      },
+      "freeStorageSize": 24576,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "carouselcasedrafts",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 20480,
+      "indexSizes": {
+        "_id_": 4096,
+        "creatorId_1": 4096,
+        "visualPreset_1": 4096,
+        "updatedAt_-1": 4096,
+        "creatorId_1_updatedAt_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "creatorId_1",
+          "key": {
+            "creatorId": 1
+          }
+        },
+        {
+          "name": "visualPreset_1",
+          "key": {
+            "visualPreset": 1
+          }
+        },
+        {
+          "name": "updatedAt_-1",
+          "key": {
+            "updatedAt": -1
+          }
+        },
+        {
+          "name": "creatorId_1_updatedAt_-1",
+          "key": {
+            "creatorId": 1,
+            "updatedAt": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "chat_message_feedback",
+      "count": 0,
+      "size": 0,
+      "storageSize": 32768,
+      "totalIndexSize": 229376,
+      "indexSizes": {
+        "_id_": 32768,
+        "sessionId_1": 32768,
+        "messageId_1": 32768,
+        "userId_1": 32768,
+        "rating_1_createdAt_-1": 32768,
+        "messageId_1_userId_1": 32768,
+        "createdAt_1": 32768
+      },
+      "freeStorageSize": 24576,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "sessionId_1",
+          "key": {
+            "sessionId": 1
+          }
+        },
+        {
+          "name": "messageId_1",
+          "key": {
+            "messageId": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "rating_1_createdAt_-1",
+          "key": {
+            "rating": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "messageId_1_userId_1",
+          "key": {
+            "messageId": 1,
+            "userId": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "messageId": {
+              "$type": "string"
+            }
+          }
+        },
+        {
+          "name": "createdAt_1",
+          "key": {
+            "createdAt": 1
+          },
+          "expireAfterSeconds": 15552000
+        }
+      ]
+    },
+    {
+      "name": "segmentradars",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 8192,
+      "indexSizes": {
+        "_id_": 4096,
+        "segmentId_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "segmentId_1",
+          "key": {
+            "segmentId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign_radar_opportunities",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 69632,
+      "indexSizes": {
+        "_id_": 4096,
+        "opportunityId_1": 4096,
+        "catalogBatchId_1": 4096,
+        "reportDate_1": 4096,
+        "activeInCatalog_1": 4096,
+        "sourceId_1": 4096,
+        "sourceVisibility_1": 4096,
+        "opportunityType_1": 4096,
+        "territories_1": 4096,
+        "platforms_1": 4096,
+        "formats_1": 4096,
+        "applicationDeadline_1": 4096,
+        "lastVerifiedAt_1": 4096,
+        "status_1": 4096,
+        "activeInCatalog_1_sourceVisibility_1_status_1_review.status_1_applicationDeadline_1": 4096,
+        "territories_1_activeInCatalog_1": 4096,
+        "compensation.minimum_1_activeInCatalog_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "opportunityId_1",
+          "key": {
+            "opportunityId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "catalogBatchId_1",
+          "key": {
+            "catalogBatchId": 1
+          }
+        },
+        {
+          "name": "reportDate_1",
+          "key": {
+            "reportDate": 1
+          }
+        },
+        {
+          "name": "activeInCatalog_1",
+          "key": {
+            "activeInCatalog": 1
+          }
+        },
+        {
+          "name": "sourceId_1",
+          "key": {
+            "sourceId": 1
+          }
+        },
+        {
+          "name": "sourceVisibility_1",
+          "key": {
+            "sourceVisibility": 1
+          }
+        },
+        {
+          "name": "opportunityType_1",
+          "key": {
+            "opportunityType": 1
+          }
+        },
+        {
+          "name": "territories_1",
+          "key": {
+            "territories": 1
+          }
+        },
+        {
+          "name": "platforms_1",
+          "key": {
+            "platforms": 1
+          }
+        },
+        {
+          "name": "formats_1",
+          "key": {
+            "formats": 1
+          }
+        },
+        {
+          "name": "applicationDeadline_1",
+          "key": {
+            "applicationDeadline": 1
+          }
+        },
+        {
+          "name": "lastVerifiedAt_1",
+          "key": {
+            "lastVerifiedAt": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "activeInCatalog_1_sourceVisibility_1_status_1_review.status_1_applicationDeadline_1",
+          "key": {
+            "activeInCatalog": 1,
+            "sourceVisibility": 1,
+            "status": 1,
+            "review.status": 1,
+            "applicationDeadline": 1
+          }
+        },
+        {
+          "name": "territories_1_activeInCatalog_1",
+          "key": {
+            "territories": 1,
+            "activeInCatalog": 1
+          }
+        },
+        {
+          "name": "compensation.minimum_1_activeInCatalog_1",
+          "key": {
+            "compensation.minimum": 1,
+            "activeInCatalog": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "videoassets",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 8192,
+      "indexSizes": {
+        "_id_": 4096,
+        "userId_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "mcp_oauth_authorization_codes",
+      "count": 0,
+      "size": 0,
+      "storageSize": 32768,
+      "totalIndexSize": 163840,
+      "indexSizes": {
+        "_id_": 32768,
+        "codeHash_1": 32768,
+        "clientId_1": 32768,
+        "userId_1": 32768,
+        "expiresAt_1": 32768
+      },
+      "freeStorageSize": 12288,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "codeHash_1",
+          "key": {
+            "codeHash": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "clientId_1",
+          "key": {
+            "clientId": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "name": "chat_eval_cases",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 12288,
+      "indexSizes": {
+        "_id_": 4096,
+        "category_1_createdAt_-1": 4096,
+        "intentHint_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "category_1_createdAt_-1",
+          "key": {
+            "category": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "intentHint_1",
+          "key": {
+            "intentHint": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "storymetrics",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 28672,
+      "indexSizes": {
+        "_id_": 4096,
+        "user_1": 4096,
+        "instagramAccountId_1": 4096,
+        "instagramMediaId_1": 4096,
+        "timestamp_1": 4096,
+        "user_1_instagramMediaId_1": 4096,
+        "user_1_instagramAccountId_1_timestamp_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "instagramAccountId_1",
+          "key": {
+            "instagramAccountId": 1
+          }
+        },
+        {
+          "name": "instagramMediaId_1",
+          "key": {
+            "instagramMediaId": 1
+          }
+        },
+        {
+          "name": "timestamp_1",
+          "key": {
+            "timestamp": 1
+          }
+        },
+        {
+          "name": "user_1_instagramMediaId_1",
+          "key": {
+            "user": 1,
+            "instagramMediaId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "user_1_instagramAccountId_1_timestamp_-1",
+          "key": {
+            "user": 1,
+            "instagramAccountId": 1,
+            "timestamp": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "content_reading_states",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 8192,
+      "indexSizes": {
+        "_id_": 4096,
+        "state_1_nextAttemptAt_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "state_1_nextAttemptAt_1",
+          "key": {
+            "state": 1,
+            "nextAttemptAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "dailymetrics",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 12288,
+      "indexSizes": {
+        "_id_": 4096,
+        "postId_1": 4096,
+        "user_1_postDate_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "postId_1",
+          "key": {
+            "postId": 1
+          }
+        },
+        {
+          "name": "user_1_postDate_-1",
+          "key": {
+            "user": 1,
+            "postDate": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "user_usage_snapshots",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 8192,
+      "indexSizes": {
+        "_id_": 4096,
+        "user_1_date_-1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1_date_-1",
+          "key": {
+            "user": 1,
+            "date": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "cronlocks",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 4096,
+      "indexSizes": {
+        "_id_": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "creator_video_narrative_real_analysis_usage",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 20480,
+      "indexSizes": {
+        "_id_": 4096,
+        "userId_1": 4096,
+        "monthKey_1": 4096,
+        "userId_1_dateKey_1": 4096,
+        "userId_1_monthKey_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "monthKey_1",
+          "key": {
+            "monthKey": 1
+          }
+        },
+        {
+          "name": "userId_1_dateKey_1",
+          "key": {
+            "userId": 1,
+            "dateKey": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "userId_1_monthKey_1",
+          "key": {
+            "userId": 1,
+            "monthKey": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "redemptions",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 36864,
+      "indexSizes": {
+        "_id_": 4096,
+        "user_1": 4096,
+        "userId_1": 4096,
+        "status_1": 4096,
+        "transactionId_1": 4096,
+        "userId_1_createdAt_-1": 4096,
+        "uniq_redemption_idempotency": 4096,
+        "uniq_redemption_transfer": 4096,
+        "uniq_active_redemption": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "transactionId_1",
+          "key": {
+            "transactionId": 1
+          }
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "uniq_redemption_idempotency",
+          "key": {
+            "idempotencyKey": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "idempotencyKey": {
+              "$type": "string"
+            }
+          }
+        },
+        {
+          "name": "uniq_redemption_transfer",
+          "key": {
+            "transferId": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "transferId": {
+              "$type": "string"
+            }
+          }
+        },
+        {
+          "name": "uniq_active_redemption",
+          "key": {
+            "userId": 1,
+            "currency": 1,
+            "status": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "status": "requested"
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign_radar_runs",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 12288,
+      "indexSizes": {
+        "_id_": 4096,
+        "day_1": 4096,
+        "startedAt_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "day_1",
+          "key": {
+            "day": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "startedAt_1",
+          "key": {
+            "startedAt": 1
+          },
+          "expireAfterSeconds": 7776000
+        }
+      ]
+    },
+    {
+      "name": "community_events",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 20480,
+      "indexSizes": {
+        "_id_": 4096,
+        "status_1": 4096,
+        "startAt_1": 4096,
+        "type_1_startAt_1": 4096,
+        "type_1_status_1_startAt_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          }
+        },
+        {
+          "name": "startAt_1",
+          "key": {
+            "startAt": 1
+          }
+        },
+        {
+          "name": "type_1_startAt_1",
+          "key": {
+            "type": 1,
+            "startAt": 1
+          }
+        },
+        {
+          "name": "type_1_status_1_startAt_1",
+          "key": {
+            "type": 1,
+            "status": 1,
+            "startAt": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "affiliaterefundprogresses",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 16384,
+      "indexSizes": {
+        "_id_": 4096,
+        "affiliateUserId_1": 4096,
+        "uniq_refund_progress": 4096,
+        "invoiceId_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "affiliateUserId_1",
+          "key": {
+            "affiliateUserId": 1
+          }
+        },
+        {
+          "name": "uniq_refund_progress",
+          "key": {
+            "invoiceId": 1,
+            "affiliateUserId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "invoiceId_1",
+          "key": {
+            "invoiceId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign_radar_weekly_selections",
+      "count": 0,
+      "size": 0,
+      "storageSize": 4096,
+      "totalIndexSize": 16384,
+      "indexSizes": {
+        "_id_": 4096,
+        "userKey_1_weekStartsOn_1": 4096,
+        "opportunityId_1": 4096,
+        "expiresAt_1": 4096
+      },
+      "freeStorageSize": 0,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "userKey_1_weekStartsOn_1",
+          "key": {
+            "userKey": 1,
+            "weekStartsOn": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "opportunityId_1",
+          "key": {
+            "opportunityId": 1
+          }
+        },
+        {
+          "name": "expiresAt_1",
+          "key": {
+            "expiresAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "name": "chat_session_feedback",
+      "count": 0,
+      "size": 0,
+      "storageSize": 24576,
+      "totalIndexSize": 155648,
+      "indexSizes": {
+        "_id_": 24576,
+        "sessionId_1": 24576,
+        "userId_1": 24576,
+        "csat_1_createdAt_-1": 24576,
+        "sessionId_1_userId_1": 24576,
+        "createdAt_1": 32768
+      },
+      "freeStorageSize": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          }
+        },
+        {
+          "name": "sessionId_1",
+          "key": {
+            "sessionId": 1
+          }
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          }
+        },
+        {
+          "name": "csat_1_createdAt_-1",
+          "key": {
+            "csat": 1,
+            "createdAt": -1
+          }
+        },
+        {
+          "name": "sessionId_1_userId_1",
+          "key": {
+            "sessionId": 1,
+            "userId": 1
+          },
+          "unique": true
+        },
+        {
+          "name": "createdAt_1",
+          "key": {
+            "createdAt": 1
+          },
+          "expireAfterSeconds": 15552000
+        }
+      ]
+    }
+  ],
+  "databases": {
+    "databases": [
+      {
+        "name": "data2content",
+        "sizeOnDisk": 283787264,
+        "empty": false
+      },
+      {
+        "name": "test",
+        "sizeOnDisk": 1593344,
+        "empty": false
+      },
+      {
+        "name": "admin",
+        "sizeOnDisk": 0,
+        "empty": false
+      },
+      {
+        "name": "local",
+        "sizeOnDisk": 0,
+        "empty": false
+      }
+    ],
+    "totalSize": 285380608,
+    "totalSizeMb": 285,
+    "ok": 1,
+    "$clusterTime": {
+      "clusterTime": {
+        "$timestamp": "7682949142464692226"
+      },
+      "signature": {
+        "hash": "clJtmRFxlJfl0gkbb+zXyQV0Szw=",
+        "keyId": {
+          "low": 5,
+          "high": 1779287161,
+          "unsigned": false
+        }
+      }
+    },
+    "operationTime": {
+      "$timestamp": "7682949142464692226"
+    }
+  }
+}

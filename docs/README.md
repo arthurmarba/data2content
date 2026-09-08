@@ -20,6 +20,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `brain/40 Decisões/Histórico diário conserva oito meses e uma referência.md` | 09/2026 | Retenção aprovada de snapshots, preservação de conteúdo e expiração de PDFs |
+| `auditoria-mongodb-armazenamento-2026-09-07.md` · `brain/30 Armadilhas/Expiração declarada não garante limpeza no MongoDB.md` | 09/2026 | Volume real do Atlas, PDFs vencidos, dados órfãos e cenários de retenção; avaliação sem exclusões |
 | `radar-coleta-gratuita-operacao.md` | 09/2026 | Implementação, operação administrativa, coleta sem APIs pagas e próximos passos |
 | `radar-varredura-2026-09-07.md` | 09/2026 | Varredura manual de 07/09: o que está aberto hoje, squads de marca e origens novas |
 | `radar-fontes-verificadas.md` | 09/2026 | Catálogo das origens já conferidas: o que rende, o que é vitrine, eventos e falsos positivos |

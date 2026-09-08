@@ -24,6 +24,11 @@ tipo: domínio
 
 ## Ferramentas
 
+Retenção aprovada em 07/09/2026: `daily_metric_snapshots` conserva oito meses e
+uma referência anterior por post; `metrics` e conteúdo do criador são preservados.
+`npm run maintenance:mongo-storage` simula a limpeza. Procedimento e aplicação:
+[[Histórico diário conserva oito meses e uma referência]].
+
 ```bash
 npm run refresh:metrics:user      # atualiza um criador específico
 npm run backfill:demographics     # preenche demografia histórica

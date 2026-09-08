@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-07
+atualizado: 2026-09-08
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -10,12 +10,12 @@ atualizado: 2026-09-07
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**420 rotas** em **55 grupos**.
+**424 rotas** em **55 grupos**.
 
 ## Índice
 
 - [account](#account) — 1 rota
-- [admin](#admin) — 99 rotas
+- [admin](#admin) — 102 rotas
 - [ads](#ads) — 1 rota
 - [affiliate](#affiliate) — 11 rotas
 - [agency](#agency) — 41 rotas
@@ -31,7 +31,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [chat](#chat) — 3 rotas
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
-- [cron](#cron) — 17 rotas
+- [cron](#cron) — 18 rotas
 - [dashboard](#dashboard) — 45 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -89,6 +89,9 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/admin/billing/reconcile` | POST | `src/app/api/admin/billing/reconcile/route.ts` |
 | `/api/admin/brand-proposals` | GET | `src/app/api/admin/brand-proposals/route.ts` |
 | `/api/admin/brand-proposals/[proposalId]` | GET | `src/app/api/admin/brand-proposals/[proposalId]/route.ts` |
+| `/api/admin/campaign-radar` | GET, POST | `src/app/api/admin/campaign-radar/route.ts` |
+| `/api/admin/campaign-radar/[id]` | PATCH | `src/app/api/admin/campaign-radar/[id]/route.ts` |
+| `/api/admin/campaign-radar/import` | POST | `src/app/api/admin/campaign-radar/import/route.ts` |
 | `/api/admin/carousels/case-generator/drafts` | GET, POST | `src/app/api/admin/carousels/case-generator/drafts/route.ts` |
 | `/api/admin/carousels/case-generator/export` | POST | `src/app/api/admin/carousels/case-generator/export/route.ts` |
 | `/api/admin/carousels/case-generator/generate` | POST | `src/app/api/admin/carousels/case-generator/generate/route.ts` |
@@ -357,6 +360,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
 | `/api/cron/backfill-post-covers` | POST | `src/app/api/cron/backfill-post-covers/route.ts` |
+| `/api/cron/campaign-radar` | GET | `src/app/api/cron/campaign-radar/route.ts` |
 | `/api/cron/creator-weekly-reports` | GET, POST | `src/app/api/cron/creator-weekly-reports/route.ts` |
 | `/api/cron/expire-trials` | POST | `src/app/api/cron/expire-trials/route.ts` |
 | `/api/cron/mature-affiliate-commissions` | POST | `src/app/api/cron/mature-affiliate-commissions/route.ts` |

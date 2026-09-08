@@ -13,6 +13,8 @@
     "playwright:install-chromium": "node scripts/install-playwright-chromium.mjs",
     "lint": "eslint src --quiet",
     "brain": "node scripts/brain/gerar-inventario.mjs",
+    "maintenance:mongo-storage": "node --env-file=.env.local scripts/maintainMongoStorage.mjs",
+    "test:mongo-storage": "node --test scripts/maintainMongoStorage.test.mjs",
     "typecheck": "npm run smoke:types",
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "jest --watchAll=false",

@@ -1,0 +1,1430 @@
+{
+  "at": "2026-09-08T00:08:36.610Z",
+  "results": {
+    "pdf": [
+      {
+        "_id": "vencido",
+        "count": 51,
+        "bytes": 70287386,
+        "minCreated": "2026-02-10T20:45:32.145Z",
+        "maxCreated": "2026-09-07T11:47:36.909Z",
+        "minExpiry": "2026-02-10T21:15:32.142Z",
+        "maxExpiry": "2026-09-07T12:17:36.908Z"
+      }
+    ],
+    "testDatabase": {
+      "stats": {
+        "db": "test",
+        "collections": 10,
+        "views": 0,
+        "objects": 57,
+        "avgObjSize": 2341.035087719298,
+        "dataSize": 133439,
+        "storageSize": 233472,
+        "totalFreeStorageSize": 0,
+        "numExtents": 0,
+        "indexes": 78,
+        "indexSize": 1359872,
+        "indexFreeStorageSize": 0,
+        "fileSize": 0,
+        "nsSizeMB": 0,
+        "ok": 1
+      },
+      "collections": [
+        {
+          "name": "accountinsights",
+          "type": "collection"
+        },
+        {
+          "name": "dailymetrics",
+          "type": "collection"
+        },
+        {
+          "name": "users",
+          "type": "collection"
+        },
+        {
+          "name": "daily_metric_snapshots",
+          "type": "collection"
+        },
+        {
+          "name": "storymetrics",
+          "type": "collection"
+        },
+        {
+          "name": "redemptions",
+          "type": "collection"
+        },
+        {
+          "name": "__quota_probe__",
+          "type": "collection"
+        },
+        {
+          "name": "communityinspirations",
+          "type": "collection"
+        },
+        {
+          "name": "metrics",
+          "type": "collection"
+        },
+        {
+          "name": "addeals",
+          "type": "collection"
+        }
+      ]
+    },
+    "users": {
+      "total": 554,
+      "statuses": {
+        "inactive": 360,
+        "active": 83,
+        "canceled": 74,
+        "incomplete_expired": 24,
+        "non_renewing": 7,
+        "past_due": 6
+      },
+      "activityCoverage": {
+        "lastLoginAt": 129,
+        "lastActiveAt": 56,
+        "lastMapVisitAt": 150
+      },
+      "cohorts": {
+        "sem_plano_atividade_desconhecida": {
+          "count": 301,
+          "bytes": 1398228,
+          "connected": 0,
+          "createdOver90": 300,
+          "createdOver180": 275,
+          "hasCustomer": 17
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 103,
+          "bytes": 2175028,
+          "connected": 46,
+          "createdOver90": 60,
+          "createdOver180": 44,
+          "hasCustomer": 93
+        },
+        "outros_com_historico_financeiro": {
+          "count": 94,
+          "bytes": 1104808,
+          "connected": 4,
+          "createdOver90": 87,
+          "createdOver180": 73,
+          "hasCustomer": 94
+        },
+        "sem_plano_recente_90d": {
+          "count": 56,
+          "bytes": 223446,
+          "connected": 1,
+          "createdOver90": 10,
+          "createdOver180": 7,
+          "hasCustomer": 12
+        }
+      },
+      "activityMinMax": {
+        "min": 1781037453529,
+        "max": 1788825145936
+      }
+    },
+    "snapshotByMetric": {
+      "metricGroups": 17708,
+      "missingMetric": {
+        "count": 0,
+        "bytes": 0,
+        "metricIds": 0
+      }
+    },
+    "owners_accountinsights": {
+      "ownerGroups": 267
+    },
+    "owners_audience_demographic_snapshots": {
+      "ownerGroups": 266
+    },
+    "owners_plannerreccaches": {
+      "ownerGroups": 130
+    },
+    "owners_creatorweeklyreports": {
+      "ownerGroups": 60
+    },
+    "owners_communityinspirations": {
+      "ownerGroups": 181
+    },
+    "owners_creatorcontentideas": {
+      "ownerGroups": 81
+    },
+    "volumesByCohort": {
+      "metrics": {
+        "orfao_usuario": {
+          "count": 1277,
+          "bytes": 3805220
+        },
+        "sem_plano_atividade_desconhecida": {
+          "count": 9332,
+          "bytes": 21537846
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 13064,
+          "bytes": 47783077
+        },
+        "outros_com_historico_financeiro": {
+          "count": 11294,
+          "bytes": 37842912
+        },
+        "sem_plano_recente_90d": {
+          "count": 621,
+          "bytes": 2100975
+        }
+      },
+      "daily_metric_snapshots": {
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 114252,
+          "bytes": 71667496
+        },
+        "sem_plano_atividade_desconhecida": {
+          "count": 82517,
+          "bytes": 51735058
+        },
+        "outros_com_historico_financeiro": {
+          "count": 101007,
+          "bytes": 63343353
+        },
+        "sem_plano_recente_90d": {
+          "count": 6714,
+          "bytes": 4209934
+        },
+        "orfao_usuario": {
+          "count": 11060,
+          "bytes": 6924720
+        }
+      },
+      "accountinsights": {
+        "outros_com_historico_financeiro": {
+          "count": 8963,
+          "bytes": 9201257
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 14305,
+          "bytes": 14449387
+        },
+        "sem_plano_atividade_desconhecida": {
+          "count": 6212,
+          "bytes": 6409614
+        },
+        "orfao_usuario": {
+          "count": 1334,
+          "bytes": 1313712
+        },
+        "sem_plano_recente_90d": {
+          "count": 422,
+          "bytes": 466857
+        }
+      },
+      "audience_demographic_snapshots": {
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 84,
+          "bytes": 190834
+        },
+        "sem_plano_atividade_desconhecida": {
+          "count": 93,
+          "bytes": 198473
+        },
+        "outros_com_historico_financeiro": {
+          "count": 80,
+          "bytes": 181145
+        },
+        "orfao_usuario": {
+          "count": 26,
+          "bytes": 56939
+        },
+        "sem_plano_recente_90d": {
+          "count": 2,
+          "bytes": 4192
+        }
+      },
+      "plannerreccaches": {
+        "outros_com_historico_financeiro": {
+          "count": 108,
+          "bytes": 1120939
+        },
+        "sem_plano_atividade_desconhecida": {
+          "count": 40,
+          "bytes": 247876
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 205,
+          "bytes": 2367603
+        },
+        "sem_plano_recente_90d": {
+          "count": 3,
+          "bytes": 16588
+        },
+        "orfao_usuario": {
+          "count": 47,
+          "bytes": 333145
+        }
+      },
+      "creatorweeklyreports": {
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 222,
+          "bytes": 2719685
+        },
+        "outros_com_historico_financeiro": {
+          "count": 24,
+          "bytes": 340075
+        },
+        "sem_plano_recente_90d": {
+          "count": 5,
+          "bytes": 66360
+        },
+        "orfao_usuario": {
+          "count": 3,
+          "bytes": 28216
+        }
+      },
+      "communityinspirations": {
+        "sem_plano_atividade_desconhecida": {
+          "count": 853,
+          "bytes": 752327
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 1125,
+          "bytes": 977517
+        },
+        "outros_com_historico_financeiro": {
+          "count": 932,
+          "bytes": 815921
+        },
+        "sem_plano_recente_90d": {
+          "count": 34,
+          "bytes": 29060
+        },
+        "orfao_usuario": {
+          "count": 122,
+          "bytes": 106266
+        }
+      },
+      "creatorcontentideas": {
+        "sem_plano_recente_90d": {
+          "count": 40,
+          "bytes": 83481
+        },
+        "protegido_assinatura_trial_admin_agencia": {
+          "count": 676,
+          "bytes": 1613661
+        },
+        "orfao_usuario": {
+          "count": 116,
+          "bytes": 154442
+        },
+        "outros_com_historico_financeiro": {
+          "count": 132,
+          "bytes": 299612
+        }
+      }
+    },
+    "topUsers": [
+      {
+        "alias": "conta_1",
+        "bytes": 7510097,
+        "collections": {
+          "metrics": 1896577,
+          "daily_metric_snapshots": 4913078,
+          "accountinsights": 467450,
+          "audience_demographic_snapshots": 6396,
+          "plannerreccaches": 122503,
+          "creatorweeklyreports": 13079,
+          "communityinspirations": 42860,
+          "creatorcontentideas": 48154
+        },
+        "cohort": "outros_com_historico_financeiro",
+        "planStatus": "canceled",
+        "connected": false,
+        "createdAt": "2025-11-27T19:41:59.888Z",
+        "lastActivity": "2026-08-27T23:54:53.983Z"
+      },
+      {
+        "alias": "conta_2",
+        "bytes": 7250163,
+        "collections": {
+          "metrics": 2569613,
+          "daily_metric_snapshots": 4354515,
+          "accountinsights": 232836,
+          "audience_demographic_snapshots": 5860,
+          "plannerreccaches": 55497,
+          "communityinspirations": 31842
+        },
+        "cohort": "outros_com_historico_financeiro",
+        "planStatus": "canceled",
+        "connected": false,
+        "createdAt": "2026-02-19T01:27:31.654Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_3",
+        "bytes": 6672168,
+        "collections": {
+          "metrics": 1021940,
+          "daily_metric_snapshots": 5552615,
+          "accountinsights": 73494,
+          "audience_demographic_snapshots": 2132,
+          "plannerreccaches": 10022,
+          "communityinspirations": 11965
+        },
+        "cohort": "outros_com_historico_financeiro",
+        "planStatus": "canceled",
+        "connected": false,
+        "createdAt": "2025-11-20T02:03:40.966Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_4",
+        "bytes": 6449204,
+        "collections": {
+          "metrics": 2010917,
+          "daily_metric_snapshots": 3935935,
+          "accountinsights": 399390,
+          "audience_demographic_snapshots": 2133,
+          "plannerreccaches": 9200,
+          "creatorweeklyreports": 66360,
+          "communityinspirations": 25269
+        },
+        "cohort": "sem_plano_recente_90d",
+        "planStatus": "inactive",
+        "connected": true,
+        "createdAt": "2025-10-23T02:25:03.934Z",
+        "lastActivity": "2026-08-30T00:42:09.853Z"
+      },
+      {
+        "alias": "conta_5",
+        "bytes": 6378385,
+        "collections": {
+          "metrics": 1850868,
+          "daily_metric_snapshots": 3766490,
+          "accountinsights": 491497,
+          "audience_demographic_snapshots": 2084,
+          "plannerreccaches": 129325,
+          "creatorweeklyreports": 80495,
+          "communityinspirations": 30151,
+          "creatorcontentideas": 27475
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-11-27T17:25:50.031Z",
+        "lastActivity": "2026-09-02T14:55:37.964Z"
+      },
+      {
+        "alias": "conta_6",
+        "bytes": 6235428,
+        "collections": {
+          "metrics": 1429207,
+          "daily_metric_snapshots": 3897003,
+          "accountinsights": 517346,
+          "audience_demographic_snapshots": 6393,
+          "plannerreccaches": 193859,
+          "creatorweeklyreports": 70549,
+          "communityinspirations": 53537,
+          "creatorcontentideas": 67534
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-09-18T02:32:08.248Z",
+        "lastActivity": "2026-08-26T16:42:29.719Z"
+      },
+      {
+        "alias": "conta_7",
+        "bytes": 5816511,
+        "collections": {
+          "metrics": 1797808,
+          "daily_metric_snapshots": 3551469,
+          "accountinsights": 350324,
+          "audience_demographic_snapshots": 5990,
+          "plannerreccaches": 55113,
+          "communityinspirations": 45908,
+          "creatorcontentideas": 9899
+        },
+        "cohort": "outros_com_historico_financeiro",
+        "planStatus": "canceled",
+        "connected": false,
+        "createdAt": "2025-11-13T22:05:51.361Z",
+        "lastActivity": "2026-08-02T23:11:06.376Z"
+      },
+      {
+        "alias": "conta_8",
+        "bytes": 5259601,
+        "collections": {
+          "metrics": 2114304,
+          "daily_metric_snapshots": 2793912,
+          "accountinsights": 264788,
+          "audience_demographic_snapshots": 4618,
+          "plannerreccaches": 25481,
+          "creatorweeklyreports": 28534,
+          "communityinspirations": 14232,
+          "creatorcontentideas": 13732
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-10-24T18:40:41.045Z",
+        "lastActivity": "2026-09-07T11:48:30.188Z"
+      },
+      {
+        "alias": "conta_9",
+        "bytes": 4736737,
+        "collections": {
+          "metrics": 894260,
+          "daily_metric_snapshots": 3742563,
+          "accountinsights": 71039,
+          "audience_demographic_snapshots": 2157,
+          "plannerreccaches": 9406,
+          "communityinspirations": 17312
+        },
+        "cohort": "sem_plano_atividade_desconhecida",
+        "planStatus": "inactive",
+        "connected": false,
+        "createdAt": "2025-10-09T23:43:47.322Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_10",
+        "bytes": 4599470,
+        "collections": {
+          "metrics": 991809,
+          "daily_metric_snapshots": 2845469,
+          "accountinsights": 483034,
+          "audience_demographic_snapshots": 2317,
+          "plannerreccaches": 120268,
+          "creatorweeklyreports": 70458,
+          "communityinspirations": 61530,
+          "creatorcontentideas": 24585
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-09-06T01:14:57.489Z",
+        "lastActivity": "2026-08-26T17:57:37.587Z"
+      },
+      {
+        "alias": "conta_11",
+        "bytes": 4586061,
+        "collections": {
+          "metrics": 1668804,
+          "daily_metric_snapshots": 2656995,
+          "accountinsights": 237381,
+          "audience_demographic_snapshots": 5833,
+          "communityinspirations": 17048
+        },
+        "cohort": "outros_com_historico_financeiro",
+        "planStatus": "canceled",
+        "connected": false,
+        "createdAt": "2026-02-09T22:29:13.501Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_12",
+        "bytes": 4528306,
+        "collections": {
+          "metrics": 1182813,
+          "daily_metric_snapshots": 2862255,
+          "accountinsights": 351669,
+          "audience_demographic_snapshots": 2199,
+          "plannerreccaches": 85937,
+          "communityinspirations": 43433
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": false,
+        "createdAt": "2025-08-23T20:31:07.127Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_13",
+        "bytes": 4362058,
+        "collections": {
+          "metrics": 1480613,
+          "daily_metric_snapshots": 2566483,
+          "accountinsights": 232534,
+          "audience_demographic_snapshots": 6366,
+          "plannerreccaches": 35451,
+          "communityinspirations": 29398,
+          "creatorcontentideas": 11213
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "past_due",
+        "connected": false,
+        "createdAt": "2026-03-24T10:10:41.826Z",
+        "lastActivity": "2026-07-17T18:50:41.525Z"
+      },
+      {
+        "alias": "conta_14",
+        "bytes": 4336651,
+        "collections": {
+          "metrics": 1892544,
+          "daily_metric_snapshots": 2360192,
+          "accountinsights": 74996,
+          "audience_demographic_snapshots": 6334,
+          "plannerreccaches": 2585
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": false,
+        "createdAt": "2026-05-08T13:25:28.082Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_15",
+        "bytes": 4312540,
+        "collections": {
+          "metrics": 1013866,
+          "daily_metric_snapshots": 2620860,
+          "accountinsights": 431912,
+          "audience_demographic_snapshots": 2176,
+          "plannerreccaches": 179562,
+          "communityinspirations": 48930,
+          "creatorcontentideas": 15234
+        },
+        "cohort": "orfao_usuario",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_16",
+        "bytes": 4064648,
+        "collections": {
+          "metrics": 921890,
+          "daily_metric_snapshots": 2331682,
+          "accountinsights": 540476,
+          "audience_demographic_snapshots": 2189,
+          "plannerreccaches": 145344,
+          "creatorweeklyreports": 66035,
+          "communityinspirations": 42381,
+          "creatorcontentideas": 14651
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-11-29T13:28:15.014Z",
+        "lastActivity": "2026-09-07T14:02:10.327Z"
+      },
+      {
+        "alias": "conta_17",
+        "bytes": 4058291,
+        "collections": {
+          "metrics": 1211940,
+          "daily_metric_snapshots": 2230767,
+          "accountinsights": 435829,
+          "audience_demographic_snapshots": 2214,
+          "plannerreccaches": 40654,
+          "creatorweeklyreports": 80145,
+          "communityinspirations": 44599,
+          "creatorcontentideas": 12143
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2025-12-22T00:41:55.324Z",
+        "lastActivity": "2026-09-06T03:28:20.215Z"
+      },
+      {
+        "alias": "conta_18",
+        "bytes": 3917151,
+        "collections": {
+          "metrics": 1410126,
+          "daily_metric_snapshots": 2396482,
+          "accountinsights": 94922,
+          "audience_demographic_snapshots": 2224,
+          "communityinspirations": 13397
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": false,
+        "createdAt": "2026-01-03T00:56:59.303Z",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_19",
+        "bytes": 3903553,
+        "collections": {
+          "metrics": 1150520,
+          "daily_metric_snapshots": 2590960,
+          "accountinsights": 139910,
+          "audience_demographic_snapshots": 2071,
+          "communityinspirations": 20092
+        },
+        "cohort": "orfao_usuario",
+        "lastActivity": null
+      },
+      {
+        "alias": "conta_20",
+        "bytes": 3844462,
+        "collections": {
+          "metrics": 1652720,
+          "daily_metric_snapshots": 1656534,
+          "accountinsights": 236562,
+          "audience_demographic_snapshots": 6148,
+          "plannerreccaches": 71526,
+          "creatorweeklyreports": 73080,
+          "creatorcontentideas": 147892
+        },
+        "cohort": "protegido_assinatura_trial_admin_agencia",
+        "planStatus": "active",
+        "connected": true,
+        "createdAt": "2026-04-22T16:37:57.281Z",
+        "lastActivity": "2026-09-07T23:52:25.936Z"
+      }
+    ],
+    "age_daily_metric_snapshots": [
+      {
+        "_id": "0-30d",
+        "count": 31715,
+        "bytes": 19895657,
+        "min": "2026-08-10T00:00:00.000Z",
+        "max": "2026-09-08T00:00:00.000Z"
+      },
+      {
+        "_id": "90-180d",
+        "count": 41751,
+        "bytes": 26184821,
+        "min": "2026-03-13T00:00:00.000Z",
+        "max": "2026-06-10T00:00:00.000Z"
+      },
+      {
+        "_id": "180-365d",
+        "count": 194835,
+        "bytes": 122184157,
+        "min": "2025-09-09T00:00:00.000Z",
+        "max": "2026-03-12T00:00:00.000Z"
+      },
+      {
+        "_id": "365d+_ou_ausente",
+        "count": 5570,
+        "bytes": 3477733,
+        "min": "2025-05-29T00:00:00.000Z",
+        "max": "2025-09-08T00:00:00.000Z"
+      },
+      {
+        "_id": "30-90d",
+        "count": 41679,
+        "bytes": 26138193,
+        "min": "2026-06-11T00:00:00.000Z",
+        "max": "2026-08-09T00:00:00.000Z"
+      }
+    ],
+    "age_metrics": [
+      {
+        "_id": "0-30d",
+        "count": 1499,
+        "bytes": 5654421,
+        "min": "2026-08-09T00:22:21.000Z",
+        "max": "2026-09-07T23:08:57.000Z"
+      },
+      {
+        "_id": "30-90d",
+        "count": 2836,
+        "bytes": 11835845,
+        "min": "2026-06-10T00:31:41.000Z",
+        "max": "2026-08-08T23:20:37.000Z"
+      },
+      {
+        "_id": "180-365d",
+        "count": 17214,
+        "bytes": 54524886,
+        "min": "2025-09-08T00:25:17.000Z",
+        "max": "2026-03-11T23:57:41.000Z"
+      },
+      {
+        "_id": "365d+_ou_ausente",
+        "count": 8205,
+        "bytes": 18892212,
+        "min": "2024-12-03T13:48:55.000Z",
+        "max": "2025-09-07T23:48:07.000Z"
+      },
+      {
+        "_id": "90-180d",
+        "count": 5834,
+        "bytes": 22162666,
+        "min": "2026-03-12T00:35:32.000Z",
+        "max": "2026-06-09T23:50:13.000Z"
+      }
+    ],
+    "age_accountinsights": [
+      {
+        "_id": "180-365d",
+        "count": 14493,
+        "bytes": 14863354,
+        "min": "2025-09-08T13:58:59.674Z",
+        "max": "2026-03-12T00:04:10.131Z"
+      },
+      {
+        "_id": "30-90d",
+        "count": 5419,
+        "bytes": 5483752,
+        "min": "2026-06-10T03:43:14.465Z",
+        "max": "2026-08-09T00:08:35.935Z"
+      },
+      {
+        "_id": "90-180d",
+        "count": 6672,
+        "bytes": 6766526,
+        "min": "2026-03-12T12:00:29.679Z",
+        "max": "2026-06-09T23:28:14.891Z"
+      },
+      {
+        "_id": "0-30d",
+        "count": 4117,
+        "bytes": 4204471,
+        "min": "2026-08-09T00:08:38.328Z",
+        "max": "2026-09-08T00:03:19.270Z"
+      },
+      {
+        "_id": "365d+_ou_ausente",
+        "count": 535,
+        "bytes": 522724,
+        "min": "2025-05-14T15:23:20.374Z",
+        "max": "2025-09-08T00:01:03.431Z"
+      }
+    ],
+    "age_plannerreccaches": [
+      {
+        "_id": "365d+_ou_ausente",
+        "count": 1,
+        "bytes": 2339,
+        "min": "2025-09-07T05:31:00.732Z",
+        "max": "2025-09-07T05:31:00.732Z"
+      },
+      {
+        "_id": "180-365d",
+        "count": 251,
+        "bytes": 1731367,
+        "min": "2025-09-10T13:49:00.091Z",
+        "max": "2026-03-10T23:41:18.660Z"
+      },
+      {
+        "_id": "90-180d",
+        "count": 122,
+        "bytes": 1625712,
+        "min": "2026-03-12T15:06:22.371Z",
+        "max": "2026-06-09T17:54:07.496Z"
+      },
+      {
+        "_id": "0-30d",
+        "count": 7,
+        "bytes": 183448,
+        "min": "2026-08-10T19:14:49.510Z",
+        "max": "2026-09-06T17:40:22.033Z"
+      },
+      {
+        "_id": "30-90d",
+        "count": 22,
+        "bytes": 543285,
+        "min": "2026-06-12T13:26:18.230Z",
+        "max": "2026-08-06T21:37:17.754Z"
+      }
+    ],
+    "snapshotsRecentCreation": [
+      {
+        "_id": "2026-08-25",
+        "count": 8,
+        "bytes": 5016
+      },
+      {
+        "_id": "2026-08-26",
+        "count": 1131,
+        "bytes": 709533
+      },
+      {
+        "_id": "2026-08-27",
+        "count": 1148,
+        "bytes": 720216
+      },
+      {
+        "_id": "2026-08-28",
+        "count": 1157,
+        "bytes": 725827
+      },
+      {
+        "_id": "2026-08-29",
+        "count": 1082,
+        "bytes": 678806
+      },
+      {
+        "_id": "2026-08-30",
+        "count": 1065,
+        "bytes": 668131
+      },
+      {
+        "_id": "2026-08-31",
+        "count": 1088,
+        "bytes": 682524
+      },
+      {
+        "_id": "2026-09-01",
+        "count": 1134,
+        "bytes": 711402
+      },
+      {
+        "_id": "2026-09-02",
+        "count": 1126,
+        "bytes": 706382
+      },
+      {
+        "_id": "2026-09-03",
+        "count": 1152,
+        "bytes": 722676
+      },
+      {
+        "_id": "2026-09-04",
+        "count": 1144,
+        "bytes": 717640
+      },
+      {
+        "_id": "2026-09-05",
+        "count": 1162,
+        "bytes": 728914
+      },
+      {
+        "_id": "2026-09-06",
+        "count": 1110,
+        "bytes": 696290
+      },
+      {
+        "_id": "2026-09-07",
+        "count": 1122,
+        "bytes": 703786
+      },
+      {
+        "_id": "2026-09-08",
+        "count": 1117,
+        "bytes": 700631
+      }
+    ],
+    "indexUsage_daily_metric_snapshots": [
+      {
+        "name": "dayNumber_1",
+        "key": {
+          "dayNumber": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "idx_metric_history",
+        "key": {
+          "metric": 1,
+          "date": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "idx_metric_date_unique",
+        "key": {
+          "metric": 1,
+          "date": 1
+        },
+        "accesses": {
+          "ops": 27624,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "date_1",
+        "key": {
+          "date": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "metric_1",
+        "key": {
+          "metric": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "idx_metric_dayNumber",
+        "key": {
+          "metric": 1,
+          "dayNumber": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.350Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      }
+    ],
+    "indexUsage_metrics": [
+      {
+        "name": "user_1_postDate_-1",
+        "key": {
+          "user": 1,
+          "postDate": -1
+        },
+        "accesses": {
+          "ops": 27478,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_instagramMediaId_1",
+        "key": {
+          "user": 1,
+          "instagramMediaId": 1
+        },
+        "accesses": {
+          "ops": 57884,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "classificationStatus_1",
+        "key": {
+          "classificationStatus": 1
+        },
+        "accesses": {
+          "ops": 12,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "format_1",
+        "key": {
+          "format": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "idx_durationStats",
+        "key": {
+          "user": 1,
+          "postDate": -1,
+          "stats.video_duration_seconds": 1
+        },
+        "accesses": {
+          "ops": 1,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_type_1_postDate_-1",
+        "key": {
+          "user": 1,
+          "type": 1,
+          "postDate": -1
+        },
+        "accesses": {
+          "ops": 2608,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "source_1",
+        "key": {
+          "source": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "references_1",
+        "key": {
+          "references": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "contentIntent_1",
+        "key": {
+          "contentIntent": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "isPubli_1",
+        "key": {
+          "isPubli": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "contentSignals_1",
+        "key": {
+          "contentSignals": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "instagramMediaId_1",
+        "key": {
+          "instagramMediaId": 1
+        },
+        "accesses": {
+          "ops": 154,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        },
+        "accesses": {
+          "ops": 57194,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "postDate_1",
+        "key": {
+          "postDate": 1
+        },
+        "accesses": {
+          "ops": 282,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "narrativeForm_1",
+        "key": {
+          "narrativeForm": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "type_1",
+        "key": {
+          "type": 1
+        },
+        "accesses": {
+          "ops": 1,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "stance_1",
+        "key": {
+          "stance": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_postDate_-1_updatedAt_-1__id_-1",
+        "key": {
+          "user": 1,
+          "postDate": -1,
+          "updatedAt": -1,
+          "_id": -1
+        },
+        "accesses": {
+          "ops": 53,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_createdAt_-1",
+        "key": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "accesses": {
+          "ops": 356,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "proofStyle_1",
+        "key": {
+          "proofStyle": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "classificationLastQueuedAt_1",
+        "key": {
+          "classificationLastQueuedAt": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "stats.total_interactions_-1",
+        "key": {
+          "stats.total_interactions": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "tone_1",
+        "key": {
+          "tone": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "commercialMode_1",
+        "key": {
+          "commercialMode": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "proposal_1",
+        "key": {
+          "proposal": 1
+        },
+        "accesses": {
+          "ops": 9,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "context_1",
+        "key": {
+          "context": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.462Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      }
+    ],
+    "indexUsage_accountinsights": [
+      {
+        "name": "instagramAccountId_1",
+        "key": {
+          "instagramAccountId": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_recordedAt_-1",
+        "key": {
+          "user": 1,
+          "recordedAt": -1
+        },
+        "accesses": {
+          "ops": 21289,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1",
+        "key": {
+          "user": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_instagramAccountId_1_fetchDate_-1",
+        "key": {
+          "user": 1,
+          "instagramAccountId": 1,
+          "fetchDate": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "instagramAccountId_1_fetchDate_-1",
+        "key": {
+          "instagramAccountId": 1,
+          "fetchDate": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "instagramAccountId_1_recordedAt_-1",
+        "key": {
+          "instagramAccountId": 1,
+          "recordedAt": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "fetchDate_1",
+        "key": {
+          "fetchDate": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "_id_",
+        "key": {
+          "_id": 1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "user_1_instagramAccountId_1_recordedAt_-1",
+        "key": {
+          "user": 1,
+          "instagramAccountId": 1,
+          "recordedAt": -1
+        },
+        "accesses": {
+          "ops": 0,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      },
+      {
+        "name": "recordedAt_1",
+        "key": {
+          "recordedAt": 1
+        },
+        "accesses": {
+          "ops": 7,
+          "since": "2026-09-04T19:28:00.355Z"
+        },
+        "host": "data2content-shard-00-01.wgmwh.mongodb.net:27017"
+      }
+    ],
+    "expired_geminishadowcomparisons": [
+      {
+        "_id": null,
+        "count": 1,
+        "bytes": 1859
+      }
+    ],
+    "expired_geminiusagelogs": [],
+    "expired_threads": [
+      {
+        "_id": null,
+        "count": 63,
+        "bytes": 10731
+      }
+    ],
+    "expired_strategicreports": [
+      {
+        "_id": null,
+        "count": 3,
+        "bytes": 12073
+      }
+    ],
+    "expired_collabinterests": [],
+    "expired_perpautacollabcaches": []
+  },
+  "methodNotes": [
+    "planner: prazo de 30 dias é cenário, medido por frozenAt em scenarios.json",
+    "threads: elegibilidade por lastActivityAt e isFavorite=false, conforme schema; não houve exclusão"
+  ]
+}

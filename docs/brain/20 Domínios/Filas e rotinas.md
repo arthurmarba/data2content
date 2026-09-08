@@ -20,6 +20,10 @@ Quando uma tela "fica processando pra sempre", quase sempre o trabalho não cheg
 
 ## Agendamento
 
+A retenção de snapshots tem comando próprio `npm run maintenance:mongo-storage`
+(simulação por padrão), com execução recorrente local pelo Codex. Não há cron dessa
+limpeza publicado na Vercel. Ver [[Histórico diário conserva oito meses e uma referência]].
+
 `src/scripts/scheduleCrons.ts` (`npm run schedule:crons`).
 
 ## As rotinas que mexem com dinheiro ou com o criador

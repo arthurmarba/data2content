@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-07
+atualizado: 2026-09-08
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -12,11 +12,12 @@ Duas famílias: **cron** (roda sozinho, no relógio) e **worker** (roda quando a
 
 Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura do QStash.
 
-## Cron — 17 tarefas no relógio
+## Cron — 18 tarefas no relógio
 
 | Tarefa | Arquivo |
 | --- | --- |
 | `backfill-post-covers` | `src/app/api/cron/backfill-post-covers/route.ts` |
+| `campaign-radar` | `src/app/api/cron/campaign-radar/route.ts` |
 | `creator-weekly-reports` | `src/app/api/cron/creator-weekly-reports/route.ts` |
 | `expire-trials` | `src/app/api/cron/expire-trials/route.ts` |
 | `mature-affiliate-commissions` | `src/app/api/cron/mature-affiliate-commissions/route.ts` |

@@ -1,0 +1,33 @@
+{
+  "at": "2026-09-08T00:21:20.186Z",
+  "cutoff": "2026-01-08T00:21:20.186Z",
+  "months": 8,
+  "timezone": "America/Sao_Paulo",
+  "snapshots": [
+    {
+      "_id": null,
+      "postsWithOldSnapshots": 7321,
+      "oldCount": 136559,
+      "oldBytes": 85622264,
+      "keptBytes": 4590369,
+      "removableCount": 129238,
+      "removableBytes": 81031895
+    }
+  ],
+  "pdfs": [
+    {
+      "_id": null,
+      "count": 51,
+      "bytes": 70287386
+    }
+  ],
+  "currentDataAndIndexesBytes": 517305338,
+  "reductionDocumentBytes": 151319281,
+  "projectedDataAndIndexesBytesKeepingIndexSizes": 365986057,
+  "reductionPercent": 29.2514439508838,
+  "notes": [
+    "Somente leituras; nenhuma exclusão ou alteração de índice.",
+    "Economia medida em BSON sem compressão; tamanho dos índices mantido na projeção.",
+    "Preservado um snapshot anterior ao corte para cada post com histórico antigo."
+  ]
+}

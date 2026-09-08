@@ -58,6 +58,9 @@ keys/
 # O artefato é reprodutível a partir do snapshot no banco — não versionar.
 /output/relatorio-semanal/
 
+# Cópias recuperáveis e registros de manutenção do banco real.
+/output/mongodb-maintenance/
+
 # lixo de depuração e de sessões de teste (não carregar no repositório)
 /.playwright-cli/
 /tmp/

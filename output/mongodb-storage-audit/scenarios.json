@@ -1,0 +1,314 @@
+{
+  "at": "2026-09-08T00:10:33.029Z",
+  "cutoff": "2026-03-12T00:10:33.029Z",
+  "byPlan": {
+    "metrics": {
+      "canceled": {
+        "count": 10798,
+        "bytes": 36545562
+      },
+      "usuario_ausente": {
+        "count": 1277,
+        "bytes": 3805220
+      },
+      "active": {
+        "count": 11185,
+        "bytes": 41449937
+      },
+      "inactive": {
+        "count": 10068,
+        "bytes": 23856917
+      },
+      "incomplete_expired": {
+        "count": 544,
+        "bytes": 1425296
+      },
+      "past_due": {
+        "count": 900,
+        "bytes": 2903865
+      },
+      "non_renewing": {
+        "count": 816,
+        "bytes": 3083233
+      }
+    },
+    "accountinsights": {
+      "usuario_ausente": {
+        "count": 1334,
+        "bytes": 1313712
+      },
+      "inactive": {
+        "count": 6737,
+        "bytes": 6975501
+      },
+      "canceled": {
+        "count": 9021,
+        "bytes": 9217705
+      },
+      "non_renewing": {
+        "count": 1221,
+        "bytes": 1215463
+      },
+      "active": {
+        "count": 12183,
+        "bytes": 12377335
+      },
+      "incomplete_expired": {
+        "count": 288,
+        "bytes": 285836
+      },
+      "past_due": {
+        "count": 452,
+        "bytes": 455275
+      }
+    },
+    "audience_demographic_snapshots": {
+      "canceled": {
+        "count": 75,
+        "bytes": 170310
+      },
+      "active": {
+        "count": 67,
+        "bytes": 150943
+      },
+      "usuario_ausente": {
+        "count": 26,
+        "bytes": 56939
+      },
+      "inactive": {
+        "count": 97,
+        "bytes": 207049
+      },
+      "incomplete_expired": {
+        "count": 6,
+        "bytes": 13007
+      },
+      "non_renewing": {
+        "count": 8,
+        "bytes": 19158
+      },
+      "past_due": {
+        "count": 6,
+        "bytes": 14177
+      }
+    },
+    "plannerreccaches": {
+      "inactive": {
+        "count": 43,
+        "bytes": 264464
+      },
+      "usuario_ausente": {
+        "count": 47,
+        "bytes": 333145
+      },
+      "past_due": {
+        "count": 5,
+        "bytes": 59195
+      },
+      "active": {
+        "count": 179,
+        "bytes": 2084453
+      },
+      "canceled": {
+        "count": 109,
+        "bytes": 1141886
+      },
+      "non_renewing": {
+        "count": 18,
+        "bytes": 198888
+      },
+      "incomplete_expired": {
+        "count": 2,
+        "bytes": 4120
+      }
+    },
+    "creatorweeklyreports": {
+      "canceled": {
+        "count": 29,
+        "bytes": 379530
+      },
+      "active": {
+        "count": 206,
+        "bytes": 2536282
+      },
+      "past_due": {
+        "count": 3,
+        "bytes": 43213
+      },
+      "inactive": {
+        "count": 5,
+        "bytes": 66360
+      },
+      "usuario_ausente": {
+        "count": 3,
+        "bytes": 28216
+      },
+      "non_renewing": {
+        "count": 8,
+        "bytes": 100735
+      }
+    },
+    "communityinspirations": {
+      "inactive": {
+        "count": 915,
+        "bytes": 805851
+      },
+      "active": {
+        "count": 922,
+        "bytes": 799018
+      },
+      "canceled": {
+        "count": 919,
+        "bytes": 805292
+      },
+      "usuario_ausente": {
+        "count": 122,
+        "bytes": 106266
+      },
+      "incomplete_expired": {
+        "count": 21,
+        "bytes": 17531
+      },
+      "past_due": {
+        "count": 57,
+        "bytes": 49520
+      },
+      "non_renewing": {
+        "count": 110,
+        "bytes": 97613
+      }
+    },
+    "creatorcontentideas": {
+      "active": {
+        "count": 611,
+        "bytes": 1455280
+      },
+      "inactive": {
+        "count": 40,
+        "bytes": 83481
+      },
+      "usuario_ausente": {
+        "count": 116,
+        "bytes": 154442
+      },
+      "canceled": {
+        "count": 132,
+        "bytes": 299774
+      },
+      "non_renewing": {
+        "count": 50,
+        "bytes": 115143
+      },
+      "past_due": {
+        "count": 9,
+        "bytes": 27726
+      },
+      "incomplete_expired": {
+        "count": 6,
+        "bytes": 15350
+      }
+    },
+    "daily_metric_snapshots": {
+      "past_due": {
+        "count": 8008,
+        "bytes": 5021700
+      },
+      "active": {
+        "count": 98800,
+        "bytes": 61977268
+      },
+      "inactive": {
+        "count": 90087,
+        "bytes": 56482516
+      },
+      "canceled": {
+        "count": 99383,
+        "bytes": 62325057
+      },
+      "usuario_ausente": {
+        "count": 11060,
+        "bytes": 6924720
+      },
+      "non_renewing": {
+        "count": 6169,
+        "bytes": 3868291
+      },
+      "incomplete_expired": {
+        "count": 2043,
+        "bytes": 1281009
+      }
+    }
+  },
+  "missingUserIds": 33,
+  "snapshotRetention": [
+    {
+      "_id": null,
+      "metricGroups": 10290,
+      "oldCount": 200405,
+      "oldBytes": 125661890,
+      "keepOnePerMetricBytes": 6452356,
+      "removableCountKeepingOne": 190115,
+      "removableBytesKeepingOne": 119209534
+    }
+  ],
+  "accountDailyDuplicates": [
+    {
+      "_id": null,
+      "userDays": 17462,
+      "extraSameDayCount": 13774,
+      "extraSameDayBytes": 14013147
+    }
+  ],
+  "plannerOlder30Frozen": [
+    {
+      "_id": null,
+      "count": 396,
+      "bytes": 3902703
+    }
+  ],
+  "reverseIndexExplain": {
+    "plan": {
+      "isCached": false,
+      "stage": "LIMIT",
+      "limitAmount": 1,
+      "inputStage": {
+        "stage": "FETCH",
+        "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+            "metric": 1,
+            "date": 1
+          },
+          "indexName": "idx_metric_date_unique",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "metric": [],
+            "date": []
+          },
+          "isUnique": true,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "backward",
+          "indexBounds": {
+            "metric": [
+              "[ObjectId('6838df60c774c5ea7ee711b3'), ObjectId('6838df60c774c5ea7ee711b3')]"
+            ],
+            "date": [
+              "(new Date(1788826233029), new Date(-9223372036854775808)]"
+            ]
+          }
+        }
+      }
+    },
+    "returned": 1,
+    "keysExamined": 1,
+    "docsExamined": 1
+  },
+  "pdfDates": [
+    {
+      "_id": "date",
+      "count": 51
+    }
+  ]
+}
