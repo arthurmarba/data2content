@@ -6,6 +6,8 @@ import DbUser from "@/app/models/User"; // Ajuste o caminho se for diferente
 import { logger } from "@/app/lib/logger"; // Ajuste o caminho se for diferente
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
+import { cookies } from 'next/headers';
+import { bindAcquisitionUser } from '@/app/lib/acquisition/journey';
 
 export async function POST(req: Request) {
   const TAG = "[API complete-onboarding]";
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Usuário não encontrado." }, { status: 404 });
     }
 
+    await bindAcquisitionUser(await cookies(), userId).catch(() => null);
     logger.info(`${TAG} Onboarding completado e usuário atualizado com sucesso para: ${userId}. isNewUserForOnboarding agora é ${updatedUser.isNewUserForOnboarding}.`);
     return NextResponse.json({ message: "Onboarding completado com sucesso." }, { status: 200 });
 

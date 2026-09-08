@@ -1108,6 +1108,11 @@ const authOptionsConfig = {
         }
 
         if (dbUserRecord) {
+          // A origem via cookie HttpOnly sobrevive ao Google; análise não bloqueia login.
+          try {
+            const { bindAcquisitionUser } = await import('@/app/lib/acquisition/journey');
+            await bindAcquisitionUser(cookieStore, String(dbUserRecord._id), isNewUser);
+          } catch { logger.warn('[Aquisição] Vinculação será reconciliada após o login.'); }
           try {
             const ref = cookieStore.get("d2c_ref")?.value?.trim().toUpperCase();
             if (ref && !dbUserRecord.affiliateUsed) {

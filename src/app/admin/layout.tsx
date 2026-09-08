@@ -29,6 +29,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  { label: 'Anúncios e assinaturas', href: '/admin/acquisition', icon: ChartBarIcon },
   {
     label: 'Uso da Plataforma',
     href: '/admin/platform-usage',

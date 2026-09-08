@@ -62,4 +62,8 @@ O manual de plantão está em `docs/affiliates-observability-runbook.md`.
 
 ## Ligações
 
+## Aquisição ChatGPT Ads (setembro de 2026)
+
+`lib/acquisition/` e os modelos `AcquisitionJourney`/`AcquisitionEvent` preservam a origem consentida do anúncio, vinculam a sessão após Google e recebem marcos financeiros do webhook do Stripe. Assinatura com mês grátis não é pagamento. `/admin/acquisition` compara os seis anúncios e mostra a última etapa observada. Atribuição congela na assinatura para acompanhar renovação. O cron `acquisition-conversions` entrega eventos à OpenAI com repetição idempotente, sem SDK que leia formulários. Manual: `docs/chatgpt-ads-aquisicao-2026-09.md`.
+
 [[Stripe tem dois produtos]] · [[MCP — ChatGPT e Claude]]

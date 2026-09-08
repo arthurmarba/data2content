@@ -12,10 +12,11 @@ Duas famílias: **cron** (roda sozinho, no relógio) e **worker** (roda quando a
 
 Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura do QStash.
 
-## Cron — 19 tarefas no relógio
+## Cron — 20 tarefas no relógio
 
 | Tarefa | Arquivo |
 | --- | --- |
+| `acquisition-conversions` | `src/app/api/cron/acquisition-conversions/route.ts` |
 | `backfill-post-covers` | `src/app/api/cron/backfill-post-covers/route.ts` |
 | `campaign-radar` | `src/app/api/cron/campaign-radar/route.ts` |
 | `creator-weekly-reports` | `src/app/api/cron/creator-weekly-reports/route.ts` |

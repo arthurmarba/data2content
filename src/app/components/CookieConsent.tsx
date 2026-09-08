@@ -69,6 +69,9 @@ const CookieConsent: React.FC = () => {
     if (!getConsentCookie()) {
       setIsVisible(true);
     }
+    const reopen = () => setIsVisible(true);
+    window.addEventListener('d2c-open-cookie-preferences', reopen);
+    return () => window.removeEventListener('d2c-open-cookie-preferences', reopen);
   }, []);
 
   useEffect(() => {
@@ -143,7 +146,7 @@ const CookieConsent: React.FC = () => {
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
       >
         <span className="min-w-0 flex-1 text-zinc-300">
-          Usamos cookies de analytics para melhorar a experiência. Aceita?
+          Com sua autorização, medimos a navegação e o resultado dos anúncios. Aceita?
         </span>
         <div className="flex shrink-0 gap-2">
           <button
@@ -167,7 +170,7 @@ const CookieConsent: React.FC = () => {
     return (
       <div ref={bannerRef} data-analytics-ignore="true" className="d2c-cookie-consent" role="region" aria-label="Preferências de cookies">
         <p>
-          Usamos cookies para entender como a landing funciona. <a href="/politica-de-privacidade">Saiba mais</a>
+          Com sua autorização, medimos a navegação e quais anúncios geram assinaturas. <a href="/politica-de-privacidade">Saiba mais</a>
         </p>
         <div>
           <button onClick={declineCookies}>Só essenciais</button>
@@ -184,7 +187,7 @@ const CookieConsent: React.FC = () => {
       className="fixed bottom-0 left-0 right-0 z-50 bg-brand-dark text-brand-light p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <span className="text-sm leading-relaxed">
-        Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.{" "}
+        Utilizamos cookies essenciais e, com sua autorização, medimos a navegação e quais anúncios geram assinaturas.{" "}
         <a
           href="/politica-de-privacidade"
           className="underline opacity-80 hover:opacity-100"

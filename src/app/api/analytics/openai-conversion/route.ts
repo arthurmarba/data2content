@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
+  // Campanhas do site são medidas pelo webhook; não duplicar a confirmação da tela.
+  if (request.cookies.get('d2c_acquisition')?.value) {
+    return NextResponse.json({ ok: true, delivered: false, reason: 'server_webhook_delivery' });
+  }
+
   const body = await request.json().catch(() => null);
   const attemptId = normalizeOpenAiAdsAttemptId(body?.attemptId);
   const eventId = buildOpenAiSubscriptionEventId(attemptId);

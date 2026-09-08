@@ -113,6 +113,9 @@ export function track<Name extends AnalyticsEventName>(
   props?: AnalyticsEventPayload<Name>,
 ) {
   try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('d2c-acquisition-analytics', { detail: { name, props } }));
+    }
     measureOpenAiAdsEvent(name, props as Record<string, any> | undefined);
     if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
       (window as any).gtag('event', name, withCommonPayload(name, props));

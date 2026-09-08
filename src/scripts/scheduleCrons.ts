@@ -14,6 +14,13 @@ const BASE_URL = 'https://data2content.ai/api/admin';
 
 const CRONS = [
   {
+    id: 'acquisition-conversions',
+    destination: 'https://data2content.ai/api/cron/acquisition-conversions',
+    cron: '*/5 * * * *',
+    method: 'POST',
+    body: '[AQUISICAO] Entregar conversões consentidas com repetição idempotente',
+  },
+  {
     id: 'cpm-weekly-snapshot',
     destination: `${BASE_URL}/cpm-history/snapshot`,
     cron: '0 3 * * 0',

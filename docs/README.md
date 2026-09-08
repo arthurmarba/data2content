@@ -20,6 +20,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `chatgpt-ads-aquisicao-2026-09.md` | 09/2026 | Campanha de R$ 70, atribuição consentida, assinatura versus pagamento, relatório e operação das conversões |
 | `implementacao-upload-mobile-2026-09-08.md` | 09/2026 | Correções do upload: análise em fila, recuperação por sessão, proteção de arquivos, cancelamento, validação e ativação operacional |
 | `auditoria-upload-mobile-2026-09-08.md` · `brain/30 Armadilhas/Retry da análise reutiliza vídeo apagado.md` | 09/2026 | Revisão do upload pelo botão +: erros independentes de saldo, sete reproduções, recuperação, segurança e prioridades |
 | `implementacao-collabs-2026-09-08.md` | 09/2026 | Implementação local, testes, limites da validação e procedimento de liberação das novas Collabs |

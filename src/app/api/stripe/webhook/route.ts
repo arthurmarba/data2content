@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
 import { handleStripeEvent } from "@/server/stripe/handle-stripe-event";
+import { recordAcquisitionStripeEvent } from '@/app/lib/acquisition/stripe';
 import { logger } from "@/app/lib/logger";
 import { getErrorMessage, isTransientMongoError } from "@/app/lib/mongoTransient";
 
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
 
   try {
     await handleStripeEvent(event);
+    await recordAcquisitionStripeEvent(event);
   } catch (err: any) {
     if (isTransientMongoError(err)) {
       logger.warn("stripe_webhook_processing_transient_error", {

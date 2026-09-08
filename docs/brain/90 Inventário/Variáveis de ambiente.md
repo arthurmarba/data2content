@@ -8,7 +8,7 @@ atualizado: 2026-09-08
 
 # Variáveis de ambiente
 
-**427 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**428 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 25 |
+| `CRON_SECRET` | 27 |
 
 ## FACEBOOK
 
@@ -121,8 +121,8 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `MONGODB_URI` | 13 |
-| `MONGODB_DB_NAME` | 6 |
+| `MONGODB_URI` | 15 |
+| `MONGODB_DB_NAME` | 7 |
 | `MONGODB_MAX_POOL_SIZE` | 1 |
 | `MONGODB_SERVER_SELECTION_TIMEOUT_MS` | 1 |
 | `MONGODB_SOCKET_TIMEOUT_MS` | 1 |
@@ -183,8 +183,8 @@ atualizado: 2026-09-08
 | `OPENAI_MODEL` | 21 |
 | `OPENAI_TEMP` | 14 |
 | `OPENAI_BASE_URL` | 8 |
-| `OPENAI_ADS_CONVERSIONS_API_KEY` | 5 |
-| `OPENAI_ADS_PIXEL_ID` | 5 |
+| `OPENAI_ADS_CONVERSIONS_API_KEY` | 7 |
+| `OPENAI_ADS_PIXEL_ID` | 7 |
 | `OPENAI_MODEL_ADVANCED` | 5 |
 | `OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED` | 5 |
 | `OPENAI_MODEL_HYBRID_ENABLED` | 5 |
@@ -196,6 +196,7 @@ atualizado: 2026-09-08
 | `OPENAI_ADS_CAPI_VALIDATE_ONLY` | 4 |
 | `OPENAI_MODEL_HYBRID_SCORE_THRESHOLD` | 4 |
 | `OPENAI_CLASSIFIER_MODEL` | 3 |
+| `OPENAI_ADS_API_KEY` | 2 |
 | `OPENAI_MAXTOK` | 2 |
 | `OPENAI_MODEL_PREMIUM` | 2 |
 | `OPENAI_ADMIN_MODEL` | 1 |
@@ -217,8 +218,8 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 34 |
-| `QSTASH_NEXT_SIGNING_KEY` | 34 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 35 |
+| `QSTASH_NEXT_SIGNING_KEY` | 35 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -312,14 +313,14 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 121 |
+| `NODE_ENV` | 122 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
+| `DB_NAME` | 7 |
 | `LLM_PROVIDER_MAPA` | 7 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
-| `DB_NAME` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
 | `MOBILE_STRATEGIC_PROFILE_SERVER_ENABLED` | 6 |
 | `PLANNER_FREEZE_ENABLED` | 6 |

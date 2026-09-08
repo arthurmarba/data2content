@@ -3,6 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import { d2cFontVariables } from '@/app/fonts/d2cFonts';
+import CookiePreferencesButton from '@/app/components/CookiePreferencesButton';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -30,7 +31,7 @@ export default function PrivacyPolicyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-4 text-sm text-[var(--ds-color-text-muted)]">
-              <strong>Última Atualização:</strong> 27 de agosto de 2026
+              <strong>Última Atualização:</strong> 8 de setembro de 2026
             </p>
           </header>
 
@@ -293,6 +294,12 @@ export default function PrivacyPolicyPage() {
               </table>
             </div>
             <p className="mt-4">Se você excluir a sua conta, os dados pessoais que não estejam sujeitos a obrigação legal de retenção serão eliminados de forma permanente.</p>
+
+            <h3 className="mt-6 text-xl font-semibold">Medição de anúncios e assinaturas</h3>
+            <p>Com sua autorização, registramos o anúncio de origem e etapas como visualizar o preço, criar conta, iniciar checkout, assinar e realizar pagamentos. Um identificador aleatório de navegação, válido por 90 dias, pode ser vinculado à sua conta após o login. Os registros dessa jornada são mantidos por até 400 dias para avaliar a recorrência das assinaturas.</p>
+            <p>Para medir anúncios no ChatGPT, podemos enviar à OpenAI o identificador opaco do clique, o tipo e a data do evento e, no primeiro pagamento, valor e moeda. Essa integração não envia nome, e-mail, IP, texto de formulários ou conversas, nem grava a tela. Os eventos são enviados com exclusão de futura personalização individual. Usamos também o Google Analytics para analisar navegação.</p>
+            <p>Você pode recusar a medição sem impedir o uso do serviço. Ao revogar a autorização, interrompemos novos envios dessa jornada e removemos os identificadores externos de atribuição dos nossos registros. Os marcos históricos pseudônimos permanecem pelo prazo informado; solicitações de exclusão podem ser feitas pelo contato abaixo.</p>
+            <CookiePreferencesButton />
 
             {/* ── 7. Decisões Automatizadas por IA ─────────────────────── */}
             <h2 className="text-2xl font-semibold text-gray-900 mt-12">7. Decisões Automatizadas e Inteligência Artificial</h2>

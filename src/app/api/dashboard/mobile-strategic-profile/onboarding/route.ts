@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from 'next/headers';
+import { bindAcquisitionUser } from '@/app/lib/acquisition/journey';
 import { getServerSession } from "next-auth/next";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       },
     });
 
+    await bindAcquisitionUser(await cookies(), userId).catch(() => null);
     // Fase 3 — preview enriquecido do mapa + Fase 2A — semeia o MapaSeed a partir
     // da hipótese de narrativa, para que ele EXISTA e possa ser enriquecido depois
     // (Instagram/vídeo). Mesma lógica reutilizada por "Meu Norte"/propósito inline.

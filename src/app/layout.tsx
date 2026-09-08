@@ -14,6 +14,7 @@ import { authOptions } from "./api/auth/[...nextauth]/route";
 // ⚠️ Corrigido: providers -> Providers (case-sensitive)
 import { Providers } from "./providers";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
+import AcquisitionTracker from './components/AcquisitionTracker';
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
 import AnalyticsClickTracker from "./components/AnalyticsClickTracker";
@@ -135,6 +136,7 @@ export default async function RootLayout({
             </Suspense>
             <AnalyticsClickTracker />
             <ClientHooksWrapper />
+            <AcquisitionTracker />
             {children}
             <CookieConsent />
             <HotToaster

@@ -8,6 +8,7 @@ import { useState, type ReactNode } from "react";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import { submitGoogleSignInFallback } from "@/lib/auth/googleLogin";
 import { track } from "@/lib/track";
+import { flushAcquisitionTracking } from '@/app/components/AcquisitionTracker';
 
 type LandingAuthCtaProps = {
   className: string;
@@ -49,7 +50,7 @@ export function LandingAuthCta({
     // O POST com CSRF inicia o OAuth no navegador de forma determinística. O
     // `signIn` client-side pode resolver sem efetuar navegação em alguns
     // navegadores, deixando o CTA preso no estado de carregamento.
-    void submitGoogleSignInFallback(callbackUrl).catch(() => {
+    void flushAcquisitionTracking().then(() => submitGoogleSignInFallback(callbackUrl)).catch(() => {
       setIsLoading(false);
     });
   };

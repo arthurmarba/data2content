@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
 import crypto from "crypto";
+import { prepareAcquisitionCheckout } from '@/app/lib/acquisition/journey';
 import { checkRateLimit } from "@/utils/rateLimit";
 import {
   getOrCreateStripeCustomerId,
@@ -794,6 +795,7 @@ export async function POST(req: NextRequest) {
       userId: String(user._id),
       plan,
       ...checkoutJourneyMetadata,
+      ...await prepareAcquisitionCheckout(req.cookies, String(user._id)).catch(() => ({})),
     };
     if (affiliateOwner && affiliateCode) {
       metadata.affiliateCode = affiliateCode;

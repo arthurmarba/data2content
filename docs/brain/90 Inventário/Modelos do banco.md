@@ -8,13 +8,15 @@ atualizado: 2026-09-08
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **89 modelos.**
+Todo dado persistido é um modelo Mongoose. **91 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
 | Modelo | Coleção | Arquivo |
 | --- | --- | --- |
 | **AccountInsight** | `—` | `src/app/models/AccountInsight.ts` |
+| **AcquisitionEvent** | `acquisition_events` | `src/app/models/AcquisitionEvent.ts` |
+| **AcquisitionJourney** | `acquisition_journeys` | `src/app/models/AcquisitionJourney.ts` |
 | **AdDeal** | `—` | `src/app/models/AdDeal.ts` |
 | **AffiliateInvoiceIndex** | `—` | `src/app/models/AffiliateInvoiceIndex.ts` |
 | **AffiliateInvoiceIndex** | `—` | `src/server/db/models/AffiliateIndexes.ts` |

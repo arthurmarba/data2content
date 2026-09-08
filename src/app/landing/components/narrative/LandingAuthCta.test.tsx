@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
@@ -26,16 +26,16 @@ describe("LandingAuthCta", () => {
     jest.clearAllMocks();
   });
 
-  it("manda quem cria conta para o onboarding, não para um destino exclusivo de assinantes", () => {
+  it("manda quem cria conta para o onboarding, não para um destino exclusivo de assinantes", async () => {
     render(<LandingAuthCta className="cta" guestLabel="Entrar" destination="/reuniao" />);
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
+    await waitFor(() => expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
       "/dashboard/profile",
-    );
+    ));
   });
 
-  it("preserves the protected destination received from /login", () => {
+  it("preserva o destino protegido recebido do login", async () => {
     useSearchParamsMock.mockReturnValue(new URLSearchParams({
       callbackUrl: "/dashboard/boards/mobile-strategic-profile",
     }));
@@ -43,9 +43,9 @@ describe("LandingAuthCta", () => {
     render(<LandingAuthCta className="cta" guestLabel="Continuar" />);
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
+    await waitFor(() => expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
       "/dashboard/boards/mobile-strategic-profile",
-    );
+    ));
   });
 
   it("leva quem já tem conta ao Perfil estratégico", () => {
@@ -59,7 +59,7 @@ describe("LandingAuthCta", () => {
     );
   });
 
-  it("permite sobrescrever o destino de quem cria conta", () => {
+  it("permite sobrescrever o destino de quem cria conta", async () => {
     render(
       <LandingAuthCta
         className="cta"
@@ -69,7 +69,7 @@ describe("LandingAuthCta", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Assistir" }));
-    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith("/reuniao");
+    await waitFor(() => expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith("/reuniao"));
   });
 
   it("respeita o destino explícito de quem já tem conta", () => {

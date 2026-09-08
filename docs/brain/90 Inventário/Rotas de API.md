@@ -10,7 +10,7 @@ atualizado: 2026-09-08
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**430 rotas** em **55 grupos**.
+**432 rotas** em **55 grupos**.
 
 ## Índice
 
@@ -22,7 +22,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [ai](#ai) — 6 rotas
 - [ai-summary](#ai-summary) — 1 rota
 - [alerts](#alerts) — 3 rotas
-- [analytics](#analytics) — 2 rotas
+- [analytics](#analytics) — 3 rotas
 - [auth](#auth) — 4 rotas
 - [billing](#billing) — 15 rotas
 - [brand-narratives](#brand-narratives) — 3 rotas
@@ -31,7 +31,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [chat](#chat) — 3 rotas
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
-- [cron](#cron) — 19 rotas
+- [cron](#cron) — 20 rotas
 - [dashboard](#dashboard) — 47 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -280,6 +280,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
+| `/api/analytics/acquisition` | DELETE, POST | `src/app/api/analytics/acquisition/route.ts` |
 | `/api/analytics/context` | GET | `src/app/api/analytics/context/route.ts` |
 | `/api/analytics/openai-conversion` | POST | `src/app/api/analytics/openai-conversion/route.ts` |
 
@@ -359,6 +360,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
+| `/api/cron/acquisition-conversions` | POST | `src/app/api/cron/acquisition-conversions/route.ts` |
 | `/api/cron/backfill-post-covers` | POST | `src/app/api/cron/backfill-post-covers/route.ts` |
 | `/api/cron/campaign-radar` | GET | `src/app/api/cron/campaign-radar/route.ts` |
 | `/api/cron/creator-weekly-reports` | GET, POST | `src/app/api/cron/creator-weekly-reports/route.ts` |
