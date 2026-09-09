@@ -42,8 +42,8 @@ atualizado: 2026-09-09
 
 | Variável | Usos no código |
 | --- | --- |
-| `FACEBOOK_CLIENT_SECRET` | 6 |
-| `FACEBOOK_CLIENT_ID` | 5 |
+| `FACEBOOK_CLIENT_ID` | 9 |
+| `FACEBOOK_CLIENT_SECRET` | 8 |
 
 ## GEMINI
 
@@ -131,8 +131,8 @@ atualizado: 2026-09-09
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXTAUTH_URL` | 37 |
-| `NEXTAUTH_SECRET` | 16 |
+| `NEXTAUTH_URL` | 38 |
+| `NEXTAUTH_SECRET` | 22 |
 | `NEXTAUTH_SESSION_DB_REVALIDATION_CACHE_TTL_MS` | 1 |
 
 ## NEXT_PUBLIC
@@ -313,7 +313,7 @@ atualizado: 2026-09-09
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 122 |
+| `NODE_ENV` | 123 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |

@@ -12,10 +12,10 @@ Os números crus, pra dar noção de escala antes de mexer em qualquer coisa.
 
 | | |
 | --- | --- |
-| Arquivos de código | 2105 |
-| Arquivos de teste | 714 |
-| Componentes de tela (.tsx) | 686 |
-| Rotas de API | 432 |
-| Documentos em `docs/` | 181 |
+| Arquivos de código | 2113 |
+| Arquivos de teste | 716 |
+| Componentes de tela (.tsx) | 688 |
+| Rotas de API | 434 |
+| Documentos em `docs/` | 182 |
 
 Um projeto deste tamanho não cabe na cabeça de ninguém — nem na da IA. Por isso o cérebro existe: [[00 Comece por aqui]].

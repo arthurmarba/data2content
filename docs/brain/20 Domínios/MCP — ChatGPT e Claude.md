@@ -154,6 +154,54 @@ Ao atualizar o catálogo no portal, confira também `Advanced settings → Defau
 
 `MCP_SUPPORTED_SCOPES` também pode esconder ferramentas existentes: a produção omitia `profile:write`, necessário para `set_creator_north`. A correção de configuração inclui esse scope nos suportados e define `MCP_CONNECTION_SCOPES` explicitamente com as nove permissões anteriores; `campaigns:read` continua acrescentado pelo feature flag. Assim, anunciar a permissão de escrita não a torna requisito de todas as conexões existentes. Alterar o Norte continua exigindo consentimento com `profile:write`. A variável na Vercel só afeta produção após novo deploy.
 
+## Pesquisa externa por @ — implementação local de 09/09/2026
+
+`publicInstagramResearch.ts` consulta Business Discovery da Meta e alimenta
+`get_public_instagram_creator` e `compare_public_instagram_creators` no MCP admin.
+Usa apenas a conexão Instagram do administrador. Identificadores externos não
+são `creator:`; métricas ausentes são `null`; a taxa pública divide por seguidores,
+nunca por alcance. Até 50 posts por perfil e três perfis na comparação, sem
+garantia de janela comum ou cobertura completa. Não cria usuários nem Metric.
+
+O login atual não pede `pages_read_engagement`, exigida na referência da Meta.
+Em 09/09, a autorização existente de Arthur já continha essa permissão e
+`instagram_basic`/`instagram_manage_insights`, confirmadas por `/me/permissions`.
+Os serviços locais consultaram `nike` e `mkbhd` e compararam ambos com sucesso,
+com três posts por perfil; nenhum dos @s estava vinculado ao campo `username`
+da base. Não houve escrita nem nova autorização. Isso valida essa conta
+consultante; não comprova acesso de outros administradores ou publicação.
+Descoberta por filtros tem API oficial própria: Creator Marketplace, com marca
+elegível e acesso avançado aprovado; acesso padrão inicial entrega dados de teste.
+Essa segunda etapa tem implementação local de homologação, ainda sem
+autorização real ou publicação confirmada. Fontes e operação em
+`docs/pesquisa-criadores-externos-mcp.md`.
+
+Arthur descartou fornecedores pagos em 09/09: descoberta externa deve usar
+somente a Meta, sem Modash e sem chamadas a modelos pagos para preencher lacunas.
+Cidade brasileira e busca visual não são promessas desta entrega. Uma chamada
+real de Marketplace com a credencial da Página vinculada a Arthur retornou 403,
+exigindo `instagram_creator_marketplace_discovery`; a elegibilidade da marca
+ainda não pôde ser confirmada. Arthur confirmou o uso para campanhas e
+parcerias, além da pesquisa. Com autorização explícita, o modelo oficial de
+login Marketplace foi criado na Meta: configuração `1072604112137914`.
+O login geral continua com `1115392310394084`; não substituir seu config ID.
+A conexão administrativa dedicada e `search_external_creators` estão
+implementadas localmente em `/admin/creator-marketplace`, com `dataMode=test`.
+Usam `InstagramMarketplaceConnection`, credencial criptografada vinculada ao
+dono, estado OAuth de uso único e limites por administrador. O callback dedicado
+foi salvo e confirmado na Meta. Ainda falta publicar, obter o consentimento
+OAuth e validar o Marketplace.
+A criação do modelo não concede acesso aos dados. Fonte e limites ficam em
+`docs/pesquisa-criadores-externos-mcp.md`.
+
+Conferência autenticada do app Meta em 09/09: `instagram_basic`,
+`instagram_manage_insights`, `pages_show_list` e `business_management` têm
+acesso avançado. `pages_read_engagement`, `ads_read`,
+`instagram_creator_marketplace_discovery` e `pages_manage_metadata` estão no
+padrão, sem análise solicitada. O Marketplace mostra empresa e acesso verificados,
+mas ainda falta análise do app. Isso não comprova scopes do token consultante.
+O MCP oficial da Meta falhou antes do login; acesso pelo painel web funciona.
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.

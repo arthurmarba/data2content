@@ -8,6 +8,19 @@ import { getMcpAdminCreatorOverview, searchMcpAdminCreators } from "./adminCatal
 import { getMcpDeepContentAnalysis } from "./catalog";
 import { analyzeMcpAdminPortfolio, listMcpAdminCreators } from "./adminAnalytics";
 import { getMcpAdminCreatorAnalysis, getMcpAdminScriptEvidence } from "./adminCreatorAnalysis";
+import { getPublicInstagramCreator } from "./publicInstagramResearch";
+import { searchMarketplaceCreators } from '@/app/lib/instagram/marketplace';
+jest.mock('@/app/lib/instagram/marketplace', () => {
+  const actual = jest.requireActual('@/app/lib/instagram/marketplace');
+  return { ...actual, searchMarketplaceCreators: jest.fn(async () => ({ dataMode: 'test', creators: [], coverage: { completeMarket: false } })) };
+});
+
+jest.mock("./publicInstagramResearch", () => ({
+  ...jest.requireActual("./publicInstagramResearch"),
+  getPublicInstagramCreator: jest.fn(async () => ({ creator: { username: "externo" }, posts: [] })),
+  comparePublicInstagramCreators: jest.fn(async () => ({ creators: [], coverage: { availableCreators: 0 } })),
+}));
+jest.mock("@/app/lib/instagram/db/userActions", () => ({ getInstagramConnectionDetails: jest.fn() }));
 
 jest.mock("./adminAnalytics", () => ({
   listMcpAdminCreators: jest.fn(async () => ({ creators: [{ id: "creator:507f1f77bcf86cd799439021" }], pagination: { total: 120, nextCursor: "next" } })),
@@ -176,6 +189,8 @@ describe("Data2Content admin MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
+        "search_external_creators",
+        "get_public_instagram_creator", "compare_public_instagram_creators",
         "list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map",
         "get_creator_follower_growth", "get_creator_script_evidence",
         "search",
@@ -191,10 +206,49 @@ describe("Data2Content admin MCP server", () => {
       ]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
       expect(tools.every((tool) => tool.annotations?.destructiveHint === false)).toBe(true);
+      expect(tools.filter(tool => tool.name.includes("public_instagram")).every(tool => tool.annotations?.openWorldHint === true)).toBe(true);
     } finally {
       await client.close();
       await server.close();
     }
+  });
+
+  it('isola a descoberta Marketplace por scope e identidade, com dados de teste', async () => {
+    jest.mocked(searchMarketplaceCreators).mockClear();
+    const denied = await connect([]);
+    try {
+      const result = await denied.client.callTool({ name: 'search_external_creators', arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(searchMarketplaceCreators).not.toHaveBeenCalled();
+    } finally { await denied.client.close(); await denied.server.close(); }
+    const allowed = await connect();
+    try {
+      const result = await allowed.client.callTool({ name: 'search_external_creators', arguments: { query: 'receitas' } });
+      expect(textPayload(result).dataMode).toBe('test');
+      expect(searchMarketplaceCreators).toHaveBeenCalledWith('507f1f77bcf86cd799439011', { query: 'receitas', countries: ['BR'], limit: 10 });
+      jest.mocked(searchMarketplaceCreators).mockClear();
+      const invalid = await allowed.client.callTool({ name: 'search_external_creators', arguments: { city: 'Rio', actorUserId: 'outro' } });
+      expect(invalid.isError).toBe(true);
+      expect(searchMarketplaceCreators).not.toHaveBeenCalled();
+    } finally { await allowed.client.close(); await allowed.server.close(); }
+  });
+
+  it("consulta perfil externo usando a identidade autenticada e exige o scope administrativo", async () => {
+    jest.mocked(getPublicInstagramCreator).mockClear();
+    const denied = await connect([]);
+    try {
+      const result = await denied.client.callTool({ name: "get_public_instagram_creator", arguments: { username: "externo" } });
+      expect(result.isError).toBe(true);
+      expect(getPublicInstagramCreator).not.toHaveBeenCalled();
+    } finally { await denied.client.close(); await denied.server.close(); }
+    const allowed = await connect();
+    try {
+      const result = await allowed.client.callTool({ name: "get_public_instagram_creator", arguments: { username: "@Externo", actorUserId: "outro" } });
+      expect(result.isError).not.toBe(true);
+      expect(getPublicInstagramCreator).toHaveBeenCalledWith("507f1f77bcf86cd799439011", { username: "externo", postLimit: 25 });
+      const comparison = await allowed.client.callTool({ name: "compare_public_instagram_creators", arguments: { usernames: ["externo", "outro"] } });
+      expect(comparison.isError).toBe(true);
+    } finally { await allowed.client.close(); await allowed.server.close(); }
   });
 
   it("implements standard search and fetch with a stable creator reference", async () => {

@@ -67,6 +67,7 @@ const menuItems: MenuItem[] = [
   { label: 'Parceiros', href: '/admin/agencies', icon: UserGroupIcon },
   { label: 'Propostas de Marcas', href: '/admin/brand-proposals', icon: MegaphoneIcon },
   { label: 'Radar de campanhas', href: '/admin/campaign-radar', icon: MegaphoneIcon },
+  { label: 'Descoberta de criadores', href: '/admin/creator-marketplace', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
   { label: 'Billing Debug', href: '/admin/billing-debug', icon: CurrencyDollarIcon },
   {

@@ -10,12 +10,12 @@ atualizado: 2026-09-09
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**432 rotas** em **55 grupos**.
+**434 rotas** em **55 grupos**.
 
 ## Índice
 
 - [account](#account) — 1 rota
-- [admin](#admin) — 102 rotas
+- [admin](#admin) — 104 rotas
 - [ads](#ads) — 1 rota
 - [affiliate](#affiliate) — 11 rotas
 - [agency](#agency) — 41 rotas
@@ -106,6 +106,8 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/admin/chat/sessions/[id]` | GET | `src/app/api/admin/chat/sessions/[id]/route.ts` |
 | `/api/admin/cpm-history` | GET | `src/app/api/admin/cpm-history/route.ts` |
 | `/api/admin/cpm-history/snapshot` | POST | `src/app/api/admin/cpm-history/snapshot/route.ts` |
+| `/api/admin/creator-marketplace` | GET, POST | `src/app/api/admin/creator-marketplace/route.ts` |
+| `/api/admin/creator-marketplace/callback` | GET | `src/app/api/admin/creator-marketplace/callback/route.ts` |
 | `/api/admin/creators` | GET | `src/app/api/admin/creators/route.ts` |
 | `/api/admin/creators-survey` | GET | `src/app/api/admin/creators-survey/route.ts` |
 | `/api/admin/creators-survey/[creatorId]` | GET | `src/app/api/admin/creators-survey/[creatorId]/route.ts` |
