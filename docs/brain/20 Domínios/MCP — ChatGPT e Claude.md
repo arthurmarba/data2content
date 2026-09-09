@@ -171,3 +171,5 @@ npm run smoke:mcp-admin-portfolio   # a análise de toda a base, no banco real
 ## Ligações
 
 [[Pautas e Roteiros]] · [[Collabs]] · [[ChatGPT fora da landing]]
+
+- 09/09/2026: submissão 1.0.0 reenviada à OpenAI com as 26 ferramentas e o vídeo novo (`public/plugin/data2content-chatgpt-demo-v2.mp4`). `profile:write` já sai no metadata público, então conexão nova de revisor nasce podendo alterar o Norte. O motor interno segue em `local_fallback` por falta de créditos do Gemini.
