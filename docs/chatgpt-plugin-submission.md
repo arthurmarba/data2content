@@ -24,7 +24,7 @@ Este arquivo é a fonte de verdade para preencher manualmente o portal de Plugin
 - Política de privacidade: `https://data2content.ai/politica-de-privacidade`
 - Termos: `https://data2content.ai/termos-e-condicoes`
 - Logo: `public/plugin/data2content-logo-512.png`
-- Demo Recording URL: gravar o fluxo no Developer Mode, hospedar em uma URL acessível à revisão e preencher manualmente no portal
+- Demo Recording URL: `https://data2content.ai/plugin/data2content-chatgpt-demo-v2.mp4` — gravação de tela da conversa real no ChatGPT com a conexão privada Data2Content Revisão (1min52, sem áudio). O arquivo anterior segue publicado em `data2content-chatgpt-demo.mp4` e não é mais o vídeo da submissão.
 
 ### Descrição curta
 
@@ -153,7 +153,7 @@ Quando o portal fornecer o token:
 5. Faça upload de `chatgpt-app-submission.json` na seção `Plugin Info` e revise os campos preenchidos automaticamente.
 6. Envie `public/plugin/data2content-logo-512.png` como ícone do diretório e do composer.
 7. Preencha os campos que não fazem parte do arquivo de importação usando as informações públicas deste documento.
-8. Grave no Developer Mode o fluxo da conta completa com mapa/pautas, análise de período, evidências, roteiro e salvamento confirmado; hospede o vídeo em URL acessível e atualize `Demo Recording URL`.
+8. O vídeo da conta completa com mapa/pautas, análise de período, evidências, roteiro, preferência e os casos negativos está publicado em `public/plugin/data2content-chatgpt-demo-v2.mp4`. Para regravar, capture a tela do Developer Mode, corte com `ffmpeg`, confira quadro a quadro que nenhuma outra janela aparece, troque o arquivo em `public/plugin/` e atualize `Demo Recording URL`.
 9. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
 10. Configure OAuth e as credenciais de revisão.
 11. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
@@ -191,3 +191,11 @@ Quando o portal fornecer o token:
 - Verificação complementar encontrou `profile:write` ausente de `MCP_SUPPORTED_SCOPES` na produção. A configuração foi corrigida na Vercel e em `.env.local`; `MCP_CONNECTION_SCOPES` preserva as nove permissões anteriores, com campanhas acrescentadas quando habilitadas. A nova publicação precisa ser verificada no metadata público antes de considerar a correção ativa. A execução de `set_creator_north` ainda exige novo consentimento explícito; não foi validada na conexão privada de dez permissões.
 
 Referência oficial: https://developers.openai.com/plugins/deploy/app-review
+
+### Vídeo da demonstração e escopo publicado — 09/09/2026
+
+- `profile:write` confirmado no metadata público de produção (`/.well-known/oauth-authorization-server`). A correção de `MCP_SUPPORTED_SCOPES` está ativa; `set_creator_north` continua exigindo consentimento explícito e conexões antigas não ganharam a permissão sozinhas.
+- A gravação de tela do macOS não pôde ser iniciada por automação (`screencapture -v` sem permissão de Gravação de Tela para o processo; `screencaptureui` recusou o spawn). As duas gravações feitas com a barra aberta manualmente ficaram em `output/plugin-review/`.
+- O arquivo bruto tem quadros só até ~5min30 e uma janela de editor de vídeo aparece por ~2s. O vídeo da submissão foi montado com `ffmpeg` em três trechos, sem áudio, cortando essa janela; a varredura quadro a quadro a 1 fps confirmou que só a conversa do ChatGPT aparece.
+- Publicado em `public/plugin/data2content-chatgpt-demo-v2.mp4` (1366x768, 1min52, ~3 MB), servido em `https://data2content.ai/plugin/data2content-chatgpt-demo-v2.mp4`.
+- O vídeo mostra mapa declaratório e pauta sugerida, contagem de 1 a 7 de agosto com dois Reels e um carrossel e a lacuna de seguidores, referências planejadas com a ressalva de ausência de transcrição, roteiro e revisão técnica, registro de preferência, e os casos negativos de agenda e de imagem. A barra do Chrome sobre depuração aparece porque a sessão foi conduzida por automação de navegador.
