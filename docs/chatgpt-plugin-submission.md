@@ -40,12 +40,11 @@ Atualização da submissão existente 1.0.0: catálogo ampliado de 18 para 26 fe
 
 ## Prompts iniciais
 
-1. `Quero definir meu Norte e receber um radar para os meus próximos conteúdos.`
-2. `Crie cinco pautas alinhadas ao meu posicionamento usando padrões da comunidade Data2Content.`
-3. `Pesquise padrões de gancho para um Reel sobre criação de conteúdo.`
-4. `Crie um roteiro usando o contexto disponível na minha conta Data2Content.`
-5. `Analise o que funcionou nos meus conteúdos no último mês.`
-6. `Compare duas referências e adapte os padrões ao meu jeito de comunicar.`
+O portal permite três prompts com até 128 caracteres cada. Estes são os textos preenchidos:
+
+1. `Consulte meu mapa e minhas pautas. Sugira qual desenvolver, distinguindo declaração de evidência.`
+2. `Use minhas referências para escrever e revisar um roteiro aqui. Só salve depois da minha confirmação.`
+3. `Analise meus conteúdos da última semana: formatos, desempenho e seguidores. Informe as lacunas dos dados.`
 
 ## Credenciais de revisão
 
@@ -179,5 +178,16 @@ Quando o portal fornecer o token:
 - `npx tsx --env-file=.env.local scripts/smokePluginReview.ts`: teste de integração com o banco real limitado às contas de demonstração. `--write-demo` testa evidências, roteiro e preferências; `--live-generation` chama o provedor de geração configurado.
 - O relatório fica em `output/plugin-review/verification.json`. Usa transporte em memória: não prova OAuth, acesso pelo ChatGPT nem aprovação da OpenAI.
 - Credenciais reais permanecem somente no portal. Nunca copiá-las para este documento, JSON, logs ou vídeo.
+
+### Ensaio real e rascunho atualizado — 08/09/2026
+
+- Correções publicadas no commit `ee0a6cfe`; OAuth real da conta fictícia concluído no ChatGPT com a conexão privada **Data2Content Revisão**.
+- No ChatGPT passaram mapa/pautas, período com dois Reels e um carrossel, ausência de saldo de seguidores, evidências planejadas, crítica, salvamento após confirmação e preferência solicitada. A pesquisa de comunidade respeitou resultados ausentes; publicidade distinguiu uma oportunidade próxima de uma correspondência exata.
+- O motor interno retornou `local_fallback` e o ChatGPT informou a ausência de referências enviadas ao modelo. O provedor Gemini respondeu que os créditos pré-pagos estavam esgotados. A escrita no ChatGPT usando o pacote de evidências funcionou; não considerar o motor principal aprovado nesse ensaio nem fazer recarga sem autorização de pagamento.
+- A versão pública existente **1.0.0 foi movida de Review para Draft**. O portal capturou 26 ferramentas; as 78 justificativas, os cinco testes, três negativos, três prompts e as notas foram preenchidos. Identidade Business — Data2Content, Brasil, ícones, URLs e senha de revisão preservados. Texto padrão em inglês e tradução brasileira atualizados.
+- O upload automático do JSON falhou com `Not allowed`; os campos foram preenchidos pela interface. O formulário ficou sem erros e com `Submit for Review` habilitado, mas **não foi reenviado**.
+- A demonstração ainda aponta para o vídeo anterior. A nova gravação depende de desbloqueio do Mac; depois de gravar e publicar, revisar o aceite final de termos antes do reenvio.
+- No OAuth avançado, foi removido o override antigo de nove permissões. O servidor anuncia dez, incluindo `campaigns:read`; o consentimento atualizado permitiu o scan. Se o catálogo sumir ou o scan receber 403, conferir essa configuração antes de alterar código.
+- Verificação complementar encontrou `profile:write` ausente de `MCP_SUPPORTED_SCOPES` na produção. A configuração foi corrigida na Vercel e em `.env.local`; `MCP_CONNECTION_SCOPES` preserva as nove permissões anteriores, com campanhas acrescentadas quando habilitadas. A nova publicação precisa ser verificada no metadata público antes de considerar a correção ativa. A execução de `set_creator_north` ainda exige novo consentimento explícito; não foi validada na conexão privada de dez permissões.
 
 Referência oficial: https://developers.openai.com/plugins/deploy/app-review

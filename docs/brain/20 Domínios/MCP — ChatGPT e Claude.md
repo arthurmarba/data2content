@@ -150,6 +150,10 @@ Dois erros só apareceram no ensaio com a conta fictícia: `analyze_creator_peri
 
 Preparação, limitações e comandos estão em `docs/chatgpt-plugin-submission.md`. O teste em memória valida serviços e contratos, mas não substitui o fluxo OAuth dentro do ChatGPT.
 
+Ao atualizar o catálogo no portal, confira também `Advanced settings → Default scope override`: a submissão antiga fixava nove scopes e excluía `campaigns:read`, embora o servidor já anunciasse dez. Isso emitia um token sem a permissão exigida pela conexão e o scan recebia 403. Remover o override antigo e refazer o consentimento com a conta fictícia permitiu capturar as 26 ferramentas. Não resolver esse caso afrouxando a autorização do servidor.
+
+`MCP_SUPPORTED_SCOPES` também pode esconder ferramentas existentes: a produção omitia `profile:write`, necessário para `set_creator_north`. A correção de configuração inclui esse scope nos suportados e define `MCP_CONNECTION_SCOPES` explicitamente com as nove permissões anteriores; `campaigns:read` continua acrescentado pelo feature flag. Assim, anunciar a permissão de escrita não a torna requisito de todas as conexões existentes. Alterar o Norte continua exigindo consentimento com `profile:write`. A variável na Vercel só afeta produção após novo deploy.
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.
