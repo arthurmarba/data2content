@@ -140,6 +140,16 @@ base inteira.
 
 O plugin depende de aprovação da OpenAI e de um plano caro. Por isso a landing pública fala **só do Claude** até o aplicativo ser aprovado. Ver [[ChatGPT fora da landing]].
 
+## Revisão do plugin — setembro de 2026
+
+O portal guarda um retrato do catálogo em `Scan Tools`; publicar o servidor não atualiza a submissão. A versão 1.0.0 enviada tinha 18 ferramentas, enquanto o servidor passou a 26. Para alterar uma versão em revisão, a orientação oficial é cancelar a revisão e editar/reexaminar o mesmo rascunho. Não criar um segundo plugin por causa da evolução do código.
+
+`get_script_evidence_pack` e `generate_script_draft` podem persistir sessão privada de sete dias: não são somente leitura mesmo sem adicionar roteiro à biblioteca. `find_campaign_opportunities` pode persistir seleção gratuita; `record_script_feedback` substitui preferências expressas e tem hint destrutivo.
+
+Dois erros só apareceram no ensaio com a conta fictícia: `analyze_creator_period` retornava `notApplicable` e `transcriptCoverageCountsOnlyVideos` ausentes do schema declarado; a primeira preferência falhava porque `creatorFeedback` começa nulo. O contrato agora aceita os campos, e feedback usa mesclagem atômica com `$literal`, preservando campos omitidos e textos que começam por `$`.
+
+Preparação, limitações e comandos estão em `docs/chatgpt-plugin-submission.md`. O teste em memória valida serviços e contratos, mas não substitui o fluxo OAuth dentro do ChatGPT.
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.

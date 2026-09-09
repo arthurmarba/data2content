@@ -86,6 +86,9 @@ export default function PrivacyPolicyPage() {
               <li><strong>Respostas conforme a conta:</strong> podemos retornar o Norte declarado, roteiros salvos, padrões agregados da comunidade e, quando disponível e solicitado, análises dos seus próprios conteúdos do Instagram.</li>
               <li><strong>Dados da comunidade:</strong> radares gratuitos usam sinais agregados sem identificar creators; ferramentas de inspiração podem mostrar atribuição pública apenas de creators que autorizaram a participação, sem expor transcrições completas ou métricas privadas.</li>
               <li><strong>Entrega ao ChatGPT:</strong> os dados necessários para responder ao seu pedido são enviados à OpenAI por meio da resposta da ferramenta.</li>
+              <li><strong>Mapa e evidências próprias:</strong> quando disponíveis e autorizados, retornamos narrativa, territórios, elementos de vida declarados, pautas, padrões de voz e sinais de desempenho, incluindo a variação observada de seguidores; transcrições próprias são incluídas nas ferramentas e pedidos que as requerem para analisar ou escrever com essas referências.</li>
+              <li><strong>Preparação e revisão de roteiros:</strong> podemos guardar temporariamente referências próprias, métricas e o rascunho gerado para revisar o texto com as mesmas evidências. Adicionar o roteiro à biblioteca exige confirmação explícita. Avaliações e preferências de voz só são registradas quando você pede e podem substituir sua avaliação anterior.</li>
+              <li><strong>Radar de publicidades:</strong> a consulta usa um catálogo previamente revisado e não envia candidaturas nem contata marcas. Para contas gratuitas, guardamos a oportunidade selecionada na semana e um identificador derivado da conta por até 21 dias para manter a mesma seleção.</li>
             </ul>
 
             {/* ── 3. Como e Por Que Utilizamos Seus Dados (Bases Legais) ── */}
@@ -277,6 +280,10 @@ export default function PrivacyPolicyPage() {
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Logs técnicos de interações com IA, ChatGPT ou WhatsApp (sem histórico integral do chat)</td>
                     <td className="border border-gray-300 px-4 py-3">90 dias após cada interação</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">Sessões privadas de evidências e rascunhos para preparação de roteiros</td>
+                    <td className="border border-gray-300 px-4 py-3">Validade de 7 dias, seguida de exclusão automática; quando você confirma o salvamento, o roteiro e seu registro de origem permanecem na biblioteca conforme as regras da conta</td>
                   </tr>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Dados de pagamento</td>

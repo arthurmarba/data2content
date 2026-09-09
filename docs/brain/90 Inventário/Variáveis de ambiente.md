@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-08
+atualizado: 2026-09-09
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -91,7 +91,7 @@ atualizado: 2026-09-08
 
 | Variável | Usos no código |
 | --- | --- |
-| `MCP_CAMPAIGN_RADAR_ENABLED` | 20 |
+| `MCP_CAMPAIGN_RADAR_ENABLED` | 21 |
 | `MCP_SUPPORTED_SCOPES` | 13 |
 | `MCP_ADMIN_SUPPORTED_SCOPES` | 12 |
 | `MCP_CONNECTION_SCOPES` | 9 |

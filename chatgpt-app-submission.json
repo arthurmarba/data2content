@@ -3,8 +3,8 @@
   "schema_version": 1,
   "app_info": {
     "display_name": "Data2Content",
-    "subtitle": "Poste: contexto, não achismo",
-    "description": "A Data2Content não olha só para curtidas e visualizações. Nossa inteligência assiste aos seus vídeos e entende o assunto, o gancho, o roteiro, o cenário, o enquadramento, o tom de voz e a duração. Depois, cruza tudo isso com o dia, o horário e o resultado de cada publicação para mostrar o que costuma funcionar melhor para você. Também aprende com padrões agregados de creators que falam sobre temas parecidos — como maternidade, fitness ou negócios — e identifica assuntos, ganchos e formatos que estão ganhando força, sem copiar ninguém nem expor dados privados. Dentro do ChatGPT, esse contexto ajuda você a decidir o que postar e criar pautas, estratégias e roteiros mais fiéis à sua voz e à resposta da sua audiência. Assinantes também recebem relatórios semanais, participam de reuniões ao vivo e da comunidade Data2Content.",
+    "subtitle": "Planeje conteúdos e roteiros",
+    "description": "A Data2Content ajuda criadores a planejar conteúdos e escrever roteiros com o contexto disponível na sua conta. Consulte seu mapa narrativo, territórios, pautas e padrões de voz; analise seus posts e a variação de seguidores com datas, métricas e limites de cobertura. Prepare referências dos seus próprios conteúdos para escrever no ChatGPT ou peça um rascunho ao motor Data2Content. Revise o roteiro contra suas evidências, salve após confirmação e registre suas preferências quando desejar. Também é possível pesquisar referências autorizadas da comunidade, comparar padrões, encontrar possíveis parceiros de collab e consultar oportunidades de publicidade previamente revisadas. O acesso depende das permissões e dos recursos da conta; contas gratuitas usam o Norte declarado e padrões agregados. A preparação pode guardar evidências e rascunhos privados por sete dias; isso não adiciona automaticamente um roteiro à biblioteca. O plugin não publica no Instagram, não envia mensagens nem candidaturas e não garante desempenho ou contratação.",
     "category": "PRODUCTIVITY"
   },
   "tools": {
@@ -44,6 +44,18 @@
         "destructive_justification": "Não remove nem substitui dados da conta ou da comunidade."
       }
     },
+    "find_campaign_opportunities": {
+      "justifications": {
+        "read_only_justification": "Consulta o catálogo revisado e pode criar a seleção privada da semana para contas gratuitas, com validade de 21 dias.",
+        "open_world_justification": "Opera sobre dados da conta e o catálogo limitado da Data2Content, sem publicar conteúdo, enviar candidatura ou contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
     "search": {
       "annotations": {
         "readOnlyHint": true,
@@ -78,6 +90,30 @@
         "read_only_justification": "Consulta o perfil do creator autenticado sem atualizar seus campos.",
         "open_world_justification": "Não publica o perfil nem altera dados em terceiros.",
         "destructive_justification": "Não exclui ou sobrescreve informações do perfil."
+      }
+    },
+    "get_creator_map": {
+      "justifications": {
+        "read_only_justification": "Consulta o mapa narrativo já salvo na conta e informa seu nível de evidência sem reconstruí-lo.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    "list_content_ideas": {
+      "justifications": {
+        "read_only_justification": "Lista pautas existentes da conta com seus territórios, ganchos e orientações sem criar novas pautas.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
       }
     },
     "analyze_creator_period": {
@@ -152,16 +188,64 @@
         "destructive_justification": "Não remove ou sobrescreve as referências comparadas."
       }
     },
-    "generate_script_draft": {
+    "get_creator_content_dna": {
+      "justifications": {
+        "read_only_justification": "Consulta o DNA de conteúdo já calculado e sua cobertura sem reconstruir nem alterar o perfil.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
       "annotations": {
         "readOnlyHint": true,
         "openWorldHint": false,
         "destructiveHint": false
+      }
+    },
+    "get_script_evidence_pack": {
+      "justifications": {
+        "read_only_justification": "Cria uma sessão privada de referências próprias com validade de sete dias, sem adicionar roteiro à biblioteca.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
+    "record_script_feedback": {
+      "justifications": {
+        "read_only_justification": "Atualiza os campos de avaliação solicitados pelo criador em um roteiro privado da sua conta.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Substitui os campos de avaliação informados, somente após solicitação explícita, sem alterar o texto do roteiro."
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true
+      }
+    },
+    "generate_script_draft": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Gera e devolve um rascunho na conversa sem salvá-lo automaticamente.",
-        "open_world_justification": "Não publica o roteiro nem o envia a plataformas externas.",
-        "destructive_justification": "Não exclui, substitui ou salva dados persistentes."
+        "read_only_justification": "Gera o rascunho e pode guardar temporariamente texto e evidências próprias por sete dias, sem adicioná-lo à biblioteca.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      }
+    },
+    "critique_script_against_creator_dna": {
+      "justifications": {
+        "read_only_justification": "Compara o roteiro fornecido às evidências próprias e devolve uma crítica sem modificar ou salvar o roteiro.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
       }
     },
     "save_script": {
@@ -200,6 +284,18 @@
         "destructive_justification": "Não exclui ou substitui métricas e conteúdos."
       }
     },
+    "get_follower_growth": {
+      "justifications": {
+        "read_only_justification": "Calcula a variação líquida de seguidores a partir de leituras já existentes e informa lacunas sem criar medições.",
+        "open_world_justification": "Opera no contexto privado autorizado da Data2Content, sem publicar conteúdo nem contatar terceiros.",
+        "destructive_justification": "Não exclui nem substitui roteiros, perfis ou publicações existentes."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      }
+    },
     "list_top_content": {
       "annotations": {
         "readOnlyHint": true,
@@ -227,43 +323,43 @@
   },
   "test_cases": [
     {
-      "description": "Consultar o estado da conta gratuita e construir um radar agregado alinhado ao Norte já declarado.",
-      "user_prompt": "Use a Data2Content para verificar meu contexto disponível e montar um radar de conteúdo para os próximos 180 dias com base no meu Norte.",
+      "description": "Conta de demonstração completa: consultar posicionamento e pautas existentes; o mapa é apenas declarativo.",
+      "user_prompt": "Use a Data2Content para consultar meu mapa e sugerir qual das minhas pautas existentes devo desenvolver. Explique o que é declaração e o que tem evidência.",
       "file_attachment_urls": null,
-      "tools_triggered": "get_account_state, build_creator_radar",
-      "expected_output": "Informa a profundidade de contexto da conta e devolve um radar com prévia narrativa, temas, formatos, ganchos e tons agregados, sem identidades ou métricas privadas de terceiros.",
+      "tools_triggered": "get_account_state, get_creator_map, list_content_ideas",
+      "expected_output": "Retorna o mapa fictício, territórios e três pautas de demonstração; distingue narrativa declarada de diagnóstico e não inventa leituras de vídeo.",
       "expected_output_url": null
     },
     {
-      "description": "Atualizar o Norte de forma idempotente e usar a nova direção para gerar um roteiro sem salvá-lo.",
-      "user_prompt": "Atualize meu Norte para 'Ajudo creators brasileiros a transformar conhecimento em conteúdo claro, original e consistente' e crie um roteiro de Reel sobre consistência. Não salve ainda.",
+      "description": "Conta completa: preparar referências e revisar; depois de exibir o roteiro, testar salvamento e avaliação em mensagens separadas.",
+      "user_prompt": "Consulte meu DNA e prepare referências próprias de agosto de 2026 para escrever aqui um roteiro sobre clareza na criação de conteúdo. Revise contra as mesmas referências. Não use o gerador interno e não salve ainda.",
       "file_attachment_urls": null,
-      "tools_triggered": "set_creator_north, generate_script_draft",
-      "expected_output": "Confirma o Norte atualizado e apresenta um rascunho completo contextualizado, deixando claro que ele ainda não foi salvo.",
+      "tools_triggered": "get_account_state, get_creator_content_dna, get_script_evidence_pack, critique_script_against_creator_dna, save_script, record_script_feedback",
+      "expected_output": "Retorna referências fictícias como roteiros planejados, sem tratá-las como falas observadas; cria uma sessão temporária e apresenta o roteiro com limitações. Não chama save_script inicialmente. Depois envie \"Sim, salve o roteiro que você acabou de mostrar\"; após salvar, envie \"Registre minha preferência por frases curtas neste roteiro\". Salva uma vez e registra somente a preferência solicitada.",
       "expected_output_url": null
     },
     {
-      "description": "Analisar todos os conteúdos publicados em um período civil exato com cobertura e evidências.",
-      "user_prompt": "Quantos conteúdos publiquei de 1 a 7 de agosto de 2026 e como eles performaram? Use o fuso America/Sao_Paulo.",
+      "description": "Conta completa: usar explicitamente o motor de geração da Data2Content sem adicionar à biblioteca.",
+      "user_prompt": "Use o motor interno da Data2Content para gerar um roteiro de 40 segundos sobre clareza na criação de conteúdo, com minhas referências de agosto de 2026. Não salve na biblioteca.",
       "file_attachment_urls": null,
-      "tools_triggered": "analyze_creator_period",
-      "expected_output": "Retorna a contagem completa do período, inventário por formato, métricas disponíveis, evidências limitadas e avisos de cobertura sem estimar dados ausentes.",
+      "tools_triggered": "get_account_state, get_creator_map, generate_script_draft",
+      "expected_output": "Devolve rascunho completo, duração estimada e limites das evidências; informa eventual indisponibilidade do provedor ou uso de fallback. Pode guardar a sessão privada temporária; não chama save_script.",
       "expected_output_url": null
     },
     {
-      "description": "Pesquisar referências autorizadas e comparar padrões criativos sem expor dados privados de terceiros.",
-      "user_prompt": "Pesquise Reels da comunidade Data2Content sobre criação de conteúdo com gancho em forma de pergunta e compare as duas referências mais relevantes.",
+      "description": "Conta completa: contar posts em datas fixas e tratar ausência de leituras de seguidores sem inventar saldo.",
+      "user_prompt": "Quantos conteúdos publiquei de 1 a 7 de agosto de 2026? Mostre o desempenho e o saldo de seguidores nesse período, no fuso America/Sao_Paulo.",
       "file_attachment_urls": null,
-      "tools_triggered": "research_inspiration_content, compare_inspiration_contents",
-      "expected_output": "Apresenta referências autorizadas com atribuição pública, compara padrões de gancho, tom, narrativa e sinais relativos de performance e não fornece transcrições completas ou métricas privadas.",
+      "tools_triggered": "get_account_state, analyze_creator_period, get_follower_growth",
+      "expected_output": "Conta três posts fictícios no período: dois Reels e um carrossel. Retorna métricas disponíveis; quando não há leituras suficientes de seguidores, informa a lacuna e não converte ausência em zero.",
       "expected_output_url": null
     },
     {
-      "description": "Recomendar possíveis parceiros de collab usando afinidade temática e evidências da comunidade.",
-      "user_prompt": "Quais creators da Data2Content combinam comigo para uma collab sobre inteligência artificial aplicada à criação de conteúdo?",
+      "description": "Conta completa: pesquisar referências autorizadas, comparar quando houver duas, sugerir collabs e consultar publicidades revisadas.",
+      "user_prompt": "Pesquise referências da comunidade sobre criação de conteúdo, compare duas se houver e sugira possíveis parceiros de collab. Consulte também oportunidades de publicidade relevantes; não entre em contato nem envie candidatura.",
       "file_attachment_urls": null,
-      "tools_triggered": "recommend_collab_creators",
-      "expected_output": "Retorna até três creators elegíveis com justificativas baseadas em afinidade temática, amostra, recência, alcance e engajamento, sem garantir performance nem iniciar contato.",
+      "tools_triggered": "get_account_state, research_inspiration_content, compare_inspiration_contents, recommend_collab_creators, find_campaign_opportunities",
+      "expected_output": "Usa apenas referências autorizadas e IDs retornados; compara somente se houver duas, informa ausência quando necessário, não expõe transcrições ou métricas privadas de terceiros e não garante desempenho, cachê ou contratação. Não envia mensagens nem candidaturas.",
       "expected_output_url": null
     }
   ],

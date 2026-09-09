@@ -71,6 +71,14 @@ const GENERATIVE_ANNOTATIONS = {
   openWorldHint: false,
 } as const;
 
+// A preparação e a geração podem criar uma sessão privada de evidências.
+const TEMPORARY_WRITE_ANNOTATIONS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+} as const;
+
 const IDEMPOTENT_WRITE_ANNOTATIONS = {
   readOnlyHint: false,
   destructiveHint: false,
@@ -208,6 +216,7 @@ const coverageSignalSchema = z.object({
   available: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
   ratio: z.number().min(0).max(1),
+  notApplicable: z.number().int().nonnegative().optional(),
 });
 
 const campaignOpportunityOutputSchema = z.object({
@@ -331,6 +340,7 @@ const periodAnalysisOutputSchema = z.object({
     lastDataUpdateAt: z.string().nullable(),
     publishedEvidenceRecords: z.number().int().nonnegative(),
     mustNotEstimate: z.literal(true),
+    transcriptCoverageCountsOnlyVideos: z.literal(true).optional(),
   }),
 });
 
@@ -1087,7 +1097,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       {
         title: "Encontrar oportunidades para creators",
         description:
-          "Use this when the user asks which public creator partnership or advertising opportunities are active and relevant to their profile, topic, platform, format, deadline, or confirmed individual pay. Results come from human-reviewed sources approved for plugin distribution, are ranked only by relevance rather than sponsorship, never treat a total campaign budget as creator pay, and never predict acceptance.",
+          "Use this when the user asks which public creator partnership or advertising opportunities are active and relevant to their profile, topic, platform, format, deadline, or confirmed individual pay. Results come from human-reviewed sources approved for plugin distribution, are ranked only by relevance rather than sponsorship, never treat a total campaign budget as creator pay, and never predict acceptance. Em contas gratuitas, registra de forma idempotente a seleção privada da semana, com expiração após 21 dias. Não envia candidatura nem contata marcas.",
         inputSchema: z.object({
           query: z.string().trim().max(240).default("")
             .describe("Pedido curto do creator, sem histórico completo da conversa"),
@@ -1102,7 +1112,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           limit: z.number().int().min(1).max(10).default(5),
         }),
         outputSchema: campaignRadarOutputSchema,
-        annotations: READ_ONLY_ANNOTATIONS,
+        annotations: IDEMPOTENT_WRITE_ANNOTATIONS,
         securitySchemes: oauthSecuritySchemes("campaigns:read"),
       },
       async ({
@@ -1617,7 +1627,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
 
   registerTool("get_script_evidence_pack", {
     title: "Preparar referências próprias para roteiro",
-    description: "Use para escrever nesta conversa um roteiro baseado na fala e no desempenho do próprio criador. Retorna até três referências privadas, origem, métricas atuais, mapa e limitações. Não chama modelo de geração nem relê vídeos. Escreva com o pacote e revise com o clientRequestId; não duplique a geração interna.",
+    description: "Use para escrever nesta conversa um roteiro baseado na fala e no desempenho do próprio criador. Retorna até três referências privadas, origem, métricas atuais, mapa e limitações. Cria uma sessão privada de evidências com validade de sete dias para revisar e registrar a origem; não adiciona um roteiro à biblioteca. Não chama modelo de geração nem relê vídeos. Escreva com o pacote e revise com o clientRequestId; não duplique a geração interna.",
     inputSchema: z.object({
       prompt: z.string().trim().min(3).max(2000),
       goal: z.enum(SCRIPT_GOALS).optional(),
@@ -1629,7 +1639,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       ownContentIds: z.array(z.string().regex(/^[a-f0-9]{24}$/i)).max(3).default([]),
     }),
     outputSchema: z.object({ schemaVersion: z.literal("creator_script_evidence_pack_v1"), clientRequestId: z.string(), receipt: z.record(z.unknown()) }).passthrough(),
-    annotations: READ_ONLY_ANNOTATIONS,
+    annotations: TEMPORARY_WRITE_ANNOTATIONS,
     securitySchemes: oauthSecuritySchemes("content:read", "metrics:read", "intelligence:read"),
   }, async (args: any) => {
     for (const scope of ["content:read", "metrics:read", "intelligence:read"]) if (!hasScope(context, scope)) return scopeRequiredResult(scope);
@@ -1642,10 +1652,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
 
   registerTool("record_script_feedback", {
     title: "Registrar preferência de voz do criador",
-    description: "Use somente quando o criador pedir para registrar sua avaliação ou preferência sobre um roteiro salvo. Não infira aprovação nem preferência pelo silêncio.",
+    description: "Use somente quando o criador pedir para registrar sua avaliação ou preferência sobre um roteiro salvo. Substitui os campos de avaliação informados na conta privada, preservando o texto do roteiro. Não infira aprovação nem preferência pelo silêncio.",
     inputSchema: z.object({ scriptId: z.string().regex(/^[a-f0-9]{24}$/i), voiceMatch: z.boolean().optional(), preferredDirection: z.string().trim().min(1).max(500).optional(), notes: z.string().trim().min(1).max(1000).optional() }).refine(v => v.voiceMatch !== undefined || v.preferredDirection || v.notes, "Informe uma avaliação."),
     outputSchema: z.object({ saved: z.boolean(), scriptId: z.string().optional(), message: z.string().optional() }),
-    annotations: IDEMPOTENT_WRITE_ANNOTATIONS, securitySchemes: oauthSecuritySchemes("scripts:write"),
+    annotations: DESTRUCTIVE_IDEMPOTENT_WRITE_ANNOTATIONS, securitySchemes: oauthSecuritySchemes("scripts:write"),
   }, async (args: any) => {
     if (!hasScope(context, "scripts:write")) return scopeRequiredResult("scripts:write");
     return structuredJsonResult(await recordMcpScriptFeedback({ ...args, userId: context.identity.userId }));
@@ -1667,7 +1677,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Gerar rascunho de roteiro personalizado",
       description:
-        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. When generation is grounded in the creator's own published evidence, the result carries a generation block with the estimated duration, validation warnings and an evidence receipt: report those limits instead of hiding them. This tool only generates a draft and never saves it. Show the complete draft before asking whether to save it.",
+        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. When generation is grounded in the creator's own published evidence, the result carries a generation block with the estimated duration, validation warnings and an evidence receipt: report those limits instead of hiding them. Quando usa evidências próprias, guarda o pacote e o rascunho em uma sessão privada com validade de sete dias para revisão e proveniência. Não adiciona o roteiro à biblioteca nem publica conteúdo; mostre o rascunho completo e use save_script somente após confirmação explícita.",
       inputSchema: z.object({
         prompt: z.string().trim().min(3).max(2000).describe("Briefing completo do roteiro desejado"),
         title: z.string().trim().max(180).default("").describe("Título opcional pedido pelo usuário"),
@@ -1692,7 +1702,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           .describe("IDs opcionais retornados pela pesquisa de inspirações"),
       }),
       outputSchema: scriptDraftOutputSchema,
-      annotations: GENERATIVE_ANNOTATIONS,
+      annotations: TEMPORARY_WRITE_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("scripts:generate"),
     },
     async ({ prompt, title, lookbackDays, startsAt, endsAt, goal, format, ownContentIds, targetDurationSeconds, inspirationContentIds }) => {

@@ -4,7 +4,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { D2C_INTELLIGENCE_MANIFEST } from "./intelligenceContract";
 import { createD2CMcpServer } from "./server";
-import { generateMcpScriptDraft } from "./catalog";
+import { analyzeMcpCreatorPeriod, generateMcpScriptDraft } from "./catalog";
+import { buildMcpPeriodAnalysis } from "./periodAnalysis";
 import { findMcpCampaignOpportunities } from "./campaignRadar";
 import { critiqueMcpCreatorScript, getMcpCreatorContentDna, prepareMcpScriptEvidence } from "./scriptIntelligence";
 
@@ -728,8 +729,18 @@ describe("Data2Content MCP server", () => {
         "compare_content_formats",
       ]);
       expect(tools.find((tool) => tool.name === "generate_script_draft")?.annotations).toMatchObject({
-        readOnlyHint: true,
+        readOnlyHint: false,
         idempotentHint: false,
+      });
+      expect(tools.find((tool) => tool.name === "get_script_evidence_pack")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      });
+      expect(tools.find((tool) => tool.name === "record_script_feedback")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
       });
       expect(tools.find((tool) => tool.name === "set_creator_north")?.annotations).toMatchObject({
         readOnlyHint: false,
@@ -829,14 +840,14 @@ describe("Data2Content MCP server", () => {
     }
   });
 
-  it("adds the read-only campaign tool only when the future rollout flag is enabled", async () => {
+  it("declara a gravação da seleção semanal quando o radar de campanhas está habilitado", async () => {
     process.env.MCP_CAMPAIGN_RADAR_ENABLED = "1";
     const { client, server } = await connect(false, undefined, "free");
     try {
       const { tools } = await client.listTools();
       expect(tools.find((tool) => tool.name === "find_campaign_opportunities")).toMatchObject({
         annotations: {
-          readOnlyHint: true,
+          readOnlyHint: false,
           destructiveHint: false,
           idempotentHint: true,
           openWorldHint: false,
@@ -1088,6 +1099,28 @@ describe("Data2Content MCP server", () => {
       await client.close();
       await server.close();
     }
+  });
+
+  it("aceita a cobertura real de transcrição quando o período inclui carrossel", async () => {
+    const actual = buildMcpPeriodAnalysis({
+      startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo",
+      startInclusive: new Date("2026-08-01T03:00:00.000Z"),
+      endExclusive: new Date("2026-08-08T03:00:00.000Z"),
+      format: "all", evidenceLimit: 50,
+      documents: [{ _id: "507f1f77bcf86cd799439013", type: "CAROUSEL_ALBUM", postDate: new Date("2026-08-04T15:00:00.000Z") }],
+    });
+    (analyzeMcpCreatorPeriod as jest.Mock).mockResolvedValueOnce(actual);
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({ name: "analyze_creator_period", arguments: {
+        startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo",
+      } });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        coverage: { transcripts: { total: 0, notApplicable: 1 } },
+        receipt: { transcriptCoverageCountsOnlyVideos: true },
+      });
+    } finally { await client.close(); await server.close(); }
   });
 
   it("returns standard search JSON", async () => {

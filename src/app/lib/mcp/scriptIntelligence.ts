@@ -111,12 +111,15 @@ export async function prepareMcpScriptEvidence(params: BuildScriptEvidenceInput 
 export async function recordMcpScriptFeedback(params: { userId: string; scriptId: string; voiceMatch?: boolean; preferredDirection?: string; notes?: string }) {
   if (!Types.ObjectId.isValid(params.userId) || !Types.ObjectId.isValid(params.scriptId)) throw new Error("invalid_script_id");
   await connectToDatabase();
-  const feedback: Record<string, unknown> = { "creatorFeedback.updatedAt": new Date() };
-  if (params.voiceMatch !== undefined) feedback["creatorFeedback.voiceMatch"] = params.voiceMatch;
-  if (params.preferredDirection !== undefined) feedback["creatorFeedback.preferredDirection"] = params.preferredDirection.trim().slice(0,500);
-  if (params.notes !== undefined) feedback["creatorFeedback.notes"] = params.notes.trim().slice(0,1000);
+  const feedback: Record<string, unknown> = { updatedAt: new Date() };
+  if (params.voiceMatch !== undefined) feedback.voiceMatch = params.voiceMatch;
+  if (params.preferredDirection !== undefined) feedback.preferredDirection = params.preferredDirection.trim().slice(0,500);
+  if (params.notes !== undefined) feedback.notes = params.notes.trim().slice(0,1000);
+  // Roteiros novos têm feedback nulo. A mesclagem atômica preserva campos omitidos;
+  // $literal impede que preferências iniciadas por "$" virem expressões MongoDB.
   const result = await ScriptEntry.findOneAndUpdate({ _id: new Types.ObjectId(params.scriptId), userId: new Types.ObjectId(params.userId) },
-    { $set: feedback }, { new: true }).select("_id").lean();
+    [{ $set: { creatorFeedback: { $mergeObjects: [{ $ifNull: ["$creatorFeedback", {}] }, { $literal: feedback }] } } }],
+    { new: true }).select("_id").lean();
   if (!result) throw new Error("script_unavailable_for_account");
   return { saved: true, scriptId: String(result._id), message: "Preferência registrada para orientar os próximos roteiros." };
 }

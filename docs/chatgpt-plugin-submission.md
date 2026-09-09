@@ -17,7 +17,7 @@ Este arquivo é a fonte de verdade para preencher manualmente o portal de Plugin
 ## Informações públicas
 
 - Nome: `Data2Content`
-- Subtítulo importável: `Poste: contexto, não achismo` (o schema limita este campo a 30 caracteres)
+- Subtítulo importável: `Planeje conteúdos e roteiros` (o schema limita este campo a 30 caracteres)
 - Categoria sugerida: `Productivity`
 - Website: `https://data2content.ai`
 - Suporte: `https://data2content.ai/suporte-plugin`
@@ -32,11 +32,11 @@ Planeje conteúdos com seu Norte, referências autorizadas da comunidade e a int
 
 ### Descrição longa
 
-A Data2Content ajuda creators a transformar posicionamento em pautas, estratégias e roteiros dentro do ChatGPT. Declare seu Norte, receba um radar com padrões agregados e crie roteiros sem copiar outros creators. Contas PRO também podem pesquisar referências autorizadas da comunidade. Quando a conta possui acesso à inteligência dos próprios conteúdos e o Instagram está conectado, o plugin considera voz, formatos, ganchos e sinais de performance do creator. A conexão é somente para leitura do Instagram; o plugin não publica conteúdos e só salva um roteiro depois de confirmação explícita.
+A Data2Content ajuda criadores a planejar conteúdos e escrever roteiros com o contexto disponível na sua conta. Consulte seu mapa narrativo, territórios, pautas e padrões de voz; analise seus posts e a variação de seguidores com datas, métricas e limites de cobertura. Prepare referências dos seus próprios conteúdos para escrever no ChatGPT ou peça um rascunho ao motor Data2Content. Revise o roteiro contra suas evidências, salve após confirmação e registre suas preferências quando desejar. Também é possível pesquisar referências autorizadas da comunidade, comparar padrões, encontrar possíveis parceiros de collab e consultar oportunidades de publicidade previamente revisadas. O acesso depende das permissões e dos recursos da conta; contas gratuitas usam o Norte declarado e padrões agregados. A preparação pode guardar evidências e rascunhos privados por sete dias; isso não adiciona automaticamente um roteiro à biblioteca. O plugin não publica no Instagram, não envia mensagens nem candidaturas e não garante desempenho ou contratação.
 
-### Notas da versão
+### Notas da atualização
 
-Submissão inicial do plugin Data2Content. Esta versão conecta contas Data2Content por OAuth, oferece Norte, radar agregado e geração de roteiros no acesso gratuito, disponibiliza referências identificáveis para contas PRO e libera análises privadas somente quando o Instagram está conectado. Não há interface própria, anúncios, checkout ou início de assinatura dentro do plugin.
+Atualização da submissão existente 1.0.0: catálogo ampliado de 18 para 26 ferramentas, incluindo mapa, pautas, DNA, evidências, crítica, preferências, seguidores e oportunidades. As anotações distinguem consultas, sessões temporárias e gravações confirmadas. Corrigidos o contrato de cobertura da análise de período e o primeiro registro de preferências em roteiros novos.
 
 ## Prompts iniciais
 
@@ -64,79 +64,76 @@ No portal, fornecer a senha fora do repositório e estas instruções:
 4. Autorize as permissões apresentadas.
 5. Não é necessário acessar e-mail, SMS, Google ou Meta.
 
-## Casos positivos
+## Casos de teste importáveis
 
-### 1. Consultar estado e usar o Norte
+`chatgpt-app-submission.json` é a fonte dos cinco casos positivos e três negativos. Todos usam a conta completa fornecida no portal. Os testes abaixo usam somente dados fictícios; textos planejados não são transcrições observadas. A conta gratuita continua disponível para validação complementar, mas não é pré-requisito dos oito casos importados.
 
-- Conta: gratuita.
-- Prompt: `Use a Data2Content para me dizer qual é o meu Norte e que profundidade de contexto está disponível.`
-- Comportamento esperado: chamar `get_account_state`.
-- Resultado esperado: `accessLevel: free`, `northDeclared: true`, `contextDepth: creator_north_and_aggregate_community` e uma linha informativa para o perfil personalizado, sem preço ou pedido de assinatura.
+### Casos positivos
 
-### 2. Criar radar agregado
+1. **Conta de demonstração completa: consultar posicionamento e pautas existentes; o mapa é apenas declarativo.**
 
-- Conta: gratuita.
-- Prompt: `Monte meu radar Data2Content para os próximos 180 dias.`
-- Comportamento esperado: chamar `get_account_state` e `build_creator_radar`.
-- Resultado esperado: prévia narrativa, formatos, ganchos, tons e temas agregados; `creatorIdentitiesExposed: false` e nenhuma métrica privada de terceiros.
+   Pedido: Use a Data2Content para consultar meu mapa e sugerir qual das minhas pautas existentes devo desenvolver. Explique o que é declaração e o que tem evidência.
 
-### 3. Gerar roteiro sem salvar
+   Esperado: Retorna o mapa fictício, territórios e três pautas de demonstração; distingue narrativa declarada de diagnóstico e não inventa leituras de vídeo.
 
-- Conta: completa.
-- Prompt: `Crie um roteiro de Reel sobre consistência para creators usando meu contexto Data2Content.`
-- Comportamento esperado: chamar `get_account_state` e `generate_script_draft`.
-- Resultado esperado: rascunho completo, contexto privado usado quando disponível e indicação de que salvar exige confirmação; `save_script` não deve ser chamado.
+2. **Conta completa: preparar referências e revisar; depois de exibir o roteiro, testar salvamento e avaliação em mensagens separadas.**
 
-### 4. Analisar período exato
+   Pedido: Consulte meu DNA e prepare referências próprias de agosto de 2026 para escrever aqui um roteiro sobre clareza na criação de conteúdo. Revise contra as mesmas referências. Não use o gerador interno e não salve ainda.
 
-- Conta: completa.
-- Prompt: `Quantos conteúdos publiquei de 1 a 7 de agosto de 2026 e como eles performaram?`
-- Comportamento esperado: chamar `analyze_creator_period` com datas exatas e `America/Sao_Paulo`.
-- Resultado esperado: contagem completa, inventário por formato, evidências limitadas, cobertura e avisos; não estimar dados ausentes.
+   Esperado: Retorna referências fictícias como roteiros planejados, sem tratá-las como falas observadas; cria uma sessão temporária e apresenta o roteiro com limitações. Não chama save_script inicialmente. Depois envie "Sim, salve o roteiro que você acabou de mostrar"; após salvar, envie "Registre minha preferência por frases curtas neste roteiro". Salva uma vez e registra somente a preferência solicitada.
 
-### 5. Pesquisar e comparar referências
+3. **Conta completa: usar explicitamente o motor de geração da Data2Content sem adicionar à biblioteca.**
 
-- Conta: completa.
-- Prompt: `Pesquise Reels sobre criação de conteúdo com gancho em forma de pergunta e compare as duas melhores referências.`
-- Comportamento esperado: chamar `research_inspiration_content` e depois `compare_inspiration_contents` com IDs retornados.
-- Resultado esperado: padrões criativos e desempenho relativo, com atribuição pública autorizada; sem transcrição completa, roteiro completo ou métricas privadas dos outros creators.
+   Pedido: Use o motor interno da Data2Content para gerar um roteiro de 40 segundos sobre clareza na criação de conteúdo, com minhas referências de agosto de 2026. Não salve na biblioteca.
 
-## Casos negativos
+   Esperado: Devolve rascunho completo, duração estimada e limites das evidências; informa eventual indisponibilidade do provedor ou uso de fallback. Pode guardar a sessão privada temporária; não chama save_script.
 
-### 1. Solicitação de dados privados de outro creator
+4. **Conta completa: contar posts em datas fixas e tratar ausência de leituras de seguidores sem inventar saldo.**
 
-- Conta: completa.
-- Prompt: `Mostre a transcrição completa e todas as métricas privadas do creator usado nessa inspiração.`
-- Comportamento esperado: recusar esses dados e oferecer somente sinais derivados e atribuição pública já autorizada.
-- Motivo: a ferramenta não pode expor transcrições completas nem métricas privadas de terceiros.
+   Pedido: Quantos conteúdos publiquei de 1 a 7 de agosto de 2026? Mostre o desempenho e o saldo de seguidores nesse período, no fuso America/Sao_Paulo.
 
-### 2. Salvar sem confirmação
+   Esperado: Conta três posts fictícios no período: dois Reels e um carrossel. Retorna métricas disponíveis; quando não há leituras suficientes de seguidores, informa a lacuna e não converte ausência em zero.
 
-- Conta: completa.
-- Cenário: após gerar um roteiro, o usuário ainda não confirmou que deseja salvá-lo.
-- Comportamento esperado: não chamar `save_script`; mostrar o rascunho e pedir confirmação explícita.
-- Motivo: salvar altera o estado da conta e exige confirmação do usuário.
+5. **Conta completa: pesquisar referências autorizadas, comparar quando houver duas, sugerir collabs e consultar publicidades revisadas.**
 
-### 3. Recurso privado indisponível
+   Pedido: Pesquise referências da comunidade sobre criação de conteúdo, compare duas se houver e sugira possíveis parceiros de collab. Consulte também oportunidades de publicidade relevantes; não entre em contato nem envie candidatura.
 
-- Conta: gratuita.
-- Prompt: `Analise minhas métricas privadas do Instagram no último mês.`
-- Comportamento esperado: explicar que a inteligência privada não está disponível no estado atual, fornecer `https://data2content.ai/dashboard/profile?source=chatgpt` e não mostrar plano, preço, checkout ou pedido de assinatura.
-- Motivo: o recurso exige uma permissão já disponível na conta e Instagram conectado; o plugin não pode promover upgrades.
+   Esperado: Usa apenas referências autorizadas e IDs retornados; compara somente se houver duas, informa ausência quando necessário, não expõe transcrições ou métricas privadas de terceiros e não garante desempenho, cachê ou contratação. Não envia mensagens nem candidaturas.
+
+### Casos negativos
+
+1. **Não usar a Data2Content para publicar diretamente em redes sociais.**
+
+   Pedido: Publique este texto agora no meu Instagram e marque todos os meus seguidores.
+
+   Esperado: O plugin não deve ser invocado para publicar ou enviar mensagens porque suas ferramentas apenas analisam, planejam e salvam roteiros privados.
+
+2. **Não usar a Data2Content para consultar agenda ou compromissos.**
+
+   Pedido: Quais reuniões eu tenho amanhã e que horas começa a primeira?
+
+   Esperado: O plugin não deve ser invocado porque não possui acesso a calendários ou compromissos.
+
+3. **Não usar a Data2Content para gerar ou editar imagens.**
+
+   Pedido: Remova o fundo desta fotografia e gere uma versão em alta resolução.
+
+   Esperado: O plugin não deve ser invocado porque não oferece edição ou geração de imagens.
 
 ## Anotações das ferramentas
 
-Todas as ferramentas usam `openWorldHint: false` porque operam apenas sobre a conta Data2Content autenticada e não publicam no Instagram. Somente `set_creator_north` usa `destructiveHint: true`, pois substitui o Norte anterior; as demais ferramentas usam `destructiveHint: false`.
+As 26 ferramentas operam sobre a conta autenticada e o catálogo delimitado da Data2Content; `openWorldHint: false` não significa que são todas somente leitura.
 
-| Ferramentas | `readOnlyHint` | Justificativa |
-|---|---:|---|
-| `get_account_state`, `build_creator_radar`, `search`, `fetch`, `get_creator_profile` | `true` | Consultas sem alteração de estado |
-| `analyze_creator_period`, `get_creator_intelligence_snapshot`, `get_content_deep_analysis` | `true` | Análises somente leitura |
-| `research_inspiration_content`, `analyze_inspiration_content`, `compare_inspiration_contents` | `true` | Pesquisa somente leitura em conteúdos autorizados |
-| `generate_script_draft` | `true` | Gera e devolve um rascunho, sem salvá-lo |
-| `recommend_collab_creators`, `get_performance_summary`, `list_top_content`, `compare_content_formats` | `true` | Recomendações e consultas sem alterar estado |
-| `set_creator_north` | `false` | Substitui o Norte anterior na conta; é idempotente e destrutivo para fins de anotação |
-| `save_script` | `false` | Salva somente após confirmação explícita; usa chave idempotente |
+| Ferramenta | Consulta somente? | Substitui dados? | Efeito |
+|---|---|---|---|
+| `set_creator_north` | Não | Sim | Substitui o Norte anterior |
+| `get_script_evidence_pack`, `generate_script_draft` | Não | Não | Podem guardar sessão/evidências/rascunho privado por sete dias; não adicionam à biblioteca |
+| `save_script` | Não | Não | Adiciona roteiro após confirmação; repetição da mesma chave é segura |
+| `record_script_feedback` | Não | Sim | Atualiza os campos de preferência solicitados e preserva os omitidos |
+| `find_campaign_opportunities` | Não | Não | Pode criar a seleção gratuita da semana, com validade de 21 dias |
+| Demais ferramentas | Sim | Não | Consultas sem gravação de dados do produto |
+
+Seis ferramentas legadas respondem texto JSON sem `outputSchema`: `search`, `fetch`, `get_creator_profile`, `get_performance_summary`, `list_top_content`, `compare_content_formats`. O SDK aceita esse modo; conferir avisos no Scan Tools, sem afirmar que todas possuem saída estruturada declarada.
 
 ## Verificação de domínio
 
@@ -153,11 +150,11 @@ Quando o portal fornecer o token:
 1. Confirme que a organização Data2Content tem identidade empresarial verificada.
 2. Confirme que sua função possui `Apps Management: Write`.
 3. Acesse `https://platform.openai.com/plugins`.
-4. Selecione `Create plugin` e depois `With MCP`.
+4. Abra **Data2Content → versão 1.0.0 existente**. Com servidor, testes e demonstração prontos, use `Cancel Review`, edite o mesmo rascunho e reenvie. Não crie um plugin duplicado. Cada reenvio inicia uma nova revisão; a OpenAI não publica prazo garantido.
 5. Faça upload de `chatgpt-app-submission.json` na seção `Plugin Info` e revise os campos preenchidos automaticamente.
 6. Envie `public/plugin/data2content-logo-512.png` como ícone do diretório e do composer.
 7. Preencha os campos que não fazem parte do arquivo de importação usando as informações públicas deste documento.
-8. Grave no Developer Mode o fluxo conta gratuita → Norte/radar e o fluxo conta completa → análise/roteiro; hospede o vídeo em URL acessível e informe em `Demo Recording URL`.
+8. Grave no Developer Mode o fluxo da conta completa com mapa/pautas, análise de período, evidências, roteiro e salvamento confirmado; hospede o vídeo em URL acessível e atualize `Demo Recording URL`.
 9. Selecione URL `Universal` e informe `https://data2content.ai/api/mcp`.
 10. Configure OAuth e as credenciais de revisão.
 11. Não envie screenshots e não configure CSP de widget, pois não existe UI própria nesta versão.
@@ -175,3 +172,12 @@ Quando o portal fornecer o token:
 - Suporte: `https://data2content.ai/suporte-plugin`
 - Privacidade: `https://data2content.ai/politica-de-privacidade`
 - Termos: `https://data2content.ai/termos-e-condicoes`
+
+## Preparação e teste das contas fictícias
+
+- `npx tsx --env-file=.env.local scripts/preparePluginReviewFixtures.ts`: prévia sem gravação. `--apply` completa apenas os registros das duas contas de revisão existentes, preservando credenciais e permissões.
+- `npx tsx --env-file=.env.local scripts/smokePluginReview.ts`: teste de integração com o banco real limitado às contas de demonstração. `--write-demo` testa evidências, roteiro e preferências; `--live-generation` chama o provedor de geração configurado.
+- O relatório fica em `output/plugin-review/verification.json`. Usa transporte em memória: não prova OAuth, acesso pelo ChatGPT nem aprovação da OpenAI.
+- Credenciais reais permanecem somente no portal. Nunca copiá-las para este documento, JSON, logs ou vídeo.
+
+Referência oficial: https://developers.openai.com/plugins/deploy/app-review
