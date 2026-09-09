@@ -366,9 +366,29 @@ de origem do endpoint sem callbacks vinculados ao emissor, conforme transcrito a
   continuam apontando para notas ausentes.
 - `git diff --check`: passou.
 
-A tela ainda não foi validada visualmente com sessão administrativa e o OAuth
-Marketplace ainda não foi concluído de ponta a ponta. Nada desta implementação
-foi publicado nesta etapa; o teste real anterior por @ é uma API separada.
+### Publicação e verificação em produção — 09/09/2026
+
+Commit `c9e7d6079dea7a4b280ec85012c59b44c988bd26`, deploy
+`dpl_5rKjqpGPprwaxsfLdJ984VM9RsEd`, estado READY, publicado em
+`https://data2content.ai`. Artefato:
+`https://data2content-eqb8eexbe-arthurmarbas-projects.vercel.app`.
+
+O login Google de Arthur funcionou; um 404 inicial ocorreu porque a página
+nova ainda estava sendo compilada. Após o deploy, `/admin/creator-marketplace`
+abriu na sessão administrativa com formulário, aviso de teste e busca desabilitada
+antes da conexão. O início OAuth redirecionou corretamente para a configuração
+dedicada da Meta. Sem autenticação, a rota administrativa retornou 403/no-store
+e o MCP administrativo 401/no-store. A consulta de logs de erro desse deploy
+na janela de dez minutos não retornou entradas; não substitui monitoramento contínuo.
+
+O consentimento chegou à etapa final “Salvar”, selecionando apenas:
+empresa Data2Content `1050397568474237`, Página Arthur Marbá - D2C
+`654364334427013`, Instagram arthurmarba `17841400675480703`.
+Não selecionou ativos futuros ou de terceiros. A Meta informa permissões de
+gestão da empresa e de configurações/webhooks da Página, além da descoberta,
+acesso ao perfil/posts e listagem de Páginas. O código usa consultas, mas as
+permissões Meta são mais amplas; o botão final aguarda confirmação do usuário.
+OAuth e busca no Marketplace ainda não foram concluídos de ponta a ponta.
 
 ## Fontes oficiais
 

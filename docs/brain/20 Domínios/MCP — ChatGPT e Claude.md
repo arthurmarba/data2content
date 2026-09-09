@@ -186,11 +186,17 @@ parcerias, além da pesquisa. Com autorização explícita, o modelo oficial de
 login Marketplace foi criado na Meta: configuração `1072604112137914`.
 O login geral continua com `1115392310394084`; não substituir seu config ID.
 A conexão administrativa dedicada e `search_external_creators` estão
-implementadas localmente em `/admin/creator-marketplace`, com `dataMode=test`.
+publicadas em `/admin/creator-marketplace`, com `dataMode=test`.
 Usam `InstagramMarketplaceConnection`, credencial criptografada vinculada ao
 dono, estado OAuth de uso único e limites por administrador. O callback dedicado
-foi salvo e confirmado na Meta. Ainda falta publicar, obter o consentimento
+foi salvo e confirmado na Meta. Ainda falta obter o consentimento
 OAuth e validar o Marketplace.
+
+Publicado em 09/09 no commit `c9e7d607`, deploy `dpl_5rKjqpGPprwaxsfLdJ984VM9RsEd`.
+A tela abriu com sessão administrativa e iniciou OAuth corretamente. O fluxo
+parou na confirmação final da Meta, somente com os ativos próprios de Arthur
+e Data2Content selecionados. O modelo pede gestão de empresa e Página além de
+descoberta; consulta em produção ainda depende desse consentimento.
 A criação do modelo não concede acesso aos dados. Fonte e limites ficam em
 `docs/pesquisa-criadores-externos-mcp.md`.
 
