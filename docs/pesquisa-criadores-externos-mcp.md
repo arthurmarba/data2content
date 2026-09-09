@@ -442,3 +442,11 @@ preexistente do ESLint sobre `useEslintrc` e `extensions`. Os testes de protocol
 usam MCP SDK com transporte em memória e cobrem identidade autenticada, conta
 gratuita, escopos ausentes, erro seguro e comparação totalmente indisponível.
 Não constituem teste de uma conversa real no Claude ou ChatGPT.
+
+Publicação confirmada: commit `045489f9`, deploy
+`dpl_4Ej4G9nGbc3NzMfcsEvRUCMTPPTf`, READY em `https://data2content.ai`.
+Artefato: `https://data2content-12lzafo26-arthurmarbas-projects.vercel.app`.
+As duas rotas MCP recusaram `tools/list` sem token com 401 e `no-store`.
+Consulta aos logs de erro desse deploy na janela de dez minutos retornou zero
+entradas. Catálogo e execução autenticada foram validados nos testes de protocolo;
+a atualização do catálogo dentro de cada cliente continua distinta do deploy.
