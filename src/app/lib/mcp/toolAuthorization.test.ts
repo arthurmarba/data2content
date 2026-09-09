@@ -7,6 +7,10 @@ import {
 } from "./toolAuthorization";
 
 describe("MCP tool authorization", () => {
+  it.each(["get_public_instagram_creator", "compare_public_instagram_creators"])("exige conteúdo e métricas para %s na política de ferramentas", name => {
+    expect(requiredScopesForMcpPayload({ method: "tools/call", params: { name } })).toEqual(["content:read", "metrics:read"]);
+  });
+
   it("discovers the scopes required by a tool call", () => {
     expect(requiredScopesForMcpPayload({
       jsonrpc: "2.0",

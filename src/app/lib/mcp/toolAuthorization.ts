@@ -1,4 +1,6 @@
 export const MCP_TOOL_REQUIRED_SCOPES: Readonly<Record<string, readonly string[]>> = {
+  get_public_instagram_creator: ["content:read", "metrics:read"],
+  compare_public_instagram_creators: ["content:read", "metrics:read"],
   get_script_evidence_pack: ["content:read", "metrics:read", "intelligence:read"],
   record_script_feedback: ["scripts:write"],
   search: ["content:read"],

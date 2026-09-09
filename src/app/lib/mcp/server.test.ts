@@ -13,6 +13,13 @@ jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
+jest.mock("./publicInstagramResearch", () => ({
+  ...jest.requireActual("./publicInstagramResearch"),
+  getPublicInstagramCreator: jest.fn(async () => ({ profile: { username: "nike" } })),
+  comparePublicInstagramCreators: jest.fn(async () => ({ coverage: { availableCreators: 2 } })),
+}));
+jest.mock("@/app/lib/instagram/db/userActions", () => ({ getInstagramConnectionDetails: jest.fn() }));
+
 jest.mock("./campaignRadar", () => ({
   extractCampaignRadarPrivateSignals: jest.fn(() => ["maternidade"]),
   findMcpCampaignOpportunities: jest.fn(async () => ({
@@ -581,6 +588,56 @@ describe("Data2Content MCP server", () => {
     return { client, server };
   }
 
+  it("pesquisa pública usa apenas o usuário autenticado, inclusive na conta gratuita", async () => {
+    const service = jest.requireMock("./publicInstagramResearch");
+    const { client, server } = await connect(true, ["profile:read", "content:read", "metrics:read"], "free");
+    try {
+      const result = await client.callTool({ name: "get_public_instagram_creator", arguments: { username: "@Nike", userId: "outro-usuario" } });
+      expect(result.isError).not.toBe(true);
+      expect(service.getPublicInstagramCreator).toHaveBeenLastCalledWith("507f1f77bcf86cd799439011", { username: "nike", postLimit: 25 });
+      await client.callTool({ name: "compare_public_instagram_creators", arguments: { usernames: ["nike", "mkbhd"] } });
+      expect(service.comparePublicInstagramCreators).toHaveBeenLastCalledWith("507f1f77bcf86cd799439011", { usernames: ["nike", "mkbhd"], postLimit: 25 });
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("recusa pesquisa sem escopo antes de consultar a Meta", async () => {
+    const service = jest.requireMock("./publicInstagramResearch");
+    service.getPublicInstagramCreator.mockClear();
+    const { client, server } = await connect(true, ["profile:read", "content:read"]);
+    try {
+      const result = await client.callTool({ name: "get_public_instagram_creator", arguments: { username: "nike" } });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result)).toContain("metrics:read");
+      expect(service.getPublicInstagramCreator).not.toHaveBeenCalled();
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("não expõe erro interno ou credencial na pesquisa pública", async () => {
+    const service = jest.requireMock("./publicInstagramResearch");
+    service.getPublicInstagramCreator.mockRejectedValueOnce(new Error("token-secreto"));
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({ name: "get_public_instagram_creator", arguments: { username: "nike" } });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result)).not.toContain("token-secreto");
+      expect(JSON.stringify(result)).toContain("instagram_public_research_unavailable");
+    } finally { await client.close(); await server.close(); }
+  });
+
+  it("devolve a pendência Meta sem substituir a conexão do usuário", async () => {
+    const service = jest.requireMock("./publicInstagramResearch");
+    service.getPublicInstagramCreator.mockRejectedValueOnce(new service.PublicInstagramResearchError("instagram_public_permission_required", "A Meta exige permissão para esta conta."));
+    service.comparePublicInstagramCreators.mockResolvedValueOnce({ coverage: { availableCreators: 0 } });
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({ name: "get_public_instagram_creator", arguments: { username: "nike" } });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result)).toContain("instagram_public_permission_required");
+      const comparison = await client.callTool({ name: "compare_public_instagram_creators", arguments: { usernames: ["nike", "mkbhd"] } });
+      expect(comparison.isError).toBe(true);
+    } finally { await client.close(); await server.close(); }
+  });
+
   it("keeps the intelligence manifest pointing at tools that really exist", async () => {
     process.env.MCP_CAMPAIGN_RADAR_ENABLED = "true";
     const { client, server } = await connect(true);
@@ -691,6 +748,8 @@ describe("Data2Content MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
+        "get_public_instagram_creator",
+        "compare_public_instagram_creators",
         "get_account_state",
         "set_creator_north",
         "build_creator_radar",

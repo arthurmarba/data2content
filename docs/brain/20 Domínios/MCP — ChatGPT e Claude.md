@@ -189,14 +189,16 @@ A conexão administrativa dedicada e `search_external_creators` estão
 publicadas em `/admin/creator-marketplace`, com `dataMode=test`.
 Usam `InstagramMarketplaceConnection`, credencial criptografada vinculada ao
 dono, estado OAuth de uso único e limites por administrador. O callback dedicado
-foi salvo e confirmado na Meta. Ainda falta obter o consentimento
-OAuth e validar o Marketplace.
+foi salvo e confirmado na Meta. Arthur concluiu o consentimento OAuth.
 
 Publicado em 09/09 no commit `c9e7d607`, deploy `dpl_5rKjqpGPprwaxsfLdJ984VM9RsEd`.
 A tela abriu com sessão administrativa e iniciou OAuth corretamente. O fluxo
-parou na confirmação final da Meta, somente com os ativos próprios de Arthur
-e Data2Content selecionados. O modelo pede gestão de empresa e Página além de
-descoberta; consulta em produção ainda depende desse consentimento.
+usou somente os ativos próprios de Arthur e Data2Content. A consulta por
+“receitas” retornou sete perfis fictícios da Meta (`mocked_username_*`), validando
+conexão e busca em modo de teste. Os dados de teste não respeitaram o filtro BR;
+não comprovam precisão ou cobertura dos filtros. O modelo pede gestão de empresa
+e Página além de descoberta. O painel de App Review ainda mostrava rascunho vazio,
+“Não enviado”; consentimento OAuth não equivale a pedido de acesso avançado.
 A criação do modelo não concede acesso aos dados. Fonte e limites ficam em
 `docs/pesquisa-criadores-externos-mcp.md`.
 
@@ -227,3 +229,15 @@ npm run smoke:mcp-admin-portfolio   # a análise de toda a base, no banco real
 [[Pautas e Roteiros]] · [[Collabs]] · [[ChatGPT fora da landing]]
 
 - 09/09/2026: submissão 1.0.0 reenviada à OpenAI com as 26 ferramentas e o vídeo novo (`public/plugin/data2content-chatgpt-demo-v2.mp4`). `profile:write` já sai no metadata público, então conexão nova de revisor nasce podendo alterar o Norte. O motor interno segue em `local_fallback` por falta de créditos do Gemini.
+
+
+## Pesquisa por @ também no conector normal — 09/09/2026
+
+As duas consultas públicas também são registradas em `server.ts`, sem requisito
+de plano, com scopes `content:read` e `metrics:read`. O proprietário da credencial
+é sempre `context.identity.userId`; nunca usar token administrativo como fallback.
+As permissões Meta de cada conta continuam obrigatórias. A conexão comum não
+pede `pages_read_engagement`; liberar catálogo não significa liberar todas as
+contas na Meta. A aprovação avançada será tratada depois desta entrega, por
+pedido de Arthur. Não confundir atualização do MCP com atualização/aprovação
+da submissão ChatGPT.

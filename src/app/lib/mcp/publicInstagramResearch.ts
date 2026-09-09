@@ -50,7 +50,7 @@ export async function getPublicInstagramCreator(actorUserId: string, input: z.in
   const connection = await getInstagramConnectionDetails(actorUserId);
   if (!connection?.accessToken || !connection.accountId || !/^\d+$/.test(connection.accountId)) {
     throw new PublicInstagramResearchError("instagram_connection_required",
-      "Conecte a conta profissional do administrador ao Instagram via Facebook para consultar perfis externos.");
+      "Conecte sua conta profissional ao Instagram via Facebook para consultar perfis externos.");
   }
   const url = new URL(`${GRAPH_URL}/${connection.accountId}`);
   url.searchParams.set("fields", `business_discovery.username(${username}){id,username,name,biography,followers_count,media_count,media.limit(${postLimit}){id,caption,permalink,timestamp,media_type,like_count,comments_count,view_count}}`);

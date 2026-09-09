@@ -25,6 +25,13 @@ export type IntelligenceLayerManifest = {
  */
 export const D2C_INTELLIGENCE_MANIFEST: IntelligenceLayerManifest[] = [
   {
+    id: "public_instagram_research", label: "Pesquisa pública por @",
+    source: "Meta Instagram Business Discovery", scope: "content:read metrics:read",
+    status: "partial", tools: ["get_public_instagram_creator", "compare_public_instagram_creators"],
+    fields: ["profile", "posts", "summary", "coverage", "receipt"],
+    intentionallyExcluded: [{ field: "privateInsights", reason: "Somente dados públicos permitidos pela Meta à conta consultante." }],
+  },
+  {
     id: "published_content",
     label: "Conteúdo publicado",
     source: "Metric",

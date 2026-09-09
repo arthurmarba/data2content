@@ -387,8 +387,23 @@ empresa Data2Content `1050397568474237`, Página Arthur Marbá - D2C
 Não selecionou ativos futuros ou de terceiros. A Meta informa permissões de
 gestão da empresa e de configurações/webhooks da Página, além da descoberta,
 acesso ao perfil/posts e listagem de Páginas. O código usa consultas, mas as
-permissões Meta são mais amplas; o botão final aguarda confirmação do usuário.
-OAuth e busca no Marketplace ainda não foram concluídos de ponta a ponta.
+permissões Meta são mais amplas. Arthur acionou o botão final e concedeu os
+acessos pessoalmente. O callback retornou `connection=connected`; a tela
+confirmou a Página Arthur Marbá - D2C e habilitou a busca.
+
+A busca autenticada por `receitas`, país BR, retornou sete perfis fictícios
+`mocked_username_*`, com texto explícito da Meta pedindo App Review para dados
+reais. O conjunto de teste incluiu países diferentes de BR: não serve para
+comprovar a precisão dos filtros, somente o funcionamento da conexão e consulta.
+Esse teste foi feito pela tela publicada, que usa o mesmo serviço do MCP;
+não foi executado dentro de uma sessão do Claude.
+
+O painel de envios foi conferido após o consentimento e continuava em
+“Não enviado”, com “Nada foi adicionado a esse envio ainda”. A autorização
+OAuth não enviou solicitação de acesso avançado. Ainda precisamos preparar
+e enviar a demonstração e a justificativa da permissão Marketplace. O retorno
+deverá ser acompanhado em Análise do app → Pedidos; o estado final de acesso
+também deve ser conferido em Permissões e recursos.
 
 ## Fontes oficiais
 
@@ -401,3 +416,29 @@ OAuth e busca no Marketplace ainda não foram concluídos de ponta a ponta.
 
 As páginas Meta também oferecem versão `.md`; ela permitiu conferir a referência
 quando o indexador retornou erro ou limite de acesso.
+
+### Pesquisa por @ no MCP normal — 09/09/2026
+
+O servidor normal `/api/mcp` passa a expor `get_public_instagram_creator` e
+`compare_public_instagram_creators`, os mesmos serviços do administrativo
+`/api/mcp/admin`. Exigem os scopes D2C `content:read` e `metrics:read` no handler e
+na política de ferramentas. Não exigem plano pago; usam apenas o Instagram do usuário autenticado.
+Não usam a conexão dedicada de Marketplace nem emprestam tokens administrativos.
+
+A autorização Instagram continua sendo condição independente: o login comum
+atual não solicita `pages_read_engagement` e a permissão ainda tem acesso padrão
+no app Meta. Registrar a ferramenta não libera automaticamente todas as contas.
+A conta Arthur foi validada com dados reais; outras contas podem receber uma
+pendência de permissão ou reconexão. O pedido avançado fica para a próxima etapa,
+por instrução de Arthur. Não ampliamos silenciosamente o consentimento comum.
+
+Exemplos: “Analise @nike com até 25 posts” e “Compare @nike e @mkbhd”.
+Clientes precisam atualizar o catálogo da conexão para enxergar as ferramentas.
+Publicar o servidor não altera o retrato do plugin em revisão no ChatGPT.
+
+Validação desta extensão: 243 testes MCP passaram, três ignorados; checagem de
+tipos passou; build de produção terminou com código zero. Permanece o aviso
+preexistente do ESLint sobre `useEslintrc` e `extensions`. Os testes de protocolo
+usam MCP SDK com transporte em memória e cobrem identidade autenticada, conta
+gratuita, escopos ausentes, erro seguro e comparação totalmente indisponível.
+Não constituem teste de uma conversa real no Claude ou ChatGPT.
