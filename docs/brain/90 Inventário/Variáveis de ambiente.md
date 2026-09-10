@@ -42,8 +42,8 @@ atualizado: 2026-09-09
 
 | Variável | Usos no código |
 | --- | --- |
-| `FACEBOOK_CLIENT_ID` | 9 |
-| `FACEBOOK_CLIENT_SECRET` | 8 |
+| `FACEBOOK_CLIENT_ID` | 13 |
+| `FACEBOOK_CLIENT_SECRET` | 12 |
 
 ## GEMINI
 

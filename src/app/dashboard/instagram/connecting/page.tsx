@@ -25,7 +25,8 @@ type NextTarget =
   | "planner"
   | "post-creation"
   | "campaigns"
-  | "chatgpt-plugin";
+  | "chatgpt-plugin"
+  | "creator-research";
 type AvailableIgAccount = {
   igAccountId: string;
   username?: string;
@@ -285,6 +286,8 @@ export function buildNextUrl(nextTargetRaw: string | null): string {
       return "/calendar?instagramLinked=true&postCreationConnected=1";
     case "campaigns":
       return "/campaigns?instagramLinked=true";
+    case "creator-research":
+      return "/creator-research?instagramLinked=true";
     case "chatgpt-plugin":
       return "/dashboard/chatgpt/ready?instagramLinked=true";
     case "instagram-connection":

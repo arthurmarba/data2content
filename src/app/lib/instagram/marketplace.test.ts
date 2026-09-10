@@ -1,13 +1,13 @@
 /** @jest-environment node */
 import Connection from '@/app/models/InstagramMarketplaceConnection';
 import User from '@/app/models/User';
-import { getMcpAdminAuthorization } from '@/app/lib/mcp/adminAuthorization';
+import { getCreatorResearchAccess } from './creatorResearchAccess';
 import { checkRateLimitStrict } from '@/utils/rateLimit';
 import { finishMarketplaceConnection, MARKETPLACE_SCOPES, marketplaceSearchSchema, openMarketplaceToken, searchMarketplaceCreators, sealMarketplaceToken } from './marketplace';
 
 jest.mock('@/app/models/InstagramMarketplaceConnection', () => ({ __esModule: true, default: { findOne: jest.fn(), findOneAndUpdate: jest.fn(), updateOne: jest.fn() } }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
-jest.mock('@/app/lib/mcp/adminAuthorization', () => ({ getMcpAdminAuthorization: jest.fn() }));
+jest.mock('./creatorResearchAccess', () => ({ getCreatorResearchAccess: jest.fn() }));
 jest.mock('@/utils/rateLimit', () => ({ checkRateLimitStrict: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 const owner = '507f1f77bcf86cd799439011';
@@ -15,7 +15,7 @@ const originalFetch = global.fetch;
 const originalSecret = process.env.NEXTAUTH_SECRET;
 beforeEach(() => {
   jest.clearAllMocks(); process.env.NEXTAUTH_SECRET = 'segredo-exclusivo-do-teste';
-  (getMcpAdminAuthorization as jest.Mock).mockResolvedValue({ authorized: true });
+  (getCreatorResearchAccess as jest.Mock).mockResolvedValue('admin');
   (checkRateLimitStrict as jest.Mock).mockResolvedValue({ available: true, allowed: true });
   global.fetch = jest.fn();
 });
@@ -34,7 +34,7 @@ test('criptografia vincula a credencial ao dono e detecta adulteração', () => 
   expect(() => openMarketplaceToken(`${sealed[0] === 'A' ? 'B' : 'A'}${sealed.slice(1)}`, owner)).toThrow();
 });
 test('recusa usuário sem autorização antes de consultar a conexão', async () => {
-  (getMcpAdminAuthorization as jest.Mock).mockResolvedValue({ authorized: false });
+  (getCreatorResearchAccess as jest.Mock).mockResolvedValue(null);
   await expect(searchMarketplaceCreators(owner, {})).rejects.toMatchObject({ code: 'admin_required' });
   expect(Connection.findOne).not.toHaveBeenCalled(); expect(global.fetch).not.toHaveBeenCalled();
 });

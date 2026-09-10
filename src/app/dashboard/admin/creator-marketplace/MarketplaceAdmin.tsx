@@ -42,7 +42,7 @@ export default function MarketplaceAdmin() {
     </div>
     <section className="space-y-3 rounded-lg border bg-white p-5">
       <h2 className="font-semibold">Conexão da marca</h2>
-      <p>{connected ? `Página autorizada: ${pageName}` : 'Conecte a Página vinculada ao Instagram da sua conta administradora D2C.'}</p>
+      <p>{connected ? `Página autorizada: ${pageName}` : 'Conecte a Página vinculada ao Instagram da sua conta D2C.'}</p>
       <p className="text-sm text-gray-600">A Meta solicitará acesso ao Marketplace, informações básicas do Instagram, lista de Páginas, metadados de Página e gerenciamento da empresa. A D2C usa essa conexão para pesquisar parceiros; a elegibilidade é verificada pela Meta.</p>
       <button className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50" disabled={busy} onClick={() => act('connect')}>{connected ? 'Renovar autorização' : 'Conectar Marketplace'}</button>
       {connected && <button className="ml-4 underline" disabled={busy} onClick={() => act('disconnect')}>Remover conexão da D2C</button>}

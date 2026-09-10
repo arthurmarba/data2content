@@ -10,7 +10,7 @@ atualizado: 2026-09-09
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**434 rotas** em **55 grupos**.
+**435 rotas** em **56 grupos**.
 
 ## Índice
 
@@ -31,6 +31,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [chat](#chat) — 3 rotas
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
+- [creator-research](#creator-research) — 1 rota
 - [cron](#cron) — 20 rotas
 - [dashboard](#dashboard) — 47 rotas
 - [deals](#deals) — 1 rota
@@ -357,6 +358,12 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
 | `/api/creator/profile-extended` | GET, PATCH | `src/app/api/creator/profile-extended/route.ts` |
+
+## creator-research
+
+| Endereço | Métodos | Arquivo |
+| --- | --- | --- |
+| `/api/creator-research` | — | `src/app/api/creator-research/route.ts` |
 
 ## cron
 

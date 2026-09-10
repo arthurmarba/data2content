@@ -71,7 +71,7 @@ export async function getPublicInstagramCreator(actorUserId: string, input: z.in
   if (!response.ok || code !== undefined || (envelope.success && envelope.data.error)) {
     if (code === 190) throw new PublicInstagramResearchError("instagram_reauthorization_required", "A autorização do Instagram expirou ou foi revogada. Reconecte a conta que faz a consulta.");
     if (code === 10 || code === 200 || response.status === 403) throw new PublicInstagramResearchError("instagram_public_permission_required",
-      "A Meta recusou o acesso. Confira instagram_basic, instagram_manage_insights e pages_read_engagement; em alguns vínculos via Business Manager, ads_read ou ads_management também é exigida. A aprovação do app e novo consentimento podem ser necessários.");
+      "A Meta recusou o acesso. Confira instagram_basic, instagram_manage_insights e pages_read_engagement; em alguns vínculos via Business Manager, ads_read ou ads_management também é exigida. A aprovação do app pode ser necessária. Para revisar o consentimento da pesquisa por @, acesse https://data2content.ai/creator-research.");
     if ([4, 17, 32, 613, 80002].includes(code ?? -1) || response.status === 429) throw new PublicInstagramResearchError("instagram_public_rate_limited", "O limite de consultas da Meta foi atingido. Tente novamente mais tarde.");
     throw new PublicInstagramResearchError("instagram_public_query_rejected", "A Meta recusou a consulta. Isso não confirma que o perfil não existe: confira o @, a elegibilidade da conta e as permissões.");
   }

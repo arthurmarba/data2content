@@ -15,6 +15,9 @@ jest.mock("@/lib/track", () => ({
 }));
 
 describe("Instagram connecting return target", () => {
+  it("retorna à pesquisa externa após o consentimento específico", () => {
+    expect(buildNextUrl("creator-research")).toBe("/creator-research?instagramLinked=true");
+  });
   beforeEach(() => {
     window.sessionStorage.clear();
   });

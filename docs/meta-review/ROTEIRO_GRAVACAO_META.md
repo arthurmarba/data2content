@@ -62,3 +62,40 @@ Antes de gravar, execute o fluxo completo com uma conta Meta que possua função
 - [ ] O início do OAuth usa exatamente `public_profile`, `pages_show_list`, `instagram_basic`, `instagram_manage_insights` e `business_management`.
 - [ ] Se o acesso estiver suspenso pela reavaliação, essa condição foi explicada nas instruções do analista e o vídeo foi gravado com uma conta que possui função no app, quando disponível.
 - [ ] O vídeo está em `.mp4` ou `.mov`, abre normalmente e tem menos de 2 GB.
+
+
+## Complemento — pesquisa externa, rascunho de 09/09/2026
+
+Não reutilizar a hipótese antiga de suspensão de acesso sem verificar o painel.
+O novo pedido `1593898122472419` solicita descoberta Marketplace e
+`pages_read_engagement`; ainda não foi enviado.
+
+### 04 — Creator Marketplace (gravação real a produzir)
+
+1. Mostrar o acesso autenticado à funcionalidade de revisão, limitado à pesquisa.
+2. Explicar: seleção de criadores para campanhas e parcerias da marca.
+3. Iniciar conexão Facebook Login para Empresas com o template Marketplace.
+4. Mostrar a seleção da Página e Instagram da marca e a permissão explícita de
+   descobrir criadores no Creator Marketplace; ocultar senhas e códigos de sessão.
+5. Concluir consentimento e mostrar a Página conectada na D2C.
+6. Pesquisar `receitas`, país BR; mostrar filtros, resultados, biografia e país.
+7. Informar que os perfis `mocked_username_*` são dados de teste entregues pela Meta
+   antes da aprovação. Não apresentar filtros dos mocks como precisão comprovada.
+8. Explicar a utilidade para encontrar parceiros de campanha e o limite de cobertura.
+9. Se demonstrar MCP, executar uma consulta real no cliente autenticado com a mesma
+   identidade. Não substituir o vídeo por resposta simulada ou captura de teste unitário.
+
+### 05 — Business Discovery por @ (após corrigir consentimento)
+
+1. Mostrar o consentimento que inclui `pages_read_engagement` junto das permissões
+   de identificação da conta profissional e listagem de Páginas necessárias.
+2. Abrir MCP normal com conta de teste própria; mostrar `get_public_instagram_creator`
+   e pedir a consulta de um @ profissional exato com três posts para demonstração.
+3. Mostrar dados públicos e limites: bio, seguidores, legendas, datas e interações
+   quando disponíveis; não apresentar alcance/demografia externos privados.
+4. Comparar dois perfis; explicar que mesma quantidade de posts não garante mesmo período.
+5. Mostrar um erro de autorização seguro sem expor token e explicar que cada usuário
+   utiliza sua própria conexão. Não usar credencial administrativa emprestada.
+
+Produzir os arquivos somente depois que o acesso do avaliador estiver validado.
+A demonstração Marketplace não substitui o teste do fluxo Business Discovery.

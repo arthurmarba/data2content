@@ -3,7 +3,7 @@ import { z } from 'zod';
 import Connection from '@/app/models/InstagramMarketplaceConnection';
 import User from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import { getMcpAdminAuthorization } from '@/app/lib/mcp/adminAuthorization';
+import { getCreatorResearchAccess } from './creatorResearchAccess';
 import { PublicInstagramResearchError } from '@/app/lib/mcp/publicInstagramResearch';
 import { checkRateLimitStrict } from '@/utils/rateLimit';
 
@@ -48,7 +48,7 @@ export function openMarketplaceToken(value: string, owner: string) {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 export async function requireMarketplaceAdmin(owner: string) {
-  if (!(await getMcpAdminAuthorization(owner)).authorized) fail('admin_required', 'Acesso restrito ao administrador autorizado.');
+  if (!(await getCreatorResearchAccess(owner))) fail('admin_required', 'Acesso restrito à equipe autorizada ou à conta de revisão habilitada.');
 }
 async function graph(path: string, token?: string, form?: URLSearchParams) {
   try {

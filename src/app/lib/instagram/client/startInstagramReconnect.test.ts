@@ -20,6 +20,14 @@ describe("startInstagramReconnect", () => {
     (global as any).fetch = jest.fn();
   });
 
+  it("solicita leitura adicional somente ao habilitar pesquisa externa", async () => {
+    (global as any).fetch.mockResolvedValue({ ok: true, json: async () => ({ flowId: "fluxo" }) });
+    await startInstagramReconnect({ nextTarget: "creator-research", publicResearch: true });
+    expect(mockSignIn).toHaveBeenCalledWith("facebook", {
+      callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true&next=creator-research&flowId=fluxo",
+    }, { scope: expect.stringContaining("pages_read_engagement"), auth_type: "rerequest" });
+  });
+
   it("starts reconnect flow and forwards flowId to canonical callback", async () => {
     (global as any).fetch.mockResolvedValue({
       ok: true,

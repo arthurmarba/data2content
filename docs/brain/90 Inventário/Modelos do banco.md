@@ -8,7 +8,7 @@ atualizado: 2026-09-09
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **92 modelos.**
+Todo dado persistido é um modelo Mongoose. **93 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -55,6 +55,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **CpmHistory** | `—` | `src/app/models/CpmHistory.ts` |
 | **CreatorContentIdea** | `creatorcontentideas` | `src/app/models/CreatorContentIdea.ts` |
 | **CreatorMapConfirmations** | `creatormapconfirmations` | `src/app/models/CreatorMapConfirmations.ts` |
+| **CreatorResearchReviewGrant** | `creator_research_review_grants` | `src/app/models/CreatorResearchReviewGrant.ts` |
 | **CreatorScriptDnaProfile** | `creator_script_dna_profiles` | `src/app/models/CreatorScriptDnaProfile.ts` |
 | **CreatorStrategicProfileSnapshot** | `creatorstrategicprofilesnapshots` | `src/app/models/CreatorStrategicProfileSnapshot.ts` |
 | **CreatorVideoNarrativeDiagnosis** | `creatorvideonarrativediagnoses` | `src/app/models/CreatorVideoNarrativeDiagnosis.ts` |

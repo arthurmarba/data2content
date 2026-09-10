@@ -39,3 +39,18 @@ npm run ensure-indexes            # garante os índices do banco
 ## Ligações
 
 [[Classificação de conteúdo]] · [[Seu Mapa]] · [[Filas e rotinas]]
+
+
+## Revisão da pesquisa externa — setembro de 2026
+
+`/creator-research` oferece consulta por @ a contas autenticadas e a mesma pesquisa
+Business Discovery do MCP. O consentimento adicional `pages_read_engagement` é
+opcional e iniciado nessa tela por `startInstagramReconnect({publicResearch:true})`.
+O login comum não muda. O retorno OAuth usa `next=creator-research`.
+
+Marketplace nessa tela continua restrito ao administrador autorizado ou a uma
+concessão vigente em `CreatorResearchReviewGrant`, vinculada ao próprio usuário.
+A concessão não altera `role` nem autoriza o MCP admin ou outras telas admin.
+A consulta de autorização exige usuário existente e verifica expiração na leitura,
+além do TTL de limpeza. Nunca compartilhar token da marca Arthur com o avaliador.
+O callback Marketplace já cadastrado na Meta é preservado, mas retorna à nova tela.

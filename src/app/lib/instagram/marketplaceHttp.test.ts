@@ -31,6 +31,6 @@ test('callback não devolve código ou erro bruto no redirecionamento', async ()
   (finishMarketplaceConnection as jest.Mock).mockRejectedValue(new Error('credencial sigilosa'));
   const result = await handleMarketplaceCallback(new NextRequest('https://data2content.ai/api/admin/creator-marketplace/callback?code=segredo&state=estado', { headers: { cookie: 'd2c-marketplace-state=estado' } }));
   expect(finishMarketplaceConnection).toHaveBeenCalledWith('dono', 'segredo', 'estado', 'estado');
-  expect(result.headers.get('location')).toBe('https://data2content.ai/admin/creator-marketplace?connection=marketplace_unavailable');
+  expect(result.headers.get('location')).toBe('https://data2content.ai/creator-research?connection=marketplace_unavailable');
   expect(result.cookies.get('d2c-marketplace-state')?.maxAge).toBe(0);
 });

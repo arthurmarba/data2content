@@ -8,7 +8,7 @@ import { beginMarketplaceConnection, disconnectMarketplace, finishMarketplaceCon
 const COOKIE = 'd2c-marketplace-state';
 async function owner() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new PublicInstagramResearchError('admin_required', 'Entre com sua conta administradora.');
+  if (!session?.user?.id) throw new PublicInstagramResearchError('admin_required', 'Entre com sua conta Data2Content.');
   return session.user.id;
 }
 function errorResponse(error: unknown) {
@@ -47,7 +47,7 @@ export async function handleMarketplaceCallback(request: NextRequest) {
     if (params.has('error')) throw new PublicInstagramResearchError('marketplace_cancelled', 'Autorização cancelada.');
     await finishMarketplaceConnection(actor, params.get('code') || '', params.get('state') || '', request.cookies.get(COOKIE)?.value || '');
   } catch (error) { result = error instanceof PublicInstagramResearchError ? error.code : 'marketplace_unavailable'; }
-  const response = NextResponse.redirect(`${marketplaceOrigin()}/admin/creator-marketplace?connection=${encodeURIComponent(result)}`, 303);
+  const response = NextResponse.redirect(`${marketplaceOrigin()}/creator-research?connection=${encodeURIComponent(result)}`, 303);
   response.headers.set('Cache-Control', 'no-store');
   response.headers.set('Referrer-Policy', 'no-referrer');
   response.cookies.set(COOKIE, '', { httpOnly: true, secure: marketplaceOrigin().startsWith('https:'), sameSite: 'lax', maxAge: 0, path: '/api/admin/creator-marketplace/callback' });

@@ -450,3 +450,78 @@ As duas rotas MCP recusaram `tools/list` sem token com 401 e `no-store`.
 Consulta aos logs de erro desse deploy na janela de dez minutos retornou zero
 entradas. Catálogo e execução autenticada foram validados nos testes de protocolo;
 a atualização do catálogo dentro de cada cliente continua distinta do deploy.
+
+
+## Solicitação avançada iniciada — 09/09/2026
+
+Rascunho Meta criado: `1593898122472419`.
+URL: https://developers.facebook.com/apps/1138645627997673/app-review/submissions/?submission_id=1593898122472419&business_id=1050397568474237
+
+Novas permissões: `instagram_creator_marketplace_discovery` e
+`pages_read_engagement`. As justificativas foram preenchidas e salvas no painel;
+a do Marketplace foi reaberta para conferir persistência. **Não enviado**:
+o botão final continua desabilitado. Não há análise em andamento desse pedido.
+
+A Meta incluiu renovação de oito permissões existentes: `public_profile`, `email`,
+`instagram_basic`, `instagram_manage_insights`, `pages_show_list`,
+`business_management`, `whatsapp_business_messaging`, `whatsapp_business_management`.
+Verificação e configurações aparecem com 100%; uso permitido, dados e instruções
+precisam ser concluídos. Não marcar certificações de renovação sem conferir os usos.
+
+### Evidências e correções necessárias antes de enviar
+
+1. Gravação real de ponta a ponta do Marketplace: login, seleção da Página/Instagram,
+   consentimento explícito de descoberta e busca por filtros. Os dados atuais são
+   mocks da Meta e devem continuar identificados como teste. O serviço atual retorna
+   username, biografia e país; não afirmar no pedido que já mostra alcance ou número
+   de seguidores, embora permita filtrar por faixa de seguidores.
+2. Acesso de revisão restrito à pesquisa externa. A conta de revisão e o roteiro
+   antigos levam ao painel normal, sem acesso à página administrativa Marketplace.
+   Não promover o avaliador a administrador geral nem entregar a credencial pessoal
+   de Arthur. Preparar acesso específico e verificar antes de fornecer instruções.
+3. Consentimento `pages_read_engagement` no fluxo de pesquisa por @ para usuários
+   comuns. O fluxo comum atual não solicita a permissão. A justificativa salva
+   declara essa limitação; substituir pela descrição do fluxo validado após corrigir.
+4. Rever fornecedores e destinos de dados: o formulário antigo lista Google Gemini,
+   OpenAI, Upstash, MongoDB Atlas e Vercel. Avaliar e declarar corretamente o envio
+   ao Claude/Anthropic quando escolhido pelo usuário no MCP, além dos destinos
+   efetivamente usados. Não afirmar que dados do MCP nunca saem da D2C: tokens não
+   saem, mas os resultados consultados são entregues ao cliente autorizado.
+5. Confirmar informações empresariais e práticas externas ao código. Arthur recebeu
+   pergunta sobre controlador MobiMedia Produtores de Conteudo LTDA/Brasil, ausência
+   de entrega por segurança nacional nos últimos 12 meses e manutenção dos quatro
+   procedimentos de atendimento a autoridades pré-preenchidos no formulário.
+6. Atualizar instruções antigas: elas mencionam suspensão do Facebook Login/acesso
+   avançado, que não corresponde ao painel atual Ao vivo com permissões existentes
+   aprovadas. Não repetir essa hipótese como motivo da nova solicitação.
+7. `pages_manage_metadata` continua padrão com pedido avançado desabilitado; é
+   exigida no template Marketplace. Conferir os requisitos aplicáveis antes de
+   concluir que a aprovação de descoberta basta para marcas de terceiros.
+
+Nenhuma credencial, vídeo ou declaração de conformidade foi enviada neste passo.
+Não houve alteração das permissões já aprovadas nem do papel das contas da D2C.
+
+
+### Preparação técnica do acesso de revisão
+
+Implementação de `/creator-research` e `/api/creator-research` com sessão, origem,
+limite de consultas e serviços Business Discovery compartilhados com MCP. Login
+comum preservado; o consentimento adicional é oferecido somente após escolha na
+tela de pesquisa. Acesso ao Marketplace nessa tela usa a autorização admin ou uma
+concessão específica com expiração em `creator_research_review_grants`, sem promover
+o usuário de revisão nem acessar os dados de outra conta. O callback existente
+retorna à tela de pesquisa, evitando o layout restrito ao administrador geral.
+
+Validação local: 33 testes da integração/retorno OAuth passaram; 243 testes MCP
+passaram, três ignorados; typecheck MCP passou. Publicação e teste visual pendentes.
+
+
+Conta dedicada criada: `meta-research-review@data2content.ai`, usuário
+`6aa1f1aaab380c9a0e78a90e`, role `user`, sem Instagram ou plano pago. Concessão
+restrita à pesquisa expira em `2026-12-08T23:54:18.377Z`. Autorização administrativa
+negativa e autorização de revisão positiva foram verificadas no banco real.
+Credenciais estão em arquivo privado temporário, fora do Git, para cadastro no
+formulário Meta. Nenhuma credencial de Arthur foi reutilizada.
+
+Build local passou; permanece o aviso preexistente do ESLint sobre `useEslintrc`
+e `extensions`. `npm run brain` atualizou inventário para 435 rotas e 93 modelos.
