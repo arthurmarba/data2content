@@ -395,6 +395,62 @@ describe("geminiVideoNarrativeClientFactory", () => {
     );
   });
 
+  const largeVideoRequest = () =>
+    createVideoNarrativeGeminiClientAdapter({ apiKey: "secret-key", model: "gemini-custom" }).client!.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseSchemaInstruction: "json",
+      model: "gemini-runtime",
+      maxOutputTokens: 3000,
+      videoInput: {
+        mimeType: "video/mp4",
+        bytes: Buffer.alloc(GEMINI_INLINE_VIDEO_BYTES_LIMIT + 1, 1),
+        source: "temporary_storage",
+      },
+    });
+
+  it.each([
+    ["sem state", {}],
+    ["STATE_UNSPECIFIED", { state: "STATE_UNSPECIFIED" }],
+  ])("adapter server-side não usa arquivo %s: consulta até ficar ACTIVE", async (_label, stateFields) => {
+    uploadFile.mockResolvedValueOnce({
+      name: "files/video-sem-estado",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-sem-estado",
+      mimeType: "video/mp4",
+      ...stateFields,
+    });
+    getFile.mockResolvedValueOnce({
+      name: "files/video-sem-estado",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-sem-estado",
+      mimeType: "video/mp4",
+      state: "ACTIVE",
+    });
+
+    await largeVideoRequest();
+
+    expect(getFile).toHaveBeenCalledWith(expect.objectContaining({ name: "files/video-sem-estado" }));
+    expect(getFile.mock.invocationCallOrder[0]).toBeLessThan(generateContent.mock.invocationCallOrder[0]);
+  });
+
+  it("adapter server-side falha sem chamar o modelo quando o arquivo termina FAILED", async () => {
+    uploadFile.mockResolvedValueOnce({
+      name: "files/video-reprovado",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-reprovado",
+      mimeType: "video/mp4",
+    });
+    getFile.mockResolvedValueOnce({
+      name: "files/video-reprovado",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-reprovado",
+      mimeType: "video/mp4",
+      state: "FAILED",
+    });
+
+    await expect(largeVideoRequest()).rejects.toThrow("gemini_file_processing_failed");
+
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({ name: "files/video-reprovado" }));
+  });
+
   it("does not expose the api key in issues or generated text", () => {
     const missing = createGeminiVideoNarrativeClient({ apiKey: "" });
     const ready = createGeminiVideoNarrativeClient({ apiKey: "secret-key" });

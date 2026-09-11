@@ -81,14 +81,22 @@ function shouldUseOpenAiFallback(error: unknown): boolean {
   );
 }
 
+/**
+ * Espera o arquivo ficar ACTIVE. O `files.upload` responde antes de o vídeo terminar
+ * de processar — às vezes sem `state` nenhum. Aceitar qualquer estado diferente de
+ * PROCESSING mandava o arquivo cru para `generateContent`, que recusava com
+ * FAILED_PRECONDITION ("not in an ACTIVE state"). Só ACTIVE serve; estado ausente ou
+ * STATE_UNSPECIFIED conta como ainda processando.
+ */
 async function waitForGeminiFileReady(
   ai: GoogleGenAI,
   file: { name?: string; uri?: string; mimeType?: string; state?: string; error?: unknown },
   signal?: AbortSignal,
 ): Promise<{ name?: string; uri?: string; mimeType?: string }> {
-  if (!file.name && file.uri) return file;
   if (file.state === "FAILED") throw new Error("gemini_file_processing_failed");
-  if (file.state !== "PROCESSING" && file.uri) return file;
+  if (file.state === "ACTIVE" && file.uri) return file;
+  // Sem nome não há como consultar o estado; resta confiar na URI.
+  if (!file.name && file.uri) return file;
   if (!file.name) throw new Error("gemini_file_uri_missing");
 
   let current = file;
@@ -99,7 +107,7 @@ async function waitForGeminiFileReady(
     signal?.throwIfAborted();
     current = await ai.files.get({ name: file.name, config: { abortSignal: signal, httpOptions: { timeout: 10000 } } });
     if (current.state === "FAILED") throw new Error("gemini_file_processing_failed");
-    if (current.state !== "PROCESSING" && current.uri) return current;
+    if (current.state === "ACTIVE" && current.uri) return current;
   }
 
   throw new Error("gemini_file_processing_timeout");

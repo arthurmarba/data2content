@@ -39,7 +39,7 @@ Existiram **dois caminhos paralelos** de leitura: a síntese vinda do vídeo env
 ## Fontes de evidência
 
 - **Instagram** — `analyzeInstagramPosts.ts`, depende dos posts já classificados.
-- **Vídeo enviado** — o criador manda um vídeo de até **90 segundos**; o Gemini lê cena, tom e coerência (`analyzeVideoCoherence.ts`). Limites e armadilhas: [[Limite de 90 segundos]] e [[Upload de vídeo dá 403]].
+- **Vídeo enviado** — o criador manda um vídeo de até **90 segundos**; o Gemini lê cena, tom e coerência (`analyzeVideoCoherence.ts`). Limites e armadilhas: [[Limite de 90 segundos]], [[Upload de vídeo dá 403]] e [[Arquivo do Gemini usado antes de ficar ACTIVE]].
 - **Declaração de propósito** — a resposta do criador no onboarding, o "Norte".
 
 ## Ligações
