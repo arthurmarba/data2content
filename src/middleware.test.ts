@@ -140,7 +140,7 @@ describe('mobile strategic profile entry redirect', () => {
 
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toBe(
-      'http://localhost/dashboard/boards/mobile-strategic-profile?ref=abc123',
+      'http://localhost/dashboard/jornada?ref=abc123',
     );
     expect(res.cookies.get('d2c_ref')?.value).toBe('ABC123');
   });

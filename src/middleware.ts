@@ -11,7 +11,9 @@ const AFFILIATE_COOKIE_NAME = "d2c_ref";
 const AFFILIATE_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/i;
 const MEDIA_KIT_PATH_REGEX = /^\/mediakit\/([^/]+)$/i;
 const CURRENT_PATH_HEADER = "x-d2c-current-path";
-const MOBILE_PROFILE_ROUTE = "/dashboard/boards/mobile-strategic-profile";
+// Entrada no celular abre direto a Jornada (experiência principal), sem passar
+// pelo redirecionamento das páginas antigas.
+const JOURNEY_ROUTE = "/dashboard/jornada";
 const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/dashboard", "/dashboard/home"]);
 const MOBILE_USER_AGENT_REGEX =
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i;
@@ -116,7 +118,7 @@ function createMobileDashboardEntryRedirect(req: NextRequest): NextResponse | nu
   }
 
   const redirectUrl = req.nextUrl.clone();
-  redirectUrl.pathname = MOBILE_PROFILE_ROUTE;
+  redirectUrl.pathname = JOURNEY_ROUTE;
   return NextResponse.redirect(redirectUrl, 307);
 }
 

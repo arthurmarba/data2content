@@ -1,7 +1,9 @@
 // src/app/dashboard/page.tsx
+// Destino do login: a Jornada é a experiência principal. A Home antiga segue em
+// /dashboard/home para quem precisar dela.
 import { redirect } from "next/navigation";
 
-import HomeClientPage from "./home/HomeClientPage";
+import { buildJourneyHref } from "./jornada/journeyRoute";
 
 interface searchParams {
   [key: string]: string | string[] | undefined;
@@ -25,9 +27,5 @@ export default async function DashboardHomePage({
     redirect(queryString ? `/calendar?${queryString}` : "/calendar");
   }
 
-  return (
-    <main className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-      <HomeClientPage />
-    </main>
-  );
+  redirect(buildJourneyHref(resolvedSearchParams));
 }

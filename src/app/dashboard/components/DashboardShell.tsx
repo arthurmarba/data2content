@@ -12,6 +12,7 @@ import {
   CREATOR_PROFILE_ROUTE,
   MOBILE_PROFILE_ROUTE,
 } from "../boards/videoUpload/mobileStrategicProfileRoutes";
+import { JOURNEY_ROUTE } from "@/constants/routes";
 import {
   HeaderProvider,
   useHeaderConfig,
@@ -210,7 +211,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
       return;
     }
-    router.replace(CREATOR_PROFILE_ROUTE);
+    router.replace(JOURNEY_ROUTE);
   }, [router, shouldRedirectMobileDashboardEntryClient]);
 
   React.useEffect(() => {

@@ -16,7 +16,7 @@ import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import { openPaywallModal } from "@/utils/paywallModal";
 import type { PaywallContext } from "@/types/paywall";
-import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
+import { CREATOR_PROFILE_ROUTE, JOURNEY_ROUTE } from "@/constants/routes";
 import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
@@ -245,7 +245,7 @@ export function DiagnosticoRealShellClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : MOBILE_PROFILE_ROUTE;
+  const profileRoute = journey ? JOURNEY_ROUTE : surface === "responsive" ? CREATOR_PROFILE_ROUTE : MOBILE_PROFILE_ROUTE;
   const requestedTab = searchParams.get("tab");
   const handledProfileActionRef = useRef<string | null>(null);
   const tabScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1117,12 +1117,19 @@ export function DiagnosticoRealShellClient({
   useEffect(() => {
     if (!handledOpenCommunity.current && searchParams.get("openCommunity") === "1") {
       handledOpenCommunity.current = true;
-      setOpenCategory("community");
       const next = new URL(window.location.href);
       next.searchParams.delete("openCommunity");
+      if (journey) {
+        // Na Jornada a comunidade é uma aba: troca a aba em vez de abrir a tela antiga.
+        next.searchParams.set("view", "comunidade");
+        window.history.replaceState(null, "", next);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
+      setOpenCategory("community");
       router.replace(next.pathname + (next.search || ""), { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [journey, searchParams, router]);
 
   // Checkout sempre devolve o assinante ao app. Aqui o Perfil destaca a ação
   // seguinte (Instagram ou grupo), preservando o contexto do mapa que motivou a compra.
@@ -2161,7 +2168,7 @@ export function DiagnosticoRealShellClient({
             source: "community_join_upsell",
             // Após assinar, volta ao perfil com ?openCommunity=1 para auto-abrir
             // o detail de Comunidade — o novo assinante entra sem fricção.
-            returnTo: `${MOBILE_PROFILE_ROUTE}?openCommunity=1`,
+            returnTo: `${profileRoute}?openCommunity=1`,
             postCheckoutIntent: "join_community",
           })}
           onClose={() => setOpenCategory(null)}

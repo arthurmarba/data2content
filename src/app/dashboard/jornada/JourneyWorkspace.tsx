@@ -136,7 +136,9 @@ export default function JourneyWorkspace({
   const [tab, setTab] = useState<Tab>("perfil");
   useEffect(() => {
     const sync = () => {
-      const value = new URLSearchParams(window.location.search).get("view");
+      const params = new URLSearchParams(window.location.search);
+      // `tab=collabs` é o pedido de aba das telas antigas (links e retornos de checkout).
+      const value = params.get("view") ?? (params.get("tab") === "collabs" ? "collabs" : null);
       if (tabs.some((t) => t.id === value)) setTab(value as Tab);
     };
     sync();

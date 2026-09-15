@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import { redirectToJourney } from "../../jornada/journeyRoute";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicProfileFeatureFlag";
 import { MobileStrategicProfileRealShellClient } from "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient";
@@ -551,8 +552,10 @@ export async function renderCreatorProfilePage({
   );
 }
 
-export default async function MobileStrategicProfilePage(
-  props: MobileStrategicProfilePageProps,
-) {
-  return renderCreatorProfilePage(props, "mobile");
+// O Perfil mobile virou a Jornada. O endereço segue valendo (checkout, Instagram,
+// links antigos) e as subpáginas de configurações continuam aqui.
+export default async function MobileStrategicProfilePage({
+  searchParams,
+}: MobileStrategicProfilePageProps) {
+  return redirectToJourney(searchParams);
 }
