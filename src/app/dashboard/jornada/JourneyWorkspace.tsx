@@ -410,14 +410,17 @@ function Opportunities() {
                 <span className="j-opportunity-monogram" aria-hidden="true">{(item.brand || item.source).slice(0, 1).toUpperCase()}</span>
                 <div><strong>{item.brand || item.source}</strong>{item.brand && item.brand !== item.source && <small>{item.source}</small>}</div>
               </header>
-              {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}>{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
               <h3 title={item.title}>{item.title}</h3>
-              <div className="j-opportunity-facts">
-                <div><small>Pagamento</small><strong>{item.compensation}</strong></div>
-                <div><small>Inscrições</small><strong>{item.deadline
-                  ? `Até ${new Date(item.deadline).toLocaleDateString("pt-BR", { timeZone: "UTC" })}`
-                  : "Prazo a confirmar"}</strong></div>
+              {/* Pílula = dado (valor, prazo); botão = verbo. Forte só quando o pagamento está definido. */}
+              <div className="j-opportunity-pills">
+                <span className={`j-pill ${item.payment === "unknown" ? "is-soft" : "is-strong"}`} title={item.compensation}>
+                  {item.payment === "unknown" ? "Cachê a confirmar" : item.compensation}
+                </span>
+                <span className="j-pill is-soft">{item.deadline
+                  ? `Inscrições até ${new Date(item.deadline).toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" })}`
+                  : "Prazo a confirmar"}</span>
               </div>
+              {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}><i aria-hidden="true" />{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
               <details>
                 <summary>Sobre a oportunidade <span aria-hidden="true">＋</span></summary>
                 <div className="j-opportunity-detail">

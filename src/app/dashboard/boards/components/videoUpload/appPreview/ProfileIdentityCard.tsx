@@ -75,7 +75,7 @@ export function ProfileIdentityCard({
         </div>
       </div>
 
-      <div className="mt-[26px] border-t border-dashed border-[var(--ds-color-line-strong)] pt-6">
+      <div className="ds-profile-narrative mt-[26px] border-t border-dashed border-[var(--ds-color-line-strong)] pt-6">
         <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
           Sua narrativa
         </p>
@@ -114,7 +114,7 @@ export function ProfileIdentityCard({
                 {subjects.map((subject) => (
                   <span
                     key={subject}
-                    className="rounded-full border border-[var(--ds-color-line)] px-[11px] py-[5px] text-[11.5px] text-[var(--ds-color-text-muted)]"
+                    className="ds-profile-subject rounded-full border border-[var(--ds-color-line)] px-[11px] py-[5px] text-[11.5px] text-[var(--ds-color-text-muted)]"
                   >
                     {subject}
                   </span>

@@ -65,7 +65,8 @@ function stackItemIdentity(item: CollabStackItem | null) {
 
 // Acento do prêmio (collab) = brand creator-studio; tintas derivadas do rosa.
 const COLLAB_ACCENT = CS_BRAND_HEX;
-const CARD_BG = "var(--ds-color-surface)";
+// A Jornada define --j-card (escada tom sobre tom); fora dela vale a superfície do DS.
+const CARD_BG = "var(--j-card, var(--ds-color-surface))";
 // Carimbo, não profundidade — a mesma assinatura do Perfil. Ver `.ds-card-stamp`.
 const STACK_CARD_SHADOW = "2px 2px 0 rgba(18, 16, 20, 0.08)";
 /** Deslocamento (px) a partir do qual soltar o card confirma a decisão. */
@@ -741,7 +742,7 @@ export function DiagnosticoCollabStack({
   // Borda igual nos dois tipos. A parceria já se anuncia pela foto e pelo
   // cabeçalho; tingir a moldura de rosa fazia a tela ter dois sinais dizendo a
   // mesma coisa — e o rosa deixava de significar ação.
-  const cardBorder = "1px solid var(--ds-color-line)";
+  const cardBorder = "1px solid var(--j-card-line, var(--ds-color-line))";
 
   return (
     <div style={{ flex: "1 1 auto", width: "100%", maxWidth: 520, minHeight: 0, maxHeight: CARD_MAX_HEIGHT, margin: "0 auto", display: "flex", flexDirection: "column" }}>

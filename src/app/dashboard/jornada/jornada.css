@@ -998,10 +998,15 @@
 .j-opportunities summary { min-height: 44px; padding: 8px 0; }
 .j-opportunities footer { margin-top: 2px; }
 .j-opportunities footer a { min-height: 44px; padding: 10px 12px; }
-.j-opportunity-status { display:inline-block; margin-top:12px; padding:4px 8px; border:1px solid var(--j-line); border-radius:999px; font-size:10px; }
-/* Status informa, não convida ao clique: fundo suave + texto, sem contorno forte. */
-.j-opportunity-status.is-closed { background:#f1f0ee; border-color:transparent; color:#6b6760; }
-.j-opportunity-status.is-pending { background:#fbf1dc; border-color:transparent; color:#7a5412; }
+/* Status informa, não convida ao clique: bolinha + texto, sem fundo. */
+.j-opportunity-status { display:flex; align-items:center; gap:6px; margin:2px 0 0; font-size:11px; color:#6b6760; }
+.j-opportunity-status i { width:8px; height:8px; flex-shrink:0; border-radius:50%; background:#a8a29e; }
+.j-opportunity-status.is-pending { color:#7a5412; }
+.j-opportunity-status.is-pending i { background:#d99a1e; }
+.j-opportunity-pills { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+.j-pill { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:999px; padding:5px 11px; font-size:11px; font-weight:600; line-height:1.3; }
+.j-pill.is-strong { background:var(--j-highlight); color:var(--j-highlight-ink); }
+.j-pill.is-soft { background:var(--j-inset); color:#4a403b; }
 
 /* Collabs usa a área disponível entre cabeçalho e navegação. */
 .j-workspace-collabs { height:100dvh; min-height:0; padding-bottom:76px; }
@@ -1011,21 +1016,44 @@
 .j-workspace-collabs .j-page-heading h1 { margin:0; font-size:25px; }
 .j-collabs-board { display:flex; flex-direction:column; flex:1; min-height:0; position:relative; }
 .j-collabs-settings { flex-shrink:0; font-size:12px; }
-.j-collabs-settings details > summary { padding:6px 0; min-height:36px; }
+.j-collabs-settings details > summary { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; min-height:34px; border-radius:999px; background:var(--j-card); }
 .j-collabs-settings details[open] { position:absolute; inset:0 0 auto; z-index:30; background:white; border:1px solid var(--j-line); border-radius:16px; padding:14px; max-height:70dvh; overflow:auto; }
 .j-collabs-settings > [role=status]:empty { display:none; }
 .j-collabs-feed { flex:1; min-height:0 !important; height:auto !important; }
-.j-collabs-feed > div:first-child > button { min-height:36px; padding:6px 0; border:0; font-size:12px; }
+.j-collabs-feed, .j-collabs-feed > div:first-child { background:transparent !important; }
+.j-collabs-feed > div:first-child > button { min-height:38px; margin-top:6px; padding:8px 12px; border:0; border-radius:12px; font-size:12px; background:var(--j-card); }
 .j-collabs-feed > div[style*="max-width: 560px"] { padding:4px 0 0 !important; }
 .j-workspace .j-meeting { background:#f5f2ed; }
-.j-workspace .j-recording.j-tone-0 { background:#f4e5ec; }
-.j-workspace .j-recording.j-tone-1 { background:#ece8f5; }
-.j-workspace .j-recording.j-tone-2 { background:#e9efe6; }
 .j-kit-metrics, .j-kit-demographics > div { background:#f7f6f3; }
 .j-kit-inline .j-content { max-width:860px; padding:24px; }
 .j-kit-proposal { margin-top:18px; padding:16px; text-align:left; background:#fff; border:1px solid var(--j-line); border-radius:16px; }
 .j-kit-affiliate { display:inline-block; margin-top:14px; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
 .j-kit-inline .j-workspace { padding-bottom:0; }
+
+/* Tom sobre tom, uma família só: fundo areia claro, card branco (mais claro que
+   o fundo, "levanta" da tela) e detalhe um degrau abaixo do fundo. Preto é o
+   único contraste forte (ações e o dado que decide); cor só em status, pequena.
+   A marca ainda é preto e branco: a futura cor entra em --j-highlight. */
+.j-workspace {
+  --j-page:#f6f4f1; --j-card:#fff; --j-inset:#efebe5; --j-card-line:transparent;
+  --j-highlight:#282321; --j-highlight-ink:#fff;
+  --j-surface:var(--j-card);
+  --ds-color-neutral:var(--j-inset);
+  background:var(--j-page);
+}
+.j-nav { background:rgba(246,244,241,.96); }
+.j-workspace :is(.j-tools button, .j-prompt, .j-meeting, .j-recording, .j-creator, .j-filters, .j-opportunities article, .ds-card-stamp, .ds-card-lift) { background:var(--j-card); border-color:transparent; }
+.j-workspace .j-chips span, .j-workspace .j-avatar, .j-opportunity-monogram { background:var(--j-inset); border-color:transparent; }
+.j-opportunity-monogram { border-radius:50%; }
+.j-workspace :is(.j-search input, .j-search select, .j-filters select) { background:#fff; border-color:transparent; }
+.j-workspace .ds-profile-narrative { margin-top:20px; padding:16px; border:0; border-radius:14px; background:var(--j-inset); }
+.j-workspace .ds-profile-subject { background:var(--j-card); border-color:transparent; }
+.j-workspace .ds-profile-waiting { border-style:solid; }
+.j-workspace-collabs .j-page-heading > span { display:none; }
+/* Mídia kit é vitrine para marca: segue branco, com contorno. */
+.j-kit-dialog .j-workspace, .j-kit-inline .j-workspace { --j-page:#fff; --j-card:#fff; --j-inset:#f1eeeb; --ds-color-neutral:#f1eeeb; background:#fff; }
+.j-kit-dialog :is(.j-meeting, .j-chips span), .j-kit-inline :is(.j-meeting, .j-chips span) { border-color:var(--j-line); }
+.j-kit-dialog .j-kit-contact, .j-kit-inline .j-kit-contact { background:#f5f2ed; }
 @media(max-height:650px) {
  .j-workspace-collabs .j-page-heading > span { display:none; }
  .j-workspace-collabs .d2c-flashcard-title { font-size:22px !important; }
