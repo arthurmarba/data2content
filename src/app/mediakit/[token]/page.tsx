@@ -19,9 +19,10 @@ import {
   normalizePreviewUsername,
 } from '@/app/lib/mediakit/socialPreview';
 import { logger } from '@/app/lib/logger';
-import Board from '@/app/dashboard/components/Board';
+import { loadMediaKitPresentation, stripSensitiveUserFields } from '@/app/lib/mediakit/presentation';
 
-import MediaKitView from './MediaKitView';
+import JourneyMediaKit from '@/app/dashboard/jornada/JourneyMediaKit';
+import '@/app/dashboard/jornada/jornada.css';
 
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import {
@@ -386,7 +387,7 @@ export default async function MediaKitPage(
     commercialMode: normalizeCategoryField(video.commercialMode, 'commercialMode'),
   }));
 
-  const plainUser = JSON.parse(JSON.stringify(user));
+  const plainUser = stripSensitiveUserFields(JSON.parse(JSON.stringify(user)));
   const prefersProviderFallback =
     !((plainUser as any)?.isInstagramConnected || (plainUser as any)?.instagramAccountId);
   const hasAvatarCandidate =
@@ -476,50 +477,12 @@ export default async function MediaKitPage(
     }))
     : [];
 
-  const mediaKitView = (
-    <MediaKitView
-      user={plainUser}
-      summary={summary}
-      videos={compatibleVideos}
-      kpis={kpis}
-      demographics={demographics}
-      engagementTrend={engagementTrend}
-      showOwnerCtas={false}
-      compactPadding
-      compactBoardPreview
-      mediaKitSlug={resolvedToken.canonicalSlug}
-      premiumAccess={premiumAccessConfig}
-      pricing={pricingPublished ? pricing : null}
-      pricingPublished={pricingPublished}
-      packages={normalizedPackages}
-    />
-  );
+  const mediaKitView = <JourneyMediaKit inline slug={resolvedToken.canonicalSlug} initialData={{
+    presentation: await loadMediaKitPresentation(resolvedToken.userId.toString()),
+    user: plainUser, summary, videos: compatibleVideos, kpis, demographics, engagementTrend,
+    pricing: pricingPublished ? pricing : null, pricingPublished, packages: normalizedPackages,
+    premiumAccess: premiumAccessConfig,
+  }} />;
+  return mediaKitView;
 
-  if (isEmbedded) {
-    return (
-      <main className="mx-auto flex min-h-screen w-full flex-col px-0">
-        <div className="relative mx-auto flex w-full max-w-[640px] flex-col overflow-hidden">
-          {mediaKitView}
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="mx-auto flex min-h-screen w-full flex-col px-0 sm:px-6 lg:px-8">
-      <div className="relative mx-auto flex w-full max-w-[640px] flex-col overflow-hidden">
-        <Board
-          title="Mídia Kit"
-          titleMarkerVariant="chip"
-          variant="card"
-          showChevron={false}
-          showOptions={false}
-          contentClassName="bg-white"
-          titleClassName="text-zinc-950"
-        >
-          {mediaKitView}
-        </Board>
-      </div>
-    </main>
-  );
 }

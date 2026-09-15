@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { loadMediaKitPresentation, stripSensitiveUserFields } from '@/app/lib/mediakit/presentation';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
@@ -13,23 +14,6 @@ import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 import { logger } from '@/app/lib/logger';
 
 export const runtime = 'nodejs';
-
-// Sensitive fields stripped before returning user object publicly.
-const STRIP_USER_FIELDS = new Set([
-  'instagramAccessToken',
-  'instagramRefreshToken',
-  'password',
-  'hashedPassword',
-  '__v',
-]);
-
-function stripSensitiveUserFields(user: Record<string, unknown>) {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(user)) {
-    if (!STRIP_USER_FIELDS.has(k)) out[k] = v;
-  }
-  return out;
-}
 
 function normalizeProfileCandidate(raw?: string | null) {
   if (typeof raw !== 'string') return null;
@@ -241,6 +225,7 @@ export async function GET(
       : [];
 
     const payload = {
+      presentation: await loadMediaKitPresentation(resolvedToken.userId.toString()),
       user: plainUser,
       summary,
       videos: compatibleVideos,

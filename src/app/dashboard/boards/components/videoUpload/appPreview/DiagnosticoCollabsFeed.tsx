@@ -1196,7 +1196,7 @@ export function DiagnosticoCollabsFeed({
     // INTEIRA, sem relação com o espaço real disponível — o que sobrepunha a
     // tab bar e cortava o título em telas mais baixas (ex.: iPhone SE, 667px).
     <div
-      className="ds-notebook"
+      className={compact ? "ds-notebook j-collabs-feed" : "ds-notebook"}
       aria-busy={bootstrapPending || undefined}
       style={{ background: surfaceBackground, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
     >
@@ -1246,7 +1246,7 @@ export function DiagnosticoCollabsFeed({
       {hasPautas ? (
         // A MESA — inclusive vazia. O stack possui um único estado final para
         // qualquer rodada sem cards, evitando CTA órfão e variações de layout.
-        <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "10px 20px 8px", flex: "1 0 480px", minHeight: 480, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+        <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", padding: "10px 20px 8px", flex: compact ? "1 1 0" : "1 0 480px", minHeight: compact ? 0 : 480, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
           {bootstrapPending ? (
             <StackSkeleton />
           ) : bootstrapFailed ? (

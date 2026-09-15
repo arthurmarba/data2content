@@ -1,4 +1,5 @@
 "use client";
+import JourneyMediaKit from "../jornada/JourneyMediaKit";
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -47,8 +48,8 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
     setOpenMatchId(null);
   };
   const action = (id: string, kind: 'save' | 'unsave' | 'dismiss' | 'collab-interest' | 'collab-decline') => void c.mutate(id, kind, kind === 'save' ? 'saved' : kind === 'dismiss' ? 'dismissed' : 'active');
-  const feed = <div className="min-w-0">
-    <div className="space-y-3 border-b border-zinc-200 bg-white p-4 text-sm">
+  const feed = <div className={compact ? "j-collabs-board" : "min-w-0"}>
+    <div className={compact ? "j-collabs-settings" : "space-y-3 border-b border-zinc-200 bg-white p-4 text-sm"}>
       <details open={compact ? undefined : true}><summary>Preferências de collab</summary>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={c.state.discovery.optedIn} disabled={!c.ready} onChange={event => void c.changeDiscovery(event.target.checked, c.state.discovery.mode)} /> Disponível para collabs</label>
@@ -57,12 +58,14 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
       <p className="text-xs text-zinc-600">{c.state.discovery.optedIn ? 'Seu interesse é privado. A parceria só é confirmada quando os dois aceitam a mesma proposta.' : 'Ative para aparecer nas sugestões. Suas ideias e parcerias anteriores continuam acessíveis.'}</p>
       <details><summary className="cursor-pointer py-2">Escolher o foco das próximas ideias</summary><div className="flex flex-wrap gap-2 py-2"><label className="flex flex-col gap-1">Território<input className="min-h-11 rounded-lg border p-2" maxLength={120} value={territory} onChange={event => setTerritory(event.target.value)} placeholder="Um território do Seu Mapa" /></label><label className="flex flex-col gap-1">Formato<select className="min-h-11 rounded-lg border p-2" value={format} onChange={event => setFormat(event.target.value)}><option value="">Variar formatos</option><option value="reel">Reel</option><option value="carrossel">Carrossel</option><option value="story">Story</option></select></label></div></details>
       {c.quota && <p className="text-xs text-zinc-600">{c.quota.limitBatches === Number.MAX_SAFE_INTEGER ? 'Sem limite comercial de' : Math.max(0, c.quota.limitBatches - c.quota.usedBatches - c.quota.reservedBatches)} rodadas disponíveis · renova em {new Date(c.quota.resetAt).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>}
+      {/* No compacto, a ação fixa mora nas preferências para não empurrar o card. */}
+      {compact && c.state.discovery.optedIn && <button disabled={c.matching} className="min-h-11 underline disabled:opacity-50" onClick={() => void c.prepare()}>Atualizar sugestões de parceria</button>}
       </details>
       {c.error && <div role="alert">{c.error} <button className="min-h-11 underline" onClick={() => void c.load()}>Tentar novamente</button></div>}
       <div role="status" aria-live="polite">{c.generation ? 'Preparando suas ideias. Você pode continuar usando a página.' : c.matching ? 'Procurando parcerias que acrescentem algo à pauta.' : c.notice}</div>
       {c.newRound && <button className="ds-button ds-button--primary" onClick={c.acceptRound}>Abrir nova rodada</button>}
       {c.undo && <button className="min-h-11 underline" onClick={c.undoLast}>Desfazer última escolha</button>}
-      {c.state.discovery.optedIn && <button disabled={c.matching} className="min-h-11 underline disabled:opacity-50" onClick={() => void c.prepare()}>Atualizar sugestões de parceria</button>}
+      {!compact && c.state.discovery.optedIn && <button disabled={c.matching} className="min-h-11 underline disabled:opacity-50" onClick={() => void c.prepare()}>Atualizar sugestões de parceria</button>}
     </div>
     <DiagnosticoCollabsFeed compact={compact} pautas={pautas} isPro={isPro} canUseIdeas whatsappLinked={c.state.whatsappLinked} whatsappUnavailableReason={c.state.whatsappUnavailableReason}
       isGeneratingIdeas={c.generation} ideaGenerationBlocker={c.generationBlocker} ideaQuotaResetAt={c.quota?.resetAt}
@@ -88,7 +91,7 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
     {selectedMatch && matchIdea && <DiagnosticoCollabMatchOverlay pauta={matchIdea} collab={selectedMatch.collab} viewerName={session?.user?.name || 'Você'} viewerAvatarUrl={session?.user?.image || null}
       variant={selectedMatch.isNew ? 'celebration' : 'revisit'} onOpenIdea={id => { closeMatch(); setOpenIdeaId(id); }} onClose={closeMatch}
       onEnd={selectedMatch.collab.proposalId ? async () => { if (ending) return; setEnding(true); try { await c.end(selectedMatch.collab.proposalId!); closeMatch(); } finally { setEnding(false); } } : undefined} />}
-    {mediaKitSlug && <MediaKitSheet slug={mediaKitSlug} onClose={() => setMediaKitSlug(null)} />}
+    {mediaKitSlug && (compact ? <JourneyMediaKit slug={mediaKitSlug} onClose={() => setMediaKitSlug(null)} /> : <MediaKitSheet slug={mediaKitSlug} onClose={() => setMediaKitSlug(null)} />)}
   </>;
   if (embedded) return <>{feed}{overlays}</>;
   if (dedicatedView) return <><div className={`grid h-full min-h-0 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] ${d2cFontVariables}`}><CollabsWorkspaceSummary bootstrapStatus={bootstrapStatus} pautas={pautas} suggestedMatches={collabs.size} confirmedMatches={c.state.matches.length} /><section aria-label="Ideias e parcerias" className="ds-notebook-section !mb-0 min-h-0 min-w-0 overflow-y-auto !p-0">{feed}</section></div>{overlays}</>;

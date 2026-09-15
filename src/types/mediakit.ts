@@ -156,6 +156,7 @@ export interface DemographicsData {
 
 // --- Props da view ---
 export interface MediaKitViewProps {
+  presentation?: { narrative: string; territories: string[] };
   user: any;
   summary: PerformanceSummary | null;
   videos: VideoListItem[];

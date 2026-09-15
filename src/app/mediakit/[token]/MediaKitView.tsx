@@ -64,6 +64,7 @@ import { isPlanActiveLike } from '@/utils/planStatus';
 import { track } from '@/lib/track';
 import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { useUtmAttribution } from '@/hooks/useUtmAttribution';
+import { buildAffiliateSignupLink } from '@/app/lib/mediakit/affiliateLink';
 import type { UtmContext } from '@/lib/analytics/utm';
 import { getMetricStrategicPresentation } from '@/app/lib/metricStrategicPresentation';
 
@@ -115,7 +116,6 @@ function pickAvailableIgAvatar(user: any): string | null {
   return null;
 }
 
-const AFFILIATE_LANDING_PATH = '/';
 
 const resolveAppOrigin = () => {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -125,31 +125,6 @@ const resolveAppOrigin = () => {
   return fallback ? fallback.replace(/\/$/, '') : '';
 };
 
-const buildAffiliateSignupLink = ({
-  affiliateCode,
-  mediaKitSlug,
-  affiliateHandle,
-}: {
-  affiliateCode: string;
-  mediaKitSlug?: string | null;
-  affiliateHandle?: string | null;
-}) => {
-  const origin = resolveAppOrigin();
-  if (!origin) return null;
-  try {
-    const url = new URL(`${origin}${AFFILIATE_LANDING_PATH}`);
-    url.searchParams.set('aff', affiliateCode);
-    url.searchParams.set('utm_source', 'mediakit');
-    url.searchParams.set('utm_medium', 'affiliate_cta');
-    url.searchParams.set('utm_campaign', mediaKitSlug || 'public');
-    url.searchParams.set('origin_affiliate', affiliateCode);
-    if (mediaKitSlug) url.searchParams.set('origin_slug', mediaKitSlug);
-    if (affiliateHandle) url.searchParams.set('origin_handle', affiliateHandle);
-    return url.toString();
-  } catch {
-    return null;
-  }
-};
 
 const extractSlugFromMediaKitUrl = (rawUrl?: string | null) => {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
@@ -244,7 +219,7 @@ type PublicProposalFormProps = {
   packages?: MediaKitPackage[];
 };
 
-const PublicProposalForm = ({
+export const PublicProposalForm = ({
   mediaKitSlug,
   onSubmitSuccess,
   onSubmitError,

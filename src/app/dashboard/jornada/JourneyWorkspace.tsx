@@ -153,7 +153,7 @@ export default function JourneyWorkspace({
       ?.scrollTo(0, 0);
   }
   return (
-    <div className="j-workspace">
+    <div className={`j-workspace ${tab === "collabs" ? "j-workspace-collabs" : ""}`}>
       <div className="j-content" key={tab}>
         {tab !== "perfil" && (
           <header className="j-page-heading">
@@ -410,7 +410,7 @@ function Opportunities() {
                 <span className="j-opportunity-monogram" aria-hidden="true">{(item.brand || item.source).slice(0, 1).toUpperCase()}</span>
                 <div><strong>{item.brand || item.source}</strong>{item.brand && item.brand !== item.source && <small>{item.source}</small>}</div>
               </header>
-              {item.availability !== "open" && <small className="j-opportunity-status">{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
+              {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}>{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
               <h3 title={item.title}>{item.title}</h3>
               <div className="j-opportunity-facts">
                 <div><small>Pagamento</small><strong>{item.compensation}</strong></div>

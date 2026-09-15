@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type { DiagnosticoPageData } from "../boards/videoUpload/diagnosticoPageData";
+import { track } from "@/lib/track";
+import { useUtmAttribution } from "@/hooks/useUtmAttribution";
+import { buildAffiliateSignupLink } from "@/app/lib/mediakit/affiliateLink";
 import type { MediaKitViewProps } from "@/types/mediakit";
 import { Carousel, readJson } from "./JourneyWorkspace";
 import { idsToLabels, type CategoryType } from "@/app/lib/classification";
@@ -11,29 +15,44 @@ const number = (n: unknown) =>
         maximumFractionDigits: 1,
       }).format(n)
     : "—";
+// Mesmo formulário do kit antigo: a proposta chega ao criador pelo sistema,
+// sem expor o e-mail da conta. Carregado só quando a marca abre o formulário.
+const ProposalForm = dynamic(
+  () => import("@/app/mediakit/[token]/MediaKitView").then((m) => m.PublicProposalForm),
+  { ssr: false, loading: () => <p role="status">Carregando formulário…</p> },
+);
 export default function JourneyMediaKit({
   slug,
   owner,
   onClose,
   onEdit,
+  initialData,
+  inline = false,
 }: {
   slug: string;
-  owner: DiagnosticoPageData;
-  onClose: () => void;
-  onEdit: () => void;
+  owner?: DiagnosticoPageData;
+  initialData?: MediaKitViewProps;
+  inline?: boolean;
+  onClose?: () => void;
+  onEdit?: () => void;
 }) {
-  const [data, setData] = useState<MediaKitViewProps | null>(null),
+  const [data, setData] = useState<MediaKitViewProps | null>(initialData ?? null),
     [error, setError] = useState(""),
     [version, setVersion] = useState(0),
     [brand, setBrand] = useState(false),
-    [status, setStatus] = useState("");
-  const dialog = useRef<HTMLDialogElement>(null);
+    [status, setStatus] = useState(""),
+    [proposal, setProposal] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null),
+    tracked = useRef(false),
+    proposalRef = useRef<HTMLDivElement>(null);
+  const { utm } = useUtmAttribution({ captureReferrer: true });
   useEffect(() => {
     const element = dialog.current;
-    element?.showModal();
+    if (!inline) element?.showModal();
     return () => element?.close();
-  }, []);
+  }, [inline]);
   useEffect(() => {
+    if (initialData) return;
     const c = new AbortController();
     setError("");
     readJson<MediaKitViewProps>(
@@ -45,9 +64,36 @@ export default function JourneyMediaKit({
         if (e.name !== "AbortError") setError(e.message);
       });
     return () => c.abort();
-  }, [slug, version]);
-  const info = owner.userInfo,
-    map = owner.mapaSeed,
+  }, [slug, version, initialData]);
+  const publicUser = data?.user;
+  const info = owner?.userInfo ?? {name: publicUser?.name || "", imageUrl: publicUser?.profile_picture_url || publicUser?.image || publicUser?.instagramProfilePictureUrl, handle: publicUser?.username || publicUser?.instagramUsername};
+  const handle = typeof info.handle === "string" && info.handle.trim() ? info.handle.trim().replace(/^@/, "") : null;
+  const affiliateCode = typeof publicUser?.affiliateCode === "string" ? publicUser.affiliateCode.trim() : "";
+  const affiliateLink = !owner && affiliateCode ? buildAffiliateSignupLink({ affiliateCode, mediaKitSlug: slug, affiliateHandle: handle }) : null;
+  // Visita de marca/visitante conta no funil; o dono vendo o próprio kit não.
+  useEffect(() => {
+    const creatorId = publicUser?._id ? String(publicUser._id) : null;
+    if (owner || tracked.current || !creatorId) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("print") === "1" || params.get("print") === "true") return;
+    tracked.current = true;
+    track("media_kit_viewed", {
+      creator_id: creatorId,
+      media_kit_id: slug,
+      referrer: utm.referrer ?? (document.referrer || null),
+      utm_source: utm.utm_source ?? null,
+      utm_medium: utm.utm_medium ?? null,
+      utm_campaign: utm.utm_campaign ?? null,
+      utm_content: utm.utm_content ?? null,
+      utm_term: utm.utm_term ?? null,
+    });
+    // Links antigos com ?proposal=1 abriam o formulário direto.
+    if (["1", "true", "open"].includes(params.get("proposal") ?? "")) setProposal(true);
+  }, [owner, publicUser?._id, slug, utm]);
+  useEffect(() => {
+    if (proposal) proposalRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [proposal]);
+  const map = owner?.mapaSeed ?? {narrativa_central: data?.presentation?.narrative || publicUser?.biography || publicUser?.bio || "", territorios: data?.presentation?.territories || [] as string[]},
     k = data?.kpis;
   const metrics = [
     ["Visualizações por post", k?.avgViewsPerPost?.currentValue],
@@ -84,33 +130,28 @@ export default function JourneyMediaKit({
       setStatus("Não foi possível copiar o link.");
     }
   }
+  const Container = inline ? "div" : "dialog";
   return (
-    <dialog
-      ref={dialog}
+    <Container
+      ref={inline ? undefined : dialog as any}
       onCancel={onClose}
-      className="j-kit-dialog"
+      className={inline ? "j-kit-inline" : "j-kit-dialog"}
       aria-label="Mídia kit"
     >
       <div className="j-workspace">
         <header className="j-kit-toolbar">
-          <button onClick={onClose}>← Voltar</button>
+          {onClose ? <button onClick={onClose}>← Voltar</button> : <span>data2content</span>}
           <strong>Mídia kit</strong>
-          <button onClick={() => setBrand(!brand)}>
+          {owner && <button onClick={() => setBrand(!brand)}>
             {brand ? "Voltar à edição" : "Ver como a marca"}
-          </button>
+          </button>}
         </header>
         <div className="j-content">
-          {!brand && (
+          {!brand && owner && (
             <div className="j-kit-actions">
               <button className="j-primary" onClick={() => void copy()}>Copiar link ↗</button>
               <button onClick={onEdit}>Editar</button>
-              <a
-                href={`/api/mediakit/${encodeURIComponent(slug)}/pdf`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                PDF ↗
-              </a>
+              <button onClick={() => window.print()}>Salvar PDF ↗</button>
             </div>
           )}
           <p className="j-kit-notice" role="status">{status}</p>
@@ -128,7 +169,7 @@ export default function JourneyMediaKit({
               <h1>{map?.narrativa_central || "Minha narrativa"}</h1>
               {!map?.narrativa_central && (
                 <p>
-                  Complete sua narrativa para apresentar o que você quer contar.
+                  {owner ? "Complete sua narrativa para apresentar o que você quer contar." : "Conheça meu trabalho nos conteúdos abaixo."}
                 </p>
               )}
               <div className="j-chips">
@@ -250,7 +291,7 @@ export default function JourneyMediaKit({
                   ))}
                 </div>
               </section>
-              {formats.size > 0 && <section className="j-kit-section">
+              {data.premiumAccess?.canViewCategories !== false && formats.size > 0 && <section className="j-kit-section">
                 <span className="j-kit-chapter">04 · Formatos</span>
                 <h2>Formatos e resposta do público</h2>
                 <p>Comparação dos posts exibidos neste mídia kit. Médias calculadas apenas com métricas disponíveis.</p>
@@ -264,7 +305,7 @@ export default function JourneyMediaKit({
                   </article>)}
                 </div>
               </section>}
-              {data.summary && (
+              {data.premiumAccess?.canViewCategories !== false && data.summary && (
                 <section className="j-kit-section">
                   <span className="j-kit-chapter">05 · Meu jeito de criar</span>
                   <h2>O que meu conteúdo revela</h2>
@@ -321,19 +362,30 @@ export default function JourneyMediaKit({
             {info.imageUrl && <img src={info.imageUrl} alt="" />}
             <h2>Sua marca tem uma história que combina com a minha?</h2>
             <p>Me conte sobre a marca, a ideia e o prazo da campanha.</p>
-            {info.email ? (
-              <a
-                className="j-primary"
-                href={`mailto:${encodeURIComponent(info.email)}?subject=${encodeURIComponent("Proposta de parceria")}`}
-              >
-                Enviar proposta ↗
-              </a>
+            {owner ? (
+              <p>As marcas enviam a proposta por este espaço, sem ver o e-mail da sua conta.</p>
+            ) : proposal ? (
+              <div className="j-kit-proposal" ref={proposalRef}>
+                <ProposalForm
+                  mediaKitSlug={slug}
+                  utmContext={utm}
+                  pricing={data?.pricingPublished ? data.pricing : null}
+                  packages={data?.pricingPublished ? data.packages ?? [] : []}
+                />
+              </div>
             ) : (
-              <p>Contato ainda não cadastrado.</p>
+              <button className="j-primary" onClick={() => setProposal(true)}>
+                Enviar proposta
+              </button>
+            )}
+            {affiliateLink && (
+              <a className="j-kit-affiliate" href={affiliateLink}>
+                Quer um mídia kit como este? Crie o seu ↗
+              </a>
             )}
           </section>
         </div>
       </div>
-    </dialog>
+    </Container>
   );
 }

@@ -999,3 +999,44 @@
 .j-opportunities footer { margin-top: 2px; }
 .j-opportunities footer a { min-height: 44px; padding: 10px 12px; }
 .j-opportunity-status { display:inline-block; margin-top:12px; padding:4px 8px; border:1px solid var(--j-line); border-radius:999px; font-size:10px; }
+/* Status informa, não convida ao clique: fundo suave + texto, sem contorno forte. */
+.j-opportunity-status.is-closed { background:#f1f0ee; border-color:transparent; color:#6b6760; }
+.j-opportunity-status.is-pending { background:#fbf1dc; border-color:transparent; color:#7a5412; }
+
+/* Collabs usa a área disponível entre cabeçalho e navegação. */
+.j-workspace-collabs { height:100dvh; min-height:0; padding-bottom:76px; }
+.j-workspace-collabs > .j-content { height:100%; min-height:0; display:flex; flex-direction:column; padding:14px 18px 8px; }
+.j-workspace-collabs .j-page-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.j-workspace-collabs .j-page-heading > span { font-size:14px; }
+.j-workspace-collabs .j-page-heading h1 { margin:0; font-size:25px; }
+.j-collabs-board { display:flex; flex-direction:column; flex:1; min-height:0; position:relative; }
+.j-collabs-settings { flex-shrink:0; font-size:12px; }
+.j-collabs-settings details > summary { padding:6px 0; min-height:36px; }
+.j-collabs-settings details[open] { position:absolute; inset:0 0 auto; z-index:30; background:white; border:1px solid var(--j-line); border-radius:16px; padding:14px; max-height:70dvh; overflow:auto; }
+.j-collabs-settings > [role=status]:empty { display:none; }
+.j-collabs-feed { flex:1; min-height:0 !important; height:auto !important; }
+.j-collabs-feed > div:first-child > button { min-height:36px; padding:6px 0; border:0; font-size:12px; }
+.j-collabs-feed > div[style*="max-width: 560px"] { padding:4px 0 0 !important; }
+.j-workspace .j-meeting { background:#f5f2ed; }
+.j-workspace .j-recording.j-tone-0 { background:#f4e5ec; }
+.j-workspace .j-recording.j-tone-1 { background:#ece8f5; }
+.j-workspace .j-recording.j-tone-2 { background:#e9efe6; }
+.j-kit-metrics, .j-kit-demographics > div { background:#f7f6f3; }
+.j-kit-inline .j-content { max-width:860px; padding:24px; }
+.j-kit-proposal { margin-top:18px; padding:16px; text-align:left; background:#fff; border:1px solid var(--j-line); border-radius:16px; }
+.j-kit-affiliate { display:inline-block; margin-top:14px; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+.j-kit-inline .j-workspace { padding-bottom:0; }
+@media(max-height:650px) {
+ .j-workspace-collabs .j-page-heading > span { display:none; }
+ .j-workspace-collabs .d2c-flashcard-title { font-size:22px !important; }
+}
+@media print {
+ body:has(.j-kit-dialog[open]) * { visibility:hidden; }
+ body:has(.j-kit-dialog[open]) .j-kit-dialog, body:has(.j-kit-dialog[open]) .j-kit-dialog * { visibility:visible; }
+ .j-kit-dialog[open] { position:absolute; inset:0; height:auto; overflow:visible; }
+ .j-kit-toolbar, .j-kit-actions, .j-kit-notice, .j-kit-dialog .j-section-heading button, .j-kit-contact button, .j-kit-proposal, .j-kit-affiliate { display:none !important; }
+ .j-kit-dialog .j-workspace, .j-kit-inline .j-workspace { padding:0; }
+ .j-kit-dialog .j-carousel, .j-kit-inline .j-carousel { overflow:visible; flex-wrap:wrap; }
+ .j-kit-post, .j-kit-format-card, .j-kit-insight { break-inside:avoid; }
+ .j-kit-section h2 { break-after:avoid; }
+}

@@ -159,3 +159,12 @@ Todos os caminhos abaixo são relativos à raiz do repositório:
 ## Ligações
 
 [[Seu Mapa]] · [[Mídia Kit e Publis]] · [[Collabs]] · [[MCP — ChatGPT e Claude]] · [[Landing e conversão]] · [[Reuniões da comunidade]]
+
+## Refinamento após publicação — 15/09/2026
+
+- Collabs compacta usa altura disponível, sem mínimo de 480 px somado ao cabeçalho. Preferências expandidas ficam sobre o conteúdo, sem empurrar o baralho.
+- Mídia kit compartilha JourneyMediaKit entre proprietário, Comunidade, Collabs e página pública. Visitantes não recebem controles de edição. Apresentação pública do mapa contém somente narrativa e territórios; não incluir assets, evidências ou diagnósticos.
+- A ação Salvar PDF da nova experiência imprime o mesmo layout via navegador; o endpoint legado de geração continua disponível para consumidores antigos.
+- Contato de marca no kit público é o formulário de proposta (`PublicProposalForm`, carregado sob demanda), nunca o e-mail da conta. O kit antigo só mostrava e-mail ao dono; a primeira versão do novo publicava para todos. `?proposal=1` abre o formulário, a visita dispara `media_kit_viewed` (exceto dono e `?print=1`) e o link de afiliado volta ao rodapé.
+- Página pública e `view-data` passam o usuário por `stripSensitiveUserFields` (`src/app/lib/mediakit/presentation.ts`): sem tokens, e-mail, Stripe, WhatsApp, documento ou nascimento. Antes a página serializava o documento inteiro do usuário no HTML.
+- Cor suave identifica grupos informativos (encontros e métricas) e gravações, com play explícito. Preto continua reservado a ações e seleções.

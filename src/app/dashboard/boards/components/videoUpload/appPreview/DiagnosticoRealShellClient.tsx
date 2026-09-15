@@ -1999,7 +1999,7 @@ export function DiagnosticoRealShellClient({
       ) : null}
 
       {mediaKitSheetSlug ? (
-        journey && mediaKitSheetSlug === hydratedData.userInfo.mediaKitSlug ? <JourneyMediaKit slug={mediaKitSheetSlug} owner={hydratedData} onClose={() => setMediaKitSheetSlug(null)} onEdit={() => { setMediaKitSheetSlug(null); handleOpenNorte(); }} /> : <MediaKitSheet slug={mediaKitSheetSlug} onClose={() => setMediaKitSheetSlug(null)} />
+        journey ? <JourneyMediaKit slug={mediaKitSheetSlug} owner={mediaKitSheetSlug === hydratedData.userInfo.mediaKitSlug ? hydratedData : undefined} onClose={() => setMediaKitSheetSlug(null)} onEdit={() => { setMediaKitSheetSlug(null); handleOpenNorte(); }} /> : <MediaKitSheet slug={mediaKitSheetSlug} onClose={() => setMediaKitSheetSlug(null)} />
       ) : null}
 
       {accountMenuOpen ? (
