@@ -17,6 +17,18 @@ interface InstagramConnectionInput {
   instagramSyncErrorMsg?: string | null;
 }
 
+// Erros que a sincronização registra mas que não são queda de conexão: o Instagram
+// recusa estatísticas de um post específico (ex.: "(#100) The Media Insights API
+// does not support…") ou limita a frequência. Reconectar não resolve nenhum deles.
+// Em set/2026, tratá-los como queda mandava 41 de 45 criadores "reconectar" à toa.
+const NON_CONNECTION_SYNC_ERROR =
+  /fetchMediaInsights|Insights m[íi]dia|does not support|limite de p[áa]ginas|rate limit|too many calls|\(#(4|17|32|613)\)/i;
+
+export function isConnectionSyncError(message: string | null | undefined): boolean {
+  const text = typeof message === "string" ? message.trim() : "";
+  return text.length > 0 && !NON_CONNECTION_SYNC_ERROR.test(text);
+}
+
 function isExpired(value: Date | string | null | undefined): boolean {
   if (!value) return false;
   const date = value instanceof Date ? value : new Date(value);
@@ -34,9 +46,7 @@ export function resolveInstagramConnectionState(
   // ligada no papel mas não entrega dado novo. Para o criador é a mesma coisa.
   if (isExpired(user?.instagramAccessTokenExpiresAt)) return "expired";
   if (user?.instagramAccessToken === null || user?.instagramAccessToken === "") return "expired";
-  if (typeof user?.instagramSyncErrorMsg === "string" && user.instagramSyncErrorMsg.trim().length > 0) {
-    return "expired";
-  }
+  if (isConnectionSyncError(user?.instagramSyncErrorMsg)) return "expired";
 
   return "connected";
 }

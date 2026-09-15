@@ -24,6 +24,7 @@ const CollabsPinnedBoard = dynamic(() => import("../boards/CollabsPinnedBoard"),
 import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 import { promptGroups } from "./prompts";
 import { filterOpportunities } from "./opportunityFilters";
+import { communityThemes, creatorThemeKeys } from "./communityThemes";
 
 const tabs = [
   { id: "perfil", label: "Perfil", icon: UserRound },
@@ -483,16 +484,15 @@ function Community({
     }
   }
   const all = creators.data?.creators ?? [],
-    themes = Array.from(
-      new Set(all.flatMap((c) => c.brandTerritories ?? c.niches ?? [])),
-    ).sort();
+    themes = communityThemes(all),
+    themeLabel = new Map(themes.map((t) => [t.key, t.label]));
   const shown = all.filter(
     (c) =>
       (!query ||
         `${c.name} ${c.username ?? ""}`
           .toLocaleLowerCase("pt-BR")
           .includes(query.toLocaleLowerCase("pt-BR"))) &&
-      (!theme || (c.brandTerritories ?? c.niches ?? []).includes(theme)),
+      (!theme || creatorThemeKeys(c).includes(theme)),
   );
   return (
     <>
@@ -580,7 +580,7 @@ function Community({
           >
             <option value="">Todos os territórios</option>
             {themes.map((t) => (
-              <option key={t}>{t}</option>
+              <option key={t.key} value={t.key}>{t.label}</option>
             ))}
           </select>
         </div>
@@ -602,7 +602,9 @@ function Community({
                     : "Criador D2C"}
                 </small>
                 <p>
-                  {(c.brandTerritories ?? c.niches ?? [])
+                  {creatorThemeKeys(c)
+                    .map((k) => themeLabel.get(k))
+                    .filter(Boolean)
                     .slice(0, 3)
                     .join(" · ")}
                 </p>

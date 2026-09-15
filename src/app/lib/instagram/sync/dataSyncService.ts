@@ -743,7 +743,11 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Filhos Carrossel Pulados: ${skippedCarouselChildren}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha/Parcial'}. Demo: ${demographicsWereCollected ? 'OK/Parcial' : 'Falha/Indisp.'}`;
 
   let errorMsgForDb: string | null = null;
-  const isPageLimitInfo = (err: { step: string; message: string; }) => err.step === 'fetchInstagramMediaLimitReachedInfo';
+  const isPageLimitInfo = (err: { step: string; message: string; }) => err.step === 'fetchInstagramMediaLimitReachedInfo'
+    // Estatística recusada para um post específico ("(#100) The Media Insights API
+    // does not support…") não é problema da conta: gravá-la como erro de sincronização
+    // fazia o Perfil pedir reconexão. O post segue sem insights; o resto sincroniza.
+    || (err.step === 'fetchMediaInsights' && /does not support/i.test(err.message));
 
   if (userFacingErrorForTokenProblem) {
     errorMsgForDb = userFacingErrorForTokenProblem;

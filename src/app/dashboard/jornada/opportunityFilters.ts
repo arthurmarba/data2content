@@ -29,12 +29,15 @@ export function filterOpportunities(
         (!payment || item.payment === payment) &&
         (!format || item.formats.includes(format)),
     )
+    // Encerradas vão para o fim em qualquer ordenação: com prazo no passado, elas
+    // ocupavam o topo da ordem por prazo e escondiam as chamadas abertas.
     .sort((a, b) =>
-      order === "payment"
+      Number(a.availability === "closed") - Number(b.availability === "closed") ||
+      (order === "payment"
         ? (b.minimum ?? -1) - (a.minimum ?? -1)
         : order === "recent"
           ? Date.parse(b.verifiedAt) - Date.parse(a.verifiedAt)
           : (a.deadline ? Date.parse(a.deadline) : Infinity) -
-            (b.deadline ? Date.parse(b.deadline) : Infinity),
+            (b.deadline ? Date.parse(b.deadline) : Infinity)),
     );
 }
