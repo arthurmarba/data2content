@@ -525,3 +525,92 @@ formulário Meta. Nenhuma credencial de Arthur foi reutilizada.
 
 Build local passou; permanece o aviso preexistente do ESLint sobre `useEslintrc`
 e `extensions`. `npm run brain` atualizou inventário para 435 rotas e 93 modelos.
+
+### Retomada para gravação — 09/09/2026
+
+Tela `/creator-research` confirmada em produção pelo Chrome. Login da conta
+dedicada validado por HTTP com credenciais existentes e sessão própria: papel
+`user`, tela de pesquisa com Marketplace e GET da API Marketplace retornando 200.
+Isso valida o acesso D2C; não valida ainda o OAuth Meta dessa conta nem substitui
+a gravação do percurso no navegador.
+
+Nenhum vídeo novo produzido nesta retomada. O atalho de captura não apresentou
+controles acessíveis; tentativas de abrir Captura de Tela e QuickTime pela
+automação terminaram em timeout. Necessário iniciar a captura manualmente e
+continuar a demonstração na aba de pesquisa. O rascunho Meta também permaneceu
+no indicador de carregamento após recarregar; nenhum campo foi alterado ou enviado.
+
+### Gravação recuperada e preparação do envio — 10/09/2026
+
+O usuário gravou e encerrou o vídeo em `output/meta-review/Gravação de Tela
+2026-09-09 às 21.48.29.mov` (nome real do arquivo com Unicode decomposto).
+Original com 208,78 segundos, 1366×768 e áudio. A conexão da Página Arthur Marbá
+– D2C foi renovada sem mudar as seleções anteriores. A consulta por `receitas`,
+país BR, retornou sete perfis `mocked_username_*` da Meta em produção.
+
+Cópia preparada: `output/meta-review/marketplace-demonstracao-revisao.mp4`,
+95 segundos, sem áudio, com corte da espera inicial e máscaras nas abas,
+parâmetros da URL e listas de ativos. O original foi preservado. O vídeo não
+demonstra o login inicial na D2C nem a consulta Business Discovery por @.
+Não declarar que a demonstração de todas as permissões está completa.
+
+O painel Meta carregou nesta retomada. A nota incorreta sobre suspensão geral do
+Facebook Login foi substituída nas instruções por uma descrição do estado Ao vivo
+e do acesso Marketplace de teste. O seletor de upload falhou antes de receber o
+arquivo; nenhum vídeo foi anexado nem houve envio final. A confirmação do
+controlador brasileiro e da declaração sobre pedidos de segurança nacional foi
+solicitada ao usuário e continua pendente. Conferir também os procedimentos
+de atendimento a autoridades e a duração do acesso da conta de revisão.
+
+### Anexo confirmado — 10/09/2026
+
+Arthur anexou manualmente `marketplace-demonstracao-revisao.mp4`. O anexo foi
+salvo no formulário de `instagram_creator_marketplace_discovery` e, ao reabrir,
+a Meta apresentou “Visualizar screencast carregado”. O acesso a URLs de arquivo
+da extensão já estava habilitado, conforme captura do usuário; o timeout da
+automação ao abrir o seletor não comprova ausência dessa permissão.
+
+A descrição de `pages_read_engagement` foi atualizada e salva para refletir o
+consentimento opcional publicado em `/creator-research`. Essa permissão continua
+sem gravação própria. Nenhuma declaração de conformidade foi marcada e a
+solicitação não foi enviada. As confirmações empresariais continuam pendentes.
+
+### Vídeo da pesquisa por @ gravado e anexado — 11/09/2026
+
+As tentativas gravadas com o Codex no comando do Chrome saíram com tela preta
+(áudio inteiro, 4 quadros e 187 quadros de vídeo). Nova gravação feita pelo
+Claude Code com `ffmpeg`, sem ninguém mexer no Mac. Percurso: `/creator-research` →
+consentimento → Facebook Login para Empresas com o escopo `public_profile`, `pages_show_list`,
+`instagram_basic`, `instagram_manage_insights`, `business_management` e
+`pages_read_engagement` → as seleções já existentes foram mantidas (Página
+Arthur Marbá – D2C, empresa Data2Content, Instagram arthurmarba) → a tela de revisão
+da Meta mostra "Ler o conteúdo postado na Página" → volta à D2C → pesquisa de
+`@nike, @mkbhd` com três posts cada, com biografia, seguidores, legendas e interações.
+
+Original preservado em `output/meta-review/bd-bruto2.mp4` (249 s). Cópia editada:
+`output/meta-review/pesquisa-arroba-demonstracao-revisao.mp4`, 133 s, sem áudio,
+com máscaras na barra de abas, na query da URL do OAuth, na faixa de depuração e
+nos nomes de Páginas, empresas e contas Instagram de terceiros. Anexada ao
+formulário de `pages_read_engagement` do pedido `1593898122472419`; a Meta
+aceitou o arquivo e está processando o vídeo. Salvar o formulário exige marcar a declaração de
+uso conforme permitido, que ficou para Arthur. Nada foi enviado para análise.
+
+### Solicitação enviada para análise — 12/09/2026
+
+O pedido `1593898122472419` foi enviado. O painel passou de "Não enviado" para
+"Análise em andamento", com prazo indicado de até 20 dias. Estão no envio:
+`pages_read_engagement` e `instagram_creator_marketplace_discovery` como novas
+solicitações, mais oito permissões em renovação (`whatsapp_business_messaging`,
+`whatsapp_business_management`, `pages_show_list`, `business_management`,
+`public_profile`, `instagram_manage_insights`, `instagram_basic` e `email`).
+
+Conteúdo do envio: screencast da pesquisa por @ em `pages_read_engagement`
+(`output/meta-review/pesquisa-arroba-demonstracao-revisao.mp4`) e o do Marketplace
+na outra permissão; declarações de uso conforme permitido marcadas em todas, com
+autorização de Arthur. Em Tratamento de dados: responsável **MOBI MEDIA PRODUTORES
+DE CONTEÚDO DIGITAL LTDA** (CNPJ 31.549.879/0001-59, que o formulário não pede),
+país Brasil, **não** houve entrega de dados a pedidos de segurança nacional nos
+últimos 12 meses, quatro políticas de resposta a autoridades marcadas e operadores
+Google, OpenAI, Upstash, MongoDB Atlas e Vercel. As instruções para o analista
+ganharam dois passo a passo novos — pesquisa por @ em `/creator-research` e
+descoberta de criadores para campanhas —, acrescentados ao fim do texto que já existia.

@@ -184,6 +184,8 @@ function fromPersistence(record: LeanCampaignRadarOpportunity): CatalogCampaignO
 }
 
 export interface ListCampaignRadarCatalogOptions {
+  /** Painel consolidado: entrega o catálogo inteiro, sem corte silencioso. */
+  completeCatalog?: boolean;
   includePrograms?: boolean;
   now?: Date;
   maxAgeDays?: number;
@@ -214,6 +216,23 @@ export function saoPauloDateKey(now: Date): string {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
+/** Catálogo do painel autenticado: fontes públicas revisadas no relatório.
+ * A liberação para distribuição em plugin continua exclusiva da consulta MCP.
+ */
+export async function listDashboardCampaignRadarCatalog(): Promise<CatalogCampaignOpportunity[]> {
+  await connectToDatabase();
+  const publicSources = campaignRadarSourceRegistry.filter(source =>
+    source.inventoryVisibility === "public" || source.inventoryVisibility === "partial_public"
+  ).map(source => source.sourceId);
+  const records = await CampaignRadarOpportunityModel.find({
+    sourceId: { $in: publicSources },
+    "review.status": "approved",
+    $or: [{ activeInCatalog: true }, { status: "closed" }],
+    opportunityType: { $ne: "challenge" },
+  }).sort({ applicationDeadline: 1, lastVerifiedAt: -1, opportunityId: 1 }).lean();
+  return (records as unknown as LeanCampaignRadarOpportunity[]).map(fromPersistence);
+}
+
 export async function listPublicCampaignRadarCatalog(
   options: ListCampaignRadarCatalogOptions = {},
 ): Promise<CatalogCampaignOpportunity[]> {
@@ -239,7 +258,7 @@ export async function listPublicCampaignRadarCatalog(
       : { $nin: ["challenge", "creator_program"] },
   })
     .sort({ applicationDeadline: 1, lastVerifiedAt: -1, opportunityId: 1 })
-    .limit(500)
+    .limit(options.completeCatalog ? 0 : 500)
     .lean();
 
   return (records as unknown as LeanCampaignRadarOpportunity[]).map(fromPersistence);

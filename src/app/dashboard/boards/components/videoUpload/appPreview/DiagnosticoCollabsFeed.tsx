@@ -64,6 +64,7 @@ function WhatsAppIcon({ color = "currentColor", size = 14 }: { color?: string; s
 }
 
 interface Props {
+  compact?: boolean;
   pautas: ContentIdeaListItem[];
   isPro: boolean;
   canUseIdeas?: boolean;
@@ -961,6 +962,7 @@ function RoundCompleteActions({
 }
 
 export function DiagnosticoCollabsFeed({
+  compact = false,
   pautas,
   isPro, canUseIdeas = isPro, hasMoreSaved, onLoadMoreSaved, onCancelInterest,
   whatsappLinked, whatsappUnavailableReason,
@@ -1199,7 +1201,7 @@ export function DiagnosticoCollabsFeed({
       style={{ background: surfaceBackground, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
     >
       <div style={{ background: surfaceBackground, paddingTop: showHeaderTitle ? SAFE_TOP : 0, paddingBottom: 6 }}>
-        <FeedHeader
+        {compact ? <button type="button" className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-between border-b border-zinc-200 px-4 py-3 text-sm font-semibold" onClick={() => setOpenSheet("salvas")}><span>Salvas e combinadas</span><span>{shelfPautas.length + (confirmedMatches?.length ?? 0)} →</span></button> : <FeedHeader
           savedCount={confirmedSavedCount}
           hasSavedItems={shelfPautas.length > 0}
           matchCount={confirmedMatches?.length ?? 0}
@@ -1208,7 +1210,7 @@ export function DiagnosticoCollabsFeed({
           headline={deckHeadline}
           onOpenSalvas={() => setOpenSheet("salvas")}
           onOpenCombinadas={() => setOpenSheet("combinadas")}
-        />
+        />}
       </div>
 
       {failedAction ? (
@@ -1250,7 +1252,7 @@ export function DiagnosticoCollabsFeed({
           ) : bootstrapFailed ? (
             <CollabsLoadError message={bootstrapError} onRetry={onRetryBootstrap} />
           ) : (
-            <DiagnosticoCollabStack
+            <DiagnosticoCollabStack compact={compact}
               key={deckRoundFingerprint}
               items={deckItems}
               isPro={canUseIdeas}
@@ -1317,7 +1319,12 @@ export function DiagnosticoCollabsFeed({
         </div>
       )}
 
-      {openSheet === "combinadas" ? (
+      {compact && openSheet ? <CollabSheet title="Salvas e combinadas" onClose={() => setOpenSheet(null)}><div className="px-5 pb-8">
+        {(confirmedMatches ?? []).map(match => <button key={match.pautaId} className="flex min-h-20 w-full flex-col items-start gap-2 border-b border-zinc-200 py-4 text-left" onClick={() => { setOpenSheet(null); onOpenMatch?.(match.pautaId); }}><small className="text-green-700">Combinada · {match.collab.name}</small><strong>{pautaById.get(match.pautaId)?.title || "Abrir parceria"} ↗</strong></button>)}
+        {shelfPautas.map(pauta => <div key={pauta.id} className="border-b border-zinc-200 py-3"><button className="flex min-h-16 w-full flex-col items-start gap-2 text-left" onClick={() => { setOpenSheet(null); onOpenIdea?.(pauta.id); }}><small>{awaitingByPauta.has(pauta.id) ? "Aguardando a outra pessoa" : "Salva"}</small><strong>{pauta.title} →</strong></button>{awaitingByPauta.has(pauta.id) && onCancelInterest && <button className="min-h-11 text-xs underline" onClick={() => onCancelInterest(pauta.id)}>Cancelar interesse</button>}</div>)}
+        {!shelfPautas.length && !confirmedMatches?.length && <p className="py-6 text-sm">Ao escolher “Quero fazer”, sua proposta aparece aqui.</p>}
+        {hasMoreSaved && <button className="min-h-11 underline" onClick={onLoadMoreSaved}>Carregar mais</button>}
+      </div></CollabSheet> : openSheet === "combinadas" ? (
         <CombinadasSheet
           whatsappUnavailableReason={whatsappUnavailableReason}
           matches={confirmedMatches ?? []}

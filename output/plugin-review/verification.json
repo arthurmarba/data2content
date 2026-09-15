@@ -1,0 +1,319 @@
+{
+  "transport": "in_memory",
+  "oauthValidated": false,
+  "writeDemo": true,
+  "liveGeneration": true,
+  "checks": [
+    {
+      "tier": "pro",
+      "tool": "get_account_state",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 2
+    },
+    {
+      "tier": "pro",
+      "tool": "get_creator_map",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 136
+    },
+    {
+      "tier": "pro",
+      "tool": "build_creator_radar",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 1988
+    },
+    {
+      "tier": "pro",
+      "tool": "list_content_ideas",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 136
+    },
+    {
+      "tier": "pro",
+      "tool": "get_creator_profile",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 136
+    },
+    {
+      "tier": "pro",
+      "tool": "get_creator_content_dna",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 136
+    },
+    {
+      "tier": "pro",
+      "tool": "get_creator_intelligence_snapshot",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 1021
+    },
+    {
+      "tier": "pro",
+      "tool": "search",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 139
+    },
+    {
+      "tier": "pro",
+      "tool": "fetch",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 141
+    },
+    {
+      "tier": "pro",
+      "tool": "analyze_creator_period",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 295
+    },
+    {
+      "tier": "pro",
+      "tool": "get_follower_growth",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 143
+    },
+    {
+      "tier": "pro",
+      "tool": "get_performance_summary",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 140
+    },
+    {
+      "tier": "pro",
+      "tool": "compare_content_formats",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 138
+    },
+    {
+      "tier": "pro",
+      "tool": "list_top_content",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 136
+    },
+    {
+      "tier": "pro",
+      "tool": "get_content_deep_analysis",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 273
+    },
+    {
+      "tier": "pro",
+      "tool": "research_inspiration_content",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 1743
+    },
+    {
+      "tier": "pro",
+      "tool": "recommend_collab_creators",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 513
+    },
+    {
+      "tier": "pro",
+      "tool": "find_campaign_opportunities",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 478
+    },
+    {
+      "tier": "pro",
+      "tool": "get_script_evidence_pack",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 702
+    },
+    {
+      "tier": "pro",
+      "tool": "critique_script_against_creator_dna",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 198
+    },
+    {
+      "tier": "pro",
+      "tool": "save_script",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 300
+    },
+    {
+      "tier": "pro",
+      "tool": "save_script",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 278
+    },
+    {
+      "tier": "pro",
+      "tool": "record_script_feedback",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 140
+    },
+    {
+      "tier": "pro",
+      "tool": "record_script_feedback",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 140
+    },
+    {
+      "tier": "pro",
+      "tool": "generate_script_draft",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 2399
+    },
+    {
+      "tier": "free",
+      "tool": "get_account_state",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 2
+    },
+    {
+      "tier": "free",
+      "tool": "get_creator_map",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 138
+    },
+    {
+      "tier": "free",
+      "tool": "build_creator_radar",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 2239
+    },
+    {
+      "tier": "free",
+      "tool": "list_content_ideas",
+      "isError": true,
+      "expectedError": true,
+      "durationMs": 0
+    },
+    {
+      "tier": "free",
+      "tool": "get_script_evidence_pack",
+      "isError": true,
+      "expectedError": true,
+      "durationMs": 1
+    },
+    {
+      "tier": "free",
+      "tool": "analyze_creator_period",
+      "isError": true,
+      "expectedError": true,
+      "durationMs": 0
+    }
+  ],
+  "missingOutputSchemas": [
+    "search",
+    "fetch",
+    "get_creator_profile",
+    "get_performance_summary",
+    "list_top_content",
+    "compare_content_formats"
+  ],
+  "periodInventory": {
+    "totalPosts": 3,
+    "byFormat": {
+      "reel": 2,
+      "carousel": 1,
+      "photo": 0,
+      "other": 0
+    },
+    "firstPostDate": "2026-08-03T15:00:00.000Z",
+    "lastPostDate": "2026-08-06T15:00:00.000Z",
+    "evidenceReturned": 3,
+    "evidenceTruncated": false
+  },
+  "followerCoverage": {
+    "calendarDays": 7,
+    "daysWithReading": 0,
+    "measuredDayToDayTransitions": 0,
+    "transitionsSpanningGaps": 0,
+    "hasBaselineBeforePeriod": false,
+    "firstReadingAt": null,
+    "lastReadingAt": null,
+    "warnings": [
+      "no_follower_readings_in_period"
+    ]
+  },
+  "evidenceReceipt": {
+    "profileVersion": "creator_script_dna_v3",
+    "evidenceRecordsConsidered": 3,
+    "fullExemplarsUsed": 3,
+    "linkedPlannedScriptsUsed": 3,
+    "observedTranscriptsUsed": 0,
+    "demographicsUsed": false,
+    "status": "partial",
+    "warnings": [
+      "Parte dos exemplos é roteiro planejado, não fala observada.",
+      "Há textos cuja integralidade não foi verificada; não os anuncie como transcrição completa.",
+      "7 dos 7 líderes não têm transcrição observada utilizável."
+    ],
+    "packId": "1bbe7dba6d47962db546cf3fcc6c537eccbe16c59a4af396239b548955a1390a",
+    "rankingVersion": "script_ranking_v2",
+    "selectedContentIds": [
+      "6a90af3d8f2b037fc490db91",
+      "6a90af3c8f2b037fc490db8e",
+      "6a90af3c8f2b037fc490db90"
+    ],
+    "coverage": {
+      "published": 7,
+      "metricsEligible": 7,
+      "observedAvailable": 0,
+      "observedAndMetrics": 0,
+      "leaders": 7,
+      "leadersWithObservedTranscript": 0,
+      "missingLeaderIds": [
+        "6a90af3c8f2b037fc490db8f",
+        "6a90af3c8f2b037fc490db8e",
+        "6a90ae5a8f2b037fc490db13",
+        "6a90af3d8f2b037fc490db91",
+        "6a90af3d8f2b037fc490db93",
+        "6a90af3c8f2b037fc490db90",
+        "6a90ae5a8f2b037fc490db14"
+      ],
+      "requestedWithoutTranscript": []
+    },
+    "selectionStage": "delivered_to_client",
+    "selectedExamples": 3,
+    "sentExamples": 3,
+    "corpusLimited": false,
+    "periodStart": "2026-08-01T03:00:00.000Z",
+    "periodEnd": "2026-09-01T02:59:59.000Z"
+  },
+  "generation": {
+    "provider": "local_fallback",
+    "hasDraft": true,
+    "validation": {
+      "passed": true,
+      "durationWithinTolerance": true,
+      "verbatimOverlapDetected": false,
+      "technicalScore": 0.893,
+      "warnings": [
+        "Parte dos exemplos é roteiro planejado, não fala observada.",
+        "Há textos cuja integralidade não foi verificada; não os anuncie como transcrição completa.",
+        "7 dos 7 líderes não têm transcrição observada utilizável."
+      ]
+    }
+  },
+  "passed": true
+}

@@ -33,6 +33,7 @@ const LEGACY_CHROME_FREE_ROUTES = new Set([
   RECORDED_MEETINGS_ROUTE,
   STRATEGIC_MAP_ROUTE,
   COLLABS_ROUTE,
+  "/dashboard/jornada",
 ]);
 
 export function shouldSuppressDashboardLegacyChrome(pathname?: string | null) {
@@ -42,6 +43,7 @@ export function shouldSuppressDashboardLegacyChrome(pathname?: string | null) {
 export function isMobileStrategicProfileRoute(pathname?: string | null) {
   if (!pathname) return false;
   return (
+    pathname === "/dashboard/jornada" ||
     pathname === CREATOR_PROFILE_ROUTE ||
     pathname.startsWith(`${CREATOR_PROFILE_ROUTE}/`) ||
     pathname === MOBILE_PROFILE_ROUTE ||
@@ -323,6 +325,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       : isDiscover && isMobile
       ? "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
       : "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] sm:pb-5 lg:pb-4";
+
+  if (pathname === "/dashboard/jornada") {
+    return <main id="dashboard-main" className="h-dvh w-full min-h-0 overflow-hidden">{children}</main>;
+  }
 
   if (shouldRedirectMobileDashboardEntryClient) {
     return <MobileDashboardEntryRedirectFallback />;

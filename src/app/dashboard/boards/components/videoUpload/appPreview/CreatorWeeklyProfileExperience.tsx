@@ -96,7 +96,9 @@ function ReportOverview({
   territoryExample,
   onExpandPattern,
   onLockedPattern,
+  compact = false,
 }: {
+  compact?: boolean;
   report: CreatorWeeklyReportPayload;
   isDemo: boolean;
   /** Série das últimas semanas e ranking do território. Chega depois da tela. */
@@ -144,7 +146,7 @@ function ReportOverview({
 
       {/* O vídeo da semana é dado real e continua na tela — depois dos padrões,
           porque ele ilustra o que os padrões explicam. */}
-      {report.weeklyVideo ? (
+      {!compact && (report.weeklyVideo ? (
         <>
           <ProfileSectionHeader title="Vídeo da semana" level="group" />
           <div className="mt-3">
@@ -157,7 +159,7 @@ function ReportOverview({
           <h3 className="mt-3 text-[1.25rem] font-bold text-[var(--ds-color-ink)]">Você não postou na semana passada.</h3>
           <p className="ds-body mt-2">O que já funcionou nos últimos 90 dias continua aqui embaixo.</p>
         </div>
-      )}
+      ))}
 
       <ProfilePatternDetailSheet
         highlight={openPattern}
@@ -204,7 +206,9 @@ export function CreatorWeeklyProfileExperience({
   onConnectInstagram,
   starterMapJustCreated = false,
   surface = "mobile",
+  journey = false,
 }: {
+  journey?: boolean;
   data: DiagnosticoPageData;
   weeklyMeeting: WeeklyMeetingProfileData | null;
   /** Último cálculo de publi já formatado (ex.: "R$ 2.800"), quando existir. */
@@ -488,7 +492,7 @@ export function CreatorWeeklyProfileExperience({
             onOpenFullMap={handleOpenNarrative}
             onDefineNarrative={onOpenNorte}
             starterMapJustCreated={starterMapJustCreated}
-            statusLine={activationState === "connected" ? (
+            statusLine={!journey && activationState === "connected" ? (
               <ProfileNextStepField
                 state="connected"
                 lastReadAt={liveReport?.evolution?.lastAnalyzedAt ?? null}
@@ -499,18 +503,18 @@ export function CreatorWeeklyProfileExperience({
             ) : null}
           />
 
-          <ProfileToolCards
+          {!journey && <ProfileToolCards
             isPro={hasActivePro}
             calculatorPrice={calculatorPrice}
             mediaKitReady={Boolean(data.userInfo.mediaKitSlug)}
             mediaKitNote={mediaKitNote}
             onOpenMediaKit={onOpenMediaKit}
             onOpenCalculator={onOpenCalculator}
-          />
+          />}
         </div>
         </div>
 
-        {hasReportAccess ? <ProfileReadingProgress evolution={liveReport?.evolution} /> : null}
+        {!journey && hasReportAccess ? <ProfileReadingProgress evolution={liveReport?.evolution} /> : null}
 
         {/* Saúde da conta: pede o plano, pede o Instagram, confirma — e volta a
             pedir se a conexão cair. Quando está tudo certo, o campo não ocupa
@@ -533,7 +537,7 @@ export function CreatorWeeklyProfileExperience({
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--report" : ""}>
           {report ? (
-            <ReportOverview
+            <ReportOverview compact={journey}
               report={report}
               isDemo={reportIsDemo}
               context={patternContext}
@@ -561,7 +565,7 @@ export function CreatorWeeklyProfileExperience({
           )}
         </div>
 
-        {territoryTrends.length > 0 ? (
+        {!journey && territoryTrends.length > 0 ? (
           <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--trends" : ""}>
             <ProfileTerritoryTrends
               territory={trendsLabel ?? territories[0] ?? "seu assunto"}
@@ -571,26 +575,26 @@ export function CreatorWeeklyProfileExperience({
         ) : null}
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--brand" : ""}>
-          {hasReportAccess && liveReport ? <BrandMatchCard match={data.brandMatches[0] ?? null} /> : null}
+          {!journey && hasReportAccess && liveReport ? <BrandMatchCard match={data.brandMatches[0] ?? null} /> : null}
         </div>
 
         {/* Reuniões: o único assunto desta tela que se repete toda semana, e por
             isso o único com lugar fixo. Aparece igual para quem ainda não assina —
             o convite entra no play, não antes. */}
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--community" : ""}>
-          <ProfileMeetingsCard
+          {!journey && <ProfileMeetingsCard
             meeting={weeklyMeeting}
             isPro={hasActivePro}
             whatsappGroupLinkOpened={whatsappGroupLinkOpened}
             onUpgrade={onUpgrade}
             onOpenWhatsAppGroup={handleOpenWhatsAppGroup}
-          />
+          />}
         </div>
 
         {/* O rodapé é onde a régua é explicada uma vez só — e onde a tela diz de
             onde vem o que está acima. Três linhas, da mais específica para a mais
             geral: o aviso de exemplo, a cobertura da leitura, o ritmo da semana. */}
-        <div
+        {(!journey || reportIsDemo) && <div
           className={`${surface === "responsive" ? "ds-profile-area ds-profile-area--footer" : ""} mt-[34px] flex flex-col gap-2 border-t border-dashed border-[var(--ds-color-line-strong)] pb-2 pt-[18px]`}
         >
           {/* O aviso de exemplo é explicação, não segunda oferta: o botão de
@@ -602,7 +606,7 @@ export function CreatorWeeklyProfileExperience({
               posts.
             </p>
           ) : null}
-          {report ? (
+          {!journey && report ? (
             <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)]">
               Tudo comparado com os seus últimos 90 dias · {report.coverage.postsWithScene} de{" "}
               {report.coverage.posts90d} posts lidos.
@@ -611,10 +615,10 @@ export function CreatorWeeklyProfileExperience({
                 : ""}
             </p>
           ) : null}
-          <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)] opacity-80">
+          {!journey && <p className="text-[11.5px] leading-[1.5] text-[var(--ds-color-text-muted)] opacity-80">
             Resultados da última semana fechada. A leitura recente acompanha os novos posts analisados.
-          </p>
-        </div>
+          </p>}
+        </div>}
       </div>
 
       {/* A narrativa por inteiro, sobre o Perfil. */}

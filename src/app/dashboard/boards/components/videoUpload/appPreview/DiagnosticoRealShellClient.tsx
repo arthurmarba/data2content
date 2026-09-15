@@ -152,7 +152,11 @@ const SurveyModal = dynamic(
 const REAL_ANALYSIS_ENABLED =
   process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
 
+const JourneyMediaKit = dynamic(() => import("@/app/dashboard/jornada/JourneyMediaKit"));
+const JourneyWorkspace = dynamic(() => import("@/app/dashboard/jornada/JourneyWorkspace"));
+
 interface Props {
+  journey?: boolean;
   data: DiagnosticoPageData;
   onAnalyzeAction: null;
   weeklyMeeting?: WeeklyMeetingProfileData | null;
@@ -237,6 +241,7 @@ export function DiagnosticoRealShellClient({
   data,
   weeklyMeeting = null,
   surface = "mobile",
+  journey = false,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1850,7 +1855,7 @@ export function DiagnosticoRealShellClient({
           background: "var(--ds-color-paper)",
         }}
       >
-        {activeTab === "collabs" ? (
+        {journey ? <JourneyWorkspace data={hydratedData} onOpenMediaKit={handleOpenMediaKit} onOpenCalculator={handleOpenCalculator} onUpgrade={handleProfileUpgrade} onOpenCreatorMediaKit={handleOpenCreatorMediaKit} profile={<CreatorWeeklyProfileExperience data={hydratedData} weeklyMeeting={weeklyMeeting} onOpenAccountMenu={handleOpenAccountMenu} onOpenNorte={handleOpenNorte} onOpenFullMap={handleOpenFullMap} onOpenMediaKit={handleOpenMediaKit} onOpenCalculator={handleOpenCalculator} onUpgrade={handleProfileUpgrade} onConnectInstagram={handleConnectInstagram} journey />} /> : activeTab === "collabs" ? (
           <SharedCollabsBoard embedded onBackToPerfil={() => setActiveTab("perfil")} onConnectWhatsApp={() => setWhatsAppSheetOpen(true)} />
         ) : (
         weeklyProfileExperienceEnabled ? (
@@ -1912,14 +1917,14 @@ export function DiagnosticoRealShellClient({
 
       {/* Tab bar mobile — abaixo da camada de overlays (z-50), que a cobrem. O "+"
           abre o upload via handleNewReading (mesma lógica de acesso do card). */}
-      <DiagnosticoTabBar
+      {!journey && <DiagnosticoTabBar
         activeTab={activeTab}
         onSelectPerfil={handleSelectProfileTab}
         onSelectCollabs={handleSelectCollabsTab}
         onPressPlus={weeklyReportDemo
           ? () => setAccessMessage("No relatório de exemplo, a análise de vídeo fica desativada.")
           : handleNewReading}
-      />
+      />}
 
       {openIdeaId && (() => {
         const idea = hydratedData.contentIdeas.find((i) => i.id === openIdeaId);
@@ -1994,7 +1999,7 @@ export function DiagnosticoRealShellClient({
       ) : null}
 
       {mediaKitSheetSlug ? (
-        <MediaKitSheet slug={mediaKitSheetSlug} onClose={() => setMediaKitSheetSlug(null)} />
+        journey && mediaKitSheetSlug === hydratedData.userInfo.mediaKitSlug ? <JourneyMediaKit slug={mediaKitSheetSlug} owner={hydratedData} onClose={() => setMediaKitSheetSlug(null)} onEdit={() => { setMediaKitSheetSlug(null); handleOpenNorte(); }} /> : <MediaKitSheet slug={mediaKitSheetSlug} onClose={() => setMediaKitSheetSlug(null)} />
       ) : null}
 
       {accountMenuOpen ? (
@@ -2216,6 +2221,7 @@ export function DiagnosticoRealShellClient({
 
       {calculatorWizardOpen ? (
       <MobileCalculatorWizard
+        journey={journey}
         open
         onClose={() => setCalculatorWizardOpen(false)}
         latestCalculation={latestCalculation}

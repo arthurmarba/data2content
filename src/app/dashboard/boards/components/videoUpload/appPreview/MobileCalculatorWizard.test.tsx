@@ -55,8 +55,8 @@ describe("MobileCalculatorWizard", () => {
     renderWizard();
 
     expect(screen.getByText("Entrega")).toBeInTheDocument();
-    expect(screen.getByText("Reels").parentElement).toHaveTextContent("1");
-    expect(screen.getByText("Sequência de 3 Stories").parentElement).toHaveTextContent("0");
+    expect(screen.getByRole("button", { name: "Remover Reels" }).parentElement?.parentElement).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Remover Sequência de 3 Stories" }).parentElement?.parentElement).toHaveTextContent("0");
 
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(screen.getByText("Uso e proteção")).toBeInTheDocument();
@@ -146,6 +146,18 @@ describe("MobileCalculatorWizard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Voltar para a etapa anterior" }));
     expect(screen.getByText("Contexto da parceria")).toBeInTheDocument();
+  });
+
+  it("na jornada escolhe UGC na entrega e destaca a marca antes de calcular", async () => {
+    render(<MobileCalculatorWizard journey open onClose={onClose} onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole("button", { name: "Só para a marca" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(screen.getByText("A marca e a parceria")).toBeInTheDocument();
+    expect(screen.queryByText("UGC para perfil da marca")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
+    await screen.findByText("Valor recomendado");
+    expect(global.fetch).toHaveBeenCalledWith("/api/calculator", expect.objectContaining({ body: expect.stringContaining('"contentModel":"ugc_whitelabel"') }));
   });
 
   it("coleta o valor pretendido quando a recomendação parece barata", async () => {

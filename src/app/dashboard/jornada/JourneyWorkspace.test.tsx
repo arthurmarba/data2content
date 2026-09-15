@@ -1,0 +1,33 @@
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import JourneyWorkspace from "./JourneyWorkspace";
+import type { DiagnosticoPageData } from "../boards/videoUpload/diagnosticoPageData";
+jest.mock("next/dynamic", () => () => () => null);
+const profile = {userInfo:{plan:"Pro"}, accessState:"admin"} as DiagnosticoPageData;
+const baseProps={data:profile,profile:<p>Meu perfil</p>,onOpenMediaKit:jest.fn(),onOpenCalculator:jest.fn(),onUpgrade:jest.fn(),onOpenCreatorMediaKit:jest.fn()};
+beforeEach(()=>{window.history.replaceState(null,"","/dashboard/jornada");jest.clearAllMocks();});
+it("abre as ferramentas pelas ações reais e mantém a ordenação dentro dos filtros",async()=>{
+ global.fetch=jest.fn().mockResolvedValue({ok:true,json:async()=>({opportunities:[]})});
+ render(<JourneyWorkspace {...baseProps}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Publis",exact:true}));
+ fireEvent.click(screen.getByRole("button",{name:/Apresente seu trabalho/}));
+ expect(baseProps.onOpenMediaKit).toHaveBeenCalledTimes(1);
+ fireEvent.click(screen.getByRole("button",{name:/Prepare seu orçamento/}));
+ expect(baseProps.onOpenCalculator).toHaveBeenCalledTimes(1);
+ expect(screen.queryByLabelText("Exibir primeiro")).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"Filtros",exact:true}));
+ expect(screen.getByLabelText("Exibir primeiro")).toBeInTheDocument();
+ expect(await screen.findByText("Nenhuma oportunidade revisada e aberta no momento.")).toBeInTheDocument();
+});
+it("exibe gravações e pesquisa criadores reais sem esconder a comunidade",async()=>{
+ global.fetch=jest.fn().mockImplementation(async(url:string)=>({ok:true,json:async()=>url.includes("recorded-meetings")?{meetings:[{id:"r1",title:"Narrativa e conteúdo",publishedAt:"2026-09-10"}]}:{creators:[{id:"c1",name:"Lívia",username:"livia",mediaKitSlug:"livia",niches:["Humor"]},{id:"c2",name:"Ana",username:"ana",niches:["Moda"]}]}}));
+ render(<JourneyWorkspace {...baseProps}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Comunidade",exact:true}));
+ expect(screen.getByRole("link",{name:/Abrir grupo/})).toHaveAttribute("href","/api/dashboard/community/pro-join");
+ expect(await screen.findByRole("heading",{name:"Narrativa e conteúdo"})).toBeInTheDocument();
+ await screen.findByRole("heading",{name:"Lívia"});
+ fireEvent.change(screen.getByRole("textbox",{name:"Buscar criadores"}),{target:{value:"Lívia"}});
+ expect(screen.queryByRole("heading",{name:"Ana"})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"Conhecer perfil ↗"}));
+ expect(baseProps.onOpenCreatorMediaKit).toHaveBeenCalledWith("livia");
+});

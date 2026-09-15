@@ -321,7 +321,6 @@ function formatCardFormat(value: string): string {
 }
 
 function executionSummary(item: CollabStackItem): string {
-  const blueprint = resolveContentIdeaScriptBlueprint(item.pauta.scriptBlueprint, item.pauta);
   const format = item.kind === "collab" && item.collab?.collabBlueprint?.format
     ? item.collab.collabBlueprint.format
     : item.pauta.suggestedFormat;
@@ -330,7 +329,6 @@ function executionSummary(item: CollabStackItem): string {
       ? item.collab.collabMode === "presencial" ? "Presencial" : "À distância"
       : null,
     formatCardFormat(format),
-    blueprint.estimatedDurationSeconds ? `${blueprint.estimatedDurationSeconds}s` : null,
     // O melhor horário fica de fora: na frente do card a pílula precisa caber
     // em UMA linha, e "quinta à noite" é decisão do dia de postar, não do
     // "eu gravo isso?" que se responde aqui.
@@ -535,6 +533,7 @@ function FlashcardBack({
 // antes não movia o card (o `style={{x}}` tinha precedência sobre `animate`).
 
 export function DiagnosticoCollabStack({
+  compact = false,
   items,
   isPro,
   shelfCount,
@@ -543,6 +542,7 @@ export function DiagnosticoCollabStack({
   onOpenIdea, onCardShown,
   onUpgrade,
 }: {
+  compact?: boolean;
   items: CollabStackItem[];
   isPro: boolean;
   /** Itens na mochila — vira a recompensa do estado "rodada triada". */
@@ -780,12 +780,12 @@ export function DiagnosticoCollabStack({
           }
         }
       `}</style>
-      <div
+      {!compact && <div
         aria-live="polite"
         style={{ height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT_SECONDARY_HEX, fontSize: 11.5, fontWeight: 700, letterSpacing: 0.15 }}
       >
         {progressCurrent} de {progressTotal}
-      </div>
+      </div>}
 
       <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0 }}>
         {behind.map((item, i) => (
@@ -809,7 +809,7 @@ export function DiagnosticoCollabStack({
               borderRadius: 22,
               // A segunda carta é neutra: duas brancas idênticas empilhadas
               // leem como uma borda dupla, não como duas cartas.
-              background: i === 0 ? CARD_BG : CS_NEUTRAL_HEX,
+              background: compact || i === 0 ? CARD_BG : CS_NEUTRAL_HEX,
               border: "1px solid var(--ds-color-line)",
               zIndex: 2 - i,
               overflow: "hidden",
@@ -876,7 +876,7 @@ export function DiagnosticoCollabStack({
             <DecisionStamp label={negativeLabel} side="right" opacity={skipOpacity} scale={skipScale} />
 
             {reduceMotion ? (
-              <div style={{ position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG, border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG, border: cardBorder, boxShadow: compact ? "none" : STACK_CARD_SHADOW, overflow: "hidden" }}>
                 {flipped ? (
                   <FlashcardBack
                     item={top}
@@ -898,7 +898,7 @@ export function DiagnosticoCollabStack({
                   aria-hidden={flipped}
                   style={{
                     position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG,
-                    border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden",
+                    border: cardBorder, boxShadow: compact ? "none" : STACK_CARD_SHADOW, overflow: "hidden",
                     backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
                     pointerEvents: flipped ? "none" : "auto",
                   }}
@@ -909,7 +909,7 @@ export function DiagnosticoCollabStack({
                   aria-hidden={!flipped}
                   style={{
                     position: "absolute", inset: 0, borderRadius: 22, background: CARD_BG,
-                    border: cardBorder, boxShadow: STACK_CARD_SHADOW, overflow: "hidden",
+                    border: cardBorder, boxShadow: compact ? "none" : STACK_CARD_SHADOW, overflow: "hidden",
                     backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
                     transform: "rotateY(180deg)", pointerEvents: flipped ? "auto" : "none",
                   }}

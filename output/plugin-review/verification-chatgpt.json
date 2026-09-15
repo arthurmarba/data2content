@@ -1,0 +1,38 @@
+{
+  "productionCommit": "ee0a6cfe",
+  "conversationUrl": "https://chatgpt.com/c/6aa0c16a-de0c-83e9-bafb-9e5f08467ca6",
+  "oauth": "passed_real_chatgpt",
+  "catalogCount": 26,
+  "executedAllTools": false,
+  "checks": {
+    "map_and_ideas": "passed",
+    "exact_period_and_follower_gap": "passed",
+    "evidence_and_critique": "passed",
+    "confirmed_save": "passed",
+    "requested_feedback": "passed",
+    "internal_generation": "degraded_local_fallback_no_prepaid_credits",
+    "community_collabs_campaigns": "passed_conditional_results",
+    "negative_publish": "no_d2c_invocation",
+    "negative_calendar": "no_d2c_invocation_calendar_attempted",
+    "negative_image": "no_d2c_invocation_attachment_requested"
+  },
+  "portal": {
+    "version": "1.0.0",
+    "status": "Draft",
+    "toolCount": 26,
+    "justificationFields": 78,
+    "positiveCases": 5,
+    "negativeCases": 3,
+    "formErrors": 0,
+    "submitted": false,
+    "demoUpdated": false,
+    "oauthOverrideRemoved": true
+  },
+  "remaining": [
+    "unlock_mac_and_record_demo",
+    "regularize_gemini_credits_recommended",
+    "publish_demo",
+    "final_legal_confirmation_and_resubmission",
+    "restore_usual_website_login"
+  ]
+}

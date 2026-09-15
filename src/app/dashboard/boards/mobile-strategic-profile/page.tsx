@@ -96,7 +96,7 @@ export type MobileStrategicProfilePageProps = {
   }>;
 };
 
-export type CreatorProfileSurface = "mobile" | "responsive";
+export type CreatorProfileSurface = "mobile" | "responsive" | "journey";
 
 export async function renderCreatorProfilePage({
   searchParams,
@@ -116,7 +116,7 @@ export async function renderCreatorProfilePage({
     () => getServerSession(authOptions),
   );
   if (!session?.user) {
-    const profilePath = surface === "responsive"
+    const profilePath = surface === "journey" ? "/dashboard/jornada" : surface === "responsive"
         ? "/dashboard/profile"
         : "/dashboard/boards/mobile-strategic-profile";
     const callbackPath = resolvedSearchParams?.source === "chatgpt"
@@ -512,6 +512,10 @@ export async function renderCreatorProfilePage({
     typeof resolvedSearchParams?.state === "string" ? resolvedSearchParams.state : null;
   const initialAffiliateView = resolvedSearchParams?.affiliate === "1";
 
+  if (surface === "journey" && !diagnosticoPageData) {
+    return <div className="p-8" role="alert"><h1>Não foi possível carregar seu perfil.</h1><p>Tente novamente em alguns instantes.</p><a href="/dashboard/jornada">Recarregar</a></div>;
+  }
+
   if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
     return (
       <Suspense
@@ -524,7 +528,8 @@ export async function renderCreatorProfilePage({
           data={diagnosticoPageData}
           onAnalyzeAction={null}
           weeklyMeeting={weeklyMeeting}
-          surface={surface}
+          surface={surface === "journey" ? "responsive" : surface}
+          journey={surface === "journey"}
         />
       </Suspense>
     );

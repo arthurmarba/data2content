@@ -24,6 +24,7 @@ Os arquivos moram no repositório, em `d2c-frontend/docs/brain/`. Você lê e es
 | Saber o que as palavras do produto significam | [[12 Glossário do produto]] |
 | Pedir bem uma tarefa pro Claude ou pro Codex | [[13 Como pedir pra IA]] |
 | Ver todas as rotas, modelos, comandos | [[Retrato do projeto]] |
+| Retomar o mockup e o redesenho da jornada | [[Redesenho da jornada e mockup do app]] |
 
 ## Domínios
 
