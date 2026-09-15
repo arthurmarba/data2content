@@ -4,6 +4,8 @@ import { logger } from '@/app/lib/logger';
 import Metric from '@/app/models/Metric';
 import User from '@/app/models/User';
 import State from '@/app/models/ContentReadingState';
+import Evidence from '@/app/models/PublishedContentEvidence';
+import { readingRevision } from '@/app/lib/relatorio/readingRevision';
 import { connectToDatabase } from '@/app/lib/mongoose';
 
 async function publish(path: string, body: Record<string, string>, deduplicationId: string, delay = 20) {
@@ -35,9 +37,10 @@ export async function enqueuePublishedReading(metricId: string) {
   if (!Types.ObjectId.isValid(metricId)) return false;
   try {
     await connectToDatabase();
-    const metric = await Metric.findById(metricId).select('user type postDate instagramMediaId').lean();
+    const metric = await Metric.findById(metricId).select('user type postDate instagramMediaId sceneElements.version').lean();
     if (!metric || !metric.instagramMediaId || !['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'].includes(metric.type ?? '')) return false;
     if (new Date(metric.postDate).getTime() < Date.now() - 90 * 86400000) return false;
+    if (metric.sceneElements?.version === readingRevision(metric.type) && await Evidence.exists({ metricId, userId: metric.user })) return false;
     const user = await User.findById(metric.user).select('isInstagramConnected planStatus currentPeriodEnd cancelAtPeriodEnd').lean();
     const active = user?.planStatus === 'active' && (user.cancelAtPeriodEnd !== true || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date()));
     const nonRenewing = user?.planStatus === 'non_renewing' && user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date();

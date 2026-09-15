@@ -1,5 +1,6 @@
 // src/app/lib/instagram/db/metricActions.ts
 import mongoose, { Types } from 'mongoose';
+import { enqueuePublishedReading } from '@/app/lib/creatorWeeklyReport/queue';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 // IMetric agora inclui o campo 'type' a partir da v1.4
@@ -134,7 +135,13 @@ export async function saveMetricData(
         }
       });
     }
-    const mediaVideoDurationSeconds = resolveMediaVideoDurationSeconds(media);
+    const videoApplicable = metricType === 'REEL' || metricType === 'VIDEO';
+    if (!videoApplicable) {
+      for (const key of ['retention_rate', 'video_duration_seconds', 'average_video_watch_time_seconds', 'total_watch_time_seconds', 'ig_reels_avg_watch_time', 'ig_reels_video_view_total_time']) {
+        statsUpdate[`stats.${key}`] = null;
+      }
+    }
+    const mediaVideoDurationSeconds = videoApplicable ? resolveMediaVideoDurationSeconds(media) : null;
     const currentDurationFromInsights = toPositiveNumber(statsUpdate['stats.video_duration_seconds']);
     if (mediaVideoDurationSeconds && !currentDurationFromInsights) {
       statsUpdate['stats.video_duration_seconds'] = mediaVideoDurationSeconds;
@@ -221,6 +228,11 @@ export async function saveMetricData(
       }
     } else if (!classificationWorkerUrl && qstashClassificationClient) {
       logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definido. Classificação automática de conteúdo não será agendada.`);
+    }
+
+    // Posts sem legenda já nascem classificados e não passam pelo worker de texto.
+    if (savedMetric.classificationStatus === 'completed') {
+      await enqueuePublishedReading(String(savedMetric._id));
     }
 
     await createOrUpdateDailySnapshot(savedMetric);

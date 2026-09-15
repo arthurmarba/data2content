@@ -1,3 +1,8 @@
+import { compactVideoPrompt, expandCompactScene, LEGACY_SCENE_FORMAT, COMPACT_SCENE_FORMAT, type SceneResponseFormat } from "./compactSceneFormat";
+import { resolveSceneFormat } from "./sceneReadingRollout";
+import { governedGenerateContent, withGeminiGovernance, governanceHash, recordGeminiOutcome } from "@/app/lib/llm/geminiGovernance";
+import { VISUAL_READING_REVISION } from "./readingRevision";
+import type { PublishedMediaItem } from "./publishedMedia";
 /**
  * sceneEvaluation.ts — avalia um vídeo da semana CONTRA o mapa do criador.
  *
@@ -34,7 +39,6 @@ import {
   createPartFromUri,
   createUserContent,
 } from "@google/genai";
-import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import { logger } from "@/app/lib/logger";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "@/app/dashboard/boards/videoUpload/videoNarrativeGeminiInlineLimit";
 import {
@@ -56,12 +60,15 @@ const TAG = "[relatorio][sceneEvaluation]";
  * sem o caminho da Files API o relatório perderia ~20% dos vídeos.
  */
 export const MAX_INLINE_VIDEO_BYTES = GEMINI_INLINE_VIDEO_BYTES_LIMIT;
+/** Tentativas de envio pela Files API antes de desistir do vídeo. A reprovação é
+ * moeda ao ar: com duas tentativas ainda sobrava um quarto do lote no chão. */
+const UPLOAD_ATTEMPTS = 3;
 
 /** Teto absoluto: acima disso nem pela Files API vale a pena — não é reel. */
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 export const MAX_VIDEO_SECONDS = 180;
 export const MAX_VISUAL_IMAGE_BYTES = 6 * 1024 * 1024;
-export const MAX_VISUAL_ITEMS = 10;
+// Não há corte silencioso de slides: todo item informado precisa ser lido.
 /**
  * Versão do contrato de avaliação. É a chave de idempotência: o worker pula qualquer
  * post que já tenha esta versão gravada.
@@ -85,6 +92,10 @@ export const SCENE_EVALUATION_VERSION = "cena_mapa_v4";
 /** O que o worker gravou: papéis do mapa presentes no vídeo. */
 export interface SceneEvaluation {
   /** Papéis canônicos presentes. É isto que o relatório ranqueia. */
+  slides?: Array<{ position: number; type: "IMAGE" | "VIDEO"; role: string; description: string; onScreenText: string | null; transcript: string | null }>;
+  responseFormat?: SceneResponseFormat;
+  readingCompleteness?: "complete" | "partial";
+  visualCoverage?: { expected: number; analyzed: number; complete: boolean };
   assetRoleIds: string[];
   /** Tons canônicos do mapa identificados na fala/cena. */
   toneIds: string[];
@@ -151,7 +162,7 @@ export interface SceneEvaluation {
   version: string;
 }
 
-function buildPrompt(profile: MapProfile): { system: string; user: string; format: string } {
+export function buildPrompt(profile: MapProfile): { system: string; user: string; format: string } {
   const assetLines = profile.assets
     .map((asset, index) => `A${index + 1}. ${asset.ownLabel}`)
     .join("\n");
@@ -259,6 +270,7 @@ export function sceneElementsUpdate(scene: SceneEvaluation): Record<string, unkn
     offMap: scene.offMap,
     provider: scene.provider,
     version: scene.version,
+    readingCompleteness: scene.readingCompleteness ?? "complete",
     analyzedAt: new Date(),
   };
 }
@@ -359,6 +371,7 @@ function sceneTimeline(value: unknown) {
 export function parseSceneEvaluation(
   text: string | null | undefined,
   profile: MapProfile,
+  options?: { format: SceneResponseFormat; durationSeconds: number | null; partial?: boolean },
 ): SceneEvaluation | null {
   if (!text?.trim()) return null;
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -373,7 +386,10 @@ export function parseSceneEvaluation(
     return null;
   }
   if (!parsed || typeof parsed !== "object") return null;
-  const raw = parsed as Record<string, unknown>;
+  const raw = options?.format === COMPACT_SCENE_FORMAT
+    ? expandCompactScene(parsed as Record<string, unknown>, options.durationSeconds, options.partial)
+    : parsed as Record<string, unknown>;
+  if (!raw) return null;
 
   const codes = (value: unknown, prefix: "A" | "T" | "S" | "L" | "E" | "Q"): number[] => {
     const list = Array.isArray(value) ? value : [];
@@ -420,6 +436,12 @@ export function parseSceneEvaluation(
   const transcript = longText(raw.transcricao);
 
   return {
+    responseFormat: options?.format ?? LEGACY_SCENE_FORMAT,
+    slides: Array.isArray(raw.slides) ? raw.slides.map((slide: any) => ({
+      position: Number(slide.posicao), type: slide.tipo as "IMAGE" | "VIDEO",
+      role: singleLine(slide.papel) || "outro", description: singleLine(slide.descricao) || "",
+      onScreenText: longText(slide.texto), transcript: longText(slide.transcricao),
+    })) : undefined,
     assetRoleIds,
     toneIds,
     subjectIds,
@@ -446,14 +468,21 @@ export function parseSceneEvaluation(
   };
 }
 
-/** Espera o arquivo sair de PROCESSING. A Files API é assíncrona. */
+/**
+ * Espera o arquivo ficar ACTIVE. A Files API é assíncrona e o `upload` responde antes
+ * de o vídeo terminar de processar — às vezes sem `state` nenhum. Aceitar qualquer
+ * estado diferente de PROCESSING mandava o arquivo cru para `generateContent`, que
+ * recusava com FAILED_PRECONDITION ("not in an ACTIVE state") e queimava o lote.
+ * Só ACTIVE serve; ausência de estado conta como ainda processando.
+ */
 async function waitForFileReady(
   ai: GoogleGenAI,
   file: { name?: string; uri?: string; mimeType?: string; state?: string },
 ): Promise<{ uri: string; mimeType: string }> {
   let current = file;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    if (current.state !== "PROCESSING" && current.uri) {
+    if (current.state === "FAILED") throw new Error("gemini_file_processing_failed");
+    if (current.state === "ACTIVE" && current.uri) {
       return { uri: current.uri, mimeType: current.mimeType ?? "video/mp4" };
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -473,17 +502,39 @@ async function uploadVideo(
   bytes: Buffer,
   mimeType: string,
 ): Promise<{ uri: string; mimeType: string }> {
-  const tempPath = path.join(os.tmpdir(), `d2c-cena-${randomUUID()}.mp4`);
+  const tempPath = path.join(os.tmpdir(), `d2c-cena-${randomUUID()}.${mimeType.startsWith("image/") ? "img" : "mp4"}`);
   try {
     await fs.writeFile(tempPath, bytes);
-    const uploaded = await ai.files.upload({ file: tempPath, config: { mimeType } });
-    return await waitForFileReady(ai, uploaded as never);
+    // A Files API reprova arquivo válido de vez em quando: o MESMO mp4 volta
+    // "The file failed to be processed" (código 13) numa tentativa e ACTIVE na
+    // seguinte. Sem esta segunda chance, um terço do lote se perdia num defeito
+    // que não é do vídeo nem nosso.
+    for (let attempt = 1; ; attempt += 1) {
+      const uploaded = (await ai.files.upload({
+        file: tempPath,
+        config: { mimeType },
+      })) as { name?: string };
+      try {
+        return await waitForFileReady(ai, uploaded as never);
+      } catch (error) {
+        // O arquivo reprovado NÃO é apagado antes de reenviar: apagar e subir os
+        // mesmos bytes fazia a Files API repetir a reprovação, enquanto deixar o
+        // reprovado de lado dava um envio limpo. Ele expira sozinho em 48h.
+        const transitório =
+          error instanceof Error && error.message === "gemini_file_processing_failed";
+        if (!transitório || attempt >= UPLOAD_ATTEMPTS) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
   } finally {
     await fs.rm(tempPath, { force: true }).catch(() => {});
   }
 }
 
 export interface EvaluateSceneParams {
+  responseFormat?: SceneResponseFormat;
+  experiment?: { id: string; budgetPolicyId: string };
+  metricId?: string;
   /** URL fresca do mp4, da Graph API. Expira em horas. */
   mediaUrl: string;
   durationSeconds: number | null;
@@ -515,85 +566,174 @@ export function isRetryableGeminiSceneError(message: string): boolean {
 const DEFAULT_MODEL = process.env.GEMINI_CENA_MODEL || "gemini-2.5-flash";
 
 export interface EvaluateImagesParams {
+  metricId?: string;
   mediaUrls: string[];
+  mediaItems?: PublishedMediaItem[];
   profile: MapProfile;
   apiKey?: string;
   model?: string;
   fetchImpl?: typeof fetch;
 }
 
+/** Instrução extra da leitura de foto/carrossel; exportada para o lote enviar o mesmo pedido. */
+export function visualReadingInstruction(itemCount: number): string {
+  return [
+    "Esta leitura é de uma foto ou carrossel, não de um Reel contínuo.",
+    `Existem ${itemCount} itens na ordem apresentada. Analise todos, inclusive áudio e movimento dos itens VIDEO.`,
+    'Mantenha os campos de vocabulário do mapa, temas, objetos, estética, estrutura, promessa e CTA.',
+    'Substitua cenas temporais por slides: [{"posicao":1,"tipo":"IMAGE ou VIDEO","papel":"gancho, contexto, entrega, prova, cta ou outro","descricao":"descrição observável","texto":"texto integral visível","transcricao":"fala literal apenas se VIDEO"}].',
+    'Retorne exatamente um slide por item e preserve sua posição e tipo. Não invente tempos para imagens.',
+    'Nos campos globais cenas, segmentos use []; transcricao e fala use "". O áudio de cada vídeo pertence exclusivamente ao seu slide.',
+    'Em titulo use o texto de abertura do primeiro item. Em falas copie trechos escritos ou falados observados, sem inventar.',
+  ].join(" ");
+}
+
 /**
  * Lê foto e carrossel com o mesmo vocabulário canônico usado nos Reels. A ordem dos
  * parts é a ordem dos slides, portanto `titulo` representa o gancho da primeira tela.
  */
-export async function evaluateImagesAgainstMap(
+async function evaluateImagesInternal(
   params: EvaluateImagesParams,
 ): Promise<EvaluateSceneOutcome> {
   const { profile } = params;
   const apiKey = (params.apiKey ?? process.env.GEMINI_API_KEY ?? "").trim();
   if (!apiKey) return { ok: false, reason: "GEMINI_API_KEY ausente.", retryable: false };
 
-  const urls = params.mediaUrls.filter(Boolean).slice(0, MAX_VISUAL_ITEMS);
-  if (!urls.length) return { ok: false, reason: "Foto/carrossel sem mídia utilizável.", retryable: false };
+  const items = params.mediaItems ?? params.mediaUrls.map((url, index) => ({ position: index + 1, type: "IMAGE" as const, url }));
+  if (!items.length) return { ok: false, reason: "Foto/carrossel sem mídia utilizável.", retryable: false };
   const doFetch = params.fetchImpl ?? fetch;
-  const imageParts = [];
-  let transientDownloads = 0;
-  for (const url of urls) {
-    try {
-      const response = await doFetch(url);
-      if (!response.ok) {
-        if (response.status === 403 || response.status >= 500) transientDownloads += 1;
-        continue;
-      }
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (!bytes.byteLength || bytes.byteLength > MAX_VISUAL_IMAGE_BYTES) continue;
-      const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
-      const mimeType = contentType.startsWith("image/") ? contentType : "image/jpeg";
-      imageParts.push(createPartFromBase64(bytes.toString("base64"), mimeType));
-    } catch {
-      transientDownloads += 1;
-    }
-  }
-  if (!imageParts.length) {
-    return {
-      ok: false,
-      reason: "Não foi possível baixar nenhuma imagem do post.",
-      retryable: transientDownloads > 0,
-    };
-  }
-
   const model = params.model ?? DEFAULT_MODEL;
-  const prompt = buildPrompt(profile);
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const mediaInstruction = [
-      `Você recebeu ${imageParts.length === 1 ? "uma foto" : `${imageParts.length} slides em ordem`}.`,
-      "Para foto/carrossel, leia também o texto escrito nos slides.",
-      "Em titulo, copie o principal texto do PRIMEIRO slide; em fala, use vazio porque não há áudio.",
-      "Em falas, você pode copiar até 3 trechos escritos que carreguem a ideia do post.",
-    ].join(" ");
-    const response = await ai.models.generateContent({
-      model,
-      contents: createUserContent([prompt.user, mediaInstruction, prompt.format, ...imageParts]),
-      config: {
-        systemInstruction: prompt.system,
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: "application/json",
-        temperature: 0,
-      },
-    });
-    logGeminiUsage("cena", model, response);
+    const parts: Array<ReturnType<typeof createPartFromBase64> | string> = [];
+    let inlineBytes = 0;
+    for (const item of items) {
+      const label = `Item ${item.position} de ${items.length} (${item.type})`;
+      if (!item.url) return { ok: false, reason: `${label}: URL ausente; leitura incompleta.`, retryable: true };
+      const response = await doFetch(item.url, { signal: AbortSignal.timeout(20000) }).catch(() => { throw new Error(`${label}: falha de rede; leitura incompleta.`); });
+      if (!response.ok) return { ok: false, reason: `${label}: HTTP ${response.status}; leitura incompleta.`, retryable: true };
+      const bytes = Buffer.from(await response.arrayBuffer());
+      const maxBytes = item.type === "VIDEO" ? MAX_VIDEO_BYTES : MAX_VISUAL_IMAGE_BYTES;
+      if (!bytes.length || bytes.length > maxBytes) return { ok: false, reason: `${label}: mídia vazia ou acima do teto; leitura incompleta.`, retryable: false };
+      const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() || (item.type === "VIDEO" ? "video/mp4" : "image/jpeg");
+      if (!mimeType.startsWith(item.type === "VIDEO" ? "video/" : "image/")) return { ok: false, reason: `${label}: conteúdo incompatível; leitura incompleta.`, retryable: false };
+      parts.push(label);
+      // O teto é do pedido inteiro, não de cada imagem separadamente.
+      if (inlineBytes + bytes.length > MAX_INLINE_VIDEO_BYTES) {
+        const file = await uploadVideo(ai, bytes, mimeType).catch((error) => { throw new Error(`${label}: ${error instanceof Error ? error.message : "falha no envio"}`); });
+        parts.push(createPartFromUri(file.uri, file.mimeType));
+      } else {
+        inlineBytes += bytes.length;
+        parts.push(createPartFromBase64(bytes.toString("base64"), mimeType));
+      }
+    }
+    const prompt = buildPrompt(profile);
+    const instruction = visualReadingInstruction(items.length);
+    const response = await governedGenerateContent(ai, {
+      model, contents: createUserContent([prompt.user, prompt.format, instruction, ...parts]),
+      config: { systemInstruction: prompt.system, thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json", temperature: 0, maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS },
+    }, "cena");
     const parsed = parseSceneEvaluation(response.text, profile);
-    if (!parsed) return { ok: false, reason: "Resposta ilegível.", retryable: false };
-    return { ok: true, result: { ...parsed, openingLine: null, provider: model } };
+    const slides = parsed?.slides;
+    if (String(response.candidates?.[0]?.finishReason ?? "") === "MAX_TOKENS" || !parsed || !slides || slides.length !== items.length || slides.some((slide, index) => slide.position !== items[index]?.position || slide.type !== items[index]?.type || !slide.description.trim())) {
+      return { ok: false, reason: "Gemini devolveu leitura incompleta: slides ausentes, fora de ordem ou sem descrição.", retryable: false };
+    }
+    return { ok: true, result: { ...parsed, slides: slides.map(slide => ({ ...slide, transcript: slide.type === "VIDEO" ? slide.transcript : null })),
+      transcript: null, transcriptSegments: [], openingLine: null,
+      sceneTimeline: slides.map(slide => ({ startMs: null, endMs: null, role: slide.role, description: slide.description, spokenText: null, onScreenText: slide.onScreenText, setting: null, objects: [], framing: [] })),
+      visualCoverage: { expected: items.length, analyzed: slides.length, complete: true }, version: VISUAL_READING_REVISION, provider: model } };
   } catch (error) {
     const message = error instanceof Error ? error.message : "erro desconhecido";
     logger.warn(`${TAG} falha na leitura de foto/carrossel: ${message}`);
-    return { ok: false, reason: message, retryable: isRetryableGeminiSceneError(message) };
+    return { ok: false, reason: message, retryable: isRetryableGeminiSceneError(message) || /fetch|abort|network|falha de rede/i.test(message) };
   }
 }
 
-export async function evaluateSceneAgainstMap(
+/**
+ * Teto da resposta de uma leitura. A maior leitura legítima medida (set/2026, 353 Reels
+ * de até 179s) cabe em ~5 mil tokens. Sem teto, vídeos em que o modelo entra em loop
+ * repetindo a fala iam até 65.526 tokens (~US$ 0,16 cada), voltavam cortados e eram
+ * relidos a cada repescagem — 23 vídeos pagaram 54% de toda a saída da cena.
+ */
+export const SCENE_MAX_OUTPUT_TOKENS = 16384;
+
+/**
+ * Fecha um objeto JSON cortado no último campo completo de primeiro nível. Os campos
+ * do mapa vêm antes da transcrição no formato pedido, então sobrevivem quando o corte
+ * acontece no texto longo.
+ */
+export function closeTruncatedObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let lastComplete = -1;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{" || char === "[") depth += 1;
+    else if (char === "}" || char === "]") depth -= 1;
+    else if (char === "," && depth === 1) lastComplete = index;
+  }
+  return lastComplete === -1 ? null : `${text.slice(start, lastComplete)}}`;
+}
+
+/**
+ * Fala repetida em loop não é fala: é o defeito que estourou o teto. Medido em set/2026:
+ * leitura sã fica em ~15 caracteres/s (máximo 24,8) e quase sem trecho de 6 palavras
+ * repetido.
+ */
+export function speechLooksHealthy(text: string | null, durationSeconds: number | null): boolean {
+  if (!text) return false;
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length > 12) {
+    const seen = new Set<string>();
+    let repeated = 0;
+    for (let index = 0; index + 6 <= words.length; index += 1) {
+      const key = words.slice(index, index + 6).join(" ");
+      if (seen.has(key)) repeated += 1;
+      else seen.add(key);
+    }
+    if (repeated / (words.length - 5) > 0.2) return false;
+  }
+  return !durationSeconds || text.length / durationSeconds <= 30;
+}
+
+/**
+ * Aproveita a leitura cortada: o que o vídeo mostra (mapa, lugar, temas) fica; a fala
+ * só fica se passar no teste de loop. Sem transcrição, a evidência publicada registra
+ * a fala como indisponível em vez de guardar repetição como se fosse o roteiro.
+ */
+function salvageSceneEvaluation(
+  text: string | undefined,
+  profile: MapProfile,
+  durationSeconds: number | null,
+  format: SceneResponseFormat = LEGACY_SCENE_FORMAT,
+): SceneEvaluation | null {
+  const closed = text ? closeTruncatedObject(text) : null;
+  const parsed = closed ? parseSceneEvaluation(closed, profile, { format, durationSeconds, partial: true }) : null;
+  if (!parsed) return null;
+  const speechKept = speechLooksHealthy(parsed.transcript, durationSeconds);
+  logger.warn(`${TAG} leitura aproveitada parcialmente; fala ${speechKept ? "mantida" : "descartada"}.`);
+  return speechKept
+    ? { ...parsed, readingCompleteness: "partial" }
+    : {
+        ...parsed,
+        readingCompleteness: "partial",
+        transcript: null,
+        transcriptSegments: [],
+        sceneTimeline: parsed.sceneTimeline.map((scene) => ({ ...scene, spokenText: null })),
+      };
+}
+
+async function evaluateSceneInternal(
   params: EvaluateSceneParams,
 ): Promise<EvaluateSceneOutcome> {
   const { profile } = params;
@@ -640,6 +780,7 @@ export async function evaluateSceneAgainstMap(
 
   const model = params.model ?? DEFAULT_MODEL;
   const prompt = buildPrompt(profile);
+  if (params.responseFormat === COMPACT_SCENE_FORMAT) prompt.format = compactVideoPrompt(prompt.format);
   try {
     const ai = new GoogleGenAI({ apiKey });
     const safeMime = mimeType.startsWith("video/") ? mimeType : "video/mp4";
@@ -652,21 +793,25 @@ export async function evaluateSceneAgainstMap(
           )
         : createPartFromBase64(bytes.toString("base64"), safeMime);
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: createUserContent([prompt.user, prompt.format, videoPart]),
-      config: {
-        systemInstruction: prompt.system,
-        // Obrigatório no 2.5-flash: sem teto, os tokens de raciocínio dominam a conta.
-        thinkingConfig: { thinkingBudget: 0 },
-        responseMimeType: "application/json",
-        temperature: 0,
-      },
-    });
+    const read = async (temperature: number) => {
+      const response = await governedGenerateContent(ai, {
+        model,
+        contents: createUserContent([prompt.user, prompt.format, videoPart]),
+        config: {
+          systemInstruction: prompt.system,
+          // Obrigatório no 2.5-flash: sem teto, os tokens de raciocínio dominam a conta.
+          thinkingConfig: { thinkingBudget: 0 },
+          responseMimeType: "application/json",
+          temperature,
+          maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS,
+        },
+      }, "cena");
+      const cut = String(response.candidates?.[0]?.finishReason ?? "") === "MAX_TOKENS";
+      return { text: response.text, cut, parsed: cut ? null : parseSceneEvaluation(response.text, profile, { format: params.responseFormat ?? LEGACY_SCENE_FORMAT, durationSeconds: params.durationSeconds }) };
+    };
 
-    logGeminiUsage("cena", model, response);
-
-    const parsed = parseSceneEvaluation(response.text, profile);
+    const first = await read(0);
+    const parsed = first.parsed ?? salvageSceneEvaluation(first.text, profile, params.durationSeconds, params.responseFormat);
     if (!parsed) {
       return { ok: false, reason: "Resposta ilegível.", retryable: false };
     }
@@ -677,4 +822,27 @@ export async function evaluateSceneAgainstMap(
     const retryable = isRetryableGeminiSceneError(message);
     return { ok: false, reason: message, retryable };
   }
+}
+
+// A chave independe da revisão do prompt: publicar código não autoriza reler a base.
+export async function evaluateSceneAgainstMap(params: EvaluateSceneParams): Promise<EvaluateSceneOutcome> {
+  if (!params.metricId) return evaluateSceneInternal(params);
+  const contentKey = params.experiment ? `experiment:${params.experiment.id}:${params.metricId}:${params.responseFormat}` : `published:${params.metricId}`;
+  const format = params.experiment ? params.responseFormat : await resolveSceneFormat(params.profile.creatorId, contentKey);
+  if (params.experiment && !format) throw new Error("Experimento exige formato explícito");
+  return withGeminiGovernance({ creatorId: params.profile.creatorId, contentKey, fingerprint: governanceHash(params.profile), responseFormat: format,
+    durationSeconds: params.durationSeconds, budgetPolicyId: params.experiment?.budgetPolicyId, maxAttempts: params.experiment ? 1 : undefined }, async () => {
+    const outcome = await evaluateSceneInternal({ ...params, responseFormat: format });
+    await recordGeminiOutcome("cena", outcome.ok ? outcome.result.readingCompleteness ?? "complete" : "unusable");
+    return outcome;
+  });
+}
+export function evaluateImagesAgainstMap(params: EvaluateImagesParams): Promise<EvaluateSceneOutcome> {
+  return params.metricId
+    ? withGeminiGovernance({ creatorId: params.profile.creatorId, contentKey: `published:${params.metricId}`, fingerprint: governanceHash(params.profile) }, async () => {
+        const outcome = await evaluateImagesInternal(params);
+        await recordGeminiOutcome("cena", outcome.ok ? "complete" : "unusable");
+        return outcome;
+      })
+    : evaluateImagesInternal(params);
 }

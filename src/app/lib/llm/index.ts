@@ -1,3 +1,4 @@
+import { GeminiGovernanceError, hasGeminiGovernance } from "./geminiGovernance";
 // src/app/lib/llm/index.ts
 //
 // Núcleo provider-agnóstico de acesso a LLM (Fase 0). Resolve provider por
@@ -97,10 +98,14 @@ export async function llmGenerate(
 
   for (const name of order) {
     const provider = PROVIDERS[name];
-    if (!provider.available()) continue;
+    if (!provider.available()) {
+      if (hasGeminiGovernance()) throw new Error("Provedor configurado indisponível; análise automática adiada.");
+      continue;
+    }
     try {
       return await provider.generate(params);
     } catch (error) {
+      if (error instanceof GeminiGovernanceError || hasGeminiGovernance()) throw error;
       lastError = error;
       logger.warn(`[llm] Provider ${name} falhou — tentando fallback se houver.`, error);
     }

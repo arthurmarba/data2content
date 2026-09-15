@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-09
+atualizado: 2026-09-15
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-09
 
 # Comandos npm
 
-**96 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**98 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -46,6 +46,7 @@ atualizado: 2026-09-09
 | `npm run audit:classification-quarantine` | `tsx --env-file=.env.local ./scripts/auditClassificationQuarantine.ts` |
 | `npm run audit:classification-quarantine-conflicts` | `tsx --env-file=.env.local ./scripts/auditClassificationQuarantineConflicts.ts` |
 | `npm run audit:collabs` | `tsx --env-file=.env.local ./scripts/auditCollabsMechanism.ts` |
+| `npm run audit:gemini` | `tsx --env-file=.env.local scripts/auditGeminiEfficiency.ts` |
 | `npm run audit:hook-readiness` | `tsx --env-file=.env.local ./scripts/auditHookRecommendationReadiness.ts` |
 | `npm run audit:perfil-territorio` | `tsx --env-file=.env.local ./scripts/auditPerfilTerritoryCoverage.ts` |
 | `npm run audit:profile-evolution` | `tsx --env-file=.env.local ./scripts/auditProfileEvolution.ts` |
@@ -98,6 +99,12 @@ atualizado: 2026-09-09
 | Comando | O que roda |
 | --- | --- |
 | `npm run classification:complete-empty` | `tsx --env-file=.env.local ./scripts/completeEmptyClassifications.ts` |
+
+## compare
+
+| Comando | O que roda |
+| --- | --- |
+| `npm run compare:gemini-scene` | `tsx --env-file=.env.local scripts/compareCompactScene.ts` |
 
 ## compliance
 

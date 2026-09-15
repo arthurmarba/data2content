@@ -1,3 +1,4 @@
+import { GeminiGovernanceError } from "@/app/lib/llm/geminiGovernance";
 // src/app/lib/mapaSeed/semanticChipDedup.ts
 //
 // Fase 2 do enriquecimento: dedup SEMÂNTICO entre os chips propostos pela fonte
@@ -73,6 +74,7 @@ export async function dedupeNewChipsAgainstExisting(
     const raw = await callClaudeJSON<Record<string, unknown>>(buildPrompt(payload), {
       intensity: "low",
       maxTokens: 512,
+      usageTag: "mapa_dedup",
     });
 
     if (!raw || typeof raw !== "object") {
@@ -100,6 +102,7 @@ export async function dedupeNewChipsAgainstExisting(
     }
     return out;
   } catch (err) {
+    if (err instanceof GeminiGovernanceError) throw err;
     logger.warn(`${TAG} Falha no dedup semântico (ignorada, mantendo candidatos):`, err);
     return candidates;
   }

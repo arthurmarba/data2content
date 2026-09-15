@@ -19,6 +19,8 @@ export interface CallClaudeOptions {
   intensity?: ClaudeIntensity;
   systemPrompt?: string;
   maxTokens?: number;
+  /** Nome do fluxo no GeminiUsageLog; sem ele o gasto aparece como "llm". */
+  usageTag?: string;
   /** Ignorado — mantido para compatibilidade de assinatura. */
   model?: string;
 }
@@ -38,9 +40,9 @@ export async function callClaude(
   prompt: string,
   options: CallClaudeOptions = {},
 ): Promise<string> {
-  const { intensity = "medium", systemPrompt, maxTokens } = options;
+  const { intensity = "medium", systemPrompt, maxTokens, usageTag } = options;
   const { text } = await llmGenerate(
-    { prompt, system: systemPrompt, intensity, maxTokens },
+    { prompt, system: systemPrompt, intensity, maxTokens, usageTag },
     { scope: LLM_SCOPE },
   );
   return text;
@@ -68,9 +70,9 @@ export async function callClaudeJSON<T = unknown>(
   prompt: string,
   options: CallClaudeOptions = {},
 ): Promise<T> {
-  const { intensity = "medium", systemPrompt, maxTokens } = options;
+  const { intensity = "medium", systemPrompt, maxTokens, usageTag } = options;
   return llmGenerateJSON<T>(
-    { prompt, system: systemPrompt, intensity, maxTokens },
+    { prompt, system: systemPrompt, intensity, maxTokens, usageTag },
     { scope: LLM_SCOPE },
   );
 }

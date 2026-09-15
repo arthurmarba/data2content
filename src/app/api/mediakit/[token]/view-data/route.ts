@@ -110,12 +110,12 @@ function normalizeCategoryField(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } },
+  { params }: { params: Promise<{ token: string }> },
 ) {
   try {
     await connectToDatabase();
 
-    const resolvedToken = await resolveMediaKitToken(params.token);
+    const resolvedToken = await resolveMediaKitToken((await params).token);
     if (!resolvedToken) {
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }

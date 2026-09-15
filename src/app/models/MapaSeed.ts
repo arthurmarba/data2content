@@ -96,7 +96,7 @@ export interface ILeituraInaugural {
 export interface IMapaSeed extends Document {
   instagramSourceRevision?: string | null;
   videoSourceRevision?: string | null;
-  enrichmentStatus?: { attemptedAt: Date; state: string; reason?: string | null; nextAttemptAt?: Date | null };
+  enrichmentStatus?: { attemptedAt: Date; state: string; reason?: string | null; nextAttemptAt?: Date | null; failures?: number };
   userId: Types.ObjectId;
   onboardingAnswers: IOnboardingAnswers;
   mapa: IMapaData;

@@ -12,7 +12,8 @@ import { logger } from '@/app/lib/logger'; // Importa o logger
  * @returns Objeto contendo as métricas calculadas (com chaves canônicas/descritivas).
  */
 export function calcFormulas(
-  rawDataArray: Record<string, unknown>[] // Espera array de objetos com chaves canônicas
+  rawDataArray: Record<string, unknown>[], // Espera array de objetos com chaves canônicas
+  mediaType?: string,
 ): Record<string, unknown> {
   const TAG = '[calcFormulas v1.1]';
   if (!rawDataArray || rawDataArray.length === 0) {
@@ -97,7 +98,10 @@ export function calcFormulas(
 
   // (III) Tempo de Visualização / Retenção
   // Usa os valores médios/totais já calculados/extraídos
-  const retention_rate = safeRatio(average_video_watch_time_seconds, video_duration_seconds);
+  const videoApplicable = !mediaType || ['REEL', 'REELS', 'VIDEO'].includes(mediaType);
+  const hasWatchTime = typeof data.average_video_watch_time_seconds === 'number' && Number.isFinite(data.average_video_watch_time_seconds);
+  const retention_rate = videoApplicable && video_duration_seconds > 0 && hasWatchTime
+    ? safeRatio(average_video_watch_time_seconds, video_duration_seconds) : null;
 
   // (IV) Conversão / Crescimento
   const follower_conversion_rate = safeRatio(follows, profile_visits);

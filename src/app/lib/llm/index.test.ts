@@ -1,3 +1,4 @@
+import { withGeminiGovernance, GeminiGovernanceError } from "./geminiGovernance";
 // src/app/lib/llm/index.test.ts
 
 import {
@@ -177,5 +178,25 @@ describe("llmGenerate — seleção e fallback (fora de teste)", () => {
     (mockOpenai.available as jest.Mock).mockReturnValue(false);
 
     await expect(llmGenerate({ prompt: "x" }, { scope: "MAPA" })).rejects.toThrow();
+  });
+});
+
+
+describe("proteção de custo no fluxo automático", () => {
+  it("não tenta OpenAI após falha incerta do Gemini", async () => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+    process.env.LLM_PROVIDER_MAPA = "gemini";
+    process.env.LLM_FALLBACK_MAPA = "true";
+    mockGemini.generate.mockRejectedValue(new GeminiGovernanceError("gemini_result_unknown", "timeout"));
+    await expect(withGeminiGovernance({ creatorId: "criador", contentKey: "mapa", fingerprint: "v1" }, () => llmGenerate({ prompt: "x" }, { scope: "MAPA" }))).rejects.toThrow("gemini_result_unknown");
+    expect(mockOpenai.generate).not.toHaveBeenCalled();
+  });
+  it("orçamento esgotado não é contornado por outro provedor", async () => {
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+    process.env.LLM_PROVIDER_MAPA = "gemini";
+    process.env.LLM_FALLBACK_MAPA = "true";
+    mockGemini.generate.mockRejectedValue(new GeminiGovernanceError("gemini_budget_deferred", "limite"));
+    await expect(withGeminiGovernance({ creatorId: "criador", contentKey: "mapa", fingerprint: "v1" }, () => llmGenerate({ prompt: "x" }, { scope: "MAPA" }))).rejects.toThrow("gemini_budget_deferred");
+    expect(mockOpenai.generate).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-09
+atualizado: 2026-09-15
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -10,7 +10,7 @@ atualizado: 2026-09-09
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**435 rotas** em **56 grupos**.
+**436 rotas** em **56 grupos**.
 
 ## Índice
 
@@ -33,7 +33,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
 - [cron](#cron) — 20 rotas
-- [dashboard](#dashboard) — 47 rotas
+- [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
 - [dev](#dev) — 4 rotas
@@ -432,6 +432,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/dashboard/mobile-strategic-profile/upload-session` | DELETE, GET, PATCH, POST, PUT | `src/app/api/dashboard/mobile-strategic-profile/upload-session/route.ts` |
 | `/api/dashboard/mobile-strategic-profile/weekly-report` | GET, POST | `src/app/api/dashboard/mobile-strategic-profile/weekly-report/route.ts` |
 | `/api/dashboard/notifications/badges` | GET | `src/app/api/dashboard/notifications/badges/route.ts` |
+| `/api/dashboard/opportunities` | GET | `src/app/api/dashboard/opportunities/route.ts` |
 | `/api/dashboard/post-reviews` | GET | `src/app/api/dashboard/post-reviews/route.ts` |
 | `/api/dashboard/post-reviews/unread-count` | GET | `src/app/api/dashboard/post-reviews/unread-count/route.ts` |
 | `/api/dashboard/pricing-stats/narrative-range` | GET | `src/app/api/dashboard/pricing-stats/narrative-range/route.ts` |

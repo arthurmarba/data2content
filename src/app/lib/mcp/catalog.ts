@@ -814,7 +814,7 @@ export async function getMcpDeepContentAnalysis(params: {
     userId: new Types.ObjectId(params.userId),
     metricId: new Types.ObjectId(normalizedId),
   })
-    .select("evidenceVersion transcript scenes narrative visual completeness provider analyzedAt updatedAt")
+    .select("evidenceVersion transcript slides visualCoverage scenes narrative visual completeness provider analyzedAt updatedAt")
     .lean<any>();
 
   const stats = document.stats && typeof document.stats === "object"
@@ -822,6 +822,7 @@ export async function getMcpDeepContentAnalysis(params: {
     : {};
   const sceneElements = sanitizeMcpSceneElements(document.sceneElements);
   const caption = compactText(document.description, 8_000) || null;
+  const videoMetricsApplicable = ["REEL", "VIDEO"].includes(String(document.type).toUpperCase());
   const hasObservedSpeechSource = publishedEvidence?.transcript?.source === "gemini_video"
     && !["IMAGE", "CAROUSEL_ALBUM"].includes(String(document.type).toUpperCase());
   const availableTranscript = hasObservedSpeechSource
@@ -855,7 +856,7 @@ export async function getMcpDeepContentAnalysis(params: {
       caption,
       transcript,
       durationSeconds:
-        typeof stats.video_duration_seconds === "number" && Number.isFinite(stats.video_duration_seconds)
+        videoMetricsApplicable && typeof stats.video_duration_seconds === "number" && Number.isFinite(stats.video_duration_seconds)
           ? stats.video_duration_seconds
           : null,
       isSponsored: document.isPubli === true,
@@ -884,6 +885,12 @@ export async function getMcpDeepContentAnalysis(params: {
       scenes,
       narrative,
       visual,
+      slides: Array.isArray(publishedEvidence?.slides) ? publishedEvidence.slides.map((slide: any) => ({
+        position: slide.position, type: slide.type, role: boundedText(slide.role, 80),
+        description: boundedText(slide.description, 1000), onScreenText: boundedText(slide.onScreenText, 8000),
+        transcript: params.includeTranscript === true && slide.type === "VIDEO" ? boundedText(slide.transcript, 30000) : null,
+      })) : [],
+      visualCoverage: publishedEvidence?.visualCoverage || null,
       transcriptSegments,
       transcriptQuality: {
         status: availableTranscript ? boundedText(publishedEvidence?.transcript?.quality?.status, 40) || "unverified" : "unavailable",
@@ -901,9 +908,9 @@ export async function getMcpDeepContentAnalysis(params: {
       shares: stats.shares ?? null,
       profileVisits: stats.profile_visits ?? null,
       follows: stats.follows ?? null,
-      averageWatchTime: stats.ig_reels_avg_watch_time ?? null,
-      totalWatchTime: stats.ig_reels_video_view_total_time ?? null,
-      retentionRate: stats.retention_rate ?? null,
+      averageWatchTime: videoMetricsApplicable ? stats.ig_reels_avg_watch_time ?? null : null,
+      totalWatchTime: videoMetricsApplicable ? stats.ig_reels_video_view_total_time ?? null : null,
+      retentionRate: videoMetricsApplicable ? stats.retention_rate ?? null : null,
       followerConversionRate: stats.follower_conversion_rate ?? null,
       propagationIndex: stats.propagation_index ?? null,
       engagementRateOnReach: stats.engagement_rate_on_reach ?? null,
@@ -917,7 +924,7 @@ export async function getMcpDeepContentAnalysis(params: {
         normalizeStringArray(document.context).length > 0 ||
         normalizeStringArray(document.proposal).length > 0,
       hasSceneAnalysis: scenes.length > 0 || Boolean(sceneElements),
-      hasSceneTimeline: scenes.length > 0,
+      hasSceneTimeline: videoMetricsApplicable && scenes.length > 0,
       hasMetrics: Object.values(stats).some((value) => typeof value === "number" && Number.isFinite(value)),
     },
     receipt: {

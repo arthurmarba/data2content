@@ -91,3 +91,9 @@ keys/
 /output/**/*.pdf
 /output/**/*.pptx
 /output/**/*.zip
+
+# Experimentos pagos do Gemini: transcrições e vídeos de criadores reais
+/output/gemini-compact/
+
+# Dados financeiros exportados do Stripe: nunca no repositório público
+/output/stripe/

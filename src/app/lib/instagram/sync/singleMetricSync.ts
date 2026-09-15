@@ -62,7 +62,7 @@ export async function refreshSinglePubliMetric(userId: string, instagramMediaId:
 
         // 5. Calculate Formulas & Save
         const rawStats = insightsResult.data as Record<string, unknown>;
-        const calculated = calcFormulas([rawStats]);
+        const calculated = calcFormulas([rawStats], mediaType);
         const combinedStats: IMetricStats = { ...insightsResult.data, ...calculated };
 
         await saveMetricData(userObjectId, mediaItem, combinedStats);

@@ -52,6 +52,8 @@
     "types/**/*.d.ts"
   ],
   "exclude": [
+    ".claude/worktrees/**/*",
+    ".codex/worktrees/**/*",
     "node_modules",
     "**/node_modules/*",
     "**/dist/*",

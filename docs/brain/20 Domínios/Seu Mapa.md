@@ -4,6 +4,8 @@ tipo: domínio
 
 # Seu Mapa — a leitura do criador
 
+> **Mockup em revisão:** [[Redesenho da jornada e mockup do app]] guarda a retomada do redesenho de setembro de 2026. Preservar o Perfil atual e redistribuir as ferramentas entre quatro abas é trabalho de protótipo; não confundir com mudança já publicada.
+
 ## Por que existe
 
 É a raiz de quase tudo. Sem mapa não há pauta, não há collab que faça sentido, não há relatório com julgamento. Quando alguma dessas coisas parece quebrada, o mapa costuma ser o culpado de verdade.
@@ -61,3 +63,8 @@ cenas e checkpoints e respeita revisão das fontes. O intervalo do mapa segue em
 12 horas; a atualização descritiva do Perfil é independente. Os documentos de
 mapa usam concorrência otimista; uma gravação antiga não deve substituir edição
 mais nova. Falhas ao ler confirmações interrompem o enriquecimento.
+
+No enriquecimento automático, as etapas Gemini têm comprovantes duráveis por fonte
+em `GeminiOperation`; falha de parse não repete chamada paga. Não há fallback pago
+após falha neste contexto. A revisão das leituras usa assuntos, tons e objetos,
+sem datas de análise; ver [[Filas e rotinas]] para política de custo e limitações.

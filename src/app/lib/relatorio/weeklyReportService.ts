@@ -99,20 +99,21 @@ async function loadWeekPosts(week: WeekWindow): Promise<ReportPost[]> {
       postDate: { $gte: week.startsAt, $lte: week.endsAt },
       classificationStatus: "completed",
     },
-    { user: 1, postDate: 1, context: 1, stats: 1 },
+    { user: 1, postDate: 1, context: 1, stats: 1, type: 1 },
   )
     .lean()
     .exec()) as unknown as Array<{
     _id: Types.ObjectId;
     user: Types.ObjectId;
     postDate: Date;
+    type?: string;
     context?: unknown;
     stats?: Record<string, unknown>;
   }>;
 
   return metrics.map((metric) => {
     const duration =
-      typeof metric.stats?.video_duration_seconds === "number"
+      ["REEL", "VIDEO"].includes(metric.type || "") && typeof metric.stats?.video_duration_seconds === "number"
         ? metric.stats.video_duration_seconds
         : null;
     return {
@@ -135,8 +136,8 @@ async function loadWeekPosts(week: WeekWindow): Promise<ReportPost[]> {
       openingLine: null,
       sceneRead: false,
       absolute: {},
-      raw: extractRawMetrics(metric.stats),
-      rawRetentionValue: rawRetention(metric.stats),
+      raw: extractRawMetrics(metric.stats, metric.type),
+      rawRetentionValue: rawRetention(metric.stats, metric.type),
       durationSeconds: duration,
       durationBucket: durationBucketFor(duration)?.key ?? null,
       assuntos: [],

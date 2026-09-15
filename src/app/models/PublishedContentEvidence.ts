@@ -32,8 +32,10 @@ export interface IPublishedContentEvidence extends Document {
     wordCount: number;
     language: string | null;
     source: "gemini_video" | "stored_script" | "caption_fallback" | "none";
-    quality?: { status: "complete" | "partial" | "unverified" | "unavailable"; truncated: boolean; speakerVerified: boolean; temporalCoverage: number | null };
+    quality?: { status: "complete" | "partial" | "unverified" | "unavailable"; truncated: boolean; speakerVerified: boolean; temporalCoverage: number | null; structuralConsistent?: boolean; audioFidelityVerified?: boolean; assemblySource?: "independent" | "segments" };
   };
+  slides?: Array<{ position: number; type: "IMAGE" | "VIDEO"; role: string; description: string; onScreenText: string | null; transcript: string | null }>;
+  visualCoverage?: { expected: number; analyzed: number; complete: boolean };
   scenes: PublishedSceneEvidence[];
   narrative: {
     hook: string | null;
@@ -112,6 +114,7 @@ const PublishedContentEvidenceSchema = new Schema<IPublishedContentEvidence>({
       segments: { type: [TranscriptSegmentSchema], default: [] },
       wordCount: { type: Number, default: 0, min: 0 },
       quality: { type: new Schema({
+        structuralConsistent: Boolean, audioFidelityVerified: { type: Boolean, default: false }, assemblySource: { type: String, enum: ["independent", "segments"] },
         status: { type: String, enum: ["complete", "partial", "unverified", "unavailable"], default: "unverified" },
         truncated: { type: Boolean, default: false },
         speakerVerified: { type: Boolean, default: false },
@@ -127,6 +130,11 @@ const PublishedContentEvidenceSchema = new Schema<IPublishedContentEvidence>({
     required: true,
     default: () => ({}),
   },
+  slides: { type: [new Schema({
+    position: { type: Number, required: true, min: 1 }, type: { type: String, enum: ["IMAGE", "VIDEO"], required: true },
+    role: String, description: String, onScreenText: { type: String, default: null }, transcript: { type: String, default: null },
+  }, { _id: false })], default: undefined },
+  visualCoverage: { type: new Schema({ expected: Number, analyzed: Number, complete: Boolean }, { _id: false }), default: undefined },
   scenes: { type: [SceneEvidenceSchema], default: [] },
   narrative: {
     type: new Schema({

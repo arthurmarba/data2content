@@ -1,6 +1,7 @@
+import { VISUAL_READING_REVISION } from "../../src/app/lib/relatorio/readingRevision";
 // scripts/relatorio-semanal/backfillScenes.ts
 //
-// Confere, contra os reels PUBLICADOS, quais elementos do mapa de cada criador
+// Confere, contra os posts PUBLICADOS, quais elementos do mapa de cada criador
 // apareceram, e grava os papéis canônicos em Metric.sceneElements.
 // É o que destrava a tela 03 (assets de vida) e o tom da tela 04.
 //
@@ -10,15 +11,18 @@
 // Uso:
 //   npx tsx --env-file=.env.local scripts/relatorio-semanal/backfillScenes.ts --dry-run
 //   npx tsx --env-file=.env.local scripts/relatorio-semanal/backfillScenes.ts --limit=20
-//   ... --week=2026-W29  (só os vídeos daquela semana — o que completa o relatório dela)
+//   ... --week=2026-W29  (só os posts daquela semana — o que completa o relatório dela)
 //   ... --days=90        (janela, default 90; ignorado quando --week é usado)
-//   ... --limit=200      (teto de vídeos nesta execução — TETO DE CUSTO)
+//   ... --limit=200      (teto de posts nesta execução — TETO DE CUSTO)
 //   ... --user=<id>      (um criador só)
-//   ... --media=<id,id>  (somente Reels específicos; útil para completar um PPT)
+//   ... --media=<id,id>  (somente posts específicos; útil para completar um PPT)
 //
-// CUSTO: ~US$ 0,005 por vídeo. 3.300 vídeos (90 dias da base inteira) ≈ US$ 17.
-// O --limit existe para isso: rode em lotes e confira o gasto em GeminiUsageLog
-// (tag "cena") entre um lote e o outro.
+// CUSTO: ~US$ 0,015 por vídeo, medido em 10/09/2026 sobre 283 leituras reais
+// (4,97M tokens de entrada e 1,08M de saída no gemini-2.5-flash = US$ 4,18).
+// 3.300 vídeos (90 dias da base inteira) ≈ US$ 50. A conta antiga dizia US$ 0,005 e
+// subestimava em três vezes — a saída cresceu quando a v3 passou a pedir transcrição
+// e linha do tempo. O --limit existe para isso: rode em lotes e confira o gasto em
+// GeminiUsageLog (tag "cena") entre um lote e o outro.
 
 import mongoose, { Types } from "mongoose";
 import { connectToDatabase } from "../../src/app/lib/mongoose";
@@ -30,30 +34,17 @@ import {
   SCENE_EVALUATION_VERSION,
   sceneElementsUpdate,
   evaluateSceneAgainstMap,
+  evaluateImagesAgainstMap,
 } from "../../src/app/lib/relatorio/sceneEvaluation";
 import { upsertPublishedContentEvidence } from "../../src/app/lib/scripts/publishedContentEvidence";
+
+import { freshPublishedMedia } from "../../src/app/lib/relatorio/publishedMedia";
 
 function arg(name: string): string | null {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? null;
 }
 function has(flag: string): boolean {
   return process.argv.includes(`--${flag}`);
-}
-
-const GRAPH_VERSION = process.env.INSTAGRAM_API_VERSION || "v20.0";
-
-async function freshMediaUrl(mediaId: string, token: string): Promise<string | null> {
-  const fields = encodeURIComponent("id,media_type,media_url");
-  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}?fields=${fields}&access_token=${token}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const json = (await response.json()) as { media_type?: string; media_url?: string };
-    if (json.media_type !== "VIDEO") return null;
-    return typeof json.media_url === "string" ? json.media_url : null;
-  } catch {
-    return null;
-  }
 }
 
 async function main() {
@@ -95,13 +86,13 @@ async function main() {
     // Só o que ainda não foi lido nesta versão do vocabulário.
     $or: [
       { sceneElements: { $exists: false } },
-      { "sceneElements.version": { $ne: SCENE_EVALUATION_VERSION } },
+      { $expr: { $ne: ["$sceneElements.version", { $cond: [{ $in: ["$type", ["IMAGE", "CAROUSEL_ALBUM"]] }, VISUAL_READING_REVISION, SCENE_EVALUATION_VERSION] }] } },
     ],
   };
   if (mediaIds.length > 0) {
     query.instagramMediaId = { $in: mediaIds };
   } else {
-    query["stats.video_duration_seconds"] = { $gt: 0 };
+    query.type = { $in: ["REEL", "VIDEO", "IMAGE", "CAROUSEL_ALBUM"] };
   }
   if (userId) {
     query.user = new Types.ObjectId(userId);
@@ -136,9 +127,9 @@ async function main() {
       }>
     >();
 
-  const estimated = (metrics.length * 0.005).toFixed(2);
+  const estimated = (metrics.length * 0.015).toFixed(2);
   console.error(
-    `\n▸ ${total} vídeos pendentes${weekKey ? ` em ${weekKey}` : ` na janela de ${days} dias`}` +
+    `\n▸ ${total} posts pendentes${weekKey ? ` em ${weekKey}` : ` na janela de ${days} dias`}` +
       ` · processando ${metrics.length} · custo estimado ≈ US$ ${estimated}` +
       `${dryRun ? " · DRY RUN" : ""}`,
   );
@@ -185,15 +176,23 @@ async function main() {
       continue;
     }
 
-    const mediaUrl = await freshMediaUrl(metric.instagramMediaId, token);
-    if (!mediaUrl) {
-      console.error(`  – ${label}: sem media_url de vídeo`);
+    if (dryRun) {
+      console.error(`  – ${label}: elegível (sem baixar mídia ou chamar IA)`);
+      continue;
+    }
+
+    const media = await freshPublishedMedia(metric.instagramMediaId, token).catch(() => null);
+    if (!media || (media.mediaType !== "VIDEO" && !media.items.length) || (!media.mediaUrl && !media.items.length)) {
+      console.error(`  – ${label}: sem mídia utilizável`);
       skipped += 1;
       continue;
     }
 
-    const outcome = await evaluateSceneAgainstMap({
-      mediaUrl,
+    const outcome = ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.items.length
+      ? await evaluateImagesAgainstMap({ metricId: String(metric._id), mediaUrls: media.imageUrls, mediaItems: media.items, profile })
+      : await evaluateSceneAgainstMap({
+      metricId: String(metric._id),
+      mediaUrl: media.mediaUrl!,
       durationSeconds: metric.stats?.video_duration_seconds ?? null,
       profile,
     });
@@ -237,7 +236,7 @@ async function main() {
       `${dryRun ? " (dry run — nada gravado)" : ""}`,
   );
   console.error(
-    `Restam ${Math.max(0, total - ok)} vídeos. Confira o gasto real:\n` +
+    `Restam ${Math.max(0, total - ok)} posts. Confira o gasto real:\n` +
       `  db.geminiusagelogs.aggregate([{$match:{tag:"cena"}},{$group:{_id:null,` +
       `in:{$sum:"$promptTokens"},out:{$sum:"$outputTokens"},n:{$sum:1}}}])`,
   );

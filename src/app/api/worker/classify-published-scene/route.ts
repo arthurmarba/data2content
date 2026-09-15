@@ -1,3 +1,5 @@
+import { readingRevision, VISUAL_READING_REVISION } from "@/app/lib/relatorio/readingRevision";
+import { freshPublishedMedia } from '@/app/lib/relatorio/publishedMedia';
 import { enqueueProfileRefresh, enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
 /**
  * POST /api/worker/classify-published-scene
@@ -50,48 +52,6 @@ const receiver =
     ? new Receiver({ currentSigningKey, nextSigningKey })
     : null;
 
-const GRAPH_VERSION = process.env.INSTAGRAM_API_VERSION || "v20.0";
-
-/** Rebusca a mídia fresca. A URL salva no Metric expira. */
-async function freshMedia(
-  mediaId: string,
-  token: string,
-): Promise<{ mediaType: string | null; mediaUrl: string | null; imageUrls: string[] }> {
-  const fields = encodeURIComponent(
-    "id,media_type,media_url,thumbnail_url,children{media_type,media_url,thumbnail_url}",
-  );
-  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}?fields=${fields}&access_token=${token}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Instagram HTTP ${response.status}`);
-    const json = (await response.json()) as {
-      media_type?: string;
-      media_url?: string;
-      thumbnail_url?: string;
-      children?: { data?: Array<{ media_type?: string; media_url?: string; thumbnail_url?: string }> };
-      error?: unknown;
-    };
-    if (json.error) throw new Error("Instagram token ou mídia indisponível");
-    const imageUrls = json.media_type === "CAROUSEL_ALBUM"
-      ? (json.children?.data ?? []).flatMap((child) => {
-          const url = child.media_type === "VIDEO"
-            ? child.thumbnail_url || null
-            : child.media_url || child.thumbnail_url || null;
-          return url ? [url] : [];
-        })
-      : json.media_type === "IMAGE"
-        ? [json.media_url || json.thumbnail_url].filter((value): value is string => Boolean(value))
-        : [];
-    return {
-      mediaType: typeof json.media_type === "string" ? json.media_type : null,
-      mediaUrl: typeof json.media_url === "string" ? json.media_url : null,
-      imageUrls,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
 async function processReading(metricId: string, lease: { token: string; result: Record<string, any> | null }): Promise<NextResponse> {
   if (!mongoose.isValidObjectId(metricId)) {
     return NextResponse.json({ message: "metricId inválido." }, { status: 400 });
@@ -99,7 +59,7 @@ async function processReading(metricId: string, lease: { token: string; result: 
 
   await connectToDatabase();
   const metric = await MetricModel.findById(metricId)
-    .select("user instagramMediaId sceneElements stats")
+    .select("user instagramMediaId sceneElements stats type")
     .exec();
 
   if (!metric) {
@@ -107,7 +67,7 @@ async function processReading(metricId: string, lease: { token: string; result: 
   }
   // Idempotente por versão: reprocessar só acontece quando a versão muda, e aí é
   // uma decisão explícita.
-  if (metric.sceneElements?.version === SCENE_EVALUATION_VERSION && await PublishedContentEvidence.exists({ metricId: metric._id, userId: metric.user })) {
+  if (metric.sceneElements?.version === readingRevision(metric.type) && await PublishedContentEvidence.exists({ metricId: metric._id, userId: metric.user })) {
     return NextResponse.json({ ok: true, message: "Cena já avaliada nesta versão." });
   }
   if (lease.result) {
@@ -150,9 +110,10 @@ async function processReading(metricId: string, lease: { token: string; result: 
   }
 
   if (!(await claimGeminiAvailability())) return NextResponse.json({ message: "Provedor temporariamente pausado por saldo; leitura adiada." });
-  const media = await freshMedia(metric.instagramMediaId, token);
+  const media = await freshPublishedMedia(metric.instagramMediaId, token);
   const outcome = media.mediaType === "VIDEO" && media.mediaUrl
     ? await evaluateSceneAgainstMap({
+        metricId,
         mediaUrl: media.mediaUrl,
         durationSeconds:
           typeof metric.stats?.video_duration_seconds === "number"
@@ -160,8 +121,8 @@ async function processReading(metricId: string, lease: { token: string; result: 
             : null,
         profile,
       })
-    : ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.imageUrls.length
-      ? await evaluateImagesAgainstMap({ mediaUrls: media.imageUrls, profile })
+    : ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.items.length
+      ? await evaluateImagesAgainstMap({ metricId, mediaUrls: media.imageUrls, mediaItems: media.items, profile })
       : null;
 
   if (!outcome) {
@@ -229,7 +190,9 @@ async function processReading(metricId: string, lease: { token: string; result: 
 
 async function handle(metricId: string): Promise<NextResponse> {
   if (!mongoose.isValidObjectId(metricId)) return NextResponse.json({ message: "metricId inválido." }, { status: 400 });
-  const lease = await acquireReading(metricId, SCENE_EVALUATION_VERSION);
+  await connectToDatabase();
+  const metadata = await MetricModel.findById(metricId).select("type").lean();
+  const lease = await acquireReading(metricId, readingRevision(metadata?.type));
   if (!lease) return NextResponse.json({ message: "Leitura em andamento ou aguardando próxima tentativa." });
   try {
     const response = await processReading(metricId, lease);
@@ -281,5 +244,6 @@ export async function GET() {
   return NextResponse.json({
     message: "Worker de avaliação de cena contra o mapa do criador ativo.",
     versao: SCENE_EVALUATION_VERSION,
+    versaoVisual: VISUAL_READING_REVISION,
   });
 }

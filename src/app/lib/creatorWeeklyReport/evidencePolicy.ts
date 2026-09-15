@@ -7,7 +7,7 @@ export const CONSISTENT_MIN_POSTS = 6;
 // A promoção pública aguarda os dois fechamentos do piloto. A decisão candidata
 // fica no relatório para avaliação, sem transformar uma hipótese em certeza.
 export const CONSISTENT_POLICY_VALIDATED = false;
-export const formatCohort = (metric: CreatorWeeklyReportMetricInput) => isVideo(metric) ? 'video' : metric.type;
+export const formatCohort = (metric: CreatorWeeklyReportMetricInput) => metric.type || 'unknown';
 
 export function median(values: (number | null)[]): number | null {
   const sorted = values.filter((value): value is number => value !== null && Number.isFinite(value)).sort((a, b) => a - b);

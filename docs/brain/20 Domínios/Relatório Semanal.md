@@ -46,8 +46,31 @@ O fechamento da semana grava um retrato do momento. **Esse retrato é irrecuper�
 
 ## Assets de cena
 
-A leitura de cena e tom sai do vídeo publicado, lido pelo Gemini (`npm run relatorio:cenas`, com `--dry-run`). Custo na casa de meio centavo de dólar por vídeo.
+A leitura de cena e tom sai da mídia publicada: vídeos, fotos e carrosséis são
+lidos pelo Gemini (`npm run relatorio:cenas`, com `--dry-run` para apenas listar).
+O worker e o comando compartilham a renovação das URLs assinadas do Instagram.
+O custo medido em setembro foi de aproximadamente US$ 0,015 por vídeo; o custo de
+imagens depende da quantidade de slides. Confira `GeminiUsageLog` entre lotes.
 
 ## Ligações
 
 [[Seu Mapa]] · [[O mapa é o dicionário]] · [[Classificação de conteúdo]]
+
+## Formatos e carrosséis (11/09/2026)
+
+A leitura visual preserva todos os itens, inclusive páginas adicionais da Graph API.
+Vídeos internos são enviados como vídeo, com áudio; não são substituídos por capas.
+`PublishedContentEvidence.slides` conserva posição, tipo, função, descrição, texto
+visível e fala exclusiva do vídeo daquele item. `visualCoverage` informa total e
+completude. Os campos temporais de compatibilidade ficam nulos nas imagens.
+
+A leitura só conclui quando todos os itens foram baixados e constam da resposta.
+Há limites de tamanho por arquivo e timeout; ultrapassá-los registra a pendência,
+sem cortar slides silenciosamente. O limite inline considera o pedido inteiro;
+arquivos excedentes usam a Files API.
+
+Foto e carrossel não têm retenção nem duração de vídeo no nível do post. A sincronização
+limpa esses campos e os consumidores de relatórios e MCP ignoram valores antigos
+incompatíveis. Reels e vídeos de feed têm referências separadas na comparação individual.
+No MCP, as transcrições dos vídeos internos seguem o mesmo pedido explícito de
+transcrição da leitura de Reels, sem misturar a fala de slides numa timeline global.

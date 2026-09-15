@@ -105,12 +105,12 @@ async function fileExists(p: string) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   const urlIn = new URL(req.url);
   const strict = ['1', 'true', 'yes'].includes((urlIn.searchParams.get('strict') || '').toLowerCase());
   // Recompõe a URL alvo a partir dos segmentos (espera-se que venha encodeURIComponent no cliente)
-  const encoded = params.path?.join("/") ?? "";
+  const encoded = (await params).path?.join("/") ?? "";
   const targetUrl = decodeURIComponent(encoded);
 
   if (!targetUrl) {

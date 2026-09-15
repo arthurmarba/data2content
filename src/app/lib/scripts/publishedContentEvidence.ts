@@ -29,6 +29,10 @@ export type PublishedEvidenceCoverage = {
 };
 
 type SceneEvaluationLike = {
+  responseFormat?: "scene_legacy_v1" | "scene_segments_v1";
+  readingCompleteness?: "complete" | "partial";
+  slides?: import("../relatorio/sceneEvaluation").SceneEvaluation["slides"];
+  visualCoverage?: import("../relatorio/sceneEvaluation").SceneEvaluation["visualCoverage"];
   transcript?: string | null;
   transcriptSegments?: Array<{ startMs?: number | null; endMs?: number | null; text?: string }>;
   sceneTimeline?: Array<{
@@ -217,12 +221,13 @@ export async function upsertPublishedContentEvidence(params: {
   const segments = normalizeSegments(params.scene.transcriptSegments);
   const scenes = normalizeScenes(params.scene.sceneTimeline);
   const stats = (metric.stats || {}) as Record<string, unknown>;
-  const durationSeconds = finite(stats.video_duration_seconds);
+  const video = ["REEL", "VIDEO"].includes(metric.type);
+  const durationSeconds = video ? finite(stats.video_duration_seconds) : null;
   const reach = finite(stats.reach);
   const views = finite(stats.views ?? stats.video_views);
   const interactions = finite(stats.total_interactions);
-  const avgWatch = averageWatchTime(stats);
-  const retention = finite(stats.retention_rate)
+  const avgWatch = video ? averageWatchTime(stats) : null;
+  const retention = (video ? finite(stats.retention_rate) : null)
     ?? (avgWatch !== null && durationSeconds && durationSeconds > 0 ? avgWatch / durationSeconds : null);
   const scriptLink = await resolveScriptLink({
     userId: metric.user as Types.ObjectId,
@@ -250,8 +255,10 @@ export async function upsertPublishedContentEvidence(params: {
           wordCount: words(fullTranscript),
           language: fullTranscript ? "pt-BR" : null,
           source: transcriptSource,
-          quality: assessTranscriptQuality(observedTranscript, segments, durationSeconds, (params.scene.transcript?.length || 0) >= 30000),
+          quality: assessTranscriptQuality(observedTranscript, segments, durationSeconds, params.scene.readingCompleteness === "partial" || (params.scene.transcript?.length || 0) >= 30000, params.scene.responseFormat === "scene_segments_v1" ? "segments" : "independent"),
         },
+        slides: params.scene.slides,
+        visualCoverage: params.scene.visualCoverage,
         scenes,
         narrative: {
           hook: cleanText(params.scene.openingLine, 500),
@@ -288,8 +295,8 @@ export async function upsertPublishedContentEvidence(params: {
           source: scriptLink.source,
         },
         completeness: {
-          transcript: Boolean(observedTranscript && words(observedTranscript) >= 8),
-          scenes: scenes.length > 0,
+          transcript: params.scene.readingCompleteness !== "partial" && Boolean(observedTranscript && words(observedTranscript) >= 8),
+          scenes: params.scene.readingCompleteness !== "partial" && scenes.length > 0,
           performance: performanceAvailable,
           duration: durationSeconds !== null,
           scriptLink: scriptLink.confidence === "confirmed" || scriptLink.confidence === "high",
@@ -336,7 +343,7 @@ export async function getPublishedEvidenceCoverage(params: {
     MetricModel.countDocuments({
       user: userId,
       postDate: { $gte: since },
-      $or: [{ format: "reel" }, { type: /reel|video/i }, { "stats.video_duration_seconds": { $gt: 0 } }],
+      type: { $in: ["REEL", "VIDEO"] },
     }),
     PublishedContentEvidence.aggregate([
       { $match: { userId, publishedAt: { $gte: since } } },

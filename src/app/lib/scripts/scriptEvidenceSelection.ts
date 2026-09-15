@@ -38,16 +38,17 @@ export function inferScriptGoal(prompt: string): ScriptGoal {
 export function metricPerformance(metric: EvidenceRow) {
   const s = metric.stats || {};
   const views = finiteMetric(s.views ?? s.video_views);
+  const video = !metric.type || ["REEL", "VIDEO"].includes(metric.type);
   const totalTime = finiteMetric(s.ig_reels_video_view_total_time);
   return {
     reach: finiteMetric(s.reach), views,
     interactions: finiteMetric(s.total_interactions),
     saves: finiteMetric(s.saved ?? s.saves), shares: finiteMetric(s.shares),
     comments: finiteMetric(s.comments), follows: finiteMetric(s.follows),
-    durationSeconds: finiteMetric(s.video_duration_seconds),
-    averageWatchTimeSeconds: finiteMetric(s.average_video_watch_time_seconds)
+    durationSeconds: video ? finiteMetric(s.video_duration_seconds) : null,
+    averageWatchTimeSeconds: video ? (finiteMetric(s.average_video_watch_time_seconds)
       ?? (finiteMetric(s.ig_reels_avg_watch_time) !== null ? s.ig_reels_avg_watch_time / 1000 : null)
-      ?? (views && totalTime !== null ? totalTime / 1000 / views : null),
+      ?? (views && totalTime !== null ? totalTime / 1000 / views : null)) : null,
     capturedAt: metric.lastFetchedAt ?? metric.updatedAt ?? null,
     capturedAtBasis: metric.lastFetchedAt ? "metrics_sync" : metric.updatedAt ? "document_updated_at_not_verified_sync" : "unavailable",
   };
@@ -84,6 +85,8 @@ export function evidenceText(doc: EvidenceRow, plannedText = "") {
       truncated,
       completenessVerified: usable && !truncated && quality?.status === "complete",
       speakerVerified: quality?.speakerVerified === true,
+      structuralConsistent: quality?.structuralConsistent === true,
+      audioFidelityVerified: quality?.audioFidelityVerified === true,
     },
   };
 }

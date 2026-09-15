@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-09
+atualizado: 2026-09-15
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-09
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **93 modelos.**
+Todo dado persistido é um modelo Mongoose. **96 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -65,6 +65,8 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **DailyMetric** | `—` | `src/app/models/DailyMetric.ts` |
 | **DailyMetricSnapshot** | `daily_metric_snapshots` | `src/app/models/DailyMetricSnapshot.ts` |
 | **FeatureFlag** | `—` | `src/app/models/FeatureFlag.ts` |
+| **GeminiBudgetPolicy** | `gemini_budget_policies` | `src/app/models/GeminiBudget.ts` |
+| **GeminiOperation** | `gemini_operations` | `src/app/models/GeminiOperation.ts` |
 | **GeminiShadowComparison** | `geminishadowcomparisons` | `src/app/models/GeminiShadowComparison.ts` |
 | **GeminiUsageLog** | `geminiusagelogs` | `src/app/models/GeminiUsageLog.ts` |
 | **InstagramMarketplaceConnection** | `instagram_marketplace_connections` | `src/app/models/InstagramMarketplaceConnection.ts` |
@@ -90,6 +92,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **PubliCalculation** | `—` | `src/app/models/PubliCalculation.ts` |
 | **PublishedContentEvidence** | `published_content_evidence` | `src/app/models/PublishedContentEvidence.ts` |
 | **Redemption** | `—` | `src/app/models/Redemption.ts` |
+| **SceneReadingPolicy** | `scene_reading_policies` | `src/app/models/SceneReadingPolicy.ts` |
 | **ScriptEntry** | `script_entries` | `src/app/models/ScriptEntry.ts` |
 | **ScriptEvidenceSession** | `script_evidence_sessions` | `src/app/models/ScriptEvidenceSession.ts` |
 | **ScriptOutcomeProfile** | `script_outcome_profiles` | `src/app/models/ScriptOutcomeProfile.ts` |

@@ -18,8 +18,12 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 ## O que está quente (mexido desde agosto de 2026)
 
+- [Leituras do Gemini em lote](plano-lote-gemini.md) — 14/09/2026: metade do preço pela Batch API, prazo de domingo antes do fechamento semanal, fases e prova de conceito.
+- [Próxima etapa de eficiência do Gemini](plano-eficiencia-gemini-etapa-2.md) — 14/09/2026: fala sem duplicação, comparação de qualidade e liberação gradual.
+
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `brain/40 Decisões/Redesenho da jornada e mockup do app.md` | 09/2026 | Memória de retomada do mockup: quatro abas, fidelidade ao Perfil atual, arquivos, decisões de Arthur e pendências antes da implementação |
 | `pesquisa-criadores-externos-mcp.md` | 09/2026 | Pesquisa fora da base: consulta por @, Marketplace da Meta, permissões, limites e estado da implementação |
 | `chatgpt-ads-aquisicao-2026-09.md` | 09/2026 | Campanha de R$ 70, atribuição consentida, assinatura versus pagamento, relatório e operação das conversões |
 | `implementacao-upload-mobile-2026-09-08.md` | 09/2026 | Correções do upload: análise em fila, recuperação por sessão, proteção de arquivos, cancelamento, validação e ativação operacional |
@@ -87,6 +91,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 `llm-provider-migration-plan.md` (06/26) · `plano-de-otimizacao-estrategica-v3.md` · `-v4.md` (07/25)
 
 > Falha de saldo do Gemini e recuperação das leituras: `brain/30 Armadilhas/Crédito do Gemini paralisa a leitura publicada.md`.
+>
+> Arquivo bom reprovado pela Files API do Gemini: `brain/30 Armadilhas/A Files API do Gemini reprova arquivo bom.md`.
 
 ### Interface e design
 `mobile-design-system.md` (07/26) · `design-tokens.md` (11/25) · `dashboard/plano-boards-ui-v2.md` (04/26) · `dashboard/etapa2|5|6-checklist.md` (11/25) · `navigation/etapa1-*.md` (11–12/25) · `home-tutorial-playbook.md` (11/25) · `MM90_MOBILE_UX_SIMPLIFICATION_PASS.md` (05/26) · `mobile-strategic-profile-performance-report.md` (07/26)

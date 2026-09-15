@@ -127,6 +127,7 @@ export async function enrichMapaWithInstagram(
   const raw = await callClaudeJSON<RawEnriched>(buildPrompt(mapaAtual, patterns), {
     intensity: "high",
     maxTokens: 1024,
+    usageTag: "mapa_instagram",
   });
 
   if (!raw.narrativa_central || !raw.tom) {

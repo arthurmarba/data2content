@@ -62,6 +62,7 @@ interface RawMetric {
   _id: Types.ObjectId;
   user: Types.ObjectId;
   postDate: Date;
+  type?: string;
   context?: unknown;
   proposal?: unknown;
   tone?: unknown;
@@ -173,7 +174,7 @@ function unique(values: string[]): string[] {
 function toReportPost(metric: RawMetric): ReportPost {
   const stats = metric.stats ?? {};
   const durationSeconds =
-    typeof stats.video_duration_seconds === "number" && stats.video_duration_seconds > 0
+    ["REEL", "VIDEO"].includes(metric.type || "") && typeof stats.video_duration_seconds === "number" && stats.video_duration_seconds > 0
       ? stats.video_duration_seconds
       : null;
 
@@ -186,9 +187,9 @@ function toReportPost(metric: RawMetric): ReportPost {
     // `observedTerritoryId`, como evidência.
     territoryId: null,
     observedTerritoryId: resolveTerritoryForContexts(metric.context)?.id ?? null,
-    raw: extractRawMetrics(stats),
+    raw: extractRawMetrics(stats, metric.type),
     absolute: extractAbsoluteMetrics(stats),
-    rawRetentionValue: rawRetention(stats),
+    rawRetentionValue: rawRetention(stats, metric.type),
     durationSeconds,
     durationBucket: durationBucketFor(durationSeconds)?.key ?? null,
     assuntos: assuntosOf(metric),
@@ -226,6 +227,7 @@ const PROJECTION = {
   thumbnailUrl: 1,
   coverUrl: 1,
   stats: 1,
+  type: 1,
 } as const;
 
 /**

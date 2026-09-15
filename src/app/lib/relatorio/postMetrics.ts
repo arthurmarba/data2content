@@ -141,7 +141,8 @@ function nonNegative(value: unknown): number | null {
  * Devolve null quando falta qualquer um dos dois — nunca 0, que seria lido como
  * "assistiu nada" em vez de "não sabemos".
  */
-export function rawRetention(stats: Record<string, unknown> | null | undefined): number | null {
+export function rawRetention(stats: Record<string, unknown> | null | undefined, mediaType?: string): number | null {
+  if (mediaType && !["REEL", "VIDEO"].includes(mediaType)) return null;
   const watchMs = nonNegative(stats?.ig_reels_avg_watch_time);
   const duration = nonNegative(stats?.video_duration_seconds);
   if (watchMs === null || duration === null || duration <= 0) return null;
@@ -202,6 +203,7 @@ export function extractAbsoluteMetrics(
 
 export function extractRawMetrics(
   stats: Record<string, unknown> | null | undefined,
+  mediaType?: string,
 ): Partial<Record<ReportMetric, number | null>> {
   const reach = nonNegative(stats?.reach);
   const measurable = reach !== null && reach >= MIN_REACH_FOR_RATE;
@@ -215,7 +217,7 @@ export function extractRawMetrics(
     comentarios: perReach(nonNegative(stats?.comments)),
     compartilhamentos: perReach(nonNegative(stats?.shares)),
     salvamentos: perReach(nonNegative(stats?.saved)),
-    retencao: rawRetention(stats),
+    retencao: rawRetention(stats, mediaType),
     alcance: reach,
     engajamento: measurable ? engagementRate(stats) : null,
   };

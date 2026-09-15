@@ -17,6 +17,7 @@ import GeminiUsageLogModel from "@/app/models/GeminiUsageLog";
 /** Subconjunto de `GenerateContentResponse` que nos interessa para custo. */
 interface GeminiUsageLike {
   model?: string;
+  candidates?: Array<{ finishReason?: unknown }>;
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
@@ -38,10 +39,13 @@ export function logGeminiUsage(
   tag: string,
   model: string,
   response: GeminiUsageLike | null | undefined,
+  attribution?: { operationId: string; creatorId: string; contentKey: string },
 ): void {
   try {
     const u = response?.usageMetadata;
     const payload = {
+      ...attribution,
+      finishReason: String(response?.candidates?.[0]?.finishReason ?? ""),
       geminiTag: tag,
       geminiModel: model,
       promptTokens: u?.promptTokenCount ?? null,
@@ -57,6 +61,8 @@ export function logGeminiUsage(
     void connectToDatabase()
       .then(() =>
         GeminiUsageLogModel.create({
+          ...attribution,
+          finishReason: payload.finishReason,
           tag,
           geminiModel: model,
           promptTokens: payload.promptTokens,

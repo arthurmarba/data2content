@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-09
+atualizado: 2026-09-15
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-09
 
 # Variáveis de ambiente
 
-**428 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**429 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -54,19 +54,19 @@ atualizado: 2026-09-09
 | `GEMINI_MODEL_SCRIPT_JUDGE` | 4 |
 | `GEMINI_THINKING_LEVEL_SCRIPTS` | 4 |
 | `GEMINI_SCRIPT_MODEL` | 3 |
+| `GEMINI_MAPA_MODEL` | 2 |
+| `GEMINI_MODEL` | 2 |
 | `GEMINI_THINKING_BUDGET` | 2 |
+| `GEMINI_THINKING_LEVEL` | 2 |
 | `GEMINI_ADJACENT_MODEL` | 1 |
 | `GEMINI_CENA_MODEL` | 1 |
 | `GEMINI_CLASSIFICATION_MODEL` | 1 |
 | `GEMINI_COLLAB_MODEL` | 1 |
 | `GEMINI_INSTAGRAM_MODEL` | 1 |
 | `GEMINI_INSTAGRAM_SHADOW_MODEL` | 1 |
-| `GEMINI_MAPA_MODEL` | 1 |
-| `GEMINI_MODEL` | 1 |
 | `GEMINI_MODEL_COMMUNITY_SUMMARY` | 1 |
 | `GEMINI_MODEL_SCRIPT_FALLBACK` | 1 |
 | `GEMINI_PAUTAS_MODEL` | 1 |
-| `GEMINI_THINKING_LEVEL` | 1 |
 | `GEMINI_WHATSAPP_MODEL` | 1 |
 
 ## GOOGLE
@@ -74,7 +74,7 @@ atualizado: 2026-09-09
 | Variável | Usos no código |
 | --- | --- |
 | `GOOGLE_GENAI_API_KEY` | 9 |
-| `GOOGLE_GEMINI_API_KEY` | 6 |
+| `GOOGLE_GEMINI_API_KEY` | 7 |
 | `GOOGLE_CLIENT_ID` | 1 |
 | `GOOGLE_CLIENT_SECRET` | 1 |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | 1 |
@@ -83,7 +83,7 @@ atualizado: 2026-09-09
 
 | Variável | Usos no código |
 | --- | --- |
-| `INSTAGRAM_API_VERSION` | 2 |
+| `INSTAGRAM_API_VERSION` | 1 |
 | `INSTAGRAM_APP_SECRET` | 1 |
 | `INSTAGRAM_VERIFY_TOKEN` | 1 |
 
@@ -317,8 +317,8 @@ atualizado: 2026-09-09
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
+| `LLM_PROVIDER_MAPA` | 9 |
 | `DB_NAME` | 7 |
-| `LLM_PROVIDER_MAPA` | 7 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
@@ -355,6 +355,7 @@ atualizado: 2026-09-09
 | `GREETING_THRESHOLD_HOURS` | 2 |
 | `GREETING_THRESHOLD_HOURS_CONSULTANT` | 2 |
 | `LLM_FALLBACK_COMMUNITY` | 2 |
+| `LLM_FALLBACK_MAPA` | 2 |
 | `LLM_HISTORY_LIMIT` | 2 |
 | `LLM_PROVIDER_COMMUNITY` | 2 |
 | `MAPASEED_BACKFILL_DB` | 2 |

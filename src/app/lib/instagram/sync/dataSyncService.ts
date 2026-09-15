@@ -320,8 +320,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
           const videoLikeInPage = processableMediaForInsights.filter((mediaItem) =>
             mediaItem.media_product_type === 'REELS' ||
-            mediaItem.media_type === 'VIDEO' ||
-            mediaItem.media_type === 'CAROUSEL_ALBUM'
+            mediaItem.media_type === 'VIDEO'
           );
           const withDurationInPage = videoLikeInPage.filter((mediaItem) => hasVideoDurationInMedia(mediaItem)).length;
           if (videoLikeInPage.length > 0) {
@@ -432,7 +431,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
               let mediaForPersistence = mediaItem;
               const isVideoLikeMedia =
-                productType === 'REELS' || itemMediaType === 'VIDEO' || itemMediaType === 'CAROUSEL_ALBUM';
+                productType === 'REELS' || itemMediaType === 'VIDEO';
               if (isVideoLikeMedia && !hasVideoDurationInMedia(mediaForPersistence)) {
                 pageDurationFallbackAttempts += 1;
                 const initialVideoUrl = getVideoUrlForDurationProbe(mediaForPersistence);
@@ -499,7 +498,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                   if (insightsResult.success && insightsResult.data) {
                     logger.debug(`${TAG} Insights brutos para mídia ${mediaId}:`, insightsResult.data);
                     const rawStatsForFormulas: Record<string, unknown> = insightsResult.data as Record<string, unknown>;
-                    const calculatedMetrics = calcFormulas([rawStatsForFormulas]);
+                    const calculatedMetrics = calcFormulas([rawStatsForFormulas], media.media_type);
                     logger.debug(`${TAG} Métricas calculadas para mídia ${mediaId}:`, calculatedMetrics);
                     const combinedStats: IMetricStats = { ...insightsResult.data, ...calculatedMetrics };
                     logger.debug(`${TAG} Stats combinados para mídia ${mediaId}:`, combinedStats);

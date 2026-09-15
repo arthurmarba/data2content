@@ -306,3 +306,30 @@ describe("enrichMapaSeedWithInstagram", () => {
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("enrichMapaSeedWithInstagram — espera depois de falha", () => {
+  const { default: mapaSeed } = jest.requireMock("@/app/models/MapaSeed");
+  beforeEach(() => jest.clearAllMocks());
+
+  it("não refaz a tentativa paga antes da hora marcada", async () => {
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc({ enrichmentStatus: { state: "deferred", failures: 2, nextAttemptAt: new Date(Date.now() + 3600000) } }));
+    await enrichMapaSeedWithInstagram("user123");
+    expect(mockFetchMedia).not.toHaveBeenCalled();
+    expect(mockEnrichMapa).not.toHaveBeenCalled();
+  });
+
+  it("falha seguida dobra a espera", async () => {
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc({ enrichmentStatus: { state: "deferred", failures: 2, nextAttemptAt: new Date(Date.now() - 1000) } }));
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    mockFetchMedia.mockResolvedValue({ success: true, data: fakePosts });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockRejectedValue(new Error("JSON cortado"));
+
+    expect(await enrichMapaSeedWithInstagram("user123")).toBe("deferred");
+    const status = (mapaSeed.updateOne as jest.Mock).mock.calls.at(-1)[1].$set.enrichmentStatus;
+    expect(status.failures).toBe(3);
+    const minutes = (status.nextAttemptAt.getTime() - Date.now()) / 60000;
+    expect(minutes).toBeGreaterThan(119);
+    expect(minutes).toBeLessThanOrEqual(120);
+  });
+});

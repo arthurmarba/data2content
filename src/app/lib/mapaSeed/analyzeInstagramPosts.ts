@@ -1,3 +1,4 @@
+import { governedGenerateContent, hasGeminiGovernance, GeminiGovernanceError } from "@/app/lib/llm/geminiGovernance";
 // src/app/lib/mapaSeed/analyzeInstagramPosts.ts
 // Analisa os posts do Instagram e extrai padrões narrativos.
 //
@@ -15,7 +16,6 @@
 import { GoogleGenAI, createUserContent, createPartFromBase64, type Part } from "@google/genai";
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
-import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import { runShadowComparison } from "@/app/lib/llm/geminiShadowCompare";
 import type { InstagramMedia } from "@/app/lib/instagram/types";
 
@@ -254,7 +254,7 @@ async function analyzeTextOnly(
     '{ "temas_recorrentes": ["string"], "tom_real": "string", "formatos_usados": ["string"], "assets_identificados": ["string"], "ausencias_notaveis": ["string"] }',
   ].join("\n");
 
-  const raw = await callClaudeJSON<RawPatterns>(prompt, { intensity: "medium", maxTokens: 1024 });
+  const raw = await callClaudeJSON<RawPatterns>(prompt, { intensity: "medium", maxTokens: 1024, usageTag: "mapa_instagram_texto" });
   return normalizeRaw(raw, amostragem);
 }
 
@@ -319,20 +319,19 @@ async function analyzeWithGeminiMultimodal(
     // taxa de output. Desligar corta ~30% do custo do Gemini mobile sem
     // afetar a leitura visual.
     thinkingConfig: { thinkingBudget: 0 },
+    maxOutputTokens: 4096,
   };
 
   const genAI = new GoogleGenAI({ apiKey });
-  const response = await genAI.models.generateContent({
+  const response = await governedGenerateContent(genAI, {
     model: GEMINI_VISUAL_MODEL,
     contents: createUserContent(parts),
     config: visualConfig,
-  });
-
-  logGeminiUsage("instagram", GEMINI_VISUAL_MODEL, response);
+  }, "instagram");
 
   // Teste de qualidade shadow (Onda B): mesmo input no modelo candidato,
   // fire-and-forget. Não bloqueia nem altera o que o usuário recebe.
-  if (GEMINI_INSTAGRAM_SHADOW_MODEL && GEMINI_INSTAGRAM_SHADOW_MODEL !== GEMINI_VISUAL_MODEL) {
+  if (!hasGeminiGovernance() && GEMINI_INSTAGRAM_SHADOW_MODEL && GEMINI_INSTAGRAM_SHADOW_MODEL !== GEMINI_VISUAL_MODEL) {
     void runShadowComparison({
       tag: "instagram",
       apiKey,
@@ -346,11 +345,15 @@ async function analyzeWithGeminiMultimodal(
   }
 
   const text = response.text;
-  if (!text) return null;
+  if (!text || String(response.candidates?.[0]?.finishReason ?? "") === "MAX_TOKENS") {
+    if (hasGeminiGovernance()) throw new Error("Resposta ilegível na extração do Instagram.");
+    return null;
+  }
   let raw: Partial<RawPatterns>;
   try {
     raw = JSON.parse(text);
   } catch {
+    if (hasGeminiGovernance()) throw new Error("Resposta ilegível na extração do Instagram.");
     logger.warn(`${TAG} Resposta multimodal não-JSON — caindo no caminho de texto.`);
     return null;
   }
@@ -392,6 +395,7 @@ export async function analyzeInstagramPosts(
         logger.info(`${TAG} Nenhum post com imagem utilizável — usando caminho de texto.`);
       }
     } catch (err) {
+      if (hasGeminiGovernance() || err instanceof GeminiGovernanceError) throw err;
       logger.warn(`${TAG} Leitura visual falhou (ignorada, caindo no texto):`, err);
     }
   }

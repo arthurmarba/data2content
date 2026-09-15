@@ -2,6 +2,10 @@ import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
 export interface IGeminiUsageLog extends Document {
   _id: Types.ObjectId;
+  operationId?: string;
+  creatorId?: string;
+  contentKey?: string;
+  finishReason?: string;
   tag: string;
   geminiModel: string;
   promptTokens: number | null;
@@ -14,6 +18,10 @@ export interface IGeminiUsageLog extends Document {
 
 const GeminiUsageLogSchema = new Schema<IGeminiUsageLog>(
   {
+    operationId: String,
+    creatorId: String,
+    contentKey: String,
+    finishReason: String,
     tag: { type: String, required: true, index: true },
     geminiModel: { type: String, required: true },
     promptTokens: { type: Number, default: null },
@@ -28,6 +36,8 @@ const GeminiUsageLogSchema = new Schema<IGeminiUsageLog>(
 
 // Índice composto para queries de agregação por tag + janela de tempo.
 GeminiUsageLogSchema.index({ tag: 1, ts: -1 });
+
+GeminiUsageLogSchema.index({ creatorId: 1, ts: -1 });
 
 // TTL: expira docs após 90 dias para não acumular para sempre.
 GeminiUsageLogSchema.index({ ts: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });

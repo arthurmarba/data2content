@@ -1,9 +1,11 @@
 /** @jest-environment node */
-import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, classifyReadingFailure, fairReadingBatch } from "./contentReadingState";
+import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, classifyReadingFailure, fairReadingBatch, findPendingReadingBatch } from "./contentReadingState";
+import Metric from "@/app/models/Metric";
 import State from "@/app/models/ContentReadingState";
 
 jest.mock("@/app/lib/mongoose", () => ({ connectToDatabase: jest.fn() }));
 jest.mock("@/app/models/ContentReadingState", () => ({ __esModule: true, default: {
+  collection: { name: "content_reading_states" },
   updateOne: jest.fn(), findOneAndUpdate: jest.fn(), findById: jest.fn(),
 } }));
 describe("recuperação da leitura", () => {
@@ -14,6 +16,11 @@ describe("recuperação da leitura", () => {
     ["Vídeo acima do teto", "unsupported_media", true],
     ["HTTP 403", "media_url_expired", false],
     ["HTTP 429 rate limit", "provider_rate_limit", false],
+    ["Resposta ilegível.", "provider_unreadable", true],
+    ["Gemini devolveu leitura incompleta: slides ausentes", "provider_unreadable", true],
+    ["gemini_result_unknown: timeout", "provider_review_required", true],
+    ["gemini_request_changed", "provider_review_required", true],
+    ["gemini_budget_deferred", "budget_deferred", false],
   ])("classifica %s", (message,reason,terminal) => expect(classifyReadingFailure(message)).toMatchObject({reason,terminal}));
   it("distribui o lote entre criadores e prioriza engajamento dentro da conta", () => {
     const rows = [ {_id:"a1",user:"a",stats:{reach:100,total_interactions:50}}, {_id:"a2",user:"a",stats:{reach:100,total_interactions:10}}, {_id:"b1",user:"b",stats:{reach:100,total_interactions:5}} ];
@@ -58,4 +65,18 @@ describe("contrato de exclusão mútua e retomada", () => {
     expect(await claimGeminiAvailability()).toBe(false);
     expect(State.findOneAndUpdate).not.toHaveBeenCalled();
   });
+});
+
+it('reserva espaço para fotos fora dos lotes de Reels e não duplica posts', async () => {
+  const fotos = Array.from({ length: 4 }, (_, i) => ({ _id: `foto${i}`, user: 'a', type: 'IMAGE' }));
+  const reels = Array.from({ length: 100 }, (_, i) => ({ _id: `reel${i}`, user: 'b', type: 'REEL' }));
+  const aggregate = jest.spyOn(Metric, 'aggregate').mockResolvedValue([{ visual: fotos, recent: [...reels, ...fotos], middle: [], older: [] }] as never);
+  try {
+    const lote = await findPendingReadingBatch({}, 'v4', 10);
+    expect(lote).toHaveLength(10);
+    expect(lote.slice(0, 2).map(row => row._id)).toEqual(['foto0', 'foto1']);
+    expect(new Set(lote.map(row => row._id)).size).toBe(10);
+    const pipeline = aggregate.mock.calls[0][0] as any[];
+    expect(pipeline.find(stage => stage.$facet).$facet.visual[0]).toEqual({ $match: { type: { $in: ['IMAGE', 'CAROUSEL_ALBUM'] } } });
+  } finally { aggregate.mockRestore(); }
 });

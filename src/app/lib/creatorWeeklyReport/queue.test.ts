@@ -1,5 +1,8 @@
 /** @jest-environment node */
+import Evidence from '@/app/models/PublishedContentEvidence';
+import { VISUAL_READING_REVISION } from '@/app/lib/relatorio/readingRevision';
 import { enqueuePublishedReading, enqueueProfileRefresh } from './queue';
+jest.mock('@/app/models/PublishedContentEvidence', () => ({ __esModule: true, default: { exists: jest.fn() } }));
 const mockPublish = jest.fn();
 const mockMetric = jest.fn();
 const mockUser = jest.fn();
@@ -37,4 +40,17 @@ it('respeita indisponibilidade do provedor e acesso da conta', async () => {
 it('falha de fila não transforma uma evidência já salva em erro de análise', async () => {
   mockPublish.mockRejectedValue(new Error('Fila indisponível'));
   expect(await enqueuePublishedReading(id)).toBe(false);
+});
+
+it.each(['IMAGE', 'CAROUSEL_ALBUM'])('encaminha %s sem depender de legenda', async (type) => {
+  mockMetric.mockResolvedValue({ user: id, instagramMediaId: 'post', type, postDate: new Date() });
+  expect(await enqueuePublishedReading(id)).toBe(true);
+});
+it('sincronização não reenfileira leitura completa, mas recupera evidência ausente', async () => {
+  mockMetric.mockResolvedValue({ user: id, instagramMediaId: 'post', type: 'IMAGE', postDate: new Date(), sceneElements: { version: VISUAL_READING_REVISION } });
+  (Evidence.exists as jest.Mock).mockResolvedValue({ _id: id });
+  expect(await enqueuePublishedReading(id)).toBe(false);
+  expect(mockPublish).not.toHaveBeenCalled();
+  (Evidence.exists as jest.Mock).mockResolvedValue(null);
+  expect(await enqueuePublishedReading(id)).toBe(true);
 });

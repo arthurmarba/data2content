@@ -136,6 +136,7 @@ export interface IMetricSceneElements {
   provider: string;
   version: string;
   analyzedAt: Date;
+  readingCompleteness?: "complete" | "partial";
 }
 
 export interface IMetricClassificationMeta {
@@ -493,6 +494,7 @@ const sceneElementsSchema = new Schema<IMetricSceneElements>(
     offMap: { type: Boolean, default: false },
     provider: { type: String, required: true },
     version: { type: String, required: true },
+    readingCompleteness: { type: String, enum: ["complete", "partial"], default: undefined },
     analyzedAt: { type: Date, required: true, default: () => new Date() },
   },
   { _id: false },
