@@ -8,6 +8,8 @@ export async function loadDashboardOpportunities() {
   const today = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   return catalog.map((item) => ({
     id: item.id,
+    /** Trancada para quem não assina; o acesso é decidido no servidor. */
+    locked: false,
     availability: item.status === "closed" || (item.applicationDeadline && item.applicationDeadline.slice(0,10) < today)
       ? "closed" : item.status !== "open" || !item.applicationDeadline || now - Date.parse(item.lastVerifiedAt) > 8 * 86400000 ? "recheck" : "open",
     title: item.title,

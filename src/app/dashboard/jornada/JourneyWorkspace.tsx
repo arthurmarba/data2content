@@ -14,6 +14,7 @@ import {
 import type { DiagnosticoPageData } from "../boards/videoUpload/diagnosticoPageData";
 import type { DashboardOpportunity } from "@/app/lib/campaignRadar/dashboardCatalog";
 import type { LandingCreatorHighlight } from "@/types/landing";
+import type { PaywallContext } from "@/types/paywall";
 import type {
   RecordedMeetingCatalogItem,
   RecordedMeetingPlayback,
@@ -130,7 +131,9 @@ export default function JourneyWorkspace({
   profile: ReactNode;
   onOpenMediaKit: () => void;
   onOpenCalculator: () => void;
-  onUpgrade: () => void;
+  // O assunto viaja junto: é ele que escolhe o texto do modal e o destino depois
+  // do pagamento (comunidade volta para a comunidade).
+  onUpgrade: (context?: PaywallContext) => void;
   onOpenCreatorMediaKit: (slug: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("perfil");
@@ -183,7 +186,10 @@ export default function JourneyWorkspace({
                 <span className="j-tool-action">Precificar <ArrowUpRight size={16} aria-hidden="true" /></span>
               </button>
             </div>
-            <Opportunities />
+            <Opportunities
+              isPro={data.userInfo.plan === "Pro" || data.accessState === "admin"}
+              onUpgrade={onUpgrade}
+            />
           </>
         )}
         {tab === "collabs" && (
@@ -288,7 +294,7 @@ function Prompts() {
     </div>
   );
 }
-function Opportunities() {
+function Opportunities({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: (context?: PaywallContext) => void }) {
   const resource = useResource<{ opportunities: DashboardOpportunity[] }>(
     "/api/dashboard/opportunities",
   );
@@ -301,6 +307,8 @@ function Opportunities() {
     [order, setOrder] = useState("deadline"),
     [filters, setFilters] = useState(false);
   const items = resource.data?.opportunities ?? [],
+    // Livres primeiro: com a ordem escolhida pelo criador, as trancadas
+    // intercaladas faziam a lista parecer um mural de cadeados.
     visible = filterOpportunities(
       items,
       query,
@@ -310,7 +318,8 @@ function Opportunities() {
       format,
       order,
       availability,
-    );
+    ).sort((a, b) => Number(a.locked) - Number(b.locked)),
+    lockedCount = visible.filter((item) => item.locked).length;
   const options = (values: string[]) =>
     Array.from(new Set(values))
       .sort()
@@ -423,7 +432,7 @@ function Opportunities() {
                   : "Prazo a confirmar"}</span>
               </div>
               {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}><i aria-hidden="true" />{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
-              <details>
+              {item.locked ? null : <details>
                 <summary>Sobre a oportunidade <span aria-hidden="true">＋</span></summary>
                 <div className="j-opportunity-detail">
                   <h4>{item.title}</h4>
@@ -433,9 +442,13 @@ function Opportunities() {
                     {[...item.deliverables, ...item.requirements].map((v, i) => <li key={i}>{v}</li>)}
                   </ul>}
                 </div>
-              </details>
+              </details>}
               <footer>
-                <a className="j-primary" href={item.url} target="_blank" rel="noreferrer">Ver oportunidade ↗</a>
+                {item.locked ? (
+                  <button className="j-primary" onClick={() => onUpgrade("publis")}>Ver com o Pro</button>
+                ) : (
+                  <a className="j-primary" href={item.url} target="_blank" rel="noreferrer">Ver oportunidade ↗</a>
+                )}
               </footer>
             </article>
           ))}
@@ -447,6 +460,14 @@ function Opportunities() {
             : "Nenhuma oportunidade revisada e aberta no momento."}
         </p>
       )}
+      {/* A contagem é real: mostra o tamanho do que o Pro abre, sem número inventado. */}
+      {!isPro && lockedCount > 0 && (
+        <section className="j-meeting j-opportunities-locked">
+          <h2>{lockedCount === 1 ? "Mais 1 publi aberta agora" : `Mais ${lockedCount} publis abertas agora`}</h2>
+          <p>No Pro você abre a inscrição de todas e vê o que cada marca pede.</p>
+          <button className="j-primary" onClick={() => onUpgrade("publis")}>Assinar para ver todas</button>
+        </section>
+      )}
     </section>
   );
 }
@@ -456,7 +477,7 @@ function Community({
   onOpenCreator,
 }: {
   isPro: boolean;
-  onUpgrade: () => void;
+  onUpgrade: (context?: PaywallContext) => void;
   onOpenCreator: (slug: string) => void;
 }) {
   const recordings = useResource<{ meetings: RecordedMeetingCatalogItem[] }>(
@@ -472,7 +493,7 @@ function Community({
     [loading, setLoading] = useState<string | null>(null);
   async function play(id: string) {
     if (!isPro) {
-      onUpgrade();
+      onUpgrade("recorded_meetings");
       return;
     }
     setLoading(id);
@@ -538,7 +559,7 @@ function Community({
             Abrir grupo da comunidade ↗
           </a>
         ) : (
-          <button className="j-primary" onClick={onUpgrade}>
+          <button className="j-primary" onClick={() => onUpgrade("community")}>
             Entrar na comunidade
           </button>
         )}

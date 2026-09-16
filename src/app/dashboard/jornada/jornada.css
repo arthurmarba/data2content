@@ -1006,6 +1006,8 @@
 .j-opportunity-pills { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
 .j-pill { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:999px; padding:5px 11px; font-size:11px; font-weight:600; line-height:1.3; }
 .j-pill.is-strong { background:var(--j-highlight); color:var(--j-highlight-ink); }
+.j-opportunities-locked { margin-top:16px; text-align:center; }
+.j-opportunities-locked .j-primary { margin-top:16px; }
 .j-pill.is-soft { padding:4px 10px; background:transparent; border:1px solid var(--j-outline); color:var(--j-tag-ink); }
 
 /* Collabs usa a área disponível entre cabeçalho e navegação. */

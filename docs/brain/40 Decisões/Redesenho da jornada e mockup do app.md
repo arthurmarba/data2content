@@ -160,6 +160,15 @@ Todos os caminhos abaixo são relativos à raiz do repositório:
 
 [[Seu Mapa]] · [[Mídia Kit e Publis]] · [[Collabs]] · [[MCP — ChatGPT e Claude]] · [[Landing e conversão]] · [[Reuniões da comunidade]]
 
+## Publis: 3 livres por cachê, resto no Pro — 15/09/2026
+
+- Decisão do Arthur: quem não assina vê **3 publis completas — as de maior cachê confirmado** — e cada uma segue livre **até o prazo dela vencer**. Encerrada não ocupa vaga; sem três com cachê, completa por prazo mais próximo (`selectFreeOpportunityIds` em `src/app/lib/campaignRadar/opportunityAccess.ts`).
+- **A trava é no servidor.** `/api/dashboard/opportunities` lê `planStatus`/`role` do banco (ativação manual abre na hora, sem esperar novo login) e as trancadas saem **sem `url`, `summary`, `deliverables` e `requirements`**. Cadeado só na tela seria enfeite: a rota entregava o link de inscrição para qualquer pessoa logada.
+- O que fica visível na trancada é a prova de que ela existe: marca, título, pagamento e prazo. Botão vira "Ver com o Pro"; no fim da lista, um bloco com a **contagem real** ("Mais N publis abertas agora"). Livres aparecem primeiro, senão a lista lê como mural de cadeados.
+- Filtros e busca continuam valendo na lista inteira — filtrar por território e ver trancadas ali é o que mostra o tamanho do que o Pro abre.
+- **O assunto do paywall viaja junto** (`onUpgrade(context)` em `JourneyWorkspace`): `community` no botão do grupo, `recorded_meetings` nas gravações, `publis` nas trancadas. Sem isso o modal caía no assunto padrão (`narrative_map`) e perdia o `postCheckoutIntent` — quem assinava para entrar na comunidade não voltava para ela. A trava do grupo já existia nas duas pontas (botão troca por "Entrar na comunidade" e `/api/dashboard/community/pro-join` confere plano no servidor).
+- **Pendência:** na aba Collabs o pedido de assinatura ainda navega para `/pro` (`CollabsPinnedBoard`), em vez de abrir o modal como nas outras abas.
+
 ## Jornada vira a entrada principal — 15/09/2026
 
 - Arthur pediu que `/dashboard/jornada` seja a página depois do login. `JOURNEY_ROUTE` mora em `src/constants/routes.ts`.

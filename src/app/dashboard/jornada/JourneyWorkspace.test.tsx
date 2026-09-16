@@ -19,6 +19,37 @@ it("abre as ferramentas pelas ações reais e mantém a ordenação dentro dos f
  expect(screen.getByLabelText("Exibir primeiro")).toBeInTheDocument();
  expect(await screen.findByText("Nenhuma oportunidade revisada e aberta no momento.")).toBeInTheDocument();
 });
+const publi=(over:Record<string,unknown>)=>({id:"o1",locked:false,availability:"open",title:"Campanha de verão",brand:"Marca A",summary:"resumo",source:"Influencer Brasil",url:"https://exemplo.com/inscricao",territories:[],formats:[],requirements:[],deliverables:[],deadline:"2026-09-30",verifiedAt:"2026-09-15",payment:"paid",minimum:900,compensation:"R$ 900",...over});
+it("mostra a publi livre inteira e troca a trancada pelo convite de assinatura",async()=>{
+ global.fetch=jest.fn().mockResolvedValue({ok:true,json:async()=>({opportunities:[publi({}),publi({id:"o2",locked:true,title:"Credenciamento",brand:"Marca B",url:"",summary:""})]})});
+ render(<JourneyWorkspace {...baseProps} data={{userInfo:{plan:"Free"},accessState:"free_unused"} as DiagnosticoPageData}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Publis",exact:true}));
+ expect(await screen.findByRole("link",{name:/Ver oportunidade/})).toHaveAttribute("href","https://exemplo.com/inscricao");
+ expect(screen.getByRole("heading",{name:"Credenciamento"})).toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"Ver com o Pro"}));
+ expect(baseProps.onUpgrade).toHaveBeenCalledTimes(1);
+ fireEvent.click(screen.getByRole("button",{name:"Assinar para ver todas"}));
+ expect(baseProps.onUpgrade).toHaveBeenCalledTimes(2);
+ expect(screen.getByRole("heading",{name:"Mais 1 publi aberta agora"})).toBeInTheDocument();
+});
+it("não cobra assinatura de quem já assina",async()=>{
+ global.fetch=jest.fn().mockResolvedValue({ok:true,json:async()=>({opportunities:[publi({}),publi({id:"o2",title:"Credenciamento"})]})});
+ render(<JourneyWorkspace {...baseProps}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Publis",exact:true}));
+ expect(await screen.findAllByRole("link",{name:/Ver oportunidade/})).toHaveLength(2);
+ expect(screen.queryByRole("button",{name:"Ver com o Pro"})).not.toBeInTheDocument();
+ expect(screen.queryByText(/publis abertas agora/)).not.toBeInTheDocument();
+});
+it("pede assinatura na comunidade e nas gravações dizendo o assunto",async()=>{
+ global.fetch=jest.fn().mockImplementation(async(url:string)=>({ok:true,json:async()=>url.includes("recorded-meetings")?{meetings:[{id:"r1",title:"Narrativa e conteúdo",publishedAt:"2026-09-10"}]}:{creators:[]}}));
+ render(<JourneyWorkspace {...baseProps} data={{userInfo:{plan:"Free"},accessState:"free_unused"} as DiagnosticoPageData}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Comunidade",exact:true}));
+ expect(screen.queryByRole("link",{name:/Abrir grupo/})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"Entrar na comunidade"}));
+ expect(baseProps.onUpgrade).toHaveBeenCalledWith("community");
+ fireEvent.click(await screen.findByRole("button",{name:/Narrativa e conteúdo/}));
+ expect(baseProps.onUpgrade).toHaveBeenCalledWith("recorded_meetings");
+});
 it("exibe gravações e pesquisa criadores reais sem esconder a comunidade",async()=>{
  global.fetch=jest.fn().mockImplementation(async(url:string)=>({ok:true,json:async()=>url.includes("recorded-meetings")?{meetings:[{id:"r1",title:"Narrativa e conteúdo",publishedAt:"2026-09-10"}]}:{creators:[{id:"c1",name:"Lívia",username:"livia",mediaKitSlug:"livia",niches:["Humor"]},{id:"c2",name:"Ana",username:"ana",niches:["Moda"]}]}}));
  render(<JourneyWorkspace {...baseProps}/>);
