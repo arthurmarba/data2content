@@ -282,19 +282,25 @@ function PromptsDetail({ onClose }: { onClose: () => void }) {
           <span />
         </header>
         <div className="j-content j-prompts">
-          <section className="j-meeting">
-            <h2>Seu perfil dentro do Claude.</h2>
-            <p>Configure uma vez. Depois, escolha o que quer pedir.</p>
+          <section className="j-meeting j-connect">
+            <h2>Seu perfil dentro do Claude<span>uma vez só</span></h2>
+            <p>Depois, é só escolher o pedido e colar na conversa.</p>
             <details>
-              <summary>Como conectar a Data2Content</summary>
-              <ol>
+              <summary>Como conectar · 4 passos<span aria-hidden="true">›</span></summary>
+              {/* Números de verdade: quatro passos em sequência, não quatro bolinhas. */}
+              <ol className="j-connect-steps">
                 <li>No Claude, abra Personalizar → Conectores → Adicionar conector personalizado.</li>
                 <li>Use o nome Data2Content e o endereço abaixo.</li>
                 <li>Conecte sua conta D2C e confira as permissões.</li>
                 <li>Na conversa, habilite a Data2Content em + → Conectores.</li>
               </ol>
-              <code>https://data2content.ai/api/mcp</code>
-              <button onClick={() => copy("https://data2content.ai/api/mcp")}>Copiar endereço</button>
+              {/* Copiar endereço é utilidade, não ação principal: vira campo com botão pequeno. */}
+              <div className="j-connect-address">
+                <code>https://data2content.ai/api/mcp</code>
+                <button className="j-connect-copy" onClick={() => copy("https://data2content.ai/api/mcp")}>
+                  Copiar
+                </button>
+              </div>
             </details>
           </section>
           <p role="status" aria-live="polite">{status}</p>
@@ -320,15 +326,18 @@ function PromptsDetail({ onClose }: { onClose: () => void }) {
           ))}
           {promptGroups.slice(2).map((group) => (
             <section key={group.title} id={groupAnchor(group.title)} className="j-prompt-list">
-              <h2>{group.title}</h2>
-              {group.prompts.map((prompt) => (
-                <details key={prompt.title}>
-                  <summary>{prompt.title}</summary>
-                  <p>{prompt.request}</p>
-                  <small>{prompt.scope}</small>
-                  {actions(prompt)}
-                </details>
-              ))}
+              {/* O grupo é um bloco: soltos na página, os pedidos liam como texto corrido. */}
+              <h2>{group.title} <small>· {group.prompts.length}</small></h2>
+              <div className="j-prompt-rows">
+                {group.prompts.map((prompt) => (
+                  <details key={prompt.title}>
+                    <summary>{prompt.title}<span aria-hidden="true">›</span></summary>
+                    <p>{prompt.request}</p>
+                    <small>{prompt.scope}</small>
+                    {actions(prompt)}
+                  </details>
+                ))}
+              </div>
             </section>
           ))}
         </div>

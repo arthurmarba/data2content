@@ -1048,12 +1048,31 @@
 .j-prompts-card .j-tool-action { display:flex; align-items:center; gap:6px; margin-top:14px; font-size:12px; font-weight:600; color:var(--j-highlight); }
 .j-prompt-jumps { display:flex; gap:6px; overflow-x:auto; padding:0 0 4px; margin:18px 0 6px; scrollbar-width:thin; }
 .j-prompt-jumps a { flex-shrink:0; padding:6px 12px; border:1px solid var(--j-line); border-radius:999px; font-size:12px; white-space:nowrap; }
-.j-prompt-list { margin-top:22px; }
-.j-prompt-list h2 { font-size:17px; margin-bottom:6px; }
-.j-prompt-list details { border-bottom:1px solid var(--j-line); }
-.j-prompt-list summary { font-size:14px; font-weight:550; padding:14px 0; }
-.j-prompt-list details > div { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:14px; font-size:12px; }
-.j-prompt-list p { margin-top:0; }
+.j-prompt-list { margin-top:24px; }
+.j-prompt-list h2 { font-size:13px; font-weight:600; letter-spacing:0; margin-bottom:8px; }
+.j-prompt-list h2 small { font-size:13px; color:#8a817b; }
+.j-prompt-rows { border-radius:14px; background:var(--j-card); overflow:hidden; }
+.j-prompt-rows details + details { border-top:1px solid var(--j-inset); }
+.j-prompt-list summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; padding:14px 16px; font-size:14px; font-weight:550; line-height:1.35; }
+.j-prompt-list summary::-webkit-details-marker { display:none; }
+.j-prompt-list summary > span { flex-shrink:0; color:#8a817b; transition:transform .15s; }
+.j-prompt-list details[open] summary > span { transform:rotate(90deg); }
+.j-prompt-list details > :is(p, small) { display:block; padding:0 16px; margin:0 0 8px; }
+.j-prompt-list details > div { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 16px 14px; font-size:12px; }
+
+/* Card de conexão: título com etiqueta, passos numerados e o endereço em campo. */
+.j-connect h2 { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; }
+.j-connect h2 span { padding:3px 9px; border-radius:999px; background:var(--j-inset); font-size:11px; font-weight:600; letter-spacing:0; }
+.j-connect summary { display:flex; align-items:center; justify-content:space-between; list-style:none; font-weight:600; }
+.j-connect summary::-webkit-details-marker { display:none; }
+.j-connect summary > span { color:#8a817b; transition:transform .15s; }
+.j-connect details[open] summary > span { transform:rotate(90deg); }
+.j-connect-steps { list-style:none; counter-reset:passo; padding:0 !important; margin:4px 0 14px; }
+.j-connect-steps li { display:grid; grid-template-columns:24px minmax(0,1fr); gap:10px; align-items:start; margin:0 0 10px; font-size:13px; line-height:1.45; }
+.j-connect-steps li::before { counter-increment:passo; content:counter(passo); display:grid; place-items:center; width:24px; height:24px; border-radius:50%; background:var(--j-inset); font-size:11px; font-weight:600; }
+.j-connect-address { display:flex; align-items:center; gap:10px; padding:8px 8px 8px 12px; border-radius:12px; background:#fff; }
+.j-connect-address code { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.j-workspace .j-connect-copy { min-height:36px; flex-shrink:0; padding:6px 14px; border:1px solid var(--j-outline); border-radius:9px; background:#fff; color:var(--j-tag-ink); font-size:12px; font-weight:600; }
 .j-pill.is-soft { padding:4px 10px; background:transparent; border:1px solid var(--j-outline); color:var(--j-tag-ink); }
 
 /* Collabs usa a área disponível entre cabeçalho e navegação. */

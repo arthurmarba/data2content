@@ -87,11 +87,12 @@ it("guarda os pedidos do Claude num card que abre a gaveta",async()=>{
  expect(screen.queryByRole("heading",{name:"Ter ideias do que postar"})).not.toBeInTheDocument();
  fireEvent.click(screen.getByRole("button",{name:/pedidos prontos/}));
  const gaveta=within(screen.getByRole("dialog"));
- expect(gaveta.getByRole("heading",{name:"Seu perfil dentro do Claude."})).toBeInTheDocument();
+ expect(gaveta.getByRole("heading",{name:/Seu perfil dentro do Claude/})).toBeInTheDocument();
+ expect(gaveta.getByText("Como conectar · 4 passos")).toBeInTheDocument();
  expect(gaveta.getByRole("heading",{name:"Ter ideias do que postar"})).toBeInTheDocument();
  expect(gaveta.getByText("Estou sem ideia. O que eu posso postar esta semana?")).toBeInTheDocument();
  // Grupos do fim viram lista, não carrossel — e o nome também é atalho no topo.
- expect(gaveta.getByRole("heading",{name:"Encontrar oportunidades de trabalho"})).toBeInTheDocument();
+ expect(gaveta.getByRole("heading",{name:/Encontrar oportunidades de trabalho/})).toBeInTheDocument();
  expect(gaveta.getByRole("link",{name:"Encontrar oportunidades de trabalho"})).toBeInTheDocument();
  expect(gaveta.getAllByRole("button",{name:"Copiar pedido"}).length).toBeGreaterThan(5);
 });
