@@ -210,7 +210,10 @@ function highlightFor(
   };
   const top = bestPromotable(group);
 
-  const analysed = group.items.reduce((total, item) => total + (item.nPosts ?? 0), 0);
+  // Posts distintos vêm do motor; a soma das opções fica só para relatórios
+  // antigos, já congelados sem o campo.
+  const analysed =
+    group.analysedPosts ?? group.items.reduce((total, item) => total + (item.nPosts ?? 0), 0);
 
   if (top) {
     return {

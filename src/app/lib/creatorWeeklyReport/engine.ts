@@ -63,7 +63,9 @@ type PreparedMetric = Omit<CreatorWeeklyReportMetricInput, "postDate"> & {
   shares: number | null;
 };
 
-type Baseline = { shares: number | null; saved: number | null; views: number | null; dimension: ComparisonMetric | null; reference: PreparedMetric[]; now: Date };
+type CohortBaseline = { dimension: ComparisonMetric; value: number } | null;
+
+type Baseline = { reference: PreparedMetric[]; now: Date; cohorts: Map<string, CohortBaseline> };
 
 type ExtractedItem = { id: string; label: string };
 
@@ -118,11 +120,44 @@ function stringList(value: unknown): string[] {
   return result;
 }
 
+/**
+ * Coorte pequena não serve de régua: com um post só, ele é a própria mediana e o
+ * índice sai exatamente 1,00 — que nunca passa do corte de "acima do normal".
+ */
+const COHORT_MIN_POSTS = 3;
+
+/**
+ * A métrica de comparação é escolhida POR FORMATO, não uma vez para a conta toda.
+ * Uma métrica passa no teste global e é inútil na coorte: com 17 reels de mediana
+ * zero em compartilhamentos, dividir por zero anulava o índice de todos eles e
+ * nenhum padrão saía de "Esperando", por mais posts lidos que houvesse.
+ */
+function cohortBaseline(baseline: Baseline, metric: PreparedMetric): CohortBaseline {
+  const cohort = formatCohort(metric);
+  const cached = baseline.cohorts.get(cohort);
+  if (cached !== undefined) return cached;
+  const peers = baseline.reference.filter(peer => formatCohort(peer) === cohort);
+  const dimension = peers.length >= COHORT_MIN_POSTS ? chooseComparisonMetric(peers) : null;
+  const value = dimension ? median(peers.map(peer => peer[dimension])) : null;
+  const resolved: CohortBaseline = dimension && value !== null && value > 0 ? { dimension, value } : null;
+  baseline.cohorts.set(cohort, resolved);
+  return resolved;
+}
+
 function bestPerformanceIndex(metric: PreparedMetric, baseline: Baseline): number | null {
-  const dimension = baseline.dimension;
-  if (!dimension) return null;
-  const peers = baseline.reference.filter(peer => formatCohort(peer) === formatCohort(metric));
-  return indexAgainst(metric[dimension], median(peers.map(peer => peer[dimension])));
+  const cohort = cohortBaseline(baseline, metric);
+  if (!cohort) return null;
+  return indexAgainst(metric[cohort.dimension], cohort.value);
+}
+
+/** A métrica só é nomeada quando todos os posts do grupo foram medidos pela mesma. */
+function groupComparisonMetric(metrics: PreparedMetric[], baseline: Baseline): ComparisonMetric | undefined {
+  const used = new Set(
+    metrics
+      .map(metric => cohortBaseline(baseline, metric)?.dimension)
+      .filter((dimension): dimension is ComparisonMetric => Boolean(dimension)),
+  );
+  return used.size === 1 ? [...used][0] : undefined;
 }
 
 function prepareMetrics(metrics: CreatorWeeklyReportMetricInput[]): PreparedMetric[] {
@@ -152,8 +187,15 @@ function buildRankGroup(params: {
   minimumPosts?: number;
 }): CreatorWeeklyReportRankGroup {
   const groups = new Map<string, { label: string; metrics: PreparedMetric[] }>();
+  // Posts distintos lidos nesta dimensão: um post entra em várias opções e somar
+  // `nPosts` das opções inflava a leitura ("18 posts" apareciam como "59 lidos").
+  const readPosts = new Set<string>();
   for (const metric of params.metrics) {
-    for (const item of params.extract(metric)) {
+    const extracted = params.extract(metric);
+    if (extracted.length > 0) {
+      readPosts.add(String(metric.instagramMediaId ?? metric.postDate.toISOString()));
+    }
+    for (const item of extracted) {
       const current = groups.get(item.id) ?? { label: item.label, metrics: [] };
       current.metrics.push(metric);
       groups.set(item.id, current);
@@ -171,7 +213,7 @@ function buildRankGroup(params: {
       nPosts: group.metrics.length,
       index: index,
       score: rankScore(index, group.metrics.length),
-      comparisonMetric: params.baseline.dimension ?? undefined,
+      comparisonMetric: groupComparisonMetric(group.metrics, params.baseline),
       candidateConsistent,
       consistent: CONSISTENT_POLICY_VALIDATED && candidateConsistent,
       evidence: 'indicio',
@@ -187,6 +229,7 @@ function buildRankGroup(params: {
     subtitle: params.subtitle,
     ...(params.id === 'opening-mechanisms' ? { grouping: { version: 'hook_mechanism_heuristic_v1', source: 'sceneElements.openingLine', confidence: 'descriptive' as const } } : {}),
     items: items.slice(0, MAX_RANK_ITEMS),
+    analysedPosts: readPosts.size,
   };
 }
 
@@ -211,7 +254,7 @@ function buildTextExtremesGroup(params: {
         postId: String(metric._id ?? metric.instagramMediaId ?? ''),
         postLink: metric.postLink ?? null,
         publishedAt: metric.postDate.toISOString(),
-        comparisonMetric: params.baseline.dimension ?? undefined,
+        comparisonMetric: cohortBaseline(params.baseline, metric)?.dimension,
         consistent: false,
         index: bestPerformanceIndex(metric, params.baseline),
         evidence: "indicio" as const,
@@ -222,7 +265,13 @@ function buildTextExtremesGroup(params: {
     .sort((a, b) => (params.ascending ? 1 : -1) * ((a.index ?? 0) - (b.index ?? 0)))
     .slice(0, 6);
 
-  return { id: params.id, title: params.title, subtitle: params.subtitle, items };
+  return {
+    id: params.id,
+    title: params.title,
+    subtitle: params.subtitle,
+    items,
+    analysedPosts: params.metrics.filter((metric) => Boolean(params.extract(metric))).length,
+  };
 }
 
 function formatCompactNumber(value: number | null): string {
@@ -293,12 +342,9 @@ export function buildCreatorWeeklyReport(params: {
   );
   const sceneMetrics = metrics.filter((metric) => Boolean(metric.sceneElements?.version));
   const baseline: Baseline = {
-    dimension: chooseComparisonMetric(metrics),
     reference: metrics,
     now: generatedAt,
-    shares: median(metrics.map((metric) => metric.shares)),
-    saved: median(metrics.map((metric) => metric.saved)),
-    views: median(metrics.map((metric) => metric.views)),
+    cohorts: new Map(),
   };
 
   const timingGroups = [

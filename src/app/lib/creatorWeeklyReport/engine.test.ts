@@ -132,6 +132,9 @@ describe("buildCreatorWeeklyReport", () => {
           },
         },
         metric({ date: "2026-08-05T09:00:00Z", shares: 2, subject: "Outro tema" }),
+        // Três posts é o mínimo para o formato servir de régua: com dois, um deles
+        // está sempre acima da mediana por definição.
+        metric({ date: "2026-08-06T09:00:00Z", shares: 1, subject: "Terceiro tema" }),
       ],
     });
 
@@ -141,5 +144,58 @@ describe("buildCreatorWeeklyReport", () => {
       ?.items[0];
     expect(best?.label).toBe("nova lei para postar filhos");
     expect(best?.label).not.toContain("·");
+  });
+
+  it("mede cada formato pela régua dele e conta posts distintos na dimensão", () => {
+    // O caso real que travou o Perfil: 17 reels com mediana de compartilhamentos
+    // zero e uma foto sozinha. Dividir por zero anulava o índice de todo reel, e
+    // nenhum padrão saía de "Esperando" por mais posts lidos que houvesse.
+    const reels = Array.from({ length: 17 }, (_, position) => ({
+      ...metric({
+        date: `2026-07-${String(10 + position).padStart(2, "0")}T09:00:00Z`,
+        shares: 0,
+        views: position < 3 ? 4000 : 500,
+        subject: "Tema",
+        place: position < 3 ? "natureza" : "casa",
+        aesthetics: ["luz_natural", "caseiro"],
+      }),
+      type: "REEL",
+    }));
+    const report = buildCreatorWeeklyReport({
+      week,
+      generatedAt: new Date("2026-08-10T12:00:00Z"),
+      metrics: [
+        ...reels,
+        { ...metric({ date: "2026-08-04T09:00:00Z", shares: 1, subject: "Foto" }), type: "IMAGE" },
+      ],
+    });
+
+    const groups = report.details.flatMap((detail) => detail.groups);
+    // Sem compartilhamento para comparar, a régua do formato cai para visualizações
+    // — e aí volta a existir resposta acima do normal (antes o índice era nulo).
+    const subject = groups.find((group) => group.id === "subjects-best");
+    expect(subject?.items[0]?.comparisonMetric).toBe("views");
+    expect(subject?.items[0]?.index ?? 0).toBeGreaterThan(1);
+
+    const aesthetics = groups.find((group) => group.id === "aesthetics");
+    expect(aesthetics?.items[0]?.comparisonMetric).toBe("views");
+    const ocorrencias = (aesthetics?.items ?? []).reduce((total, item) => total + item.nPosts, 0);
+    expect(ocorrencias).toBe(34); // dois rótulos por post
+    expect(aesthetics?.analysedPosts).toBe(17); // posts lidos de verdade
+  });
+
+  it("formato com dois posts não vira régua de si mesmo", () => {
+    const report = buildCreatorWeeklyReport({
+      week,
+      generatedAt: new Date("2026-08-10T12:00:00Z"),
+      metrics: [
+        { ...metric({ date: "2026-08-04T09:00:00Z", shares: 30, subject: "Tema", place: "casa" }), type: "IMAGE" },
+        { ...metric({ date: "2026-08-05T09:00:00Z", shares: 2, subject: "Tema", place: "casa" }), type: "IMAGE" },
+      ],
+    });
+
+    const items = report.details.flatMap((detail) => detail.groups).flatMap((group) => group.items);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.index === null)).toBe(true);
   });
 });

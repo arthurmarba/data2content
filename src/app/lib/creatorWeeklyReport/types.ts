@@ -38,6 +38,9 @@ export interface CreatorWeeklyReportRankGroup {
   title: string;
   subtitle: string;
   items: CreatorWeeklyReportRankItem[];
+  /** Posts distintos lidos nesta dimensão. Somar `nPosts` das opções inflaria:
+   *  um post entra em várias opções (18 posts viravam "59 posts lidos"). */
+  analysedPosts?: number;
 }
 
 export interface CreatorWeeklyReportDetail {

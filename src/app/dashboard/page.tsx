@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 
 import { buildJourneyHref } from "./jornada/journeyRoute";
 
+// Decide o destino pelos parâmetros do endereço: nunca pré-gerar.
+export const dynamic = "force-dynamic";
+
 interface searchParams {
   [key: string]: string | string[] | undefined;
 }
