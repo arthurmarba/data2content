@@ -80,6 +80,17 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(callbacks.onOpenNorte).toHaveBeenCalledTimes(1);
   });
 
+  it("abre com 'Perfil' como título da página, no lugar do nome do produto", () => {
+    // O nome do produto já está na barra de abas; repeti-lo aqui deixava a aba
+    // Perfil como a única sem título de página — e em 20px, lendo como legenda.
+    const data = buildDiagnosticoPageDataFixture({});
+
+    render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Perfil" })).toBeInTheDocument();
+    expect(screen.queryByText("data2content")).not.toBeInTheDocument();
+  });
+
   it("continua pedindo o plano mesmo sem narrativa definida", () => {
     // A narrativa é independente de tudo: não ter respondido não pode travar o
     // convite para assinar nem o de conectar o Instagram.

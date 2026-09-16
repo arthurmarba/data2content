@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 import { DiagnosticoCollabsFeed } from "./DiagnosticoCollabsFeed";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
@@ -83,6 +83,26 @@ const baseProps = {
 };
 
 describe("DiagnosticoCollabsFeed — deck unificado", () => {
+  it("põe o controle do dono na MESMA faixa do 'Salvas e combinadas'", () => {
+    // Estar na tela não basta: empilhado sob o título "Collabs" é justamente o
+    // defeito. A prova é os dois compartilharem o elemento da faixa.
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        compact
+        pautas={[pauta("a")]}
+        bootstrapStatus="ready"
+        pautaCollabs={new Map()}
+        collabDecisions={new Map()}
+        toolbar={<button type="button" aria-label="Preferências de collab" />}
+      />,
+    );
+
+    const salvas = screen.getByRole("button", { name: /Salvas e combinadas/ });
+    const faixa = salvas.parentElement!;
+    expect(within(faixa).getByLabelText("Preferências de collab")).toBeInTheDocument();
+  });
+
   it("não expõe cards provisórios enquanto o bootstrap ainda está incompleto", () => {
     const props = {
       ...baseProps,

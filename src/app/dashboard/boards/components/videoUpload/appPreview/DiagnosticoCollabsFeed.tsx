@@ -112,6 +112,13 @@ interface Props {
   onBackToPerfil?: () => void;
   /** Evita repetir o título quando a experiência já possui um cabeçalho de página. */
   showHeaderTitle?: boolean;
+  /**
+   * Controle do dono do feed desenhado À DIREITA da faixa "Salvas e
+   * combinadas", na mesma linha — a posição da engrenagem no Perfil. Vem por
+   * aqui porque quem tem o filtro é o quadro, o pai: sem esta passagem ele
+   * gastaria uma faixa própria no topo e empurraria o card para baixo.
+   */
+  toolbar?: React.ReactNode;
 }
 
 function BookmarkSolidIcon({ size = 15, color = TEXT_PRIMARY_HEX }: { size?: number; color?: string }) {
@@ -989,6 +996,7 @@ export function DiagnosticoCollabsFeed({
   onGenerate,
   onBackToPerfil,
   showHeaderTitle = true,
+  toolbar,
 }: Props) {
   const hasPautas = pautas.length > 0;
   const mapless = ideaGenerationBlocker === "map_incomplete";
@@ -1201,7 +1209,10 @@ export function DiagnosticoCollabsFeed({
       style={{ background: surfaceBackground, minHeight: "100%", height: "100%", display: "flex", flexDirection: "column" }}
     >
       <div style={{ background: surfaceBackground, paddingTop: showHeaderTitle ? SAFE_TOP : 0, paddingBottom: 6 }}>
-        {compact ? <button type="button" className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-between border-b border-zinc-200 px-4 py-3 text-sm font-semibold" onClick={() => setOpenSheet("salvas")}><span>Salvas e combinadas</span><span>{shelfPautas.length + (confirmedMatches?.length ?? 0)} →</span></button> : <FeedHeader
+        {compact ? <div className="j-collabs-topbar mx-auto flex w-full max-w-lg items-center gap-2">
+          <button type="button" className="flex min-h-12 flex-1 items-center justify-between border-b border-zinc-200 px-4 py-3 text-sm font-semibold" onClick={() => setOpenSheet("salvas")}><span>Salvas e combinadas</span><span>{shelfPautas.length + (confirmedMatches?.length ?? 0)} →</span></button>
+          {toolbar}
+        </div> : <FeedHeader
           savedCount={confirmedSavedCount}
           hasSavedItems={shelfPautas.length > 0}
           matchCount={confirmedMatches?.length ?? 0}

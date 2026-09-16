@@ -357,9 +357,11 @@ export function ProfileNarrativeView({
               Sua narrativa ainda não foi escrita.
             </p>
           )}
+          {/* Quatro linhas de explicação viravam parede de texto na abertura da
+              tela. O que a pessoa precisa saber para agir é de onde a frase vem;
+              o efeito na leitura da semana já está dito no rodapé. */}
           <p className="mt-3 text-[12.5px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
-            Montada com o que você declarou e com as leituras dos seus posts. Escolhas confirmadas são preservadas; novas evidências podem sugerir uma revisão. É esse fio que a
-            leitura da semana usa para comparar.
+            Montada com o que você declarou e com a leitura dos seus posts.
           </p>
         </div>
 

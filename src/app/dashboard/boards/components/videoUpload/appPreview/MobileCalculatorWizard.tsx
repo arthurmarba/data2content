@@ -516,9 +516,15 @@ export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculati
   return (
     <div className={`fixed inset-0 z-[260] flex items-end justify-center ds-scrim ${journey ? "j-calculator" : ""}`}>
       <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="mobile-calculator-wizard-title" className="ds-sheet ds-enter-sheet flex max-h-[min(92dvh,740px)] flex-col overflow-hidden">
-        {journey && <div className="j-calc-toolbar"><button type="button" aria-label="Voltar" onClick={() => step === 0 ? close() : setStep(step === 4 && isUgc ? 2 : (step - 1) as WizardStep)} disabled={isSubmitting}>←</button><strong>Calculadora de publis</strong><DiagnosticoCloseButton onClose={close} ariaLabel="Fechar calculadora" disabled={isSubmitting} /></div>}
         <header className="shrink-0 px-5 pb-3.5 pt-3.5">
           {!journey && <div className="ds-sheet__handle !mt-0 mb-3" aria-hidden="true" />}
+          {/* Uma faixa só: a barra separada com o nome gastava 53px e uma borda
+              para repetir o que a etapa e o título já dizem. */}
+          {journey && <div className="j-calc-head">
+            <button type="button" aria-label="Voltar" onClick={() => step === 0 ? close() : setStep(step === 4 && isUgc ? 2 : (step - 1) as WizardStep)} disabled={isSubmitting}>←</button>
+            <strong>Calculadora de publis</strong>
+            <DiagnosticoCloseButton onClose={close} ariaLabel="Fechar calculadora" disabled={isSubmitting} />
+          </div>}
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-2.5">
               {!journey && step > 0 ? <button type="button" aria-label="Voltar para a etapa anterior" onClick={() => setStep((previous) => previous === 4 && isUgc ? 2 : (previous - 1) as WizardStep)} disabled={isSubmitting} className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200 text-base leading-none text-zinc-700 disabled:opacity-40">←</button> : null}

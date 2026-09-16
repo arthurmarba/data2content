@@ -48,7 +48,13 @@ export default function JourneyMediaKit({
   const { utm } = useUtmAttribution({ captureReferrer: true });
   useEffect(() => {
     const element = dialog.current;
-    if (!inline) element?.showModal();
+    if (!inline) {
+      element?.showModal();
+      // Sem isto o navegador foca o primeiro botão ("← Voltar") e desenha o anel
+      // de foco por cima dele, inclusive no toque. Focar a própria janela mantém
+      // o Tab funcionando sem o retângulo.
+      element?.focus();
+    }
     return () => element?.close();
   }, [inline]);
   useEffect(() => {
@@ -134,6 +140,7 @@ export default function JourneyMediaKit({
   return (
     <Container
       ref={inline ? undefined : dialog as any}
+      tabIndex={inline ? undefined : -1}
       onCancel={onClose}
       className={inline ? "j-kit-inline" : "j-kit-dialog"}
       aria-label="Mídia kit"

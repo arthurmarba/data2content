@@ -2,24 +2,43 @@
   --j-accent: #171717;
   --j-surface: #fff;
   --j-line: #e5dcd4;
+  /* 78px é a altura MEDIDA da barra de abas em tela de 375px (8 de respiro + o
+     botão em coluna com ícone de 21 + 8), mais a faixa do aparelho. Número
+     conferido no navegador: a conta à mão dava 74 e erraria por 4px justamente
+     para o lado ruim, encostando a borda do último card na barra.
+     Quem reserva o espaço da barra é só este respiro; o `.j-content` não repete
+     a dose, senão sobra um vazio depois do último card (eram 82px aqui + 50px
+     lá = 132px de nada). */
+  --j-nav-space: calc(78px + env(safe-area-inset-bottom));
   color: #282321;
   background: #fff;
   min-height: 100%;
-  padding-bottom: 82px;
+  padding-bottom: calc(var(--j-nav-space) + 18px);
 }
 .j-content {
   max-width: 920px;
   margin: auto;
-  padding: 30px 28px 50px;
+  padding: 30px 28px 0;
   animation: j-enter 0.2s ease-out;
 }
 .j-page-heading {
   margin-bottom: 28px;
 }
+/* Título da aba com presença de título grande de app (referência: o "Conversas"
+   do WhatsApp, ~34px na tela do telefone). Antes ficava em 29px no celular e
+   lia como subtítulo. O "Perfil" vem com 34px de base na própria peça, porque
+   aquela tela também roda onde este arquivo não é carregado; aqui as duas
+   famílias crescem juntas na tela larga. */
 .j-page-heading h1 {
-  font-size: 34px;
+  font-size: 40px;
   font-weight: 650;
-  letter-spacing: -1.2px;
+  letter-spacing: -1.4px;
+}
+@media (min-width: 601px) {
+  .j-profile-title {
+    font-size: 40px;
+    letter-spacing: -1.4px;
+  }
 }
 .j-workspace h2 {
   font-size: 22px;
@@ -56,6 +75,12 @@
 .j-workspace [tabindex]:focus-visible {
   outline: 2px solid #171717;
   outline-offset: 3px;
+}
+/* A janela recebe o foco ao abrir (para o anel não nascer no "← Voltar"); ela
+   mesma não desenha anel — seria um retângulo em volta da tela inteira. */
+dialog:focus,
+dialog:focus-visible {
+  outline: none;
 }
 .j-nav {
   position: fixed;
@@ -465,10 +490,10 @@
 }
 @media (max-width: 600px) {
   .j-content {
-    padding: 22px 18px 32px;
+    padding: 22px 18px 0;
   }
   .j-page-heading h1 {
-    font-size: 29px;
+    font-size: 34px;
   }
   .j-tools {
     gap: 10px;
@@ -906,11 +931,15 @@
 .j-calculator main details.border-y { border-bottom: 0; }
 .j-calculator main > div { gap: 18px; }
 
-/* Estrutura da calculadora aprovada no mock. */
-.j-calculator .ds-sheet { width: min(100%, 600px); height: 94dvh; max-height: 94dvh; }
-.j-calc-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 20px; border-bottom:1px solid #e5dcd4; flex-shrink:0; }
-.j-calc-toolbar strong { font-size:14px; font-weight:600; }
-.j-calc-toolbar > button { min-width:40px; min-height:40px; }
+/* Estrutura da calculadora aprovada no mock. A folha tem a altura do conteúdo,
+   com teto: altura fixa deixava ~200px vazios nas etapas curtas e jogava o
+   "Continuar" para o fim da tela, longe do último controle. */
+.j-calculator .ds-sheet { width: min(100%, 600px); height: auto; max-height: 92dvh; }
+/* Cabeça da folha: voltar, nome e fechar na mesma linha do cabeçalho, sem faixa
+   própria nem borda — a etapa e o título vêm logo abaixo. */
+.j-calc-head { display:flex; align-items:center; justify-content:space-between; gap:14px; order:-2; margin:0 -8px -6px; }
+.j-calc-head strong { font-size:13px; font-weight:600; color:#726760; }
+.j-calc-head > button { min-width:40px; min-height:40px; }
 .j-calculator .ds-sheet > header { display:flex; flex-direction:column; gap:18px; padding:18px 26px 20px; }
 .j-calculator .ds-sheet > header > div:last-child { order:-1; margin-top:0; }
 .j-calculator h2 { font-size:30px !important; line-height:1.1; max-width:390px; margin-top:9px; }
@@ -936,27 +965,29 @@
 .j-calc-range small { color:#726760; font-size:11px; }
 .j-calc-range strong { display:block; font-size:22px; margin-top:7px; }
 
-/* Etapas compactas: controles e ação principal visíveis juntos no celular. */
-.j-calculator .ds-sheet { height: 100dvh; max-height: 100dvh; border-radius: 0; }
-.j-calculator .j-calc-toolbar { padding: 4px 16px; }
-.j-calculator .ds-sheet > header { gap: 10px; padding: 10px 20px 12px; }
-.j-calculator h2 { font-size: 25px !important; margin-top: 5px; }
-.j-calculator main { padding: 0 20px 10px; }
-.j-calculator main > div { gap: 12px; }
-.j-calculator .j-calc-intro { font-size: 12px; }
-.j-calculator .calculator-deliverables { gap: 7px; }
-.j-calculator .calculator-deliverables > div { padding: 8px 12px; min-height: 60px; }
-.j-calculator .calculator-deliverables .j-calc-help { font-size: 10px; margin-top: 2px; }
-.j-calculator main > div > section { padding: 14px; }
-.j-calculator main > div > section > p:first-child { margin-bottom: 8px; }
-.j-calculator .j-calc-help { font-size: 11px; margin: 5px 0 8px; }
-.j-calculator .j-calc-selection { margin: 0; font-size: 11px; }
-.j-calculator .ds-sheet > footer { padding: 10px 20px calc(10px + env(safe-area-inset-bottom)); }
-.j-calculator main section .grid.gap-4 { gap: 10px; }
-.j-calculator main section .divide-y { gap: 0; }
+/* Etapas com o mesmo ritmo em todas as telas: a folha acompanha o conteúdo, e o
+   respiro que havia sido cortado para caber na altura fixa volta. */
+.j-calculator .ds-sheet { border-radius: 18px 18px 0 0; }
+.j-calculator .ds-sheet > header { gap: 14px; padding: 8px 20px 16px; }
+.j-calculator h2 { font-size: 26px !important; margin-top: 8px; }
+.j-calculator main { padding: 2px 20px 16px; }
+.j-calculator main > div { gap: 14px; }
+.j-calculator .j-calc-intro { font-size: 12.5px; }
+.j-calculator .calculator-deliverables { gap: 10px; }
+.j-calculator .calculator-deliverables > div { padding: 14px; min-height: 0; }
+.j-calculator .calculator-deliverables .j-calc-help { font-size: 11px; margin-top: 3px; }
+.j-calculator main > div > section { padding: 16px; }
+.j-calculator main > div > section > p:first-child { margin-bottom: 10px; }
+.j-calculator .j-calc-help { font-size: 11px; margin: 6px 0 10px; }
+.j-calculator .j-calc-selection { margin: 0; font-size: 11.5px; }
+.j-calculator .ds-sheet > footer { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
+.j-calculator main section .grid.gap-4 { gap: 12px; }
+.j-calculator main section .divide-y { gap: 2px; }
 .j-calculator main section .flex.min-h-12 { min-height: 44px; }
+/* A régua informa o avanço; não precisa de peso. */
+.j-calculator .ds-sheet > header > div:last-child > span { height: 3px !important; }
 @media (min-width: 700px) and (min-height: 800px) {
-  .j-calculator .ds-sheet { height: 760px; max-height: 94dvh; border-radius: 24px; }
+  .j-calculator .ds-sheet { border-radius: 24px; }
 }
 
 .j-calculator main section .grid.gap-4 > div { position:relative; }
@@ -1031,8 +1062,10 @@
    abrindo o detalhe. O cartão é um botão: o alvo de toque é o card todo. */
 .j-opportunities article { position:relative; padding:0; }
 .j-opportunity-open { display:grid; grid-template-columns:44px minmax(0,1fr) 16px; gap:12px; align-items:start; width:100%; padding:16px; text-align:left; background:none; border:0; }
-.j-opportunity-icon { width:44px; height:44px; border-radius:50%; background:var(--j-inset); display:grid; place-items:center; overflow:hidden; font-size:17px; font-weight:600; }
-.j-opportunity-icon img { width:26px; height:26px; object-fit:contain; }
+/* Selo da plataforma: quadrado de cantos arredondados, como ícone de app. O
+   círculo com imagem pequena dentro deixava um anel vazio de 18px. */
+.j-opportunity-icon { width:44px; height:44px; border-radius:13px; background:var(--j-inset); display:grid; place-items:center; overflow:hidden; font-size:17px; font-weight:600; }
+.j-opportunity-icon img { width:100%; height:100%; object-fit:cover; }
 .j-opportunity-open > i { align-self:center; color:#8a817b; font-style:normal; }
 .j-opportunity-new { position:absolute; top:-8px; right:14px; z-index:1; padding:2px 9px; border-radius:999px; background:#fbbf24; color:#5b3a02; font-size:11px; font-weight:600; }
 .j-opportunity-open h3 { margin:2px 0 8px; min-height:0; font-size:16px; -webkit-line-clamp:2; }
@@ -1050,8 +1083,7 @@
 .j-publi-dialog::backdrop { background:#201817aa; }
 .j-publi-dialog .j-content { max-width:740px; padding:18px 20px 40px; }
 .j-publi-head { display:grid; grid-template-columns:56px minmax(0,1fr); gap:14px; align-items:start; }
-.j-publi-head .j-opportunity-icon { width:56px; height:56px; }
-.j-publi-head .j-opportunity-icon img { width:32px; height:32px; }
+.j-publi-head .j-opportunity-icon { width:56px; height:56px; border-radius:16px; font-size:22px; }
 .j-publi-head h1 { margin:4px 0 10px; font-size:25px; line-height:1.2; letter-spacing:-0.6px; }
 .j-publi-facts { display:grid; gap:10px; margin:22px 0; }
 .j-publi-fact { display:grid; grid-template-columns:38px minmax(0,1fr); gap:12px; align-items:center; padding:14px; border-radius:14px; background:var(--j-card); }
@@ -1107,12 +1139,20 @@
 .j-workspace-collabs .j-page-heading h1 { margin:0; }
 .j-collabs-board { display:flex; flex-direction:column; flex:1; min-height:0; position:relative; }
 .j-collabs-settings { flex-shrink:0; font-size:12px; }
+/* O filtro mora na MESMA linha do "Salvas e combinadas", à direita — a posição
+   da engrenagem no Perfil. Antes ele gastava uma faixa própria sob o título
+   "Collabs" e empurrava o card inteiro para baixo. */
+.j-collabs-topbar > .j-collabs-settings { display:flex; align-items:center; }
 .j-collabs-settings details > summary { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; background:var(--j-card); }
 .j-collabs-settings details[open] { position:absolute; inset:0 0 auto; z-index:30; background:white; border:1px solid var(--j-line); border-radius:16px; padding:14px; max-height:70dvh; overflow:auto; }
-.j-collabs-settings > [role=status]:empty { display:none; }
+/* Avisos vivos (erro, status, desfazer) seguem acima do card; o filtro é que
+   subiu para a faixa. Aviso vazio não ocupa altura. */
+.j-collabs-notices { flex-shrink:0; font-size:12px; }
+.j-collabs-notices > [role=status]:empty { display:none; }
+.j-collabs-notices:empty { display:none; }
 .j-collabs-feed { flex:1; min-height:0 !important; height:auto !important; }
 .j-collabs-feed, .j-collabs-feed > div:first-child { background:transparent !important; }
-.j-collabs-feed > div:first-child > button { min-height:38px; margin-top:6px; padding:8px 12px; border:0; border-radius:12px; font-size:12px; background:var(--j-card); }
+.j-collabs-feed > div:first-child .j-collabs-topbar > button { min-height:38px; margin-top:6px; padding:8px 12px; border:0; border-radius:12px; font-size:12px; background:var(--j-card); }
 .j-collabs-feed > div[style*="max-width: 560px"] { padding:4px 0 0 !important; }
 .j-workspace .j-meeting { background:#f5f2ed; }
 .j-kit-metrics, .j-kit-demographics > div { background:#f7f6f3; }

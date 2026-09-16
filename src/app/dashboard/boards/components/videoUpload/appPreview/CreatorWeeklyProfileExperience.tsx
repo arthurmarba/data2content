@@ -462,13 +462,17 @@ export function CreatorWeeklyProfileExperience({
             seria auto-posicionado numa linha implícita e desmontaria a coluna.
             No mobile o wrapper não faz nada — é só um div. */}
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--map" : ""}>
-        {/* O topo do app: a marca à esquerda, a conta à direita. A identidade
-            da PESSOA desceu para o card logo abaixo — aqui em cima o que se
-            reconhece é onde ela está, não quem ela é. */}
+        {/* O topo do app: o nome da aba à esquerda, a conta à direita. Diz onde
+            a pessoa está, não quem ela é — a identidade dela está no card logo
+            abaixo, e o nome do produto já está na barra de abas.
+            É um h1 com o corpo dos outros títulos de aba ("Publis", "Collabs"):
+            como span de 20px, a única aba sem título de página era esta.
+            O tamanho base mora aqui porque o CSS da jornada não é carregado nas
+            outras superfícies que renderizam esta tela. */}
         <header className="flex items-center justify-between gap-3">
-          <span className="text-[20px] font-bold leading-none tracking-[-0.045em] text-[var(--ds-color-ink)]" data-ds-display="true">
-            data2content
-          </span>
+          <h1 className="j-profile-title text-[34px] font-[650] leading-none tracking-[-1.2px] text-[var(--ds-color-ink)]" data-ds-display="true">
+            Perfil
+          </h1>
           <button type="button" className="ds-icon-button shrink-0" aria-label="Configurações da conta" onClick={onOpenAccountMenu}>
             <GearIcon />
           </button>

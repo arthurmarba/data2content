@@ -255,6 +255,9 @@ function PromptsDetail({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
+    // Focar a janela, não o primeiro botão: senão o "← Voltar" abre com o anel
+    // de foco desenhado em volta, inclusive quando a pessoa tocou na tela.
+    element?.focus();
     return () => element?.close();
   }, []);
   async function copy(text: string) {
@@ -274,7 +277,7 @@ function PromptsDetail({ onClose }: { onClose: () => void }) {
     </div>
   );
   return (
-    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" aria-label="Pedidos para o Claude">
+    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" tabIndex={-1} aria-label="Pedidos para o Claude">
       <div className="j-workspace">
         <header className="j-kit-toolbar">
           <button onClick={onClose}>← Voltar</button>
@@ -567,6 +570,7 @@ function PubliDetail({
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
+    element?.focus();
     return () => element?.close();
   }, []);
   const pagamento = item.payment === "paid"
@@ -576,7 +580,7 @@ function PubliDetail({
       : { valor: "Cachê a confirmar", nota: "A chamada não confirma valor individual" };
   const entregas = item.deliverables[0] ?? (item.formats.length ? item.formats.join(" · ") : null);
   return (
-    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" aria-label="Detalhe da publi">
+    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" tabIndex={-1} aria-label="Detalhe da publi">
       <div className="j-workspace">
         <header className="j-kit-toolbar">
           <button onClick={onClose}>← Voltar</button>

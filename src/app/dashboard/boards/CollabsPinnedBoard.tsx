@@ -48,8 +48,12 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
     setOpenMatchId(null);
   };
   const action = (id: string, kind: 'save' | 'unsave' | 'dismiss' | 'collab-interest' | 'collab-decline') => void c.mutate(id, kind, kind === 'save' ? 'saved' : kind === 'dismiss' ? 'dismissed' : 'active');
-  const feed = <div className={compact ? "j-collabs-board" : "min-w-0"}>
-    <div className={compact ? "j-collabs-settings" : "space-y-3 border-b border-zinc-200 bg-white p-4 text-sm"}>
+  {/* No compacto o filtro viaja para a faixa do "Salvas e combinadas", à
+      direita, na posição da engrenagem do Perfil: sozinho no topo ele gastava
+      uma faixa inteira sob o título e empurrava o card para baixo. Os avisos
+      (erro, status, desfazer) NÃO vêm com ele — são resposta a ação e não
+      podem virar ícone. */}
+  const filtro = <div className={compact ? "j-collabs-settings" : undefined}>
       {/* No compacto o rótulo ocupava uma linha inteira do topo para dizer o que o
           ícone já diz; o nome continua no leitor de tela. */}
       <details open={compact ? undefined : true}><summary aria-label="Preferências de collab">{compact ? <SlidersHorizontal size={17} aria-hidden="true" /> : "Preferências de collab"}</summary>
@@ -63,6 +67,10 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
       {/* No compacto, a ação fixa mora nas preferências para não empurrar o card. */}
       {compact && c.state.discovery.optedIn && <button disabled={c.matching} className="min-h-11 underline disabled:opacity-50" onClick={() => void c.prepare()}>Atualizar sugestões de parceria</button>}
       </details>
+  </div>;
+  const feed = <div className={compact ? "j-collabs-board" : "min-w-0"}>
+    <div className={compact ? "j-collabs-notices" : "space-y-3 border-b border-zinc-200 bg-white p-4 text-sm"}>
+      {!compact && filtro}
       {c.error && <div role="alert">{c.error} <button className="min-h-11 underline" onClick={() => void c.load()}>Tentar novamente</button></div>}
       <div role="status" aria-live="polite">{c.generation ? 'Preparando suas ideias. Você pode continuar usando a página.' : c.matching ? 'Procurando parcerias que acrescentem algo à pauta.' : c.notice}</div>
       {c.newRound && <button className="ds-button ds-button--primary" onClick={c.acceptRound}>Abrir nova rodada</button>}
@@ -77,6 +85,7 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
       onCardShown={cardShown} onOpenIdea={id => { cardShown(id); setOpenIdeaId(id); }} onSavePauta={id => action(id, 'save')} onUnsavePauta={id => action(id, 'unsave')}
       onAcceptCollabPauta={id => action(id, 'collab-interest')} onDeclineCollabPauta={id => action(id, 'collab-decline')} onDismissPauta={id => action(id, 'dismiss')}
       onOpenMatch={setOpenMatchId} onConnectWhatsApp={onConnectWhatsApp || (() => router.push('/dashboard/whatsapp'))}
+      toolbar={compact ? filtro : undefined}
       onUpgrade={upgrade} onGenerate={() => void c.generate({ territory, format })} onBackToPerfil={back} showHeaderTitle={!dedicatedView && !compact}
       hasMoreSaved={Boolean(c.nextCursor)} onLoadMoreSaved={() => void c.loadMore()} onCancelInterest={id => void c.cancel(id)}
     />
