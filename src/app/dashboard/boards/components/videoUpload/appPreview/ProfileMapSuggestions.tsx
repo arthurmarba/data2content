@@ -4,13 +4,13 @@ import type { IMapaData } from '@/app/models/MapaSeed';
 import type { MapSuggestion } from '@/app/lib/mapaSeed/mapSuggestions';
 
 /**
- * As sugestões do mapa, uma decisão por card.
+ * As sugestões do mapa, UMA POR VEZ.
  *
- * A versão anterior era um muro de texto: o valor proposto aparecia em negrito
- * sem dizer DE QUE dimensão ele era, o valor atual ficava na letra mais apagada
- * da tela — sendo a comparação o ponto todo — e as quatro ações tinham o mesmo
- * peso de link. Aqui cada sugestão é um card com rótulo, antes/depois e uma
- * ação principal; recusar e adiar continuam disponíveis, em segundo plano.
+ * Duas versões anteriores erraram na mesma direção: organizar sem apagar. Em
+ * lista, cada sugestão repetia quatro ações e um botão preto grande — com quatro
+ * sugestões eram dezesseis controles na tela, além de dois textos dizendo a
+ * mesma coisa e três fios por card. Aqui a tela mostra uma decisão, com duas
+ * ações à vista; editar, recusar e a evidência ficam a um toque.
  */
 
 const ENDPOINT = '/api/dashboard/mobile-strategic-profile/map-suggestions';
@@ -29,41 +29,19 @@ const SECTION_LABEL: Record<string, string> = {
 /** Dimensão que é uma frase só troca; lista ganha item novo. */
 const SCALAR_SECTIONS = ['tom', 'narrativa_central'];
 
-/**
- * Preto e branco: `ds-button--primary` é rosa e o rosa não é a marca.
- * Classe escrita à mão por inteiro — o Tailwind lê o código como texto e não
- * gera estilo para nome de classe montado com variável.
- */
 const PRIMARY =
-  'inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[var(--ds-color-ink)] px-4 text-[13.5px] font-bold text-white disabled:opacity-45';
-const QUIET =
-  'inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--ds-color-line-strong)] px-4 text-[13px] font-semibold text-[var(--ds-color-text-secondary)] disabled:opacity-45';
-
-function Field({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="grid grid-cols-[62px_minmax(0,1fr)] items-baseline gap-3">
-      <span className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--ds-color-text-muted)]">{label}</span>
-      <p
-        className={
-          strong
-            ? 'text-[15px] font-semibold leading-[1.35] text-[var(--ds-color-ink)]'
-            : 'text-[13.5px] leading-[1.4] text-[var(--ds-color-text-secondary)]'
-        }
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
+  'inline-flex min-h-[44px] items-center justify-center rounded-full bg-[var(--ds-color-ink)] px-6 text-[14px] font-bold text-white disabled:opacity-45';
+const QUIET = 'min-h-[44px] px-1 text-[13px] font-semibold text-[var(--ds-color-text-secondary)] disabled:opacity-45';
 
 export function ProfileMapSuggestions({ mapa, onMapaChange }: { mapa: IMapaData | null; onMapaChange: (mapa: IMapaData | null) => void }) {
   const [liveMap, setLiveMap] = useState(mapa);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [postponed, setPostponed] = useState<string[]>([]);
-  const [openEvidence, setOpenEvidence] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
+  const [showObservations, setShowObservations] = useState(false);
   useEffect(() => setLiveMap(mapa), [mapa]);
   useEffect(() => {
     const controller = new AbortController();
@@ -80,7 +58,7 @@ export function ProfileMapSuggestions({ mapa, onMapaChange }: { mapa: IMapaData 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'Não foi possível salvar.');
       if (!data.mapa || typeof data.mapa !== 'object') throw new Error('A resposta não trouxe o mapa atualizado. Reabra a narrativa.');
-      setLiveMap(data.mapa); onMapaChange(data.mapa); setEditing(null);
+      setLiveMap(data.mapa); onMapaChange(data.mapa); setEditing(false); setMore(false);
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar.'); }
     finally { setBusy(false); }
   };
@@ -88,70 +66,70 @@ export function ProfileMapSuggestions({ mapa, onMapaChange }: { mapa: IMapaData 
     && (!['tom', 'narrativa_central'].includes(item.section) || liveMap[item.section] !== item.value)) ?? [];
   const observations = liveMap?.observacoes ?? [];
   if (suggestions.length === 0 && observations.length === 0) return null;
-  const visible = suggestions.slice(0, 6);
+
+  const current = suggestions[0];
+  const decided = (liveMap?.suggestions?.filter(item => ['pending', 'observing'].includes(item.state)).length ?? 0) - suggestions.length;
+  const total = suggestions.length + decided;
+  const scalar = current ? SCALAR_SECTIONS.includes(current.section) : false;
+  const postpone = () => { if (current) { setPostponed(previous => [...previous, current.id]); setEditing(false); setMore(false); } };
+
   return <section className="mt-6" aria-label="Sugestões para revisar">
-    <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <h2 className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ds-color-ink)]">Sugestões para revisar</h2>
-      {visible.length > 0 ? <span className="text-[12px] font-semibold text-[var(--ds-color-text-muted)]">{visible.length === 1 ? '1 sugestão' : `${visible.length} sugestões`}</span> : null}
-    </header>
-    <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-muted)]">Nada muda sem você aceitar.</p>
-
-    {error ? <p role="alert" className="mt-3 rounded-[12px] border border-[var(--ds-color-danger)] bg-[var(--ds-color-danger-soft)] px-3.5 py-2.5 text-[12.5px] leading-[1.4] text-[var(--ds-color-danger)]">{error}</p> : null}
-
-    {/* Divergência entre o que a leitura viu e o que foi confirmado: é aviso,
-        não decisão — fica fora da fila de cards, para não pedir toque. */}
-    {observations.length > 0 ? <div className="mt-4 rounded-[14px] bg-[var(--ds-color-neutral)] p-4">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--ds-color-text-muted)]">O que a leitura observou</p>
-      {observations.map((observation, index) => <p className="mt-2 text-[13px] leading-[1.45] text-[var(--ds-color-text-secondary)]" key={index}>{observation}</p>)}
+    {/* Contexto não pede toque: uma linha que abre, em vez de dez linhas abertas. */}
+    {observations.length > 0 ? <div className="mb-3">
+      <button type="button" aria-expanded={showObservations} onClick={() => setShowObservations(!showObservations)} className="min-h-[44px] text-[12.5px] font-semibold text-[var(--ds-color-text-muted)]">
+        A leitura observou {observations.length === 1 ? 'uma coisa' : `${observations.length} coisas`} {showObservations ? '⌃' : '⌄'}
+      </button>
+      {showObservations ? <div className="mt-1 grid gap-2">
+        {observations.map((observation, index) => <p className="text-[13px] leading-[1.45] text-[var(--ds-color-text-secondary)]" key={index}>{observation}</p>)}
+      </div> : null}
     </div> : null}
 
-    <div className="mt-4 grid gap-3">
-      {visible.map(suggestion => {
-        const scalar = SCALAR_SECTIONS.includes(suggestion.section);
-        const label = SECTION_LABEL[suggestion.section] ?? 'Seu mapa';
-        const isEditing = editing === suggestion.id;
-        const evidenceOpen = openEvidence === suggestion.id;
-        return <article key={suggestion.id} className="rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-[var(--ds-color-line-strong)] px-2.5 py-1 text-[11px] font-bold text-[var(--ds-color-ink)]">{label}</span>
-            {suggestion.state === 'observing' ? <span className="text-[11px] font-semibold text-[var(--ds-color-text-muted)]">observação inicial</span> : null}
+    {error ? <p role="alert" className="mb-3 rounded-[12px] border border-[var(--ds-color-danger)] bg-[var(--ds-color-danger-soft)] px-3.5 py-2.5 text-[12.5px] leading-[1.4] text-[var(--ds-color-danger)]">{error}</p> : null}
+
+    {current ? <article className="rounded-[16px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] p-4">
+      <header className="flex items-baseline justify-between gap-3">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--ds-color-text-muted)]">
+          {SECTION_LABEL[current.section] ?? 'Seu mapa'}
+        </span>
+        {total > 1 ? <span className="text-[11.5px] font-semibold text-[var(--ds-color-text-muted)]">{decided + 1} de {total}</span> : null}
+      </header>
+
+      {/* O valor sugerido é a manchete; o atual, legenda. Como grade de rótulos
+          (HOJE/SUGERIDO) a decisão lia como formulário. */}
+      <p className="mt-2 text-[21px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--ds-color-ink)]">{current.value}</p>
+      {current.previousValue ? <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-muted)]">
+        hoje: {current.previousValue}
+      </p> : <p className="mt-1.5 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-muted)]">
+        {scalar ? 'ainda sem escolha sua' : 'entra na sua lista, sem tirar nada'}
+      </p>}
+      {current.state === 'observing' ? <p className="mt-1.5 text-[12px] text-[var(--ds-color-text-muted)]">Ainda é observação inicial.</p> : null}
+
+      {editing ? <label className="mt-3 block text-[12.5px] font-semibold text-[var(--ds-color-ink)]">Escreva do seu jeito
+        <textarea rows={3} autoFocus className="mt-1.5 w-full rounded-[12px] border border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-3 text-[14px] font-normal leading-[1.4] text-[var(--ds-color-ink)] outline-none" value={draft} maxLength={scalar ? 200 : 100} onChange={event => setDraft(event.target.value)} />
+      </label> : null}
+
+      <div className="mt-4 flex items-center gap-3">
+        <button type="button" disabled={busy || (editing && !draft.trim())} onClick={() => void decide(current, 'accept', editing ? draft : undefined)} className={PRIMARY}>{editing ? 'Salvar' : 'Aceitar'}</button>
+        {editing
+          ? <button type="button" disabled={busy} onClick={() => setEditing(false)} className={QUIET}>Cancelar</button>
+          : <button type="button" disabled={busy} onClick={postpone} className={QUIET}>Depois</button>}
+        {/* Recusar, editar e a prova cabem atrás de um toque: à vista, as quatro
+            ações se repetiam em cada sugestão e dominavam a tela. */}
+        {!editing ? <button type="button" aria-expanded={more} aria-label="Mais opções" onClick={() => setMore(!more)} className="ml-auto min-h-[44px] px-2 text-[16px] font-bold text-[var(--ds-color-text-muted)]">⋯</button> : null}
+      </div>
+
+      {more && !editing ? <div className="mt-2 grid justify-items-start gap-1 border-t border-[var(--ds-color-line)] pt-2">
+        <button type="button" disabled={busy} onClick={() => { setEditing(true); setDraft(current.value); setMore(false); }} className={QUIET}>Editar antes de aceitar</button>
+        <button type="button" disabled={busy} onClick={() => void decide(current, 'dismiss')} className={QUIET}>Não usar esta sugestão</button>
+        {current.evidence.length > 0 ? <details className="text-[12.5px] text-[var(--ds-color-text-muted)]">
+          <summary className="min-h-[44px] cursor-pointer py-2 font-semibold">Ver as {current.evidence.length} leituras que sugeriram isso</summary>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 pb-1">
+            {current.evidence.slice(0, 12).map((ref, index) => <span key={ref.id}>
+              {ref.url ? <a href={ref.url} className="underline underline-offset-[3px]" target="_blank" rel="noreferrer">Post {index + 1}</a> : `Vídeo ${index + 1}`}
+            </span>)}
           </div>
-
-          <div className="mt-3 grid gap-2">
-            {suggestion.previousValue ? <Field label="Hoje" value={suggestion.previousValue} /> : null}
-            <Field label={scalar ? 'Sugerido' : 'Adicionar'} value={suggestion.value} strong />
-          </div>
-
-          <p className="mt-3 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-muted)]">{suggestion.reason}</p>
-
-          {isEditing ? <label className="mt-3 block text-[12.5px] font-semibold text-[var(--ds-color-ink)]">Escreva do seu jeito
-            <textarea rows={3} autoFocus className="mt-1.5 w-full rounded-[12px] border border-[var(--ds-color-line-strong)] bg-[var(--ds-color-surface)] p-3 text-[14px] font-normal leading-[1.4] text-[var(--ds-color-ink)] outline-none" value={draft} maxLength={scalar ? 200 : 100} onChange={event => setDraft(event.target.value)} />
-          </label> : null}
-
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            <button type="button" disabled={busy || (isEditing && !draft.trim())} onClick={() => void decide(suggestion, 'accept', isEditing ? draft : undefined)} className={PRIMARY}>{isEditing ? 'Salvar minha versão' : 'Aceitar'}</button>
-            {isEditing
-              ? <button type="button" disabled={busy} onClick={() => setEditing(null)} className={QUIET}>Cancelar</button>
-              : <button type="button" disabled={busy} onClick={() => { setEditing(suggestion.id); setDraft(suggestion.value); }} className={QUIET}>Editar</button>}
-          </div>
-          {isEditing ? null : <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <button type="button" disabled={busy} onClick={() => void decide(suggestion, 'dismiss')} className="min-h-[36px] text-[12.5px] font-semibold text-[var(--ds-color-text-secondary)] underline decoration-[var(--ds-color-line-strong)] underline-offset-[3px] disabled:opacity-45">Manter como está</button>
-            <button type="button" disabled={busy} onClick={() => setPostponed(previous => [...previous, suggestion.id])} className="min-h-[36px] text-[12.5px] font-medium text-[var(--ds-color-text-muted)] disabled:opacity-45">Ver depois</button>
-          </div>}
-
-          {/* Evidência fica a um toque, fechada: é a prova, não a leitura principal. */}
-          {suggestion.evidence.length > 0 ? <div className="mt-2 border-t border-[var(--ds-color-line)] pt-2.5">
-            <button type="button" aria-expanded={evidenceOpen} onClick={() => setOpenEvidence(evidenceOpen ? null : suggestion.id)} className="min-h-[36px] text-[12px] font-semibold text-[var(--ds-color-text-muted)]">
-              {evidenceOpen ? 'Ocultar' : 'Ver'} as {suggestion.evidence.length} leituras que sugeriram isso
-            </button>
-            {evidenceOpen ? <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              {suggestion.evidence.slice(0, 12).map((ref, index) => <span key={ref.id} className="text-[12px] text-[var(--ds-color-text-muted)]">
-                {ref.url ? <a href={ref.url} className="underline underline-offset-[3px]" target="_blank" rel="noreferrer">Post {index + 1}</a> : `Vídeo ${index + 1}`}
-              </span>)}
-            </div> : null}
-          </div> : null}
-        </article>;
-      })}
-    </div>
+        </details> : null}
+      </div> : null}
+    </article> : null}
   </section>;
 }

@@ -61,40 +61,57 @@ function renderSuggestions(data: IMapaData | null = mapa()) {
   return { onMapaChange };
 }
 
-const cards = () => screen.getAllByRole("article");
+const card = () => screen.getByRole("article");
 
 beforeEach(() => {
   mockFetch();
 });
 
-describe("sugestões do mapa", () => {
-  it("diz QUAL dimensão está sendo sugerida, não só o valor novo", () => {
-    // Sem o rótulo, "Direto" sozinho não informa que a sugestão é sobre o tom.
+describe("sugestões do mapa, uma por vez", () => {
+  it("mostra UMA sugestão, não a fila toda", () => {
+    // Em lista, cada sugestão repetia as quatro ações: com quatro sugestões,
+    // dezesseis controles na tela. É a origem da poluição.
     renderSuggestions();
-    expect(within(cards()[0]!).getByText("Tom de voz")).toBeInTheDocument();
-    expect(within(cards()[1]!).getByText("Assuntos")).toBeInTheDocument();
+
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Aceitar" })).toHaveLength(1);
+    // A segunda sugestão não está na tela — `getByText` lançaria, então a
+    // consulta tem que ser a que aceita ausência.
+    expect(screen.queryByText("Colaborações")).toBeNull();
   });
 
-  it("põe o valor atual e o sugerido lado a lado, cada um com seu rótulo", () => {
+  it("diz qual dimensão é e em que ponto da fila você está", () => {
     renderSuggestions();
-    const tom = cards()[0]!;
-    expect(within(tom).getByText("Hoje")).toBeInTheDocument();
-    expect(within(tom).getByText("Direto e instrutivo, Pessoal e entusiasmado")).toBeInTheDocument();
-    expect(within(tom).getByText("Sugerido")).toBeInTheDocument();
-    expect(within(tom).getByText("Direto")).toBeInTheDocument();
+    expect(within(card()).getByText("Tom de voz")).toBeInTheDocument();
+    expect(within(card()).getByText("1 de 2")).toBeInTheDocument();
   });
 
-  it("chama de adicionar, não de trocar, o que entra numa lista", () => {
+  it("põe o valor sugerido como manchete e o atual como legenda", () => {
     renderSuggestions();
-    const tema = cards()[1]!;
-    expect(within(tema).getByText("Adicionar")).toBeInTheDocument();
-    expect(within(tema).queryByText("Hoje")).toBeNull();
+    expect(within(card()).getByText("Direto")).toBeInTheDocument();
+    expect(within(card()).getByText(/^hoje: Direto e instrutivo/)).toBeInTheDocument();
   });
 
-  it("marca a sugestão que ainda é observação inicial", () => {
+  it("deixa à vista apenas Aceitar e Depois", () => {
     renderSuggestions();
-    expect(within(cards()[1]!).getByText("observação inicial")).toBeInTheDocument();
-    expect(within(cards()[0]!).queryByText("observação inicial")).toBeNull();
+    const visiveis = within(card())
+      .getAllByRole("button")
+      .map((node) => node.getAttribute("aria-label") ?? node.textContent);
+    expect(visiveis).toEqual(["Aceitar", "Depois", "Mais opções"]);
+  });
+
+  it("avança para a próxima sugestão em 'Depois', sem gravar decisão", () => {
+    const fetchMock = mockFetch();
+    renderSuggestions();
+
+    fireEvent.click(within(card()).getByRole("button", { name: "Depois" }));
+
+    // A segunda é da seção `temas`, que se chama "Assuntos" na tela.
+    expect(within(card()).getByText("Assuntos")).toBeInTheDocument();
+    expect(within(card()).getByText("Colaborações")).toBeInTheDocument();
+    // A contagem anda junto: segunda de duas.
+    expect(within(card()).getByText("2 de 2")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
   });
 
   it("aceita a sugestão e devolve o mapa que o servidor gravou", async () => {
@@ -102,7 +119,7 @@ describe("sugestões do mapa", () => {
     const { onMapaChange } = renderSuggestions();
 
     await act(async () => {
-      fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Aceitar" }));
+      fireEvent.click(within(card()).getByRole("button", { name: "Aceitar" }));
     });
 
     const post = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
@@ -114,66 +131,66 @@ describe("sugestões do mapa", () => {
     expect(onMapaChange).toHaveBeenCalledWith({ tom: "Direto" });
   });
 
-  it("deixa escrever a própria versão e envia o texto editado", async () => {
-    const fetchMock = mockFetch({ mapa: { tom: "Do meu jeito" } });
+  it("guarda recusar, editar e a prova atrás de um toque", () => {
     renderSuggestions();
+    expect(within(card()).queryByRole("button", { name: "Não usar esta sugestão" })).toBeNull();
+    expect(within(card()).queryByText(/Ver as 2 leituras/)).toBeNull();
 
-    fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Editar" }));
-    fireEvent.change(screen.getByRole("textbox", { name: /Escreva do seu jeito/ }), {
-      target: { value: "Do meu jeito" },
-    });
-    await act(async () => {
-      fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Salvar minha versão" }));
-    });
+    fireEvent.click(within(card()).getByRole("button", { name: "Mais opções" }));
 
-    const post = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
-    expect(JSON.parse(String(post?.[1]?.body)).value).toBe("Do meu jeito");
+    expect(within(card()).getByRole("button", { name: "Editar antes de aceitar" })).toBeInTheDocument();
+    expect(within(card()).getByRole("button", { name: "Não usar esta sugestão" })).toBeInTheDocument();
+    expect(within(card()).getByText("Ver as 2 leituras que sugeriram isso")).toBeInTheDocument();
   });
 
-  it("recusa a sugestão mantendo o que já estava", async () => {
+  it("recusa a sugestão pela gaveta, mantendo o que já estava", async () => {
     const fetchMock = mockFetch({ mapa: { tom: "Direto e instrutivo" } });
     renderSuggestions();
 
+    fireEvent.click(within(card()).getByRole("button", { name: "Mais opções" }));
     await act(async () => {
-      fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Manter como está" }));
+      fireEvent.click(within(card()).getByRole("button", { name: "Não usar esta sugestão" }));
     });
 
     const post = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
     expect(JSON.parse(String(post?.[1]?.body)).action).toBe("dismiss");
   });
 
-  it("adia sem gravar decisão nenhuma", () => {
-    const fetchMock = mockFetch();
+  it("deixa escrever a própria versão e envia o texto editado", async () => {
+    const fetchMock = mockFetch({ mapa: { tom: "Do meu jeito" } });
     renderSuggestions();
-    expect(cards()).toHaveLength(2);
 
-    fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Ver depois" }));
+    fireEvent.click(within(card()).getByRole("button", { name: "Mais opções" }));
+    fireEvent.click(within(card()).getByRole("button", { name: "Editar antes de aceitar" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Escreva do seu jeito/ }), {
+      target: { value: "Do meu jeito" },
+    });
+    await act(async () => {
+      fireEvent.click(within(card()).getByRole("button", { name: "Salvar" }));
+    });
 
-    expect(cards()).toHaveLength(1);
-    expect(fetchMock.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
+    const post = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(JSON.parse(String(post?.[1]?.body)).value).toBe("Do meu jeito");
   });
 
-  it("guarda a evidência fechada e abre a um toque", () => {
-    renderSuggestions();
-    const tom = cards()[0]!;
-    expect(within(tom).queryByRole("link", { name: "Post 1" })).toBeNull();
-
-    fireEvent.click(within(tom).getByRole("button", { name: /Ver as 2 leituras/ }));
-
-    expect(within(tom).getByRole("link", { name: "Post 1" })).toHaveAttribute(
-      "href",
-      "https://instagram.com/p/1",
-    );
-    // Leitura de vídeo não tem link para abrir: aparece nomeada, sem virar link.
-    expect(within(tom).getByText("Vídeo 2")).toBeInTheDocument();
+  it("explica o que acontece quando não há valor atual para comparar", () => {
+    renderSuggestions(mapa({ suggestions: [TEMA] }));
+    expect(screen.getByText("entra na sua lista, sem tirar nada")).toBeInTheDocument();
   });
 
-  it("separa observação de decisão, sem pedir toque para ela", () => {
+  it("marca a sugestão que ainda é observação inicial", () => {
+    renderSuggestions(mapa({ suggestions: [TEMA] }));
+    expect(screen.getByText("Ainda é observação inicial.")).toBeInTheDocument();
+  });
+
+  it("recolhe as observações numa linha, que abre a um toque", () => {
     renderSuggestions(
-      mapa({ suggestions: [], observacoes: ["Seu tom no Instagram aparece como \"Direto\"."] }),
+      mapa({ suggestions: [], observacoes: ["Seu tom no Instagram aparece como \"Direto\".", "Carrossel não apareceu."] }),
     );
-    expect(screen.getByText("O que a leitura observou")).toBeInTheDocument();
-    expect(screen.queryByRole("article")).toBeNull();
+
+    expect(screen.queryByText(/Carrossel não apareceu/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /A leitura observou 2 coisas/ }));
+    expect(screen.getByText(/Carrossel não apareceu/)).toBeInTheDocument();
   });
 
   it("avisa quando o servidor recusa a gravação", async () => {
@@ -181,7 +198,7 @@ describe("sugestões do mapa", () => {
     renderSuggestions();
 
     await act(async () => {
-      fireEvent.click(within(cards()[0]!).getByRole("button", { name: "Aceitar" }));
+      fireEvent.click(within(card()).getByRole("button", { name: "Aceitar" }));
     });
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Sugestão desatualizada."));
