@@ -719,7 +719,62 @@ function Community({
   );
   return (
     <>
-      <section className="j-meeting">
+      {/* Descoberta primeiro: quem abre a Comunidade quer ver gente. O acesso ao
+          grupo e as gravações vêm depois, quando já houve com quem se importar. */}
+      <section>
+        <div className="j-search">
+          <input
+            aria-label="Buscar criadores"
+            placeholder="Buscar nome ou @perfil"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <select
+            aria-label="Filtrar criadores por território"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+          >
+            <option value="">Todos os territórios</option>
+            {themes.map((t) => (
+              <option key={t.key} value={t.key}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+        <Carousel title="Criadores da comunidade">
+          {creators.error || !creators.data ? (
+            <LoadState {...creators} />
+          ) : shown.length ? (
+            shown.map((c) => (
+              <article className="j-creator" key={c.id}>
+                {c.avatarUrl ? (
+                  <img src={c.avatarUrl} alt={c.name} loading="lazy" />
+                ) : (
+                  <div className="j-avatar">{c.name.charAt(0)}</div>
+                )}
+                <h3>{c.name}</h3>
+                <small>
+                  {c.username ? `@${c.username.replace(/^@/, "")}` : "Criador D2C"}
+                </small>
+                <p>
+                  {creatorThemeKeys(c)
+                    .map((k) => themeLabel.get(k))
+                    .filter(Boolean)
+                    .slice(0, 3)
+                    .join(" · ")}
+                </p>
+                {c.mediaKitSlug && (
+                  <button onClick={() => onOpenCreator(c.mediaKitSlug!)}>
+                    Conhecer perfil ↗
+                  </button>
+                )}
+              </article>
+            ))
+          ) : (
+            <p>Nenhum criador encontrado.</p>
+          )}
+        </Carousel>
+      </section>
+      <section className="j-meeting j-community-meeting">
         <h2>Nos encontramos aqui.</h2>
         <small>Horário de Brasília</small>
         <div className="j-times">
@@ -762,25 +817,26 @@ function Community({
         )}
         <small className="j-center">O link das reuniões fica no grupo.</small>
       </section>
-      <Carousel title="Gravações">
+      {/* A capa vem do nosso endereço: ela não revela o código do vídeo, então a
+          trava do Pro segue de pé mesmo com a imagem à vista. */}
+      <Carousel title="Reuniões gravadas">
         {recordings.error || !recordings.data ? (
           <LoadState {...recordings} />
         ) : recordings.data.meetings.length ? (
-          recordings.data.meetings.map((m, i) => (
+          recordings.data.meetings.map((m) => (
             <button
-              className={`j-recording j-tone-${i % 3}`}
+              className="j-recording"
               key={m.id}
               onClick={() => void play(m.id)}
               disabled={loading !== null}
             >
-              <span>
-                <Play size={22} />
-                {loading === m.id
-                  ? "Abrindo…"
-                  : new Date(m.publishedAt).toLocaleDateString("pt-BR")}
+              <span className="j-recording-cover">
+                <img src={m.thumbnailUrl} alt="" loading="lazy" />
+                <i aria-hidden="true"><Play size={20} /></i>
               </span>
+              <small>{loading === m.id ? "Abrindo…" : new Date(m.publishedAt).toLocaleDateString("pt-BR")}</small>
               <h3>{m.title}</h3>
-              <small>Assistir à reunião ↗</small>
+              <small className="j-recording-action">Assistir à reunião ↗</small>
             </button>
           ))
         ) : (
@@ -788,61 +844,6 @@ function Community({
         )}
       </Carousel>
       <p role="status">{status}</p>
-      <section>
-        <div className="j-search">
-          <input
-            aria-label="Buscar criadores"
-            placeholder="Buscar nome ou @perfil"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <select
-            aria-label="Filtrar criadores por território"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-          >
-            <option value="">Todos os territórios</option>
-            {themes.map((t) => (
-              <option key={t.key} value={t.key}>{t.label}</option>
-            ))}
-          </select>
-        </div>
-        <Carousel title="Criadores da comunidade">
-          {creators.error || !creators.data ? (
-            <LoadState {...creators} />
-          ) : shown.length ? (
-            shown.map((c) => (
-              <article className="j-creator" key={c.id}>
-                {c.avatarUrl ? (
-                  <img src={c.avatarUrl} alt={c.name} loading="lazy" />
-                ) : (
-                  <div className="j-avatar">{c.name.charAt(0)}</div>
-                )}
-                <h3>{c.name}</h3>
-                <small>
-                  {c.username
-                    ? `@${c.username.replace(/^@/, "")}`
-                    : "Criador D2C"}
-                </small>
-                <p>
-                  {creatorThemeKeys(c)
-                    .map((k) => themeLabel.get(k))
-                    .filter(Boolean)
-                    .slice(0, 3)
-                    .join(" · ")}
-                </p>
-                {c.mediaKitSlug && (
-                  <button onClick={() => onOpenCreator(c.mediaKitSlug!)}>
-                    Conhecer perfil ↗
-                  </button>
-                )}
-              </article>
-            ))
-          ) : (
-            <p>Nenhum criador encontrado.</p>
-          )}
-        </Carousel>
-      </section>
       <RecordedMeetingPlayerDialog
         meeting={playing}
         onClose={() => setPlaying(null)}

@@ -97,10 +97,13 @@ it("guarda os pedidos do Claude num card que abre a gaveta",async()=>{
  expect(gaveta.getAllByRole("button",{name:"Copiar pedido"}).length).toBeGreaterThan(5);
 });
 it("exibe gravações e pesquisa criadores reais sem esconder a comunidade",async()=>{
- global.fetch=jest.fn().mockImplementation(async(url:string)=>({ok:true,json:async()=>url.includes("recorded-meetings")?{meetings:[{id:"r1",title:"Narrativa e conteúdo",publishedAt:"2026-09-10"}]}:{creators:[{id:"c1",name:"Lívia",username:"livia",mediaKitSlug:"livia",niches:["Humor"]},{id:"c2",name:"Ana",username:"ana",niches:["Moda"]}]}}));
+ global.fetch=jest.fn().mockImplementation(async(url:string)=>({ok:true,json:async()=>url.includes("recorded-meetings")?{meetings:[{id:"r1",title:"Narrativa e conteúdo",publishedAt:"2026-09-10",thumbnailUrl:"/api/dashboard/recorded-meetings/r1/thumbnail"}]}:{creators:[{id:"c1",name:"Lívia",username:"livia",mediaKitSlug:"livia",niches:["Humor"]},{id:"c2",name:"Ana",username:"ana",niches:["Moda"]}]}}));
  render(<JourneyWorkspace {...baseProps}/>);
  fireEvent.click(screen.getByRole("button",{name:"Comunidade",exact:true}));
  expect(screen.getByRole("link",{name:/Abrir grupo/})).toHaveAttribute("href","/api/dashboard/community/pro-join");
+ // Descoberta primeiro: os criadores vêm antes do card da comunidade.
+ const secoes=[...document.querySelectorAll(".j-content > section")];
+ expect(secoes.findIndex(s=>s.querySelector(".j-search"))).toBeLessThan(secoes.findIndex(s=>s.classList.contains("j-community-meeting")));
  expect(await screen.findByRole("heading",{name:"Narrativa e conteúdo"})).toBeInTheDocument();
  await screen.findByRole("heading",{name:"Lívia"});
  fireEvent.change(screen.getByRole("textbox",{name:"Buscar criadores"}),{target:{value:"Lívia"}});

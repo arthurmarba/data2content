@@ -241,26 +241,49 @@
   text-align: center;
   margin-top: 12px;
 }
+/* A reunião gravada é vídeo: a capa é o card, e o resto legenda. */
 .j-recording {
   width: 285px;
-  min-height: 208px;
   border-radius: 18px;
-  padding: 24px;
+  padding: 0 0 16px;
   display: flex;
   flex-direction: column;
   text-align: left;
+  overflow: hidden;
 }
-.j-recording > span {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.j-recording-cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  background: var(--j-inset);
+}
+.j-recording-cover img {
   width: 100%;
-  font-size: 12px;
-  margin-bottom: 22px;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
-.j-recording small {
+.j-recording-cover i {
+  position: absolute;
+  inset: auto auto 10px 10px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fffffff2;
+  color: #171717;
+}
+.j-recording > small {
+  padding: 14px 18px 0;
+}
+.j-recording h3 {
+  padding: 4px 18px 0;
+  font-size: 16px;
+}
+.j-recording .j-recording-action {
   margin-top: auto;
-  padding-top: 18px;
+  padding-top: 12px;
 }
 .j-tone-0 {
   background: var(--j-surface);
