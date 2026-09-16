@@ -3,7 +3,7 @@ import JourneyMediaKit from "../jornada/JourneyMediaKit";
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Bookmark, CircleDot, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
+import { Bookmark, CircleDot, Sparkles, UsersRound, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import Board from "@/app/dashboard/components/Board";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import { DiagnosticoCollabsFeed, type CollabsBootstrapStatus } from "./components/videoUpload/appPreview/DiagnosticoCollabsFeed";
@@ -50,7 +50,9 @@ export default function CollabsPinnedBoard({ showTitleMarker = true, isHighlight
   const action = (id: string, kind: 'save' | 'unsave' | 'dismiss' | 'collab-interest' | 'collab-decline') => void c.mutate(id, kind, kind === 'save' ? 'saved' : kind === 'dismiss' ? 'dismissed' : 'active');
   const feed = <div className={compact ? "j-collabs-board" : "min-w-0"}>
     <div className={compact ? "j-collabs-settings" : "space-y-3 border-b border-zinc-200 bg-white p-4 text-sm"}>
-      <details open={compact ? undefined : true}><summary>Preferências de collab</summary>
+      {/* No compacto o rótulo ocupava uma linha inteira do topo para dizer o que o
+          ícone já diz; o nome continua no leitor de tela. */}
+      <details open={compact ? undefined : true}><summary aria-label="Preferências de collab">{compact ? <SlidersHorizontal size={17} aria-hidden="true" /> : "Preferências de collab"}</summary>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={c.state.discovery.optedIn} disabled={!c.ready} onChange={event => void c.changeDiscovery(event.target.checked, c.state.discovery.mode)} /> Disponível para collabs</label>
         <label className="flex items-center gap-2">Como gravar<select aria-label="Modo de colaboração" className="min-h-11 rounded-lg border p-2" value={c.state.discovery.mode} onChange={event => void c.changeDiscovery(c.state.discovery.optedIn, event.target.value)}><option value="remoto">Remoto</option><option value="presencial">Presencial</option><option value="ambos">Ambos</option></select></label>

@@ -707,8 +707,7 @@ function Community({
     }
   }
   const all = creators.data?.creators ?? [],
-    themes = communityThemes(all),
-    themeLabel = new Map(themes.map((t) => [t.key, t.label]));
+    themes = communityThemes(all);
   const shown = all.filter(
     (c) =>
       (!query ||
@@ -755,13 +754,7 @@ function Community({
                 <small>
                   {c.username ? `@${c.username.replace(/^@/, "")}` : "Criador D2C"}
                 </small>
-                <p>
-                  {creatorThemeKeys(c)
-                    .map((k) => themeLabel.get(k))
-                    .filter(Boolean)
-                    .slice(0, 3)
-                    .join(" · ")}
-                </p>
+                {/* O território fica no filtro e no mídia kit: aqui só esticava o card. */}
                 {c.mediaKitSlug && (
                   <button onClick={() => onOpenCreator(c.mediaKitSlug!)}>
                     Conhecer perfil ↗
