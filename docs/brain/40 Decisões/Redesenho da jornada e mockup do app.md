@@ -168,6 +168,7 @@ Todos os caminhos abaixo são relativos à raiz do repositório:
 - Filtros e busca continuam valendo na lista inteira — filtrar por território e ver trancadas ali é o que mostra o tamanho do que o Pro abre.
 - **O assunto do paywall viaja junto** (`onUpgrade(context)` em `JourneyWorkspace`): `community` no botão do grupo, `recorded_meetings` nas gravações, `publis` nas trancadas. Sem isso o modal caía no assunto padrão (`narrative_map`) e perdia o `postCheckoutIntent` — quem assinava para entrar na comunidade não voltava para ela. A trava do grupo já existia nas duas pontas (botão troca por "Entrar na comunidade" e `/api/dashboard/community/pro-join` confere plano no servidor).
 - **Pendência:** na aba Collabs o pedido de assinatura ainda navega para `/pro` (`CollabsPinnedBoard`), em vez de abrir o modal como nas outras abas.
+- **Medido em produção em 16/09/2026:** das 71 publis abertas, **zero** tinham cachê individual confirmado (4 permuta, 67 "a confirmar"). Na prática a regra do cachê não dispara e quem escolhe as 3 livres é a reserva (prazo mais próximo). A regra se corrige sozinha quando o radar passar a confirmar cachê — ver [[radar-fontes-vivas-mortas]] sobre por que a confirmação de cachê é rara.
 
 ## Jornada vira a entrada principal — 15/09/2026
 
