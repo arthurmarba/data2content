@@ -3,9 +3,11 @@ import type { DashboardOpportunity } from "./dashboardCatalog";
 
 const base: DashboardOpportunity = {
   id: "x", locked: false, availability: "open", title: "t", brand: "b", summary: "resumo",
-  source: "s", url: "https://exemplo.com/inscricao", territories: [], formats: [],
-  requirements: ["req"], deliverables: ["entrega"], deadline: "2026-09-30", verifiedAt: "2026-09-15",
-  payment: "unknown", minimum: null, compensation: "Cachê individual não confirmado",
+  source: "s", sourceId: "fonte", url: "https://exemplo.com/inscricao", applicationLabel: "Inscrever-se",
+  requiresAccount: true, territories: [], formats: [], platforms: ["Instagram"],
+  requirements: ["req"], deliverables: ["entrega"], evidence: [{ field: "compensation", excerpt: "paga R$ 500" }],
+  deadline: "2026-09-30", verifiedAt: "2026-09-15", discoveredAt: "2026-09-14", publishedAt: null,
+  includesProduct: false, payment: "unknown", minimum: null, compensation: "Cachê individual não confirmado",
 } as DashboardOpportunity;
 
 const make = (over: Partial<DashboardOpportunity>) => ({ ...base, ...over }) as DashboardOpportunity;
@@ -57,11 +59,16 @@ describe("applyOpportunityAccess", () => {
     expect(saida.filter((item) => !item.locked).map((item) => item.id)).toEqual(["a", "b", "c"]);
     const trancada = saida.find((item) => item.id === "d")!;
     expect(trancada.url).toBe("");
+    expect(trancada.applicationLabel).toBe("");
     expect(trancada.summary).toBe("");
     expect(trancada.deliverables).toEqual([]);
     expect(trancada.requirements).toEqual([]);
-    // A prova de que existe continua: marca, título, pagamento e prazo.
+    // As provas da fonte são o briefing em estado bruto: também não saem.
+    expect(trancada.evidence).toEqual([]);
+    // A prova de que existe continua: marca, plataforma, título, pagamento e prazo.
     expect(trancada.brand).toBe("b");
+    expect(trancada.sourceId).toBe("fonte");
+    expect(trancada.platforms).toEqual(["Instagram"]);
     expect(trancada.compensation).toBe(base.compensation);
     expect(trancada.deadline).toBe("2026-09-30");
   });

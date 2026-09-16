@@ -10,6 +10,11 @@ import {
   Play,
   ChevronLeft,
   ChevronRight,
+  Search,
+  DollarSign,
+  Video,
+  Building2,
+  BadgeCheck,
 } from "lucide-react";
 import type { DiagnosticoPageData } from "../boards/videoUpload/diagnosticoPageData";
 import type { DashboardOpportunity } from "@/app/lib/campaignRadar/dashboardCatalog";
@@ -137,6 +142,7 @@ export default function JourneyWorkspace({
   onOpenCreatorMediaKit: (slug: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("perfil");
+  const [promptsOpen, setPromptsOpen] = useState(false);
   useEffect(() => {
     const sync = () => {
       const params = new URLSearchParams(window.location.search);
@@ -160,16 +166,27 @@ export default function JourneyWorkspace({
   return (
     <div className={`j-workspace ${tab === "collabs" ? "j-workspace-collabs" : ""}`}>
       <div className="j-content" key={tab}>
+        {/* O nome do app já está na barra de abas: repetir aqui empurrava o
+            título da aba para baixo sem informar nada. */}
         {tab !== "perfil" && (
           <header className="j-page-heading">
-            <span>data2content</span>
             <h1>{tabs.find((t) => t.id === tab)?.label}</h1>
           </header>
         )}
         {tab === "perfil" && (
           <>
             {profile}
-            <Prompts />
+            {/* Nove carrosséis de pedidos dobravam a altura do Perfil. Viram um
+                card: quem quer pedir algo ao Claude abre a gaveta. */}
+            <button className="j-prompts-card" onClick={() => setPromptsOpen(true)}>
+              <span>Peça ao Claude</span>
+              <strong>{promptCount} pedidos prontos</strong>
+              <span className="j-tool-action">
+                {promptGroups.length} assuntos · copiar e colar
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </span>
+            </button>
+            {promptsOpen && <PromptsDetail onClose={() => setPromptsOpen(false)} />}
           </>
         )}
         {tab === "publis" && (
@@ -222,82 +239,127 @@ export default function JourneyWorkspace({
     </div>
   );
 }
-function Prompts() {
+const promptCount = promptGroups.reduce((total, group) => total + group.prompts.length, 0);
+/** Instrução que vai junto de todo pedido: o Claude responde com o que existe. */
+const PROMPT_FOOTER =
+  "\n\nInforme o período e quantos posts conseguiu analisar. Se faltarem dados, explique. Não invente números ou parcerias.";
+const groupAnchor = (title: string) => `prompt-grupo-${promptGroups.findIndex((group) => group.title === title)}`;
+/**
+ * Gaveta dos pedidos ao Claude. Os dois primeiros grupos ficam em carrossel —
+ * são escolha, e o carrossel mostra o pedido inteiro. Os outros sete viram
+ * lista: com sete carrosséis, achar o sétimo dava sete rolagens.
+ */
+function PromptsDetail({ onClose }: { onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
   const [status, setStatus] = useState("");
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       setStatus("Copiado. Cole na sua conversa com a D2C habilitada.");
     } catch {
-      setStatus(
-        "Não foi possível copiar. Selecione o texto e copie manualmente.",
-      );
+      setStatus("Não foi possível copiar. Selecione o texto e copie manualmente.");
     }
   }
-  return (
-    <div className="j-prompts">
-      <section className="j-meeting">
-        <h2>Seu perfil dentro do Claude.</h2>
-        <p>Configure uma vez. Depois, escolha o que quer pedir.</p>
-        <details>
-          <summary>Como conectar a Data2Content</summary>
-          <ol>
-            <li>
-              No Claude, abra Personalizar → Conectores → Adicionar conector
-              personalizado.
-            </li>
-            <li>Use o nome Data2Content e o endereço abaixo.</li>
-            <li>Conecte sua conta D2C e confira as permissões.</li>
-            <li>Na conversa, habilite a Data2Content em + → Conectores.</li>
-          </ol>
-          <code>https://data2content.ai/api/mcp</code>
-          <button onClick={() => copy("https://data2content.ai/api/mcp")}>
-            Copiar endereço
-          </button>
-        </details>
-      </section>
-      <p role="status" aria-live="polite">
-        {status}
-      </p>
-      {promptGroups.map((group) => (
-        <Carousel key={group.title} title={group.title}>
-          {group.prompts.map((prompt) => (
-            <article className="j-prompt" key={prompt.title}>
-              <h3>{prompt.title}</h3>
-              <p>{prompt.request}</p>
-              <small>{prompt.scope}</small>
-              <div>
-                <button
-                  onClick={() =>
-                    copy(
-                      prompt.title +
-                        "\n\n" +
-                        prompt.request +
-                        "\n\nInforme o período e quantos posts conseguiu analisar. Se faltarem dados, explique. Não invente números ou parcerias.",
-                    )
-                  }
-                >
-                  Copiar pedido
-                </button>
-                <a
-                  href="https://claude.ai/new"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir Claude ↗
-                </a>
-              </div>
-            </article>
-          ))}
-        </Carousel>
-      ))}
+  const actions = (prompt: { title: string; request: string }) => (
+    <div>
+      <button onClick={() => copy(`${prompt.title}\n\n${prompt.request}${PROMPT_FOOTER}`)}>
+        Copiar pedido
+      </button>
+      <a href="https://claude.ai/new" target="_blank" rel="noreferrer">Abrir Claude ↗</a>
     </div>
+  );
+  return (
+    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" aria-label="Pedidos para o Claude">
+      <div className="j-workspace">
+        <header className="j-kit-toolbar">
+          <button onClick={onClose}>← Voltar</button>
+          <strong>Peça ao Claude</strong>
+          <span />
+        </header>
+        <div className="j-content j-prompts">
+          <section className="j-meeting">
+            <h2>Seu perfil dentro do Claude.</h2>
+            <p>Configure uma vez. Depois, escolha o que quer pedir.</p>
+            <details>
+              <summary>Como conectar a Data2Content</summary>
+              <ol>
+                <li>No Claude, abra Personalizar → Conectores → Adicionar conector personalizado.</li>
+                <li>Use o nome Data2Content e o endereço abaixo.</li>
+                <li>Conecte sua conta D2C e confira as permissões.</li>
+                <li>Na conversa, habilite a Data2Content em + → Conectores.</li>
+              </ol>
+              <code>https://data2content.ai/api/mcp</code>
+              <button onClick={() => copy("https://data2content.ai/api/mcp")}>Copiar endereço</button>
+            </details>
+          </section>
+          <p role="status" aria-live="polite">{status}</p>
+          {/* Atalhos por assunto: nove grupos são muitos para rolar às cegas. */}
+          <nav className="j-prompt-jumps" aria-label="Assuntos">
+            {promptGroups.map((group) => (
+              <a key={group.title} href={`#${groupAnchor(group.title)}`}>{group.title}</a>
+            ))}
+          </nav>
+          {promptGroups.slice(0, 2).map((group) => (
+            <section key={group.title} id={groupAnchor(group.title)}>
+              <Carousel title={group.title}>
+                {group.prompts.map((prompt) => (
+                  <article className="j-prompt" key={prompt.title}>
+                    <h3>{prompt.title}</h3>
+                    <p>{prompt.request}</p>
+                    <small>{prompt.scope}</small>
+                    {actions(prompt)}
+                  </article>
+                ))}
+              </Carousel>
+            </section>
+          ))}
+          {promptGroups.slice(2).map((group) => (
+            <section key={group.title} id={groupAnchor(group.title)} className="j-prompt-list">
+              <h2>{group.title}</h2>
+              {group.prompts.map((prompt) => (
+                <details key={prompt.title}>
+                  <summary>{prompt.title}</summary>
+                  <p>{prompt.request}</p>
+                  <small>{prompt.scope}</small>
+                  {actions(prompt)}
+                </details>
+              ))}
+            </section>
+          ))}
+        </div>
+      </div>
+    </dialog>
+  );
+}
+const shortDate = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" }) : null;
+const deadlineLabel = (item: DashboardOpportunity) =>
+  item.deadline ? `Inscrições até ${shortDate(item.deadline)}` : "Prazo a confirmar";
+/** Novidade é dado, não enfeite: só quando o radar achou a chamada nos últimos 3 dias. */
+const isNew = (item: DashboardOpportunity) =>
+  Boolean(item.discoveredAt) && Date.now() - Date.parse(item.discoveredAt!) < 3 * 86400000;
+/** O ícone vem do nosso domínio; se a fonte não tem site, fica a letra dela. */
+function SourceIcon({ item }: { item: DashboardOpportunity }) {
+  const [broken, setBroken] = useState(false);
+  const letter = (item.source || item.brand || "?").slice(0, 1).toUpperCase();
+  return (
+    <span className="j-opportunity-icon" aria-hidden="true">
+      {item.sourceId && !broken ? (
+        <img src={`/api/radar/source-icon/${encodeURIComponent(item.sourceId)}`} alt="" loading="lazy" onError={() => setBroken(true)} />
+      ) : letter}
+    </span>
   );
 }
 function Opportunities({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: (context?: PaywallContext) => void }) {
   const resource = useResource<{ opportunities: DashboardOpportunity[] }>(
     "/api/dashboard/opportunities",
   );
+  const [openId, setOpenId] = useState<string | null>(null);
   const [query, setQuery] = useState(""),
     [source, setSource] = useState(""),
     [territory, setTerritory] = useState(""),
@@ -327,22 +389,34 @@ function Opportunities({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: (conte
   return (
     <section className="j-section" aria-label="Oportunidades">
       <div className="j-search">
-        <input
-          aria-label="Buscar oportunidades"
-          placeholder="Marca, campanha ou tema"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <span className="j-search-field">
+          <input
+            aria-label="Buscar oportunidades"
+            placeholder="Marca, campanha ou tema"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Search size={17} aria-hidden="true" />
+        </span>
         <button
           aria-expanded={filters}
           aria-controls="j-filters"
           onClick={() => setFilters(!filters)}
         >
           <SlidersHorizontal size={17} /> Filtros
-          {source || territory || payment || format || availability || order !== "deadline"
-            ? " •"
-            : ""}
+          {source || territory || format || order !== "deadline" ? " •" : ""}
         </button>
+      </div>
+      {/* Os dois cortes que o criador faz sempre ficam à vista; o resto mora no painel. */}
+      <div className="j-quick-filters">
+        {([
+          ["Todas", !payment && !availability, () => { setPayment(""); setAvailability(""); }],
+          ["Com cachê", payment === "paid", () => { setPayment("paid"); setAvailability(""); }],
+          ["Permuta", payment === "barter", () => { setPayment("barter"); setAvailability(""); }],
+          ["Encerradas", availability === "closed", () => { setAvailability("closed"); setPayment(""); }],
+        ] as const).map(([label, active, apply]) => (
+          <button key={label} aria-pressed={active} onClick={apply}>{label}</button>
+        ))}
       </div>
       {filters && (
         <div id="j-filters" className="j-filters">
@@ -417,39 +491,27 @@ function Opportunities({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: (conte
         <div className="j-opportunities">
           {visible.map((item) => (
             <article key={item.id}>
-              <header className="j-opportunity-brand">
-                <span className="j-opportunity-monogram" aria-hidden="true">{(item.brand || item.source).slice(0, 1).toUpperCase()}</span>
-                <div><strong>{item.brand || item.source}</strong>{item.brand && item.brand !== item.source && <small>{item.source}</small>}</div>
-              </header>
-              <h3 title={item.title}>{item.title}</h3>
-              {/* Pílula = dado (valor, prazo); botão = verbo. Forte só quando o pagamento está definido. */}
-              <div className="j-opportunity-pills">
-                <span className={`j-pill ${item.payment === "unknown" ? "is-soft" : "is-strong"}`} title={item.compensation}>
-                  {item.payment === "unknown" ? "Cachê a confirmar" : item.compensation}
-                </span>
-                <span className="j-pill is-soft">{item.deadline
-                  ? `Inscrições até ${new Date(item.deadline).toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" })}`
-                  : "Prazo a confirmar"}</span>
-              </div>
-              {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}><i aria-hidden="true" />{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
-              {item.locked ? null : <details>
-                <summary>Sobre a oportunidade <span aria-hidden="true">＋</span></summary>
-                <div className="j-opportunity-detail">
-                  <h4>{item.title}</h4>
-                  <p>{item.summary}</p>
-                  {item.formats.length > 0 && <div className="j-chips">{item.formats.map((f) => <span key={f}>{f}</span>)}</div>}
-                  {(item.deliverables.length > 0 || item.requirements.length > 0) && <ul>
-                    {[...item.deliverables, ...item.requirements].map((v, i) => <li key={i}>{v}</li>)}
-                  </ul>}
+              {isNew(item) && <span className="j-opportunity-new">Novo</span>}
+              {/* O cartão inteiro é o alvo de toque: quem lê a linha quer abrir a linha. */}
+              <button className="j-opportunity-open" onClick={() => setOpenId(item.id)}>
+                <SourceIcon item={item} />
+                <div>
+                  <header className="j-opportunity-brand">
+                    <strong>{item.brand || item.source}</strong>
+                    {item.brand && item.brand !== item.source && <small>{item.source}</small>}
+                  </header>
+                  <h3 title={item.title}>{item.title}</h3>
+                  {/* Pílula = dado (valor, prazo); botão = verbo. Forte só quando o pagamento está definido. */}
+                  <div className="j-opportunity-pills">
+                    <span className={`j-pill ${item.payment === "unknown" ? "is-soft" : "is-strong"}`} title={item.compensation}>
+                      {item.payment === "unknown" ? "Cachê a confirmar" : item.compensation}
+                    </span>
+                    <span className="j-pill is-soft">{deadlineLabel(item)}</span>
+                  </div>
+                  {item.availability !== "open" && <small className={`j-opportunity-status ${item.availability === "closed" ? "is-closed" : "is-pending"}`}><i aria-hidden="true" />{item.availability === "closed" ? "Prazo encerrado" : "Confirmar disponibilidade"}</small>}
                 </div>
-              </details>}
-              <footer>
-                {item.locked ? (
-                  <button className="j-primary" onClick={() => onUpgrade("publis")}>Ver com o Pro</button>
-                ) : (
-                  <a className="j-primary" href={item.url} target="_blank" rel="noreferrer">Ver oportunidade ↗</a>
-                )}
-              </footer>
+                <i aria-hidden="true"><ChevronRight size={16} /></i>
+              </button>
             </article>
           ))}
         </div>
@@ -468,7 +530,133 @@ function Opportunities({ isPro, onUpgrade }: { isPro: boolean; onUpgrade: (conte
           <button className="j-primary" onClick={() => onUpgrade("publis")}>Assinar para ver todas</button>
         </section>
       )}
+      {openId && visible.some((item) => item.id === openId) && (
+        <PubliDetail
+          item={visible.find((item) => item.id === openId)!}
+          onClose={() => setOpenId(null)}
+          onUpgrade={onUpgrade}
+        />
+      )}
     </section>
+  );
+}
+/**
+ * Detalhe da publi em tela cheia. A D2C é o radar, não a plataforma: a inscrição
+ * acontece no site de quem publicou, e a ação diz isso em vez de prometer uma
+ * candidatura que não existe aqui dentro.
+ */
+function PubliDetail({
+  item,
+  onClose,
+  onUpgrade,
+}: {
+  item: DashboardOpportunity;
+  onClose: () => void;
+  onUpgrade: (context?: PaywallContext) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+  const pagamento = item.payment === "paid"
+    ? { valor: item.compensation, nota: "Cachê individual confirmado na chamada" }
+    : item.payment === "barter"
+      ? { valor: item.includesProduct ? "Permuta com produto" : "Permuta", nota: "Sem cachê em dinheiro" }
+      : { valor: "Cachê a confirmar", nota: "A chamada não confirma valor individual" };
+  const entregas = item.deliverables[0] ?? (item.formats.length ? item.formats.join(" · ") : null);
+  return (
+    <dialog ref={dialog} onCancel={onClose} className="j-publi-dialog" aria-label="Detalhe da publi">
+      <div className="j-workspace">
+        <header className="j-kit-toolbar">
+          <button onClick={onClose}>← Voltar</button>
+          <strong>Publi</strong>
+          <span />
+        </header>
+        <div className="j-content">
+          <div className="j-publi-head">
+            <SourceIcon item={item} />
+            <div>
+              <small>{item.brand || item.source}</small>
+              <h1>{item.title}</h1>
+              <span className="j-pill is-soft">{deadlineLabel(item)}</span>
+            </div>
+          </div>
+
+          <div className="j-publi-facts">
+            <div className="j-publi-fact">
+              <span><DollarSign size={17} aria-hidden="true" /></span>
+              <div><strong>{pagamento.valor}</strong><small>{pagamento.nota}</small></div>
+            </div>
+            {entregas && (
+              <div className="j-publi-fact">
+                <span><Video size={17} aria-hidden="true" /></span>
+                <div><strong>{entregas}</strong><small>{item.platforms.length ? `no seu ${item.platforms.join(" e ")}` : "formato pedido pela marca"}</small></div>
+              </div>
+            )}
+            <div className="j-publi-fact">
+              <span><Building2 size={17} aria-hidden="true" /></span>
+              <div><strong>{item.source}</strong><small>{item.requiresAccount ? "A inscrição exige conta na plataforma" : "Inscrição aberta no site da plataforma"}</small></div>
+            </div>
+            <div className="j-publi-fact">
+              <span><BadgeCheck size={17} aria-hidden="true" /></span>
+              <div>
+                <strong>Conferida em {shortDate(item.verifiedAt)}</strong>
+                <small>{item.discoveredAt ? `No radar desde ${shortDate(item.discoveredAt)}` : "Entrada no radar não registrada"}</small>
+              </div>
+            </div>
+          </div>
+
+          {item.locked ? (
+            <section className="j-publi-block">
+              <h2>O briefing fica no Pro</h2>
+              <p>Assine para ler o que a marca pede, os requisitos e abrir a inscrição.</p>
+            </section>
+          ) : (
+            <>
+              {item.summary && (
+                <section className="j-publi-block">
+                  <h2>Sobre a oportunidade</h2>
+                  <p>{item.summary}</p>
+                  {item.territories.length > 0 && <div className="j-chips">{item.territories.map((t) => <span key={t}>{t}</span>)}</div>}
+                </section>
+              )}
+              {item.requirements.length > 0 && (
+                <section className="j-publi-block">
+                  <h2>Requisitos da chamada</h2>
+                  <ul>{item.requirements.map((value, index) => <li key={index}>{value}</li>)}</ul>
+                </section>
+              )}
+              {item.deliverables.length > 1 && (
+                <section className="j-publi-block">
+                  <h2>Entregas</h2>
+                  <ul>{item.deliverables.map((value, index) => <li key={index}>{value}</li>)}</ul>
+                </section>
+              )}
+              {item.evidence.length > 0 && (
+                <section className="j-publi-block j-publi-evidence">
+                  <h2>O que a fonte diz</h2>
+                  <p>Trechos do texto original da chamada, sem edição nossa.</p>
+                  {item.evidence.slice(0, 4).map((entry, index) => <blockquote key={index}>{entry.excerpt}</blockquote>)}
+                </section>
+              )}
+            </>
+          )}
+
+          <footer>
+            {item.locked ? (
+              <button className="j-primary" onClick={() => onUpgrade("publis")}>Ver com o Pro</button>
+            ) : (
+              <a className="j-primary" href={item.url} target="_blank" rel="noreferrer">
+                {item.applicationLabel || "Ver no site da plataforma"} ↗
+              </a>
+            )}
+            <small className="j-publi-note">A inscrição acontece no site da {item.source}.</small>
+          </footer>
+        </div>
+      </div>
+    </dialog>
   );
 }
 function Community({

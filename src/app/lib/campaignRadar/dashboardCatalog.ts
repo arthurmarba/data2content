@@ -16,13 +16,27 @@ export async function loadDashboardOpportunities() {
     brand: item.brand,
     summary: item.summary,
     source: item.sourcePlatform,
+    /** Identifica a fonte para o ícone servido por nós. */
+    sourceId: item.sourceId ?? null,
     url: item.applicationUrl || item.sourceUrl,
+    /** "Inscrever-se", "Ver edital" — o verbo que a própria chamada usa. */
+    applicationLabel: item.applicationLabel ?? "",
+    /** Inscrição exige criar conta na plataforma da fonte. */
+    requiresAccount: item.requiresAccount === true,
     territories: item.territories,
     formats: item.formats,
+    /** Instagram, TikTok — onde o conteúdo vai no ar. */
+    platforms: item.platforms ?? [],
     requirements: item.requirements,
     deliverables: item.deliverables,
+    /** Trechos do texto original: a prova de que a chamada existe e não foi inventada. */
+    evidence: (item.evidence ?? []).map((entry) => ({ field: entry.field, excerpt: entry.excerpt })),
     deadline: item.applicationDeadline,
     verifiedAt: item.lastVerifiedAt,
+    /** Quando o radar encontrou a chamada; é daqui que sai o selo "Novo". */
+    discoveredAt: item.discoveredAt ?? null,
+    publishedAt: item.publishedAt ?? null,
+    includesProduct: item.compensation.includesProduct === true,
     payment: isConfirmedIndividualPay(item)
       ? "paid"
       : item.compensation.type === "barter"

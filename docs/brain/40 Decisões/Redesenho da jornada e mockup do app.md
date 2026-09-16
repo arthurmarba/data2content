@@ -160,6 +160,25 @@ Todos os caminhos abaixo são relativos à raiz do repositório:
 
 [[Seu Mapa]] · [[Mídia Kit e Publis]] · [[Collabs]] · [[MCP — ChatGPT e Claude]] · [[Landing e conversão]] · [[Reuniões da comunidade]]
 
+## Perfil: pedidos do Claude viram gaveta — 16/09/2026
+
+- O Perfil terminava com **9 carrosséis e 26 pedidos** mais o bloco de conexão: era a maior seção da tela e a razão de ela não acabar. Virou **um card** ("Peça ao Claude · 26 pedidos prontos · 9 assuntos") que abre detalhe em tela cheia, no mesmo padrão do mídia kit (`dialog`).
+- Dentro da gaveta: conexão com o Claude no topo (fechada em uma linha, é coisa de uma vez só), atalhos por assunto em pílulas, **dois primeiros grupos em carrossel** (ideias e roteiro — são escolha, e o carrossel mostra o pedido inteiro) e os **outros sete em lista** com o pedido dentro de um `<details>`.
+- Por que misturar: carrossel serve para escolher entre poucos e atrapalha para achar entre muitos; com sete carrosséis, achar o sétimo grupo dava sete rolagens. Repetir o mesmo conteúdo em lista **e** carrossel foi descartado — dobra a rolagem sem informar nada.
+- O rodapé que acompanha todo pedido copiado (`PROMPT_FOOTER`) continua igual: pedir período, cobertura e proibir número inventado.
+
+## Publis: lista e detalhe no estilo MIS — 16/09/2026
+
+Referência trazida pelo Arthur (app MIS): lista com logo redondo, selo "Novo", pílula de valor, pílula de prazo, setinha e filtros em pílulas; detalhe com blocos de fato (ícone + valor + legenda), "sobre", requisitos e ação grande no fim.
+
+- **Foto é da plataforma, não da marca:** o modelo tem `brand` só como texto, sem imagem. `sourceIconOrigin` (`src/app/lib/campaignRadar/sourceIcon.ts`) tira o domínio do `creatorEntryUrl` do registro de fontes e `/api/radar/source-icon/[sourceId]` busca o favicon **no nosso servidor**, com cache de borda de uma semana e um pixel transparente como reserva. Assim o navegador de quem usa não avisa ~45 sites que alguém abriu a aba. O endereço é montado na tela sem importar o registro (1.138 linhas de dados que não devem entrar no bundle do app).
+- **Selo "Novo" por dado real:** `discoveredAt` (quando o radar achou), 3 dias. Não existe data de criação na fonte — inventar "novo" por `lastVerifiedAt` seria mentira, porque a verificação se repete.
+- **O catálogo passou a expor** `sourceId`, `platforms`, `applicationLabel`, `requiresAccount`, `discoveredAt`, `publishedAt`, `includesProduct` e `evidence` (trechos do texto original). A consulta já trazia o documento inteiro; era o serviço que descartava. Campos ausentes viram vazio — chamada incompleta não pode derrubar a lista.
+- **Detalhe em tela cheia** (`dialog`, como o mídia kit): topo, quatro blocos de fato (pagamento com a legenda honesta, entregas + rede, plataforma + exigência de conta, verificação com as duas datas), sobre, requisitos, entregas e "O que a fonte diz".
+- **A ação é "ver no site da plataforma", não "tenho interesse".** O MIS é a plataforma; a D2C é o radar. Botão de candidatura aqui dentro prometeria o que não existe.
+- **Descartado do MIS:** porcentagem de match (não temos dado de campanha externa), blocos de direitos/presença (nossas chamadas raramente trazem, e bloco vazio é pior que ausente) e botão desabilitado em cinza (melhor dizer o motivo).
+- **Trancada abre o detalhe também**, com os fatos visíveis e "O briefing fica no Pro" no lugar do resumo. A trava continua no servidor: `applyOpportunityAccess` remove `url`, `applicationLabel`, `summary`, `deliverables`, `requirements` e `evidence`.
+
 ## Publis: 3 livres por cachê, resto no Pro — 15/09/2026
 
 - Decisão do Arthur: quem não assina vê **3 publis completas — as de maior cachê confirmado** — e cada uma segue livre **até o prazo dela vencer**. Encerrada não ocupa vaga; sem três com cachê, completa por prazo mais próximo (`selectFreeOpportunityIds` em `src/app/lib/campaignRadar/opportunityAccess.ts`).

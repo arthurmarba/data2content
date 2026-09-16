@@ -24,8 +24,9 @@ export function selectFreeOpportunityIds(
 
 /**
  * Cadeado na tela sem trava no servidor é enfeite: quem não assina não recebe o
- * link de inscrição nem os detalhes. Marca, título, pagamento e prazo continuam,
- * porque são a prova de que a oportunidade é real.
+ * link de inscrição, o briefing nem as provas da fonte. Marca, plataforma,
+ * título, pagamento e prazo continuam, porque são a prova de que a oportunidade
+ * é real — é isso que dá para mostrar sem entregar o acesso.
  */
 export function applyOpportunityAccess(
   items: DashboardOpportunity[],
@@ -36,6 +37,15 @@ export function applyOpportunityAccess(
   return items.map((item) =>
     livres.has(item.id)
       ? item
-      : { ...item, locked: true, url: "", summary: "", deliverables: [], requirements: [] },
+      : {
+          ...item,
+          locked: true,
+          url: "",
+          applicationLabel: "",
+          summary: "",
+          deliverables: [],
+          requirements: [],
+          evidence: [],
+        },
   );
 }

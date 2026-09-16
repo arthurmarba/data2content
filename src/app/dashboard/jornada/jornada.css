@@ -16,16 +16,10 @@
 .j-page-heading {
   margin-bottom: 28px;
 }
-.j-page-heading > span {
-  font-size: 18px;
-  font-weight: 750;
-  letter-spacing: -0.7px;
-}
 .j-page-heading h1 {
   font-size: 34px;
   font-weight: 650;
   letter-spacing: -1.2px;
-  margin-top: 26px;
 }
 .j-workspace h2 {
   font-size: 22px;
@@ -450,7 +444,6 @@
   }
   .j-page-heading h1 {
     font-size: 29px;
-    margin-top: 22px;
   }
   .j-tools {
     gap: 10px;
@@ -1008,13 +1001,65 @@
 .j-pill.is-strong { background:var(--j-highlight); color:var(--j-highlight-ink); }
 .j-opportunities-locked { margin-top:16px; text-align:center; }
 .j-opportunities-locked .j-primary { margin-top:16px; }
+
+/* Lista de publis: ícone da plataforma, selo de novidade e a linha inteira
+   abrindo o detalhe. O cartão é um botão: o alvo de toque é o card todo. */
+.j-opportunities article { position:relative; padding:0; }
+.j-opportunity-open { display:grid; grid-template-columns:44px minmax(0,1fr) 16px; gap:12px; align-items:start; width:100%; padding:16px; text-align:left; background:none; border:0; }
+.j-opportunity-icon { width:44px; height:44px; border-radius:50%; background:var(--j-inset); display:grid; place-items:center; overflow:hidden; font-size:17px; font-weight:600; }
+.j-opportunity-icon img { width:26px; height:26px; object-fit:contain; }
+.j-opportunity-open > i { align-self:center; color:#8a817b; font-style:normal; }
+.j-opportunity-new { position:absolute; top:-8px; right:14px; z-index:1; padding:2px 9px; border-radius:999px; background:#fbbf24; color:#5b3a02; font-size:11px; font-weight:600; }
+.j-opportunity-open h3 { margin:2px 0 8px; min-height:0; font-size:16px; -webkit-line-clamp:2; }
+.j-opportunity-open .j-opportunity-brand { min-height:0; gap:0; display:block; }
+.j-opportunity-open .j-opportunity-brand small { margin:0; }
+.j-quick-filters { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+.j-quick-filters button { min-height:36px; padding:6px 13px; border:1px solid var(--j-line); border-radius:999px; font-size:12px; background:#fff; }
+.j-quick-filters button[aria-pressed="true"] { background:var(--j-highlight); border-color:var(--j-highlight); color:var(--j-highlight-ink); }
+.j-search-field { position:relative; flex:1; min-width:0; display:flex; }
+.j-search-field input { width:100%; padding-right:40px; }
+.j-search-field > svg { position:absolute; right:13px; top:50%; transform:translateY(-50%); color:#8a817b; pointer-events:none; }
+
+/* Detalhe da publi: tela cheia por cima, com voltar — igual ao mídia kit. */
+.j-publi-dialog { width:100%; max-width:none; height:100dvh; max-height:100dvh; margin:0; padding:0; border:0; background:var(--j-page); }
+.j-publi-dialog::backdrop { background:#201817aa; }
+.j-publi-dialog .j-content { max-width:740px; padding:18px 20px 40px; }
+.j-publi-head { display:grid; grid-template-columns:56px minmax(0,1fr); gap:14px; align-items:start; }
+.j-publi-head .j-opportunity-icon { width:56px; height:56px; }
+.j-publi-head .j-opportunity-icon img { width:32px; height:32px; }
+.j-publi-head h1 { margin:4px 0 10px; font-size:25px; line-height:1.2; letter-spacing:-0.6px; }
+.j-publi-facts { display:grid; gap:10px; margin:22px 0; }
+.j-publi-fact { display:grid; grid-template-columns:38px minmax(0,1fr); gap:12px; align-items:center; padding:14px; border-radius:14px; background:var(--j-card); }
+.j-publi-fact > span:first-child { display:grid; place-items:center; width:38px; height:38px; border-radius:50%; background:var(--j-inset); }
+.j-publi-fact strong { display:block; font-size:15px; font-weight:600; }
+.j-publi-fact small { display:block; margin-top:2px; }
+.j-publi-block { padding:16px; border-radius:14px; background:var(--j-card); margin-bottom:12px; }
+.j-publi-block h2 { font-size:17px; }
+.j-publi-block ul { margin:10px 0 0; padding-left:18px; font-size:13px; line-height:1.55; list-style:disc; }
+.j-publi-block li { margin:6px 0; }
+.j-publi-evidence blockquote { margin:10px 0 0; padding-left:12px; border-left:2px solid var(--j-outline); font-size:13px; line-height:1.5; color:#4a403b; }
+.j-publi-dialog footer { position:sticky; bottom:0; padding:14px 0 calc(6px + env(safe-area-inset-bottom)); background:linear-gradient(to top, var(--j-page) 72%, transparent); }
+.j-publi-note { text-align:center; font-size:12px; margin-top:10px; }
+
+/* Card dos pedidos no Perfil e a gaveta deles. */
+.j-prompts-card { display:grid; width:100%; margin-top:14px; padding:20px; text-align:left; background:var(--j-card); border-radius:18px; }
+.j-prompts-card > span:first-child { font-size:11px; color:#76625c; }
+.j-prompts-card strong { display:block; margin-top:6px; font-size:22px; letter-spacing:-0.6px; }
+.j-prompts-card .j-tool-action { display:flex; align-items:center; gap:6px; margin-top:14px; font-size:12px; font-weight:600; color:var(--j-highlight); }
+.j-prompt-jumps { display:flex; gap:6px; overflow-x:auto; padding:0 0 4px; margin:18px 0 6px; scrollbar-width:thin; }
+.j-prompt-jumps a { flex-shrink:0; padding:6px 12px; border:1px solid var(--j-line); border-radius:999px; font-size:12px; white-space:nowrap; }
+.j-prompt-list { margin-top:22px; }
+.j-prompt-list h2 { font-size:17px; margin-bottom:6px; }
+.j-prompt-list details { border-bottom:1px solid var(--j-line); }
+.j-prompt-list summary { font-size:14px; font-weight:550; padding:14px 0; }
+.j-prompt-list details > div { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:14px; font-size:12px; }
+.j-prompt-list p { margin-top:0; }
 .j-pill.is-soft { padding:4px 10px; background:transparent; border:1px solid var(--j-outline); color:var(--j-tag-ink); }
 
 /* Collabs usa a área disponível entre cabeçalho e navegação. */
 .j-workspace-collabs { height:100dvh; min-height:0; padding-bottom:76px; }
 .j-workspace-collabs > .j-content { height:100%; min-height:0; display:flex; flex-direction:column; padding:14px 18px 8px; }
-.j-workspace-collabs .j-page-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.j-workspace-collabs .j-page-heading > span { font-size:14px; }
+.j-workspace-collabs .j-page-heading { margin-bottom:8px; }
 .j-workspace-collabs .j-page-heading h1 { margin:0; font-size:25px; }
 .j-collabs-board { display:flex; flex-direction:column; flex:1; min-height:0; position:relative; }
 .j-collabs-settings { flex-shrink:0; font-size:12px; }
@@ -1051,14 +1096,12 @@
 .j-workspace .j-chips span, .j-workspace .ds-profile-subject { background:transparent; border:1px solid var(--j-outline); color:var(--j-tag-ink); }
 .j-workspace :is(.j-search input, .j-search select, .j-filters select) { background:#fff; border-color:var(--j-line); }
 .j-workspace .ds-profile-waiting { border-style:solid; }
-.j-workspace-collabs .j-page-heading > span { display:none; }
 /* Mídia kit é vitrine para marca: segue branco, com contorno. */
 .j-kit-dialog .j-workspace, .j-kit-inline .j-workspace { --j-line:#e5dcd4; --j-page:#fff; --j-card:#fff; --j-inset:#f1eeeb; --ds-color-neutral:#f1eeeb; background:#fff; }
 .j-kit-dialog :is(.j-meeting, .j-chips span), .j-kit-inline :is(.j-meeting, .j-chips span) { border-color:var(--j-line); }
 .j-kit-dialog .j-kit-contact, .j-kit-inline .j-kit-contact { background:#f5f2ed; }
 @media(max-height:650px) {
- .j-workspace-collabs .j-page-heading > span { display:none; }
- .j-workspace-collabs .d2c-flashcard-title { font-size:22px !important; }
+  .j-workspace-collabs .d2c-flashcard-title { font-size:22px !important; }
 }
 @media print {
  body:has(.j-kit-dialog[open]) * { visibility:hidden; }
