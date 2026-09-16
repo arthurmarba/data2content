@@ -29,6 +29,11 @@ Ou seja: a métrica passa no teste **global** e é inútil **por coorte**. Com a
 - `analysedPosts` agora vem do motor (posts distintos por dimensão) e `patternHighlights` usa ele, mantendo a soma antiga só como reserva para relatórios já congelados.
 - Regressão travada em `engine.test.ts`: 17 reels de mediana zero + 1 foto → régua vira `views` e o índice passa de 1; e coorte de 2 posts não gera índice. Cenário de 2 posts do teste de assuntos cresceu para 3 pelo mesmo motivo.
 - **Relatórios já gravados não mudam sozinhos:** o snapshot da semana é congelado. Para ver o efeito é preciso regerar (`POST /api/dashboard/mobile-strategic-profile/weekly-report`) ou esperar o fechamento da próxima semana.
+- **Regerar exige `{"force": true}` no corpo.** Sem isso, `service.ts:108` compara a `sourceRevision` e, como os posts não mudaram, devolve a foto gravada — a rota responde `ok: true` com o `generatedAt` antigo e parece que regerou. Sintoma de que veio a foto velha: `comparisonMetric` ainda `shares` e `analysedPosts` ausente.
+
+## Resultado na conta do Arthur (16/09/2026, após regerar com force)
+
+Régua virou `saved` (salvamentos) — nos reels a mediana de `shares` é zero, a de `saved` não. **10 das 13 dimensões passaram a ter resposta** e a gaveta caiu de 11 para 2 padrões em espera. Exemplos: enquadramento "plano aberto" 5,0×, elenco "parceiro em cena" 5,0×, clima "com música" 5,0×, dia "sábado" 3,5×, cenário "estabelecimento" 3,0×. Ficaram sem resposta apenas tom e jeito de começar (topo exatamente 1,00). A contagem de posts lidos passou a bater com a realidade (18, 17, 15, 11 por dimensão, não mais 59).
 
 ## Bônus: o "posts lidos" da gaveta é inflado
 
