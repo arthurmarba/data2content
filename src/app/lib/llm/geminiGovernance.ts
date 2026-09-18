@@ -26,6 +26,8 @@ export class GeminiGovernanceError extends Error {
   }
 }
 type Rates = { inputUsdPerMillion: number; outputUsdPerMillion: number };
+/** O que fica reservado antes do envio: identidade da operação e o dinheiro apartado. */
+export type Reserva = { id: string; rates?: Rates; reservedMicros: number; bucketIds: string[] };
 export function estimatedMicros(inputTokens: number, outputTokens: number, rates: Rates): number {
   if (![inputTokens, outputTokens, rates.inputUsdPerMillion, rates.outputUsdPerMillion].every(n => Number.isFinite(n) && n >= 0)) throw new Error("Tarifa ou contagem inválida");
   const value = Math.ceil(inputTokens * rates.inputUsdPerMillion + outputTokens * rates.outputUsdPerMillion);
@@ -57,6 +59,16 @@ export async function governedGenerateContent(ai: GoogleGenAI, request: Generate
   if (existing && existing.attempts >= (scope.maxAttempts ?? 3)) throw new GeminiGovernanceError("gemini_result_unknown", "Limite de rejeições atingido; exige revisão.");
   if (existing && existing.fingerprint !== fingerprint) return replay(existing, fingerprint);
 
+  const { reserva } = await reserveOperation({ ai, request, tag, scope, id, fingerprint, existing });
+  return executeAndSettle(ai, request, tag, scope, reserva);
+}
+
+/** Reserva contábil + registro da intenção. Usada pelo tempo real e pelo envio em lote. */
+async function reserveOperation(params: {
+  ai: GoogleGenAI; request: GenerateContentParameters; tag: string; scope: Context;
+  id: string; fingerprint: string; existing: any; batchJobName?: string;
+}): Promise<{ reserva: Reserva }> {
+  const { ai, request, tag, scope, id, fingerprint, existing } = params;
   const policy = await GeminiBudgetPolicy.findById(scope.budgetPolicyId ?? "automatic").lean();
   if (scope.budgetPolicyId && !policy?.enabled) throw new GeminiGovernanceError("gemini_budget_deferred", "Experimento sem orçamento ativo.");
   let reservedMicros = 0;
@@ -97,13 +109,23 @@ export async function governedGenerateContent(ai: GoogleGenAI, request: Generate
         const reserved = await GeminiBudgetBucket.updateOne({ _id: bucketId, allocatedMicros: { $lte: Number(limit) - reservedMicros } }, { $inc: { allocatedMicros: reservedMicros } }, { session });
         if (reserved.matchedCount !== 1) throw new GeminiGovernanceError("gemini_budget_deferred", "Limite diário atingido; leitura aguardando orçamento.");
       }
-      await Operation.create([{ _id: id, ...scope, fingerprint, tag, model: request.model, state: "started", attempts: (existing?.attempts ?? 0) + 1, reservedMicros, rates, bucketIds }], { session });
+      await Operation.create([{ _id: id, ...scope, fingerprint, tag, model: request.model, state: "started", attempts: (existing?.attempts ?? 0) + 1, reservedMicros, rates, bucketIds, batchJobName: params.batchJobName ?? null }], { session });
     });
   } catch (error: any) {
     if (error?.code === 11000) throw new GeminiGovernanceError("gemini_result_unknown", "Solicitação já reservada por outra execução.");
     throw error;
   } finally { await session.endSession(); }
+  return { reserva: { id, rates, reservedMicros, bucketIds } };
+}
 
+/**
+ * Chama o modelo e quita a reserva. Separado do registro de propósito: o envio em lote
+ * reserva agora e quita horas depois, na coleta, com a resposta que o job devolver.
+ */
+async function executeAndSettle(
+  ai: GoogleGenAI, request: GenerateContentParameters, tag: string, scope: Context, reserva: Reserva,
+): Promise<GenerateContentResponse> {
+  const { id, rates, reservedMicros, bucketIds } = reserva;
   let response: GenerateContentResponse;
   try {
     response = await ai.models.generateContent({ ...request, config: { ...request.config, httpOptions: { ...request.config?.httpOptions, retryOptions: { attempts: 1 } } } });
@@ -126,9 +148,23 @@ export async function governedGenerateContent(ai: GoogleGenAI, request: Generate
     }
     throw new GeminiGovernanceError("gemini_result_unknown", "Envio interrompido ou recusado; resultado precisa de revisão.");
   }
+  await settleReserva(reserva, tag, request.model, scope, response);
+  return response;
+}
+
+/**
+ * Quita a reserva: comprovante na operação e acerto do que foi apartado no balde.
+ *
+ * Um caminho só para tempo real e lote — dois caminhos de cobrança seriam duas chances
+ * de pagar duas vezes pelo mesmo conteúdo.
+ */
+async function settleReserva(
+  reserva: Reserva, tag: string, model: string, scope: Context, response: GenerateContentResponse,
+): Promise<void> {
+  const { id, rates, reservedMicros, bucketIds } = reserva;
   // Persiste apenas campos consumidos, sem candidatos multimodais potencialmente enormes.
   const receipt = { text: response.text ?? "", usageMetadata: response.usageMetadata, candidates: [{ finishReason: response.candidates?.[0]?.finishReason }] };
-  logGeminiUsage(tag, request.model, response, { operationId: id, creatorId: scope.creatorId, contentKey: scope.contentKey });
+  logGeminiUsage(tag, model, response, { operationId: id, creatorId: scope.creatorId, contentKey: scope.contentKey });
   const settle = await Operation.db.startSession();
   try {
     await settle.withTransaction(async () => {
@@ -142,5 +178,40 @@ export async function governedGenerateContent(ai: GoogleGenAI, request: Generate
   } catch {
     throw new GeminiGovernanceError("gemini_result_unknown", "Resposta recebida, mas o comprovante não pôde ser salvo; não reenviar.");
   } finally { await settle.endSession(); }
-  return response;
+}
+
+/**
+ * Reserva para um item que vai num job de lote: registra a intenção e aparta o dinheiro
+ * agora, sem chamar o modelo. A resposta chega horas depois, na coleta.
+ */
+export async function reserveBatchOperation(
+  ai: GoogleGenAI, request: GenerateContentParameters, tag: string, scope: Context, batchJobName: string,
+): Promise<Reserva> {
+  await connectToDatabase();
+  const id = governanceHash([scope.creatorId, scope.contentKey, tag]);
+  const fingerprint = governanceHash([scope.fingerprint, request.model]);
+  const existing = await Operation.findById(id).lean();
+  if (existing && !(existing.state === "rejected" && existing.retryAt && existing.retryAt <= new Date())) {
+    throw new GeminiGovernanceError("gemini_result_unknown", "Conteúdo já tem operação registrada; não enviar ao lote.");
+  }
+  if (existing && existing.attempts >= (scope.maxAttempts ?? 3)) {
+    throw new GeminiGovernanceError("gemini_result_unknown", "Limite de rejeições atingido; exige revisão.");
+  }
+  const { reserva } = await reserveOperation({ ai, request, tag, scope, id, fingerprint, existing, batchJobName });
+  return reserva;
+}
+
+/** Coleta: a resposta do job vira comprovante pela mesma porta do tempo real. */
+export async function settleBatchOperation(
+  reserva: Reserva, tag: string, model: string, scope: Context, response: GenerateContentResponse,
+): Promise<void> {
+  await settleReserva(reserva, tag, model, scope, response);
+}
+
+/** Item do job sem resposta utilizável: rejeita para a repescagem tentar de novo. */
+export async function rejectBatchOperation(id: string, motivo: string, retryEmMs: number, mensagem?: string): Promise<void> {
+  await Operation.updateOne({ _id: id, state: "started" }, { $set: {
+    state: "rejected", reason: motivo.slice(0, 120), retryAt: new Date(Date.now() + retryEmMs),
+    error: (mensagem ?? "").slice(0, 300) || null,
+  } });
 }

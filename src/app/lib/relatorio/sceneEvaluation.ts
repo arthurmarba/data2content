@@ -39,6 +39,7 @@ import {
   createPartFromUri,
   createUserContent,
   type PartMediaResolutionLevel,
+  type ThinkingLevel,
 } from "@google/genai";
 import { logger } from "@/app/lib/logger";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "@/app/dashboard/boards/videoUpload/videoNarrativeGeminiInlineLimit";
@@ -479,12 +480,14 @@ export function parseSceneEvaluation(
 async function waitForFileReady(
   ai: GoogleGenAI,
   file: { name?: string; uri?: string; mimeType?: string; state?: string },
-): Promise<{ uri: string; mimeType: string }> {
+): Promise<{ uri: string; mimeType: string; name: string | null }> {
   let current = file;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     if (current.state === "FAILED") throw new Error("gemini_file_processing_failed");
     if (current.state === "ACTIVE" && current.uri) {
-      return { uri: current.uri, mimeType: current.mimeType ?? "video/mp4" };
+      // O nome vai junto porque a coleta do lote precisa apagar o arquivo — só depois
+      // que o job termina, nunca antes.
+      return { uri: current.uri, mimeType: current.mimeType ?? "video/mp4", name: current.name ?? null };
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
     if (!current.name) break;
@@ -498,11 +501,12 @@ async function waitForFileReady(
  * por um temporário — mesmo padrão já usado em geminiVideoNarrativeClientFactory.
  * O temporário é removido sempre, inclusive em erro.
  */
-async function uploadVideo(
+/** Exportado para o envio em lote reusar a espera por ACTIVE e as tentativas. */
+export async function uploadVideo(
   ai: GoogleGenAI,
   bytes: Buffer,
   mimeType: string,
-): Promise<{ uri: string; mimeType: string }> {
+): Promise<{ uri: string; mimeType: string; name: string | null }> {
   const tempPath = path.join(os.tmpdir(), `d2c-cena-${randomUUID()}.${mimeType.startsWith("image/") ? "img" : "mp4"}`);
   try {
     await fs.writeFile(tempPath, bytes);
@@ -639,7 +643,7 @@ async function evaluateImagesInternal(
     const response = await governedGenerateContent(ai, {
       model, contents: createUserContent([prompt.user, prompt.format, instruction, ...parts]),
       // Mesma regra do vídeo: o orçamento numérico só vale no 2.5; os 3.x pedem nível.
-      config: { systemInstruction: prompt.system, thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "low" }, responseMimeType: "application/json", temperature: 0, maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS },
+      config: { systemInstruction: prompt.system, thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "LOW" as ThinkingLevel }, responseMimeType: "application/json", temperature: 0, maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS },
     }, "cena");
     const parsed = parseSceneEvaluation(response.text, profile);
     const slides = parsed?.slides;
@@ -719,7 +723,8 @@ export function speechLooksHealthy(text: string | null, durationSeconds: number 
  * só fica se passar no teste de loop. Sem transcrição, a evidência publicada registra
  * a fala como indisponível em vez de guardar repetição como se fosse o roteiro.
  */
-function salvageSceneEvaluation(
+/** Exportado para a coleta do lote aproveitar resposta cortada, como o tempo real. */
+export function salvageSceneEvaluation(
   text: string | undefined,
   profile: MapProfile,
   durationSeconds: number | null,
@@ -810,7 +815,7 @@ async function evaluateSceneInternal(
           // Obrigatório no 2.5-flash: sem teto, os tokens de raciocínio dominam a conta.
           // Os modelos 3.x recusam o orçamento numérico com 400 INVALID_ARGUMENT e pedem
           // thinkingLevel — medido em 18/09/2026 no gemini-3.5-flash-lite.
-          thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "low" },
+          thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "LOW" as ThinkingLevel },
           responseMimeType: "application/json",
           temperature,
           maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS,

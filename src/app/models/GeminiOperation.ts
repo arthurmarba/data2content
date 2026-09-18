@@ -18,6 +18,8 @@ const schema = new Schema({
   /** Mensagem crua do provedor na recusa — sem ela, "sem saldo" e limite de taxa
    *  ficam indistinguíveis no recibo (18/09/2026). */
   error: String,
+  /** Job do lote que carrega este item, quando a leitura não foi em tempo real. */
+  batchJobName: { type: String, default: null },
   retryAt: Date,
   bucketIds: [String],
   reservedMicros: { type: Number, default: 0 },

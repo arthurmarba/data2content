@@ -218,6 +218,16 @@ resultado, correspondência por `key`, `usageMetadata` por item e se o preço ap
 desconto. Comparar as leituras com as já salvas desses posts (mesmo critério da oscilação
 natural medida em 14/09: elementos do mapa 97,5% iguais entre duas leituras normais).
 
+**1. Leitura publicada em lote — construída em 18/09/2026.** Peças:
+`lib/relatorio/batchReadings.ts` (envio e coleta), `api/cron/batch-readings/route.ts`
+(coleta primeiro, envia depois), `models/GeminiBatchJob.ts`, estado `batched` em
+`contentReadingState` (`markBatched`/`releaseBatched`),
+`lib/relatorio/persistPublishedReading.ts` (gravação compartilhada com o worker) e, na
+governança, `reserveBatchOperation`/`settleBatchOperation`/`rejectBatchOperation` — a
+reserva e a quitação viraram funções próprias, sem segundo caminho de cobrança.
+Agendado a cada 30 min; liberado por `GEMINI_BATCH_READINGS` (`off` no `.env.local`).
+Detalhe do desenho original abaixo:
+
 **1. Leitura publicada em lote.** Cron de envio/coleta, estado `batched`, operação
 vinculada ao job, regra do prazo de domingo, serviço de persistência. Liberação por flag
 `GEMINI_BATCH_READINGS` = `off` → `backlog` (só repescagem e posts com mais de 3 dias) →

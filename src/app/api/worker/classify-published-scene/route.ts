@@ -1,6 +1,5 @@
 import { readingRevision, VISUAL_READING_REVISION } from "@/app/lib/relatorio/readingRevision";
 import { freshPublishedMedia } from '@/app/lib/relatorio/publishedMedia';
-import { enqueueProfileRefresh, enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
 /**
  * POST /api/worker/classify-published-scene
  *
@@ -33,10 +32,9 @@ import {
   SCENE_EVALUATION_VERSION,
   evaluateImagesAgainstMap,
   evaluateSceneAgainstMap,
-  sceneElementsUpdate,
 } from "@/app/lib/relatorio/sceneEvaluation";
 import { upsertPublishedContentEvidence } from "@/app/lib/scripts/publishedContentEvidence";
-import { enqueueScriptEvidenceMaintenance } from "@/app/lib/scripts/scriptEvidenceQueue";
+import { persistPublishedReading } from "@/app/lib/relatorio/persistPublishedReading";
 import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
 import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, markGeminiHealthy } from "@/app/lib/relatorio/contentReadingState";
 
@@ -71,11 +69,7 @@ async function processReading(metricId: string, lease: { token: string; result: 
     return NextResponse.json({ ok: true, message: "Cena já avaliada nesta versão." });
   }
   if (lease.result) {
-    await upsertPublishedContentEvidence({ metricId, scene: lease.result });
-    await MetricModel.updateOne({ _id: metric._id }, { $set: { sceneElements: sceneElementsUpdate(lease.result as any) } });
-    await enqueueScriptEvidenceMaintenance(String(metric.user));
-    await enqueueProfileRefresh(String(metric.user));
-    await enqueueInstagramMapEnrichment(String(metric.user));
+    await persistPublishedReading({ metricId, creatorId: String(metric.user), scene: lease.result as any });
     return NextResponse.json({ ok: true, recoveredFromCheckpoint: true });
   }
   if (!metric.instagramMediaId) {
@@ -160,13 +154,7 @@ async function processReading(metricId: string, lease: { token: string; result: 
     );
   }
 
-  await MetricModel.updateOne(
-    { _id: metric._id },
-    { $set: { sceneElements: sceneElementsUpdate(outcome.result) } },
-  );
-  await enqueueScriptEvidenceMaintenance(String(metric.user));
-  await enqueueProfileRefresh(String(metric.user));
-  await enqueueInstagramMapEnrichment(String(metric.user));
+  await persistPublishedReading({ metricId, creatorId: String(metric.user), scene: outcome.result });
 
   logger.info(
     `${TAG} ${metricId}: ${outcome.result.assetRoleIds.join(", ") || "(nenhum asset)"} · ` +

@@ -52,6 +52,28 @@ export async function finishReading(metricId: string, token: string, error?: str
   } });
   if (failure?.reason === "provider_balance") await pauseGemini();
 }
+/**
+ * Item entregue a um job de lote: solta a posse e some dos seletores de pendentes até
+ * o prazo do provedor (o `findPendingReadingBatch` já ignora quem tem próxima tentativa
+ * no futuro). Sem isso, o tempo real leria o mesmo post e pagaríamos duas vezes.
+ */
+export async function markBatched(metricId: string, token: string, jobName: string, expiresAt: Date) {
+  const saved = await State.updateOne({ _id: metricId, leaseToken: token, state: "processing" }, { $set: {
+    state: "batched", reason: "batched", lastError: null, batchJobName: jobName,
+    leaseUntil: EPOCH, leaseToken: null, nextAttemptAt: expiresAt,
+  } });
+  if (saved.matchedCount !== 1) throw new Error("reading_lease_lost");
+}
+
+/** Job morto (expirado, cancelado ou item sem resposta): volta para a fila normal. */
+export async function releaseBatched(metricIds: string[], motivo = "batch_incompleto") {
+  if (!metricIds.length) return 0;
+  const soltos = await State.updateMany({ _id: { $in: metricIds }, state: "batched" }, { $set: {
+    state: "deferred", reason: motivo, batchJobName: null, nextAttemptAt: EPOCH, leaseUntil: EPOCH, leaseToken: null,
+  } });
+  return soltos.modifiedCount;
+}
+
 export async function pauseGemini() {
   await connectToDatabase();
   await ensure("provider:gemini", "v1");

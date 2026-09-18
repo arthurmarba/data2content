@@ -4,6 +4,8 @@ export interface ContentReadingStateRecord {
   _id: string; revision: string; state: string; attempts: number;
   lastError?: string | null; reason: string | null; nextAttemptAt: Date; leaseUntil: Date;
   leaseToken: string | null; result: Record<string, any> | null; updatedAt: Date;
+  /** Job do lote que ficou com este item, enquanto o estado for "batched". */
+  batchJobName?: string | null;
 }
 const schema = new Schema<ContentReadingStateRecord>({
   _id: { type: String, required: true }, revision: { type: String, required: true },
@@ -13,6 +15,7 @@ const schema = new Schema<ContentReadingStateRecord>({
   nextAttemptAt: { type: Date, default: () => new Date(0) },
   leaseUntil: { type: Date, default: () => new Date(0) },
   leaseToken: { type: String, default: null }, result: { type: Schema.Types.Mixed, default: null },
+  batchJobName: { type: String, default: null },
 }, { timestamps: true, collection: "content_reading_states" });
 schema.index({ state: 1, nextAttemptAt: 1 });
 export default (mongoose.models.ContentReadingState as mongoose.Model<ContentReadingStateRecord>)

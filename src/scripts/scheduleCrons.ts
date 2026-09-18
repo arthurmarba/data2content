@@ -78,6 +78,16 @@ const CRONS = [
     method: 'POST',
     body: '[CONTENT_INTELLIGENCE] Recuperar classificações e leituras de vídeo pendentes dos assinantes',
   },
+  {
+    // Envia e coleta leituras em lote (metade do preço). A cada 30 min porque o job
+    // volta em minutos: esperar mais só atrasaria mapa e perfil sem economizar nada.
+    // Desligado por padrão — quem manda é GEMINI_BATCH_READINGS na Vercel.
+    id: 'leituras-em-lote',
+    destination: 'https://data2content.ai/api/cron/batch-readings',
+    cron: '*/30 * * * *',
+    method: 'POST',
+    body: '[LOTE] Enviar e coletar leituras publicadas na Batch API',
+  },
   // O mês grátis do d2cVIP é cupom, não trial — o Stripe não manda o aviso de
   // "seu teste está acabando". Sem este job a primeira cobrança chega em
   // silêncio, um mês depois da pessoa ter visto R$ 0,00 na tela. Diário porque
