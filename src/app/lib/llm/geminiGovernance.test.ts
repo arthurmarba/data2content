@@ -121,6 +121,15 @@ it("saldo esgotado mantém motivo próprio para pausar o provedor", async () => 
   await expect(run()).rejects.toThrow("gemini_provider_balance");
   expect(generateContent).toHaveBeenCalledTimes(1);
 });
+it("limite de taxa não vira falta de saldo, e a mensagem do provedor fica no recibo", async () => {
+  // Em 18/09/2026 uma rajada de cron devolveu quota esgotada com a palavra "billing" na
+  // mensagem: a fila inteira foi pausada por seis horas com dinheiro na conta.
+  generateContent.mockRejectedValue({ status: 429, message: "Quota exceeded for quota metric 'Generate requests'; check your billing plan" });
+  await expect(run()).rejects.toThrow("gemini_provider_rejected");
+  const operation = await Operation.findOne({}).lean();
+  expect(operation?.reason).toBe("HTTP 429");
+  expect(operation?.error).toContain("Quota exceeded");
+});
 it("permite limite apenas global, sem impor cota por criador", async () => {
   await budget();
   await GeminiBudgetPolicy.updateOne({ _id: "automatic" }, { $unset: { creatorDailyMicros: 1 } });

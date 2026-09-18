@@ -15,6 +15,9 @@ const schema = new Schema({
   outcome: { type: String, enum: ["complete", "partial", "unusable"] },
   attempts: { type: Number, default: 1 },
   reason: String,
+  /** Mensagem crua do provedor na recusa — sem ela, "sem saldo" e limite de taxa
+   *  ficam indistinguíveis no recibo (18/09/2026). */
+  error: String,
   retryAt: Date,
   bucketIds: [String],
   reservedMicros: { type: Number, default: 0 },

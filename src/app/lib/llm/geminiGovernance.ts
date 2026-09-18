@@ -108,14 +108,20 @@ export async function governedGenerateContent(ai: GoogleGenAI, request: Generate
   try {
     response = await ai.models.generateContent({ ...request, config: { ...request.config, httpOptions: { ...request.config?.httpOptions, retryOptions: { attempts: 1 } } } });
   } catch (error: any) {
-    if (Number(error?.status) >= 400 && /prepayment.*depleted|insufficient.*credit|billing|payment required/i.test(String(error?.message))) {
-      await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 6 * 3600000), reason: "saldo" } });
+    // A mensagem crua é a única prova de POR QUE a chamada caiu: sem ela, em 18/09/2026
+    // um limite de taxa em rajada de cron virou "sem saldo" e pausou a fila inteira por
+    // seis horas, com dinheiro na conta e o modelo respondendo normalmente.
+    const mensagem = String(error?.message ?? "");
+    const semSaldo = /prepayment credits? (?:are )?depleted|insufficient (?:prepaid )?credits?|billing (?:account )?(?:is )?(?:disabled|not enabled|required)|payment required/i.test(mensagem)
+      && !/quota|rate.?limit|resource_exhausted/i.test(mensagem);
+    if (Number(error?.status) >= 400 && semSaldo) {
+      await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 6 * 3600000), reason: "saldo", error: mensagem.slice(0, 300) } });
       throw new GeminiGovernanceError("gemini_provider_balance", "Provedor sem saldo; aguardar recuperação.");
     }
     // Só uma rejeição HTTP explícita é elegível. Timeout/abort não prova ausência de uso.
     if ([429, 503].includes(Number(error?.status))) {
       // Mantém a reserva: uma rejeição não é prova contábil de custo zero.
-      await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 30 * 60000), reason: `HTTP ${error.status}` } });
+      await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 30 * 60000), reason: `HTTP ${error.status}`, error: mensagem.slice(0, 300) } });
       throw new GeminiGovernanceError("gemini_provider_rejected", `HTTP ${error.status}; aguardar antes de nova tentativa.`);
     }
     throw new GeminiGovernanceError("gemini_result_unknown", "Envio interrompido ou recusado; resultado precisa de revisão.");
