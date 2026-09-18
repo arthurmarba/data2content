@@ -6,7 +6,7 @@
 import { enviarLoteDeLeituras, coletarLotes } from "./batchReadings";
 import BatchJob from "@/app/models/GeminiBatchJob";
 import { rejectBatchOperation, settleBatchOperation } from "@/app/lib/llm/geminiGovernance";
-import { releaseBatched, markBatched, finishReading } from "./contentReadingState";
+import { releaseBatched, markBatched, deferReading } from "./contentReadingState";
 import { persistPublishedReading } from "./persistPublishedReading";
 
 const criarJob = jest.fn();
@@ -35,7 +35,7 @@ jest.mock("@/app/models/User", () => ({ __esModule: true, default: {
 jest.mock("./contentReadingState", () => ({
   findPendingReadingBatch: jest.fn(async () => [{ _id: "post1", user: "criador1", type: "REEL", stats: { video_duration_seconds: 30 }, instagramMediaId: "ig1" }]),
   acquireReading: jest.fn(async () => ({ token: "posse", result: null })),
-  markBatched: jest.fn(), releaseBatched: jest.fn(async () => 1), finishReading: jest.fn(),
+  markBatched: jest.fn(), releaseBatched: jest.fn(async () => 1), deferReading: jest.fn(),
 }));
 jest.mock("./mapProfiles", () => ({ loadMapProfiles: jest.fn(async () => new Map([["criador1", { creatorId: "criador1", assets: [], toneIds: [], subjects: [], territoryIds: [], primaryTerritoryId: null, narrative: null, narrativeConfirmed: false, misplacedTerritoryLabels: [], maturity: null }]])) }));
 jest.mock("./publishedMedia", () => ({ freshPublishedMedia: jest.fn(async () => ({ mediaType: "VIDEO", mediaUrl: "https://video", imageUrls: [], items: [] })) }));
@@ -81,7 +81,8 @@ it("job que não nasce devolve os itens à fila e solta a reserva", async () => 
   const saida = await enviarLoteDeLeituras(["criador1" as any]);
   expect(saida.enviados).toBe(0);
   expect(rejectBatchOperation).toHaveBeenCalledWith("op1", "lote_nao_criado", expect.any(Number), "provedor recusou");
-  expect(finishReading).toHaveBeenCalledWith("post1", "posse", "provedor recusou");
+  // Adiar, não aposentar: ninguém pagou nada e o post continua legível.
+  expect(deferReading).toHaveBeenCalledWith("post1", "posse", "lote_nao_criado", expect.any(Number));
   expect(apagarArquivo).toHaveBeenCalledWith({ name: "files/arquivo1" });
   expect(markBatched).not.toHaveBeenCalled();
 });

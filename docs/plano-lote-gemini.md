@@ -238,6 +238,28 @@ vinculada ao job, regra do prazo de domingo, serviço de persistência. Liberaç
 enriquecimento) e alimenta o resumo do mapa de segunda 08:00; o prazo de domingo vale
 igual. Só depois de a fase 1 estabilizar.
 
+## Primeiro ciclo real em produção (18/09/2026, modo `backlog`)
+
+Job com 2 Reels: `JOB_STATE_SUCCEEDED`, respostas com os códigos do mapa e transcrição,
+coleta gravou as duas leituras. Ciclo seguinte enviou 10. O caminho completo — seleção,
+Files API, job, coleta, evidência, `sceneElements`, filas de perfil e mapa — está provado
+ponta a ponta.
+
+Três aprendizados do primeiro ciclo:
+
+- **Preparo não é leitura.** Falha ao baixar a mídia ou reserva recusada passava por
+  `classifyReadingFailure` e chegou a marcar um post bom como "não suportado" por 30
+  dias. Agora existe `deferReading`: adia sem julgar a mídia.
+- **Intenção registrada sem resposta trava o conteúdo.** Havia 88 operações `started`
+  sem nenhum registro de uso (a mais antiga de 15/09) — todas bloqueavam tanto o tempo
+  real quanto o lote, porque a regra de pagamento único recusa reenviar. A rota do lote
+  passou a reconciliar isso a cada execução (`reconcileStuckOperations`), e só libera o
+  que comprovadamente não gerou uso.
+- **O Instagram recusa em rajada.** 22 dos 25 primeiros itens voltaram `HTTP 400` ao
+  buscar a mídia fresca — 25 chamadas em segundos, concorrendo com o tempo real. A
+  mensagem crua do Graph passou a ser guardada para parar de adivinhar; se persistir,
+  espaçar as chamadas ou reduzir o teto por job.
+
 ## Medição
 
 - Custo por leitura útil antes e depois, pelas operações (tarifa de lote registrada).

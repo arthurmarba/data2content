@@ -17,6 +17,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
 import { enviarLoteDeLeituras, coletarLotes, modoLote } from "@/app/lib/relatorio/batchReadings";
+import { reconcileStuckOperations } from "@/app/lib/llm/geminiGovernance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,9 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectToDatabase();
+    // Intenção registrada sem resposta trava o conteúdo para sempre — e a trava de
+    // pagamento único recusa reenviar. Reconcilia antes de escolher candidatos.
+    const liberadas = await reconcileStuckOperations("cena", 2);
     // Coleta antes de enviar: item que falhou volta a ser candidato na mesma execução.
     const coleta = await coletarLotes();
 
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     ).lean().exec()) as unknown as Array<{ _id: Types.ObjectId }>;
 
     const envio = await enviarLoteDeLeituras(assinantes.map(user => user._id));
-    const resultado = { modo: modoLote(), assinantes: assinantes.length, coleta, envio };
+    const resultado = { modo: modoLote(), assinantes: assinantes.length, liberadas, coleta, envio };
     logger.info(`${TAG} ${JSON.stringify(resultado)}`);
     return NextResponse.json(resultado);
   } catch (error) {

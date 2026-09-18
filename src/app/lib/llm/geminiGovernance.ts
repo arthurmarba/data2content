@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import Operation from "@/app/models/GeminiOperation";
 import { GeminiBudgetBucket, GeminiBudgetPolicy } from "@/app/models/GeminiBudget";
 import { logGeminiUsage } from "./geminiUsageLog";
+import UsageLog from "@/app/models/GeminiUsageLog";
 import { logger } from "@/app/lib/logger";
 
 type Context = { creatorId: string; contentKey: string; fingerprint: string; responseFormat?: "scene_legacy_v1" | "scene_segments_v1"; durationSeconds?: number | null; budgetPolicyId?: string; maxAttempts?: number };
@@ -206,6 +207,32 @@ export async function settleBatchOperation(
   reserva: Reserva, tag: string, model: string, scope: Context, response: GenerateContentResponse,
 ): Promise<void> {
   await settleReserva(reserva, tag, model, scope, response);
+}
+
+/**
+ * Solicitação que ficou em "iniciada" sem nunca virar resposta nem uso registrado.
+ *
+ * Acontece quando a função morre no meio (timeout da Vercel, rajada de cron): a
+ * intenção fica registrada e trava o conteúdo para sempre, porque a regra de pagamento
+ * único recusa reenviar. Sem registro de uso não houve cobrança, então é seguro
+ * devolver para a fila. Em 18/09/2026 havia 88 assim, a mais antiga de três dias.
+ */
+export async function reconcileStuckOperations(tag: string, horas = 1): Promise<number> {
+  await connectToDatabase();
+  const presas = await Operation.find({ tag, state: "started", updatedAt: { $lte: new Date(Date.now() - horas * 3600000) } })
+    .select("_id").lean();
+  if (!presas.length) return 0;
+  const ids = presas.map(operacao => String(operacao._id));
+  const cobradas = new Set((await UsageLog.find({ operationId: { $in: ids } }).select("operationId").lean())
+    .map((registro: any) => String(registro.operationId)));
+  const soltas = ids.filter(id => !cobradas.has(id));
+  if (!soltas.length) return 0;
+  const resultado = await Operation.updateMany({ _id: { $in: soltas }, state: "started" }, { $set: {
+    state: "rejected", reason: "reconciliacao_sem_resposta", retryAt: new Date(0),
+    error: "Sem resposta registrada; liberado para nova tentativa.",
+  } });
+  if (resultado.modifiedCount) logger.warn(`[gemini] ${resultado.modifiedCount} solicitações sem resposta liberadas (${tag}).`);
+  return resultado.modifiedCount;
 }
 
 /** Item do job sem resposta utilizável: rejeita para a repescagem tentar de novo. */

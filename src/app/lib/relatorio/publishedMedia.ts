@@ -12,7 +12,16 @@ export async function freshPublishedMedia(
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${mediaId}?fields=${fields}&access_token=${token}`;
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
-    if (!response.ok) throw new Error(`Instagram HTTP ${response.status}`);
+    if (!response.ok) {
+      // Sem o motivo do Graph, limite de requisições e mídia removida viram a mesma
+      // linha no log — e foi isso que travou o diagnóstico do primeiro lote (18/09/2026).
+      const detalhe = typeof response.text === "function"
+        ? await response.text().then(
+            (texto) => String(JSON.parse(texto)?.error?.message ?? texto).slice(0, 160),
+          ).catch(() => "")
+        : "";
+      throw new Error(`Instagram HTTP ${response.status}${detalhe ? `: ${detalhe}` : ""}`);
+    }
     const json = (await response.json()) as {
       media_type?: string;
       media_url?: string;

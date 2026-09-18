@@ -32,7 +32,7 @@ import {
   SCENE_MAX_OUTPUT_TOKENS, SCENE_EVALUATION_VERSION,
 } from "./sceneEvaluation";
 import { LEGACY_SCENE_FORMAT } from "./compactSceneFormat";
-import { findPendingReadingBatch, acquireReading, markBatched, releaseBatched, finishReading } from "./contentReadingState";
+import { findPendingReadingBatch, acquireReading, markBatched, releaseBatched, deferReading } from "./contentReadingState";
 import { persistPublishedReading } from "./persistPublishedReading";
 import { readingRevision } from "./readingRevision";
 
@@ -135,8 +135,13 @@ export async function enviarLoteDeLeituras(assinantes: Types.ObjectId[]): Promis
       );
       preparados.push({ metricId, creatorId, lease: lease.token, reserva, fileName: arquivo.name!, pedido, profile });
     } catch (erro) {
-      const mensagem = erro instanceof GeminiGovernanceError ? erro.message : erro instanceof Error ? erro.message : "Falha ao preparar item do lote";
-      await finishReading(metricId, lease.token, mensagem);
+      const mensagem = erro instanceof Error ? erro.message : "Falha ao preparar item do lote";
+      // Preparo é diferente de leitura: aqui ninguém pagou nada e o post continua
+      // legível. Adia e tenta de novo — marcar como falha de leitura chegou a
+      // aposentar post bom no primeiro ciclo (18/09/2026).
+      const espera = /HTTP 4\d\d|rate|limit/i.test(mensagem) ? 60 * 60000 : 30 * 60000;
+      await deferReading(metricId, lease.token, "preparo_do_lote", espera);
+      logger.warn(`${TAG} item ${metricId} adiado: ${mensagem.slice(0, 160)}`);
       pulados++;
     }
   }
@@ -156,7 +161,7 @@ export async function enviarLoteDeLeituras(assinantes: Types.ObjectId[]): Promis
     logger.error(`${TAG} job não criado; devolvendo ${preparados.length} itens.`, erro);
     for (const item of preparados) {
       await rejectBatchOperation(item.reserva.id, "lote_nao_criado", 30 * 60000, mensagem);
-      await finishReading(item.metricId, item.lease, mensagem);
+      await deferReading(item.metricId, item.lease, "lote_nao_criado", 30 * 60000);
       await ai.files.delete({ name: item.fileName }).catch(() => {});
     }
     return { enviados: 0, job: null, pulados: pulados + preparados.length };

@@ -53,6 +53,19 @@ export async function finishReading(metricId: string, token: string, error?: str
   if (failure?.reason === "provider_balance") await pauseGemini();
 }
 /**
+ * Adia um item que falhou ANTES de virar leitura — não deu para baixar a mídia, a
+ * reserva recusou, o job não nasceu. Falha de preparo não é falha de leitura: passar
+ * por `classifyReadingFailure` aqui marcaria como "não suportado" um post que só
+ * precisa de outra tentativa (aconteceu no primeiro ciclo do lote, 18/09/2026).
+ */
+export async function deferReading(metricId: string, token: string, motivo: string, delayMs = 30 * 60000) {
+  await State.updateOne({ _id: metricId, leaseToken: token }, { $set: {
+    state: "deferred", reason: motivo.slice(0, 120), lastError: null,
+    leaseUntil: EPOCH, leaseToken: null, nextAttemptAt: new Date(Date.now() + delayMs),
+  } });
+}
+
+/**
  * Item entregue a um job de lote: solta a posse e some dos seletores de pendentes até
  * o prazo do provedor (o `findPendingReadingBatch` já ignora quem tem próxima tentativa
  * no futuro). Sem isso, o tempo real leria o mesmo post e pagaríamos duas vezes.
