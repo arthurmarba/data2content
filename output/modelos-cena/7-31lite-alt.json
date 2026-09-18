@@ -1,0 +1,144 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "trabalho",
+      "look_montado",
+      "movel_em_cena",
+      "sozinho_na_cena",
+      "equipamento_em_cena"
+    ],
+    "toneIds": [
+      "critico"
+    ],
+    "subjectIds": [
+      "criar_conteudo"
+    ],
+    "subjects": [
+      "indicações brasileiras ao grammy latino 2026",
+      "filme brasileiro indicado ao oscar 2027",
+      "reconhecimento internacional do cinema brasileiro",
+      "sucesso do álbum equilibrium da anitta"
+    ],
+    "quotes": [
+      "Investir em cultura dá resultado sim",
+      "O Brasil tá chiquérrimo",
+      "Tem brasileiro chegando no Grammy, tem brasileiro chegando no Oscar"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_artificial",
+      "produzido",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estudio",
+    "objects": [
+      "claquete"
+    ],
+    "screenTitle": "Brasil: mais de 30 nomes indicados ao Gremmy latino 2026 + filme no Oscar",
+    "openingLine": "Investir em cultura dá resultado sim, e o Brasil acabou de provar isso mais uma vez.",
+    "transcript": "Investir em cultura dá resultado sim, e o Brasil acabou de provar isso mais uma vez. É, meu amor, enquanto tem uns que falam que arte e cultura é coisa de gente inútil, olha onde só as produções do Brasil têm chegado. Hoje saiu a lista dos indicados ao Grammy Latino 2026 e o Brasil colocou mais de 30 nomes nessa lista. E claro que não pode faltar ela, né gente? O álbum mais comentado do ano é o álbum Equilibrium da Anitta e ele está indicado na categoria Melhor Álbum do Ano, além de ter sido indicado também na categoria Melhor Álbum do Ano Pop Contemporâneo em Língua Portuguesa. Também temos nomes como João Gomes, Marina Sena, Ana Castela, Luan Santana, Ferrugem, Emicida, Luedji, entre outros nomes da música brasileira. Mas vocês estão achando que só os músicos que estão fazendo barulho? Meu amor, o Brasil tá chiquérrimo. Tem cinema vindo aí também. Filme brasileiro Feito Pipa, dirigido por Alan Debert e estrelado por Lázaro Ramos, foi escolhido pela Academia Brasileira de Cinema a disputar na categoria de Melhor Filme Internacional do Ano no Oscar de 2027. Filme conta a história do Gugu, um menino do sertão do Ceará que vive com sua avó e tem que lidar com questões de família como a sua infância, perdas. Amor, esse filme ele é muito premiado. Ele já ganhou o Urso de Cristal, o grande prêmio do júri no Festival de Berlim e cinco prêmios no Festival de Gramado. Ou seja, tem brasileiro chegando no Grammy, tem brasileiro chegando no Oscar e eu só consigo pensar em uma coisa: nós somos chique bem. Agora me conta, qual brasileiro vocês querem ver levando esse prêmio? Espero que não dá, né? Mas poderia ser todos.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 134000,
+        "text": "Investir em cultura dá resultado sim, e o Brasil acabou de provar isso mais uma vez. É, meu amor, enquanto tem uns que falam que arte e cultura é coisa de gente inútil, olha onde só as produções do Brasil têm chegado. Hoje saiu a lista dos indicados ao Grammy Latino 2026 e o Brasil colocou mais de 30 nomes nessa lista. E claro que não pode faltar ela, né gente? O álbum mais comentado do ano é o álbum Equilibrium da Anitta e ele está indicado na categoria Melhor Álbum do Ano, além de ter sido indicado também na categoria Melhor Álbum do Ano Pop Contemporâneo em Língua Portuguesa. Também temos nomes como João Gomes, Marina Sena, Ana Castela, Luan Santana, Ferrugem, Emicida, Luedji, entre outros nomes da música brasileira. Mas vocês estão achando que só os músicos que estão fazendo barulho? Meu amor, o Brasil tá chiquérrimo. Tem cinema vindo aí também. Filme brasileiro Feito Pipa, dirigido por Alan Debert e estrelado por Lázaro Ramos, foi escolhido pela Academia Brasileira de Cinema a disputar na categoria de Melhor Filme Internacional do Ano no Oscar de 2027. Filme conta a história do Gugu, um menino do sertão do Ceará que vive com sua avó e tem que lidar com questões de família como a sua infância, perdas. Amor, esse filme ele é muito premiado. Ele já ganhou o Urso de Cristal, o grande prêmio do júri no Festival de Berlim e cinco prêmios no Festival de Gramado. Ou seja, tem brasileiro chegando no Grammy, tem brasileiro chegando no Oscar e eu só consigo pensar em uma coisa: nós somos chique bem. Agora me conta, qual brasileiro vocês querem ver levando esse prêmio? Espero que "
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4000,
+        "role": "gancho",
+        "description": "O criador segura uma claquete e fala sobre o sucesso da cultura brasileira.",
+        "spokenText": "Investir em cultura dá resultado sim, e o Brasil acabou de provar isso mais uma vez.",
+        "onScreenText": "Brasil: mais de 30 nomes indicados ao Gremmy latino 2026 + filme no Oscar",
+        "setting": "estúdio",
+        "objects": [
+          "claquete"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 4000,
+        "endMs": 13000,
+        "role": "contexto",
+        "description": "O criador critica quem desvaloriza a arte e introduz o Grammy Latino.",
+        "spokenText": "É, meu amor, enquanto tem uns que falam que arte e cultura é coisa de gente inútil, olha onde só as produções do Brasil têm chegado.",
+        "onScreenText": null,
+        "setting": "estúdio",
+        "objects": [
+          "claquete"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 13000,
+        "endMs": 49000,
+        "role": "demonstração",
+        "description": "O criador lista os indicados ao Grammy Latino, focando em Anitta.",
+        "spokenText": "Hoje saiu a lista dos indicados ao Grammy Latino 2026 e o Brasil colocou mais de 30 nomes nessa lista.",
+        "onScreenText": "Equilibrium de Anitta",
+        "setting": "estúdio",
+        "objects": [
+          "claquete"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 49000,
+        "endMs": 120000,
+        "role": "explicação",
+        "description": "O criador fala sobre o filme Feito Pipa e suas premiações.",
+        "spokenText": "Tem cinema vindo aí também. Filme brasileiro Feito Pipa, dirigido por Alan Debert e estrelado por Lázaro Ramos, foi escolhido pela Academia Brasileira de Cinema a disputar na categoria de Melhor Filme Internacional do Ano no Oscar de 2027.",
+        "onScreenText": "Feito Pipa",
+        "setting": "estúdio",
+        "objects": [
+          "claquete"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 120000,
+        "endMs": 134000,
+        "role": "cta",
+        "description": "O criador encerra o vídeo perguntando quem o público quer ver premiado.",
+        "spokenText": "Agora me conta, qual brasileiro vocês querem ver levando esse prêmio?",
+        "onScreenText": null,
+        "setting": "estúdio",
+        "objects": [
+          "claquete"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "demonstração",
+      "explicação",
+      "cta"
+    ],
+    "promise": "explicar como o Brasil está se destacando no Grammy Latino e no Oscar",
+    "cta": "Agora me conta, qual brasileiro vocês querem ver levando esse prêmio?",
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

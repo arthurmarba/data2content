@@ -1,0 +1,110 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "direto"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "desrespeito na alemanha",
+      "pessoas com rinite na alemanha",
+      "espirrar em público na alemanha"
+    ],
+    "quotes": [
+      "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite",
+      "e aí eles têm tipo lenço e pegam assim, ó, quando está na mesma restaurante",
+      "e é super alto"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "carro_local",
+    "objects": [],
+    "screenTitle": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+    "openingLine": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo, sabe?",
+    "transcript": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo, sabe? E aí eles têm tipo lenço e pegam assim, ó, quando está na mesma restaurante, de um lado para o outro. E é super alto.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 7800,
+        "text": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo, sabe?"
+      },
+      {
+        "startMs": 7800,
+        "endMs": 14800,
+        "text": "E aí eles têm tipo lenço e pegam assim, ó, quando está na mesma restaurante, de um lado para o outro."
+      },
+      {
+        "startMs": 14800,
+        "endMs": 20000,
+        "text": "E é super alto."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 7800,
+        "role": "gancho",
+        "description": "A criadora fala sobre o que é considerado desrespeito na Alemanha, especificamente sobre rinite.",
+        "spokenText": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo, sabe?",
+        "onScreenText": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+        "setting": "dentro de um carro ou trem",
+        "objects": [],
+        "framing": [
+          "close",
+          "selfie no braço"
+        ]
+      },
+      {
+        "startMs": 7800,
+        "endMs": 14800,
+        "role": "contexto",
+        "description": "Ela explica como as pessoas na Alemanha lidam com a rinite em restaurantes.",
+        "spokenText": "E aí eles têm tipo lenço e pegam assim, ó, quando está na mesma restaurante, de um lado para o outro.",
+        "onScreenText": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+        "setting": "dentro de um carro ou trem",
+        "objects": [],
+        "framing": [
+          "close",
+          "selfie no braço"
+        ]
+      },
+      {
+        "startMs": 14800,
+        "endMs": 20000,
+        "role": "outro",
+        "description": "A criadora faz uma expressão facial e comenta sobre o som alto.",
+        "spokenText": "E é super alto.",
+        "onScreenText": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+        "setting": "dentro de um carro ou trem",
+        "objects": [],
+        "framing": [
+          "close",
+          "selfie no braço"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "outro"
+    ],
+    "promise": "explicar o que é considerado desrespeito na Alemanha",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

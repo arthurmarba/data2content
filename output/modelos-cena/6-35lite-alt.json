@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "costumes culturais na alemanha",
+      "assoar o nariz em público"
+    ],
+    "quotes": [
+      "Isso aqui é desrespeito na Alemanha",
+      "aqui na Alemanha é falta de respeito quando está com rinite",
+      "E é super alto"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela"
+    ],
+    "placeId": "carro_local",
+    "objects": [],
+    "screenTitle": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+    "openingLine": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite",
+    "transcript": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite fica tipo, sabe? E aí eles tem tipo lenço e pegam assim ó quando tá no restaurante de um lado pro outro. E é super alto",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 19163,
+        "text": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite fica tipo, sabe? E aí eles tem tipo lenço e pegam assim ó quando tá no restaurante de um lado pro outro. E é super alto"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 19163,
+        "role": "gancho",
+        "description": "criadora falando sobre costumes na alemanha enquanto está em um transporte",
+        "spokenText": "Não sei se vocês sabem",
+        "onScreenText": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+        "setting": "carro",
+        "objects": [],
+        "framing": [
+          "close",
+          "selfie"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "explicação"
+    ],
+    "promise": "contar o que é considerado desrespeito na Alemanha",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

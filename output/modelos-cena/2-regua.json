@@ -1,0 +1,160 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena",
+      "look_montado"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "amizade_e_afeto"
+    ],
+    "subjects": [
+      "herança genética",
+      "fã de sandy e junior",
+      "fã dos beatles"
+    ],
+    "quotes": [
+      "várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não",
+      "eu aprendi a ser fã tipo Sandy Júnior porque olha o meu pai",
+      "me conta o que você herdou do seu pai da sua mãe da sua tia da sua avó"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco",
+      "camera_fixa",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "sala",
+    "objects": [
+      "quadros",
+      "óculos"
+    ],
+    "screenTitle": "EU TENHO HISTÓRICO",
+    "openingLine": "Várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não.",
+    "transcript": "Várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não. Porém eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico. Olha os quadros que meu pai tem no escritório dele. E não para por aí, tá? Eu aprendi a ser fã tipo Sandy Júnior, porque olha o meu pai. Ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí. Ou seja, é genética, mas eu acho que eu vim num nível muito, muito mais forte. Me conta o que você herdou do seu pai, da sua mãe, da sua tia, da sua avó? Não sei, mas procura que tem.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "text": "Várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não."
+      },
+      {
+        "startMs": 4200,
+        "endMs": 9800,
+        "text": "Porém eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico."
+      },
+      {
+        "startMs": 9800,
+        "endMs": 14800,
+        "text": "Olha os quadros que meu pai tem no escritório dele."
+      },
+      {
+        "startMs": 14800,
+        "endMs": 21200,
+        "text": "E não para por aí, tá? Eu aprendi a ser fã tipo Sandy Júnior, porque olha o meu pai."
+      },
+      {
+        "startMs": 21200,
+        "endMs": 36400,
+        "text": "Ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí."
+      },
+      {
+        "startMs": 36400,
+        "endMs": 41800,
+        "text": "Ou seja, é genética, mas eu acho que eu vim num nível muito, muito mais forte."
+      },
+      {
+        "startMs": 41800,
+        "endMs": 47400,
+        "text": "Me conta o que você herdou do seu pai, da sua mãe, da sua tia, da sua avó? Não sei, mas procura que tem."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 9800,
+        "role": "gancho",
+        "description": "A criadora fala olhando para a câmera, com um fundo branco e uma porta ao fundo. Ela usa óculos e um suéter colorido.",
+        "spokenText": "Várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não. Porém eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico.",
+        "onScreenText": "EU TENHO HISTÓRICO VÁRIAS VEZES JÁ ME PERGUNTARAM SE PERSONAGEM E EU FALEI NÃO PORÉM EU SEI QUE EU VIVO NO MUNDO DA FANTASIA MAS EU TENHO",
+        "setting": "casa",
+        "objects": [
+          "óculos"
+        ],
+        "framing": []
+      },
+      {
+        "startMs": 9800,
+        "endMs": 14800,
+        "role": "contexto",
+        "description": "A câmera mostra uma parede com vários quadros de personagens de desenhos animados, como Mario, Smurfs, Monstros S.A., Shrek, Minions e Up.",
+        "spokenText": "Olha os quadros que meu pai tem no escritório dele.",
+        "onScreenText": "OLHA OS QUADROS TEM NO ESCRITÓRIO DELE",
+        "setting": "casa",
+        "objects": [
+          "quadros"
+        ],
+        "framing": []
+      },
+      {
+        "startMs": 14800,
+        "endMs": 21200,
+        "role": "contexto",
+        "description": "A criadora volta a falar olhando para a câmera, com o mesmo fundo branco.",
+        "spokenText": "E não para por aí, tá? Eu aprendi a ser fã tipo Sandy Júnior, porque olha o meu pai.",
+        "onScreenText": "POR AÍ, TÁ EU APRENDI SER FÃ TIPO SANDY JÚNIOR PORQUE OLHA O",
+        "setting": "casa",
+        "objects": [
+          "óculos"
+        ],
+        "framing": []
+      },
+      {
+        "startMs": 21200,
+        "endMs": 36400,
+        "role": "contexto",
+        "description": "A câmera mostra uma parede com vários quadros de capas de álbuns dos Beatles.",
+        "spokenText": "Ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí.",
+        "onScreenText": "ELE SEMPRE FOI FÃ DOS BEATLES ELE ENQUADROU TODOS E QUANDO ELE ERA JOVEM ELE USAVA O CABELO IGUALZINHO DO PAUL MCCARTNEY E TAMBÉM USAVA ESSAS ROUPAS",
+        "setting": "casa",
+        "objects": [
+          "quadros"
+        ],
+        "framing": []
+      },
+      {
+        "startMs": 36400,
+        "endMs": 47400,
+        "role": "cta",
+        "description": "A criadora fala olhando para a câmera, agora com um quadro de uma árvore ao fundo. Ela faz expressões de surpresa e convida o público a interagir.",
+        "spokenText": "Ou seja, é genética, mas eu acho que eu vim num nível muito, muito mais forte. Me conta o que você herdou do seu pai, da sua mãe, da sua tia, da sua avó? Não sei, mas procura que tem.",
+        "onScreenText": "É GENÉTICA QUE EU VI MUITO MAIS FORTE QUE VOCÊ HERDOU DA SUA MÃE NÃO SEI, MAS PROCURA QUE TEM",
+        "setting": "casa",
+        "objects": [
+          "óculos"
+        ],
+        "framing": []
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "cta"
+    ],
+    "promise": null,
+    "cta": "Me conta o que você herdou do seu pai, da sua mãe, da sua tia, da sua avó? Não sei, mas procura que tem.",
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

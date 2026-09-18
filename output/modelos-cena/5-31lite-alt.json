@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [],
+    "subjects": [
+      "dificuldade de voltar para a classe econômica",
+      "desconforto físico em viagens longas"
+    ],
+    "quotes": [
+      "não dá de andar de 1ª classe tá",
+      "tu não aceita gente",
+      "o meu cóccix sério"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "carro_local",
+    "objects": [],
+    "screenTitle": "não dá mais para ir na 1ª classe",
+    "openingLine": "não dá de andar de 1ª classe tá",
+    "transcript": "não dá de andar de 1ª classe tá, não dá cara, porque você anda uma vez de 1ª classe aí quando tem que voltar pra andar na econômica tu não aceita gente, 12 horas juro, eu acho que conforme a gente vai ficando mais velha também vai piorando, eu sou pequena então nunca tive problema assim doer meu joelho algo do gênero, o meu cóccix sério, misericórdia do Senhor, então assim é melhor nem ter a primeira experiência na classe executiva ou na primeira classe, porque quando tu volta pra econômica, meu Deus.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 36000,
+        "text": "não dá de andar de 1ª classe tá, não dá cara, porque você anda uma vez de 1ª classe aí quando tem que voltar pra andar na econômica tu não aceita gente, 12 horas juro, eu acho que conforme a gente vai ficando mais velha também vai piorando, eu sou pequena então nunca tive problema assim doer meu joelho algo do gênero, o meu cóccix sério, misericórdia do Senhor, então assim é melhor nem ter a primeira experiência na classe executiva ou na primeira classe, porque quando tu volta pra econômica, meu Deus."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 36000,
+        "role": "explicação",
+        "description": "criadora sentada em um assento de trem, falando diretamente para a câmera",
+        "spokenText": "não dá de andar de 1ª classe tá",
+        "onScreenText": "não dá mais para ir na 1ª classe",
+        "setting": "trem",
+        "objects": [],
+        "framing": [
+          "close",
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "explicação"
+    ],
+    "promise": "explicar por que não se deve viajar de primeira classe",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

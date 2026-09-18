@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena",
+      "look_montado"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "amizade_e_afeto"
+    ],
+    "subjects": [
+      "comportamentos de fã na adolescência",
+      "guardar objetos de ídolos",
+      "fazer simpatias para conquistar alguém"
+    ],
+    "quotes": [
+      "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei",
+      "Eu não revelei o pior que eu acho que é muito pior",
+      "Tem muito mais, se vocês quiserem a parte dois me avisa"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela"
+    ],
+    "placeId": "estudio",
+    "objects": [],
+    "screenTitle": "EU SOU NORMAL",
+    "openingLine": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei",
+    "transcript": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei. Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira. E criança vê aí exemplo, você tá dando um monte, é verdade, que não tinha nada. A gente teve por diversas vezes a gente teve a oportunidade de ficar e eu não fiquei, eu falei a Sandy só beijou com quem. Que eu não revelei o pior que eu acho que é muito pior. Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom? Não vai caber tudo num vídeo, mas vou contar. Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinha umas simpatias pra fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai ele me ama, ele me ama, ele me ama, e eu ficava assim, ó, a tarde. E agora o pior. Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu era, eu só não tinha muita noção. Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy, mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá. Aí nossas famílias eram muito amigas, então a gente sempre foi muito próximo e eu era muito amiga da irmã dele, então muito próximo. Tá bom, aí, tipo, a gente ia pro churrasco, aí ele terminava o espetinho assim, sabe, o palitinho, ele falava, joga pra mim no lixo, eu acho que ele sabia que eu gostava dele, não é possível. Aí, aí eu pegava aquele palitinho e guardava na minha caixinha. Aí tinha, tipo, chiclete, joga pra mim no lixo, eu, aham. Aí eu pegava o chiclete e guardava na minha caixinha. Não era pra fazer nada de errado assim, não era, era só porque, tipo, sei lá. E aí, sabe aqueles, aquelas, o Kinder Ovo e tem aquelas cápsulas dentro? Então, tem um dia que eles dormiram lá na minha casa, ele e a irmã dele. E o cabelo dele era todo cacheadinho assim, parecia de anjinho. E aí, ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei na minha caixinha. Tem muito mais, se vocês quiserem a parte dois me avisa.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 136000,
+        "text": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei. Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira. E criança vê aí exemplo, você tá dando um monte, é verdade, que não tinha nada. A gente teve por diversas vezes a gente teve a oportunidade de ficar e eu não fiquei, eu falei a Sandy só beijou com quem. Que eu não revelei o pior que eu acho que é muito pior. Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom? Não vai caber tudo num vídeo, mas vou contar. Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinha umas simpatias pra fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai ele me ama, ele me ama, ele me ama, e eu ficava assim, ó, a tarde. E agora o pior. Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu era, eu só não tinha muita noção. Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy, mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá. Aí nossas famílias eram muito amigas, então a gente sempre foi muito próximo e eu era muito amiga da irmã dele, então muito próximo. Tá bom, aí, tipo, a gente ia pro churrasco, aí ele terminava o espetinho assim, sabe, o"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4500,
+        "role": "gancho",
+        "description": "criadora fala sobre críticas recebidas",
+        "spokenText": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei",
+        "onScreenText": "EU SOU NORMAL",
+        "setting": "fundo neutro",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 4500,
+        "endMs": 16000,
+        "role": "contexto",
+        "description": "trecho de programa de TV onde a criadora aparece",
+        "spokenText": "Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira",
+        "onScreenText": null,
+        "setting": "estúdio de TV",
+        "objects": [
+          "microfone"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 16000,
+        "endMs": 136000,
+        "role": "explicação",
+        "description": "criadora relata comportamentos de fã na adolescência",
+        "spokenText": "Que eu não revelei o pior que eu acho que é muito pior",
+        "onScreenText": null,
+        "setting": "fundo neutro",
+        "objects": [],
+        "framing": [
+          "close",
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "explicação"
+    ],
+    "promise": "contar o que ela fazia na adolescência que as pessoas consideram loucura",
+    "cta": "se vocês quiserem a parte dois me avisa",
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

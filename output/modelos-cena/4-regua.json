@@ -1,0 +1,109 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "filho_em_cena",
+      "look_montado"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "vida_em_familia"
+    ],
+    "subjects": [
+      "filha falando biquíney",
+      "mãe adotando a palavra biquíney"
+    ],
+    "quotes": [
+      "Você tá de quê?",
+      "Biquíney",
+      "Achei biquíney um jeito bem garota de falar, né?"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "copo"
+    ],
+    "screenTitle": "Pov: você tem uma patricinha de 2 anos",
+    "openingLine": "Você tá de quê?",
+    "transcript": "Você tá de quê? Biquíney. Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 1000,
+        "text": "Você tá de quê?"
+      },
+      {
+        "startMs": 1000,
+        "endMs": 2000,
+        "text": "Biquíney."
+      },
+      {
+        "startMs": 3000,
+        "endMs": 6000,
+        "text": "Achei biquíney um jeito bem garota de falar, né?"
+      },
+      {
+        "startMs": 6000,
+        "endMs": 7000,
+        "text": "Acho que eu vou aderir biquíney."
+      },
+      {
+        "startMs": 7000,
+        "endMs": 10000,
+        "text": "A partir de agora, todo mundo concorda que a palavra é biquíney."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 3000,
+        "role": "gancho",
+        "description": "A filha da criadora, Liv, aparece de chapéu e roupa de banho, sorrindo e depois olhando para o lado, enquanto a criadora pergunta de que ela está vestida.",
+        "spokenText": "Você tá de quê? Biquíney.",
+        "onScreenText": "Pov: você tem uma patricinha de 2 anos",
+        "setting": "ambiente doméstico",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 3000,
+        "endMs": 10000,
+        "role": "contexto",
+        "description": "A criadora aparece segurando um copo, falando sobre a palavra 'biquíney' e como ela vai aderir a ela.",
+        "spokenText": "Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney.",
+        "onScreenText": "Biquíney",
+        "setting": "estabelecimento",
+        "objects": [
+          "copo"
+        ],
+        "framing": [
+          "selfie no braço"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

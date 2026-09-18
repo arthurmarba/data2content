@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [],
+    "subjects": [
+      "etiqueta social na alemanha",
+      "soar o nariz em público"
+    ],
+    "quotes": [
+      "aqui na Alemanha é falta de respeito quando está com rinite",
+      "eles têm tipo lenço e pegam assim ó quando está na mesma restaurante",
+      "E é superalto"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "carro_local",
+    "objects": [],
+    "screenTitle": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+    "openingLine": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite",
+    "transcript": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo... sabe? E aí eles têm tipo lenço e pegam assim ó, quando está na mesma restaurante, de um lado, de outro lado... E é superalto.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 19500,
+        "text": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo... sabe? E aí eles têm tipo lenço e pegam assim ó, quando está na mesma restaurante, de um lado, de outro lado... E é superalto."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 19500,
+        "role": "explicação",
+        "description": "criadora sentada no trem falando sobre costumes alemães",
+        "spokenText": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo... sabe? E aí eles têm tipo lenço e pegam assim ó, quando está na mesma restaurante, de um lado, de outro lado... E é superalto.",
+        "onScreenText": "Isso aqui é desrespeito na Alemanha 🇩🇪",
+        "setting": "trem",
+        "objects": [],
+        "framing": [
+          "close",
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "explicação"
+    ],
+    "promise": "explicar um costume considerado desrespeitoso na Alemanha",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

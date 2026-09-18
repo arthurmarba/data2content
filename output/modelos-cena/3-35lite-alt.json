@@ -1,0 +1,178 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "estabelecimento",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "viajar",
+      "o_cotidiano",
+      "vida_a_dois",
+      "consumo_e_achados"
+    ],
+    "subjects": [
+      "prato solidario no octoo restaurante",
+      "parmegiana artesanal em montes claros",
+      "doacao para a fundacao sara"
+    ],
+    "quotes": [
+      "então que o Prato Solidário de hoje é aqui no Octoo",
+      "o Prato Solidário acabou de chegar aqui na nossa mesa",
+      "15% do valor do prato vai pra Fundação Sara"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "plano_aberto",
+      "selfie_no_braco",
+      "camera_fixa",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "prato",
+      "garfo",
+      "colher",
+      "frigideira"
+    ],
+    "screenTitle": "PRATO SOLIDÁRIO PARMEGIANA",
+    "openingLine": "então que o Prato Solidário de hoje é aqui no Octoo",
+    "transcript": "então que o Prato Solidário de hoje é aqui no Octoo hoje é dia de comer parmegiana o Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar ela vai te servir muito bem custa R$59,90 acompanha fritas acompanha um arrozinho maravilhoso mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente eu já tô com água na boca e é claro né além de você fazer uma refeição saborosa aqui no Octoo 15% do valor do prato vai pra Fundação Sara vai pra campanha do Setembro Dourado para poder ajudar as crianças chegou a parte boa gente vai ser a hora da gente comer uma Parmegiana saborosíssima molho caseiro feito na casa não pode faltar e é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo Absurdo isso aqui",
+    "transcriptSegments": [
+      {
+        "startMs": 3000,
+        "endMs": 7000,
+        "text": "então que o Prato Solidário de hoje é aqui no Octoo hoje é dia de comer parmegiana"
+      },
+      {
+        "startMs": 8000,
+        "endMs": 14000,
+        "text": "o Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar"
+      },
+      {
+        "startMs": 15000,
+        "endMs": 28000,
+        "text": "ela vai te servir muito bem custa R$59,90 acompanha fritas acompanha um arrozinho maravilhoso mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente eu já tô com água na boca"
+      },
+      {
+        "startMs": 29000,
+        "endMs": 37000,
+        "text": "e é claro né além de você fazer uma refeição saborosa aqui no Octoo 15% do valor do prato vai pra Fundação Sara vai pra campanha do Setembro Dourado para poder ajudar as crianças"
+      },
+      {
+        "startMs": 38000,
+        "endMs": 49000,
+        "text": "chegou a parte boa gente vai ser a hora da gente comer uma Parmegiana saborosíssima molho caseiro feito na casa não pode faltar"
+      },
+      {
+        "startMs": 50000,
+        "endMs": 58000,
+        "text": "e é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo Absurdo isso aqui"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 3000,
+        "role": "gancho",
+        "description": "cortando a parmegiana na frigideira",
+        "spokenText": null,
+        "onScreenText": "Cortando de Cuié. Eita mas tô aguando!",
+        "setting": "restaurante",
+        "objects": [
+          "frigideira",
+          "colher",
+          "garfo"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 3000,
+        "endMs": 7000,
+        "role": "contexto",
+        "description": "criador e esposa na entrada do restaurante",
+        "spokenText": "então que o Prato Solidário de hoje é aqui no Octoo hoje é dia de comer parmegiana",
+        "onScreenText": "Prato Solidário",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "selfie"
+        ]
+      },
+      {
+        "startMs": 8000,
+        "endMs": 28000,
+        "role": "demonstração",
+        "description": "esposa apresenta o prato na mesa",
+        "spokenText": "o Prato Solidário acabou de chegar aqui na nossa mesa",
+        "onScreenText": "o Prato Solidário acabou de chegar aqui na nossa mesa",
+        "setting": "restaurante",
+        "objects": [
+          "prato",
+          "frigideira"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 29000,
+        "endMs": 37000,
+        "role": "explicação",
+        "description": "criador fala sobre a doação para a fundação",
+        "spokenText": "e é claro né além de você fazer uma refeição saborosa aqui no Octoo",
+        "onScreenText": "E é claro né?",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 38000,
+        "endMs": 58000,
+        "role": "entrega",
+        "description": "criador come a parmegiana",
+        "spokenText": "Chegou a parte boa gente",
+        "onScreenText": "Chegou a parte boa gente",
+        "setting": "restaurante",
+        "objects": [
+          "prato",
+          "garfo",
+          "colher"
+        ],
+        "framing": [
+          "close",
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "demonstração",
+      "explicação",
+      "entrega"
+    ],
+    "promise": "mostrar a parmegiana do prato solidário no octoo restaurante",
+    "cta": "todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo",
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

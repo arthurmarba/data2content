@@ -1,0 +1,101 @@
+[
+  {
+    "indice": 0,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 1,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.768
+  },
+  {
+    "indice": 1,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": false,
+    "fala": 0.783
+  },
+  {
+    "indice": 2,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 1,
+    "tomIgual": true,
+    "assuntosIguais": 0.33333333333333337,
+    "lugarIgual": true,
+    "fala": 0.899
+  },
+  {
+    "indice": 3,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.681
+  },
+  {
+    "indice": 4,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 2,
+    "tomIgual": true,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.839
+  },
+  {
+    "indice": 5,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": false,
+    "fala": 0.543
+  },
+  {
+    "indice": 6,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.698
+  },
+  {
+    "indice": 7,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 1,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.883
+  },
+  {
+    "indice": 8,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": true,
+    "assuntosIguais": 0,
+    "lugarIgual": false,
+    "fala": 0.768
+  }
+]

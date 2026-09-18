@@ -1,0 +1,74 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [],
+    "toneIds": [
+      "humor",
+      "casual"
+    ],
+    "subjectIds": [
+      "fe_e_proposito"
+    ],
+    "subjects": [
+      "superação espiritual",
+      "fé em momentos difíceis",
+      "confiança nas promessas divinas"
+    ],
+    "quotes": [
+      "A vitória dos baianos sim!",
+      "Eu não vou te soltar"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "com_musica"
+    ],
+    "placeId": "sala",
+    "objects": [
+      "televisão",
+      "enfeite de barco"
+    ],
+    "screenTitle": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+    "openingLine": "Sai da frente, capeta!",
+    "transcript": "Sai da frente, capeta! A vitória dos baianos sim! A caminho de casa no Val de Jaboque o anjo desceu. A batalha travada pela madrugada era o anjo e eu. Agarrado no anjo, vencendo a guerra, eu não vou te soltar. Mesmo estando ferido, em meio a batalha, a vitória me dá. A caminho, a caminho de casa no Val de Jaboque o anjo desceu.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 31000,
+        "text": "Sai da frente, capeta! A vitória dos baianos sim! A caminho de casa no Val de Jaboque o anjo desceu. A batalha travada pela madrugada era o anjo e eu. Agarrado no anjo, vencendo a guerra, eu não vou te soltar. Mesmo estando ferido, em meio a batalha, a vitória me dá. A caminho, a caminho de casa no Val de Jaboque o anjo desceu."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 31000,
+        "role": "demonstração",
+        "description": "mulher dançando e cantando música gospel na sala",
+        "spokenText": "Sai da frente, capeta!",
+        "onScreenText": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+        "setting": "sala",
+        "objects": [
+          "televisão",
+          "enfeite de barco"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "demonstração"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

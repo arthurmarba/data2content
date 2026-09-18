@@ -1,0 +1,701 @@
+[
+  {
+    "_id": "965ac6e9fd3440678ec9d1a67becf54c02972e819f6b65d432befeb8e504d0b2",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aad604df5cce10f897468e8:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 17536,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 25502,
+        "candidatesTokenCount": 3954,
+        "totalTokenCount": 29456,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 21040
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 2560
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "6935c72361a2a68e76360df6592f16a643430f6648b3f2e19bfe5c92fa004a6a",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aad604df5cce10f897468e8:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 9776,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 25016,
+        "candidatesTokenCount": 2348,
+        "totalTokenCount": 27364,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 23114
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "0ae4ab4e9f38d7fb2518082c0a08fdfa1a9b7c5c5999566061af3c20aecfe81d",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aad604df5cce10f897468e8:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "b07c0b4c2d2ffb52d28eb218f56212d27b2197f65354eb9ee4714c78b6f0cfad",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f11f5cce10f89743a2b:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 21150,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 30508,
+        "candidatesTokenCount": 4799,
+        "totalTokenCount": 35307,
+        "cachedContentTokenCount": 1029,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1906
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 25511
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 3091
+          }
+        ],
+        "cacheTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 64
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 861
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 104
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "33a97495b2704bcb185841b6aa29fcdb4eff60e556820ab37d9dbc3cd340c5c7",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f11f5cce10f89743a2b:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 10575,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 29650,
+        "candidatesTokenCount": 2108,
+        "totalTokenCount": 31758,
+        "promptTokensDetails": [
+          {
+            "modality": "VIDEO",
+            "tokenCount": 27744
+          },
+          {
+            "modality": "TEXT",
+            "tokenCount": 1906
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "dc4ea6e7d9f8b1870f223183ece5b024a671e4fdd97773c6dbe74ce3a07d5085",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f11f5cce10f89743a2b:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "e27ef606745bf19d2382060882072c5fd141aee08cdd24dbb4b8e6f9afecdd2c",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f13f5cce10f89743a3a:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 8299,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 15771,
+        "candidatesTokenCount": 1427,
+        "totalTokenCount": 17198,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1906
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 12361
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 1504
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "ab4c2ccffe118c429782c654576d7535c2522c3cc4bce3043f7d6f1fecc8279e",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f13f5cce10f89743a3a:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 6220,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 15489,
+        "candidatesTokenCount": 1565,
+        "totalTokenCount": 17054,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1906
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 13583
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "28f75f67ee4bb8bad16a72c9278d2942de021461bfada6ec22f0c22693e64948",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f13f5cce10f89743a3a:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "81bb0cf58a5dc1f19fd5f06dd50eaa68976d0ad885dcaf695156fdfe042c6f62",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aad604df5cce10f897468ea:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 15038,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 19593,
+        "candidatesTokenCount": 3664,
+        "totalTokenCount": 23257,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 15780
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 1911
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "b17cc43c5fd278721d1400ba48dc1469166d48dff9a0928ea05e45af38f5e4c7",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aad604df5cce10f897468ea:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 7185,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 18953,
+        "candidatesTokenCount": 1631,
+        "totalTokenCount": 20584,
+        "promptTokensDetails": [
+          {
+            "modality": "VIDEO",
+            "tokenCount": 17051
+          },
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "103401a2b15b76187b1b04f82b48c57faf6c7895303ac07f8798ebfad6618d01",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aad604df5cce10f897468ea:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "96638e09c230dd6c620cfbb50f6cd5f4e271f33a617df6db816fe7e186d1a7e7",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f13f5cce10f89743a3e:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 3914,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 5136,
+        "candidatesTokenCount": 949,
+        "totalTokenCount": 6085,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 2893
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 341
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "9619a68207230a50ffcf3a3615c81d58319c9092ebf3970740407c4627482179",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f13f5cce10f89743a3e:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 2410,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 4792,
+        "candidatesTokenCount": 808,
+        "totalTokenCount": 5600,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1902
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 2890
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "46285e895d5e224f3717477dd4e1b024df497632d40358249e4e97d4872a4ac9",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f13f5cce10f89743a3e:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "dcebab91a60923d1c604c8869d4cfb4b4daace18e59d00b05bd2b186abc7fab0",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f24f5cce10f89743af3:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 6548,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 13158,
+        "candidatesTokenCount": 1040,
+        "totalTokenCount": 14198,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1961
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 9994
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 1203
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "ca01f765c2a34100b705c6d36dad59d3e4485c9128e7768525e0d9270cf9fe90",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f24f5cce10f89743af3:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 4247,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 12654,
+        "candidatesTokenCount": 722,
+        "totalTokenCount": 13376,
+        "promptTokensDetails": [
+          {
+            "modality": "VIDEO",
+            "tokenCount": 10693
+          },
+          {
+            "modality": "TEXT",
+            "tokenCount": 1961
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "e8869bc3af41d54df8aa630f371ed467dc96387605150661b5be50e3a143ddd7",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f24f5cce10f89743af3:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "7919a5ba161a1b517d296566836c2615965cb4bc594d7e878573461be244abe1",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f29f5cce10f89743b30:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 4868,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 8143,
+        "candidatesTokenCount": 970,
+        "totalTokenCount": 9113,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1961
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 5523
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 659
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "6afe4666ab5df5a435f40c030b6e3dd7e0e525f61f8093046437cca9bd951cef",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f29f5cce10f89743b30:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 2911,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 7741,
+        "candidatesTokenCount": 650,
+        "totalTokenCount": 8391,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1961
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 5780
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "35c2e8059ae80afceb273b6d16f6a43cfc3dab0829968851cb2b5c9212605e10",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f29f5cce10f89743b30:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "0bfcc80d08d4a1af978f31c7ab2ba70410d2726a757751a5114bd90a85c32721",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f15f5cce10f89743a4c:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 19438,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 29899,
+        "candidatesTokenCount": 4187,
+        "totalTokenCount": 34086,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1874
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 24985
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 3040
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "b49c007870c53d009ac58cd63c4e0988c11d5cc9db7eb241918b034d0b4d78ce",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f15f5cce10f89743a4c:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 10456,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 29329,
+        "candidatesTokenCount": 2082,
+        "totalTokenCount": 31411,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1874
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 27455
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "71d06b466db64e02a23560b478bbd919aea340cdfd5a65fb7f2b3e31aba19e2f",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f15f5cce10f89743a4c:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "4f02ffc642b61050f56a86f4654bea7361a627aef7813f0cf6aca219d2bc3417",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f24f5cce10f89743af6:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 8393,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 10949,
+        "candidatesTokenCount": 2043,
+        "totalTokenCount": 12992,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1833
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 8153
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 963
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "229f7e149bf57da3e57b61fef5ffe5a455a0da0ac1f26ed3554984fc3d1a3ff4",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f24f5cce10f89743af6:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 3779,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 10499,
+        "candidatesTokenCount": 769,
+        "totalTokenCount": 11268,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1833
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 8666
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "7e674cbdc3dfcdc70a716bb73e23d9e868ee18180f005d9da27ae4face269a2b",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f24f5cce10f89743af6:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "01e20fbec2ad8aa8b689b2ee93bdf42d0b937fd7086ef6ac8a2f484f0bfba350",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f13f5cce10f89743a3f:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 16075,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 22797,
+        "candidatesTokenCount": 3694,
+        "totalTokenCount": 26491,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1852
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 18673
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 2272
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "4095869fb407fbc7e82a9d62f318bd7254811d76d4c79f4198c0f6346f938279",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f13f5cce10f89743a3f:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 7153,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 22371,
+        "candidatesTokenCount": 1040,
+        "totalTokenCount": 23411,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1852
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 20519
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "ce6d96dfd5cfa852ab1d52df834533487dc77df607bd38f2ac61d331e49fd254",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f13f5cce10f89743a3f:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "1c41383adfceb76cd40409e55ffcedecf1c070461b85b5b04c28c31e27aca2cb",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f32f5cce10f89743b93:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 4924,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 11270,
+        "candidatesTokenCount": 617,
+        "totalTokenCount": 11887,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1831
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 8416
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 1023
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "66f43e67bd4e26443b71617645c946f33ddcd4b2d3b04254983811fec96d7ef4",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f32f5cce10f89743b93:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 3782,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 11072,
+        "candidatesTokenCount": 676,
+        "totalTokenCount": 11748,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1831
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 9241
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "119e0c006adbf5127741b44b9c323c9ded5811e7ee2a15d4c5837a34a745e773",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f32f5cce10f89743b93:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  },
+  {
+    "_id": "d2faac88c32c9fa8cef9d8797ef39fc82480d3adc7c6cf089450c9ac3bcbc5d8",
+    "contentKey": "experiment:modelos-cena-2026-09-18:regua:6aac7f19f5cce10f89743a76:scene_legacy_v1",
+    "model": "gemini-2.5-flash",
+    "chargedEstimateMicros": 19861,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 28169,
+        "candidatesTokenCount": 4564,
+        "totalTokenCount": 32733,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1914
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 23407
+          },
+          {
+            "modality": "AUDIO",
+            "tokenCount": 2848
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "924e74ba945bf463f9ecbbe8351eb8fe36f44c6fd26813afe7dbcd9def8c5d40",
+    "contentKey": "experiment:modelos-cena-2026-09-18:31lite-alt:6aac7f19f5cce10f89743a76:scene_legacy_v1",
+    "model": "gemini-3.1-flash-lite",
+    "chargedEstimateMicros": 10202,
+    "response": {
+      "usageMetadata": {
+        "promptTokenCount": 27629,
+        "candidatesTokenCount": 2196,
+        "totalTokenCount": 29825,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1914
+          },
+          {
+            "modality": "VIDEO",
+            "tokenCount": 25715
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  },
+  {
+    "_id": "24501e03a0789eb60ef02ee2ffbc84eb25d2d618b0e031da74c0b76065490ebb",
+    "contentKey": "experiment:modelos-cena-2026-09-18:35lite-alt:6aac7f19f5cce10f89743a76:scene_legacy_v1",
+    "model": "gemini-3.5-flash-lite"
+  }
+]

@@ -1,0 +1,164 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena",
+      "look_montado",
+      "casa"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [],
+    "subjects": [
+      "herdar gostos dos pais",
+      "fã dos beatles"
+    ],
+    "quotes": [
+      "Várias vezes já me perguntaram se eu era uma personagem e eu falei não, eu juro que não",
+      "Olha os quadros que meu pai tem no escritório dele",
+      "Ele sempre foi fã dos Beatles, ele enquadrou todos os discos"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa",
+      "gravado_por_outro"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela"
+    ],
+    "placeId": "sala",
+    "objects": [
+      "quadros"
+    ],
+    "screenTitle": null,
+    "openingLine": "Várias vezes já me perguntaram se eu era uma personagem",
+    "transcript": "Várias vezes já me perguntaram se eu era uma personagem e eu falei, não, eu juro que não. Porém, eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico. Olha os quadros que meu pai tem no escritório dele. E não para por aí, tá? Eu aprendi ser fã tipo Sandy Junior, porque olha o meu pai, ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí. Ou seja, é genética, mas eu acho que eu vim num nível muito, muito, mas forte. Me conta o que você herdou do seu pai, da sua mãe, da sua avó? Não sei, mas procura que tem.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "text": "Várias vezes já me perguntaram se eu era uma personagem e eu falei, não, eu juro que não."
+      },
+      {
+        "startMs": 4200,
+        "endMs": 9500,
+        "text": "Porém, eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico."
+      },
+      {
+        "startMs": 9500,
+        "endMs": 15500,
+        "text": "Olha os quadros que meu pai tem no escritório dele."
+      },
+      {
+        "startMs": 15500,
+        "endMs": 21000,
+        "text": "E não para por aí, tá? Eu aprendi ser fã tipo Sandy Junior, porque olha o meu pai,"
+      },
+      {
+        "startMs": 21000,
+        "endMs": 36000,
+        "text": "ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí."
+      },
+      {
+        "startMs": 36000,
+        "endMs": 41500,
+        "text": "Ou seja, é genética, mas eu acho que eu vim num nível muito, muito, mas forte."
+      },
+      {
+        "startMs": 41500,
+        "endMs": 46500,
+        "text": "Me conta o que você herdou do seu pai, da sua mãe, da sua avó? Não sei, mas procura que tem."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 9500,
+        "role": "gancho",
+        "description": "criadora falando para a câmera em close",
+        "spokenText": "Várias vezes já me perguntaram se eu era uma personagem",
+        "onScreenText": "EU TENHO HISTÓRICO",
+        "setting": "sala",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 9500,
+        "endMs": 15500,
+        "role": "demonstração",
+        "description": "filmagens de quadros na parede",
+        "spokenText": "Olha os quadros que meu pai tem no escritório dele.",
+        "onScreenText": "OLHA OS QUADROS",
+        "setting": "escritorio",
+        "objects": [
+          "quadros"
+        ],
+        "framing": [
+          "aberto"
+        ]
+      },
+      {
+        "startMs": 15500,
+        "endMs": 21000,
+        "role": "explicação",
+        "description": "criadora falando para a câmera",
+        "spokenText": "E não para por aí, tá? Eu aprendi ser fã tipo Sandy Junior",
+        "onScreenText": "POR AÍ, TÁ",
+        "setting": "sala",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 21000,
+        "endMs": 36000,
+        "role": "prova",
+        "description": "filmagens de quadros dos Beatles na parede",
+        "spokenText": "ele sempre foi fã dos Beatles, ele enquadrou todos os discos",
+        "onScreenText": "ELE SEMPRE FOI",
+        "setting": "escritorio",
+        "objects": [
+          "quadros"
+        ],
+        "framing": [
+          "aberto"
+        ]
+      },
+      {
+        "startMs": 36000,
+        "endMs": 46500,
+        "role": "cta",
+        "description": "criadora falando para a câmera e fazendo chamada final",
+        "spokenText": "Ou seja, é genética, mas eu acho que eu vim num nível muito, muito, mas forte.",
+        "onScreenText": "É GENÉTICA",
+        "setting": "sala",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "demonstração",
+      "explicação",
+      "prova",
+      "cta"
+    ],
+    "promise": "mostrar que o gosto musical de fã veio de família",
+    "cta": "Me conta o que você herdou do seu pai, da sua mãe, da sua avó?",
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

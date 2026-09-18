@@ -38,6 +38,7 @@ import {
   createPartFromBase64,
   createPartFromUri,
   createUserContent,
+  type PartMediaResolutionLevel,
 } from "@google/genai";
 import { logger } from "@/app/lib/logger";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "@/app/dashboard/boards/videoUpload/videoNarrativeGeminiInlineLimit";
@@ -541,6 +542,12 @@ export interface EvaluateSceneParams {
   profile: MapProfile;
   apiKey?: string;
   model?: string;
+  /**
+   * Resolução de mídia por parte. Os modelos 3.x leem vídeo a 70 tokens por quadro
+   * por padrão, contra ~258 do 2.5-flash: alta recupera detalhe visual ao custo de
+   * mais entrada. Sem valor, vale o padrão do modelo — produção não muda.
+   */
+  mediaResolution?: PartMediaResolutionLevel;
   fetchImpl?: typeof fetch;
 }
 
@@ -631,7 +638,8 @@ async function evaluateImagesInternal(
     const instruction = visualReadingInstruction(items.length);
     const response = await governedGenerateContent(ai, {
       model, contents: createUserContent([prompt.user, prompt.format, instruction, ...parts]),
-      config: { systemInstruction: prompt.system, thinkingConfig: { thinkingBudget: 0 }, responseMimeType: "application/json", temperature: 0, maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS },
+      // Mesma regra do vídeo: o orçamento numérico só vale no 2.5; os 3.x pedem nível.
+      config: { systemInstruction: prompt.system, thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "low" }, responseMimeType: "application/json", temperature: 0, maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS },
     }, "cena");
     const parsed = parseSceneEvaluation(response.text, profile);
     const slides = parsed?.slides;
@@ -789,9 +797,9 @@ async function evaluateSceneInternal(
     const videoPart =
       bytes.byteLength > MAX_INLINE_VIDEO_BYTES
         ? await uploadVideo(ai, bytes, safeMime).then((file) =>
-            createPartFromUri(file.uri, file.mimeType),
+            createPartFromUri(file.uri, file.mimeType, params.mediaResolution),
           )
-        : createPartFromBase64(bytes.toString("base64"), safeMime);
+        : createPartFromBase64(bytes.toString("base64"), safeMime, params.mediaResolution);
 
     const read = async (temperature: number) => {
       const response = await governedGenerateContent(ai, {
@@ -800,7 +808,9 @@ async function evaluateSceneInternal(
         config: {
           systemInstruction: prompt.system,
           // Obrigatório no 2.5-flash: sem teto, os tokens de raciocínio dominam a conta.
-          thinkingConfig: { thinkingBudget: 0 },
+          // Os modelos 3.x recusam o orçamento numérico com 400 INVALID_ARGUMENT e pedem
+          // thinkingLevel — medido em 18/09/2026 no gemini-3.5-flash-lite.
+          thinkingConfig: model.startsWith("gemini-2.") ? { thinkingBudget: 0 } : { thinkingLevel: "low" },
           responseMimeType: "application/json",
           temperature,
           maxOutputTokens: SCENE_MAX_OUTPUT_TOKENS,

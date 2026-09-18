@@ -1,0 +1,93 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "filho_em_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "criacao_dos_filhos"
+    ],
+    "subjects": [
+      "filha falando biquíni errado",
+      "adotando o jeito da filha falar"
+    ],
+    "quotes": [
+      "Achei biquíney um jeito bem garota de falar, né?",
+      "A partir de agora, todo mundo concorda que a palavra é biquíney"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "taça"
+    ],
+    "screenTitle": "Pov: você tem uma patricinha de 2 anos",
+    "openingLine": "Você tá de quê?",
+    "transcript": "Você tá de quê? De biquíney. Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 2500,
+        "text": "Você tá de quê? De biquíney."
+      },
+      {
+        "startMs": 2500,
+        "endMs": 9500,
+        "text": "Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 2500,
+        "role": "contexto",
+        "description": "filha da criadora falando a palavra biquíni de forma errada",
+        "spokenText": "Você tá de quê? De biquíney.",
+        "onScreenText": "Pov: você tem uma patricinha de 2 anos",
+        "setting": "casa",
+        "objects": [],
+        "framing": [
+          "E2"
+        ]
+      },
+      {
+        "startMs": 2500,
+        "endMs": 9500,
+        "role": "explicação",
+        "description": "criadora segurando uma taça em um estabelecimento",
+        "spokenText": "Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney",
+        "onScreenText": null,
+        "setting": "estabelecimento",
+        "objects": [
+          "taça"
+        ],
+        "framing": [
+          "E1",
+          "E4"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "contexto",
+      "explicação"
+    ],
+    "promise": "mostrar a forma engraçada que a filha fala biquíni",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

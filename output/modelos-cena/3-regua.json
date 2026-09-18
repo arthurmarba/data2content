@@ -1,0 +1,345 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "estabelecimento",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [],
+    "subjectIds": [
+      "viajar",
+      "consumo_e_achados"
+    ],
+    "subjects": [
+      "prato solidário",
+      "parmegiana artesanal",
+      "ajudar crianças com câncer",
+      "restaurante octoo"
+    ],
+    "quotes": [
+      "Eita, mas tô aguando!",
+      "Hoje é dia de comer parmegiana",
+      "Absurdo isso aqui!"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa",
+      "gravado_por_outro"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "prato de parmegiana",
+      "porção de batata frita",
+      "porção de arroz",
+      "talheres"
+    ],
+    "screenTitle": "Prato Solidário Parmegiana",
+    "openingLine": "Cortando de colher. Eita, mas tô aguando!",
+    "transcript": "Cortando de colher. Eita, mas tô aguando! Vem com a gente então que o Prato Solidário de hoje é aqui no Octoo. Hoje é dia de comer parmegiana. Aí então vamos embora. O Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar. Ela vai te servir muito bem, custa R$59,90, acompanha fritas, acompanha um arrozinho maravilhoso, mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente. Eu já tô com água na boca! E é claro, né? Além de você fazer uma refeição saborosa aqui no Octoo, 15% do valor do prato vai pra Fundação Sara, vai pra campanha do Setembro Dourado e pra poder ajudar as crianças. Chegou a parte boa, gente. Vai ser a hora da gente comer uma parmegiana saborosíssima. Molhinho caseiro, feito na casa. Não pode faltar. E é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo! Absurdo isso aqui! Hum.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 2200,
+        "text": "Cortando de colher. Eita, mas tô aguando!"
+      },
+      {
+        "startMs": 2200,
+        "endMs": 7700,
+        "text": "Vem com a gente então que o Prato Solidário de hoje é aqui no Octoo."
+      },
+      {
+        "startMs": 7700,
+        "endMs": 8700,
+        "text": "Hoje é dia de comer parmegiana."
+      },
+      {
+        "startMs": 8700,
+        "endMs": 9200,
+        "text": "Aí então vamos embora."
+      },
+      {
+        "startMs": 9200,
+        "endMs": 15000,
+        "text": "O Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar."
+      },
+      {
+        "startMs": 15000,
+        "endMs": 27800,
+        "text": "Ela vai te servir muito bem, custa R$59,90, acompanha fritas, acompanha um arrozinho maravilhoso, mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente."
+      },
+      {
+        "startMs": 27800,
+        "endMs": 29000,
+        "text": "Eu já tô com água na boca!"
+      },
+      {
+        "startMs": 29000,
+        "endMs": 38000,
+        "text": "E é claro, né? Além de você fazer uma refeição saborosa aqui no Octoo, 15% do valor do prato vai pra Fundação Sara, vai pra campanha do Setembro Dourado e pra poder ajudar as crianças."
+      },
+      {
+        "startMs": 38000,
+        "endMs": 43900,
+        "text": "Chegou a parte boa, gente. Vai ser a hora da gente comer uma parmegiana saborosíssima."
+      },
+      {
+        "startMs": 43900,
+        "endMs": 46500,
+        "text": "Molhinho caseiro, feito na casa."
+      },
+      {
+        "startMs": 46500,
+        "endMs": 48500,
+        "text": "Não pode faltar."
+      },
+      {
+        "startMs": 48500,
+        "endMs": 53500,
+        "text": "E é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo!"
+      },
+      {
+        "startMs": 53500,
+        "endMs": 55800,
+        "text": "Absurdo isso aqui!"
+      },
+      {
+        "startMs": 55800,
+        "endMs": 58900,
+        "text": "Hum."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 2200,
+        "role": "gancho",
+        "description": "Mãos cortando a parmegiana com queijo derretido.",
+        "spokenText": "Cortando de colher. Eita, mas tô aguando!",
+        "onScreenText": "Cortando de colher. Eita, mas tô aguando!",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 2200,
+        "endMs": 7700,
+        "role": "contexto",
+        "description": "Casal se apresenta no restaurante, falando sobre o prato solidário.",
+        "spokenText": "Vem com a gente então que o Prato Solidário de hoje é aqui no Octoo.",
+        "onScreenText": "Prato Solidário",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "plano médio",
+          "selfie no braço"
+        ]
+      },
+      {
+        "startMs": 7700,
+        "endMs": 8700,
+        "role": "contexto",
+        "description": "Esposa fala sobre o dia de comer parmegiana.",
+        "spokenText": "Hoje é dia de comer parmegiana.",
+        "onScreenText": "Hoje é dia de comer parmegiana.",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "plano médio",
+          "selfie no braço"
+        ]
+      },
+      {
+        "startMs": 8700,
+        "endMs": 9200,
+        "role": "contexto",
+        "description": "Marido convida para comer.",
+        "spokenText": "Aí então vamos embora.",
+        "onScreenText": "Aí então vamos embora.",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "plano médio",
+          "selfie no braço"
+        ]
+      },
+      {
+        "startMs": 9200,
+        "endMs": 15000,
+        "role": "explicação",
+        "description": "Esposa apresenta o prato solidário de parmegiana.",
+        "spokenText": "O Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar.",
+        "onScreenText": "O Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar.",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "porção de batata frita",
+          "porção de arroz"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      },
+      {
+        "startMs": 15000,
+        "endMs": 27800,
+        "role": "explicação",
+        "description": "Detalhes do prato, preço e molho artesanal.",
+        "spokenText": "Ela vai te servir muito bem, custa R$59,90, acompanha fritas, acompanha um arrozinho maravilhoso, mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente.",
+        "onScreenText": "Ela vai te servir muito bem, custa R$59,90, acompanha fritas, acompanha um arrozinho maravilhoso, mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente.",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "porção de batata frita",
+          "porção de arroz"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 27800,
+        "endMs": 29000,
+        "role": "virada",
+        "description": "Esposa expressa desejo pelo prato.",
+        "spokenText": "Eu já tô com água na boca!",
+        "onScreenText": "Eu já tô com água na boca!",
+        "setting": "restaurante",
+        "objects": [],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      },
+      {
+        "startMs": 29000,
+        "endMs": 38000,
+        "role": "explicação",
+        "description": "Marido explica a causa social do prato solidário.",
+        "spokenText": "E é claro, né? Além de você fazer uma refeição saborosa aqui no Octoo, 15% do valor do prato vai pra Fundação Sara, vai pra campanha do Setembro Dourado e pra poder ajudar as crianças.",
+        "onScreenText": "E é claro, né? Além de você fazer uma refeição saborosa aqui no Octoo, 15% do valor do prato vai pra Fundação Sara, vai pra campanha do Setembro Dourado e pra poder ajudar as crianças.",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "porção de batata frita",
+          "porção de arroz"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      },
+      {
+        "startMs": 38000,
+        "endMs": 43900,
+        "role": "demonstração",
+        "description": "Marido mostra o prato e a parmegiana sendo servida.",
+        "spokenText": "Chegou a parte boa, gente. Vai ser a hora da gente comer uma parmegiana saborosíssima.",
+        "onScreenText": "Chegou a parte boa, gente. Vai ser a hora da gente comer uma parmegiana saborosíssima.",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "talheres"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 43900,
+        "endMs": 46500,
+        "role": "explicação",
+        "description": "Marido fala sobre o molho caseiro.",
+        "spokenText": "Molhinho caseiro, feito na casa.",
+        "onScreenText": "Molhinho caseiro, feito na casa.",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "talheres"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 46500,
+        "endMs": 48500,
+        "role": "explicação",
+        "description": "Marido mostra o arroz e a batata frita.",
+        "spokenText": "Não pode faltar.",
+        "onScreenText": "Não pode faltar.",
+        "setting": "restaurante",
+        "objects": [
+          "porção de arroz",
+          "porção de batata frita"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      },
+      {
+        "startMs": 48500,
+        "endMs": 53500,
+        "role": "cta",
+        "description": "Marido convida a ver mais detalhes na legenda.",
+        "spokenText": "E é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo!",
+        "onScreenText": "E é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo!",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "porção de batata frita",
+          "porção de arroz"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      },
+      {
+        "startMs": 53500,
+        "endMs": 58900,
+        "role": "entrega",
+        "description": "Marido elogia o prato enquanto come.",
+        "spokenText": "Absurdo isso aqui! Hum.",
+        "onScreenText": "Absurdo isso aqui!",
+        "setting": "restaurante",
+        "objects": [
+          "prato de parmegiana",
+          "talheres"
+        ],
+        "framing": [
+          "plano médio",
+          "câmera fixa"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "explicação",
+      "virada",
+      "demonstração",
+      "cta",
+      "entrega"
+    ],
+    "promise": "mostrar o prato solidário de parmegiana do Octoo e sua causa social",
+    "cta": "todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo!",
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

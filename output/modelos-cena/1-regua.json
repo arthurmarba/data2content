@@ -1,0 +1,355 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena",
+      "look_montado"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "amizade_e_afeto"
+    ],
+    "subjects": [
+      "paixão adolescente",
+      "simpatias para conquistar",
+      "guardar objetos de quem gosta",
+      "história de amor na adolescência"
+    ],
+    "quotes": [
+      "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei",
+      "Eu já desmaiei por conta dele, eu fazia simpatia",
+      "Eu pegava aquele palitinho e guardava na minha caixinha"
+    ],
+    "framingIds": [
+      "close",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "area_de_servico",
+    "objects": [
+      "óculos",
+      "brincos de argola"
+    ],
+    "screenTitle": "EU SOU NORMAL",
+    "openingLine": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei.",
+    "transcript": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei. Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira. E é mentira. É criança, vê, é um exemplo que você tá dando. É verdade, não tinha nada. Porque diversas vezes a gente teve oportunidade de ficar e eu não fiquei porque eu falei, a Sandy só beijou com 15. Aqui eu não revelei o pior, que eu acho que é muito pior. Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom? Não vai caber tudo num vídeo, mas vou contar. Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu, eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinham umas simpatias para fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai, ele me ama, ele me ama, ele me ama. E eu ficava assim, ó, à tarde. E agora o pior. Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu, eu era, eu, eu só, eu só não tinha muita noção. Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy. Mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá. Aí, nossas famílias eram muito amigas, então, ele sempre foi muito próximo e eu era muito amiga da irmã dele, então, muito próximo. Tá bom. Aí, tipo, a gente foi num churrasco. Aí ele terminava o espetinho assim, sabe, o palitinho? Ele falava, joga pra mim no lixo. Eu acho que ele sabia que eu gostava dele, não é possível. Aí, eu pegava aquele palitinho e guardava na minha caixinha. Aí tinha tipo chiclete, ele falava, joga pra mim no lixo. Eu, ahã. Aí eu pegava o chiclete e guardava na minha caixinha. Não era pra fazer nada de errado assim, não era. Era só porque tipo, sei lá. E aí, sabe aqueles, aquelas, o Kinder Ovo e tem aquelas cápsulas dentro? Então. Tem um dia que eles dormiram lá na minha casa, ele e a irmã dele. E o cabelo dele era todo cacheadinho assim, parecia de anjinho. E aí, ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei nesse potinho. Tem muito mais. Se vocês quiserem a parte dois, me avisa.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "text": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei."
+      },
+      {
+        "startMs": 4200,
+        "endMs": 16500,
+        "text": "Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira. E é mentira. É criança, vê, é um exemplo que você tá dando. É verdade, não tinha nada. Porque diversas vezes a gente teve oportunidade de ficar e eu não fiquei porque eu falei, a Sandy só beijou com 15."
+      },
+      {
+        "startMs": 16500,
+        "endMs": 20200,
+        "text": "Aqui eu não revelei o pior, que eu acho que é muito pior."
+      },
+      {
+        "startMs": 20200,
+        "endMs": 25900,
+        "text": "Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom?"
+      },
+      {
+        "startMs": 25900,
+        "endMs": 28900,
+        "text": "Não vai caber tudo num vídeo, mas vou contar."
+      },
+      {
+        "startMs": 28900,
+        "endMs": 34000,
+        "text": "Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele."
+      },
+      {
+        "startMs": 34000,
+        "endMs": 47000,
+        "text": "Eu, eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinham umas simpatias para fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai, ele me ama, ele me ama, ele me ama. E eu ficava assim, ó, à tarde. E agora o pior."
+      },
+      {
+        "startMs": 47000,
+        "endMs": 51000,
+        "text": "Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu, eu era, eu, eu só, eu só não tinha muita noção."
+      },
+      {
+        "startMs": 51000,
+        "endMs": 54000,
+        "text": "Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy."
+      },
+      {
+        "startMs": 54000,
+        "endMs": 58000,
+        "text": "Mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá."
+      },
+      {
+        "startMs": 58000,
+        "endMs": 63000,
+        "text": "Aí, nossas famílias eram muito amigas, então, ele sempre foi muito próximo e eu era muito amiga da irmã dele, então, muito próximo."
+      },
+      {
+        "startMs": 63000,
+        "endMs": 64000,
+        "text": "Tá bom."
+      },
+      {
+        "startMs": 64000,
+        "endMs": 69000,
+        "text": "Aí, tipo, a gente foi num churrasco. Aí ele terminava o espetinho assim, sabe, o palitinho? Ele falava, joga pra mim no lixo."
+      },
+      {
+        "startMs": 69000,
+        "endMs": 70000,
+        "text": "Eu acho que ele sabia que eu gostava dele, não é possível."
+      },
+      {
+        "startMs": 70000,
+        "endMs": 72000,
+        "text": "Aí, eu pegava aquele palitinho e guardava na minha caixinha."
+      },
+      {
+        "startMs": 72000,
+        "endMs": 75000,
+        "text": "Aí tinha tipo chiclete, ele falava, joga pra mim no lixo. Eu, ahã."
+      },
+      {
+        "startMs": 75000,
+        "endMs": 77000,
+        "text": "Aí eu pegava o chiclete e guardava na minha caixinha."
+      },
+      {
+        "startMs": 77000,
+        "endMs": 81000,
+        "text": "Não era pra fazer nada de errado assim, não era. Era só porque tipo, sei lá."
+      },
+      {
+        "startMs": 81000,
+        "endMs": 86000,
+        "text": "E aí, sabe aqueles, aquelas, o Kinder Ovo e tem aquelas cápsulas dentro? Então."
+      },
+      {
+        "startMs": 86000,
+        "endMs": 89000,
+        "text": "Tem um dia que eles dormiram lá na minha casa, ele e a irmã dele."
+      },
+      {
+        "startMs": 89000,
+        "endMs": 92000,
+        "text": "E o cabelo dele era todo cacheadinho assim, parecia de anjinho."
+      },
+      {
+        "startMs": 92000,
+        "endMs": 96000,
+        "text": "E aí, ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei nesse potinho."
+      },
+      {
+        "startMs": 96000,
+        "endMs": 99000,
+        "text": "Tem muito mais. Se vocês quiserem a parte dois, me avisa."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "role": "gancho",
+        "description": "A criadora, com óculos e camiseta colorida, fala diretamente para a câmera, com legendas na tela.",
+        "spokenText": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei.",
+        "onScreenText": "EU SOU NORMAL",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 4200,
+        "endMs": 16500,
+        "role": "contexto",
+        "description": "Um trecho de um programa de TV é exibido, onde a criadora, mais jovem, está sendo entrevistada e fala sobre a Sandy.",
+        "spokenText": "Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira.",
+        "onScreenText": "QUE EU ERA",
+        "setting": "estúdio de TV",
+        "objects": [],
+        "framing": [
+          "plano médio",
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 16500,
+        "endMs": 20200,
+        "role": "virada",
+        "description": "A criadora retorna à câmera, com a mesma roupa e óculos, e diz que não revelou o pior da história.",
+        "spokenText": "Aqui eu não revelei o pior, que eu acho que é muito pior.",
+        "onScreenText": "NÃO REVELEI O PIOR",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 20200,
+        "endMs": 25900,
+        "role": "contexto",
+        "description": "A criadora explica que era adolescente e não tinha muita noção na época.",
+        "spokenText": "Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom?",
+        "onScreenText": "EU NÃO TINHA MUITA NOÇÃO",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 25900,
+        "endMs": 28900,
+        "role": "contexto",
+        "description": "A criadora diz que a história é longa e vai contar.",
+        "spokenText": "Não vai caber tudo num vídeo, mas vou contar.",
+        "onScreenText": "NÃO VAI CABER TUDO NUM VÍDEO",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 28900,
+        "endMs": 47000,
+        "role": "problema",
+        "description": "A criadora conta sobre sua paixão adolescente, desmaios e simpatias que fazia para o garoto gostar dela.",
+        "spokenText": "Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu, eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinham umas simpatias para fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai, ele me ama, ele me ama, ele me ama. E eu ficava assim, ó, à tarde. E agora o pior.",
+        "onScreenText": "EU FAZIA SIMPATIA",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 47000,
+        "endMs": 51000,
+        "role": "contexto",
+        "description": "A criadora reforça que era normal e não tinha muita noção na adolescência.",
+        "spokenText": "Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu, eu era, eu, eu só, eu só não tinha muita noção.",
+        "onScreenText": "EU NÃO TINHA MUITA NOÇÃO",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 51000,
+        "endMs": 54000,
+        "role": "contexto",
+        "description": "A criadora menciona que nunca tinha beijado por causa da Sandy.",
+        "spokenText": "Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy.",
+        "onScreenText": "LEMBRANDO QUE EU",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 54000,
+        "endMs": 63000,
+        "role": "contexto",
+        "description": "A criadora explica que guardava objetos do garoto em uma caixinha e que suas famílias eram muito amigas.",
+        "spokenText": "Mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá. Aí, nossas famílias eram muito amigas, então, ele sempre foi muito próximo e eu era muito amiga da irmã dele, então, muito próximo.",
+        "onScreenText": "EU GUARDAVA TUDO",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 63000,
+        "endMs": 81000,
+        "role": "problema",
+        "description": "A criadora conta que guardava palitinhos de espetinho e chicletes que o garoto jogava no lixo.",
+        "spokenText": "Tá bom. Aí, tipo, a gente foi num churrasco. Aí ele terminava o espetinho assim, sabe, o palitinho? Ele falava, joga pra mim no lixo. Eu acho que ele sabia que eu gostava dele, não é possível. Aí, eu pegava aquele palitinho e guardava na minha caixinha. Aí tinha tipo chiclete, ele falava, joga pra mim no lixo. Eu, ahã. Aí eu pegava o chiclete e guardava na minha caixinha. Não era pra fazer nada de errado assim, não era. Era só porque tipo, sei lá.",
+        "onScreenText": "JOGAVA PRA MIM NO LIXO",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 81000,
+        "endMs": 96000,
+        "role": "problema",
+        "description": "A criadora revela que guardou cabelos do garoto que caíram no travesseiro em uma cápsula de Kinder Ovo.",
+        "spokenText": "E aí, sabe aqueles, aquelas, o Kinder Ovo e tem aquelas cápsulas dentro? Então. Tem um dia que eles dormiram lá na minha casa, ele e a irmã dele. E o cabelo dele era todo cacheadinho assim, parecia de anjinho. E aí, ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei nesse potinho.",
+        "onScreenText": "PEGUEI OS CABELOS",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 96000,
+        "endMs": 99000,
+        "role": "cta",
+        "description": "A criadora finaliza o vídeo dizendo que tem muito mais e pede para avisarem se quiserem a parte dois.",
+        "spokenText": "Tem muito mais. Se vocês quiserem a parte dois, me avisa.",
+        "onScreenText": "TEM MUITO MAIS",
+        "setting": "ambiente interno",
+        "objects": [
+          "óculos"
+        ],
+        "framing": [
+          "close"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "virada",
+      "problema",
+      "cta"
+    ],
+    "promise": "contar o pior de uma história de paixão adolescente",
+    "cta": "Se vocês quiserem a parte dois, me avisa.",
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

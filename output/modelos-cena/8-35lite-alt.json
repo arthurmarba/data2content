@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "suposições sobre bissexuais",
+      "xingamentos de heteros no futebol"
+    ],
+    "quotes": [
+      "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+      "para ele, é xingamento, pra mim é esperança",
+      "mas, pra mim... é um fetiche interessantíssimo"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_artificial",
+      "caseiro",
+      "legenda_na_tela"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "microfone",
+      "banqueta"
+    ],
+    "screenTitle": null,
+    "openingLine": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+    "transcript": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual, tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, sou botafoguense. no estádio, os heteros xingam de um jeito que o LGBT entende de outra forma, vou dar um exemplo. o jogador tá lá fazendo merda, aí o hetero vai \"ah, seu viado!\" pra ele, é xingamento, pra mim é esperança. às vezes, ele quer pegar mais pesado, mete um \"ah, esse daí tá dando pro juiz!\" pra ele, é xingamento, mas, pra mim... é um fetiche interessantíssimo, Nossa Senhora",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 28688,
+        "text": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual, tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, sou botafoguense. no estádio, os heteros xingam de um jeito que o LGBT entende de outra forma, vou dar um exemplo. o jogador tá lá fazendo merda, aí o hetero vai \"ah, seu viado!\" pra ele, é xingamento, pra mim é esperança. às vezes, ele quer pegar mais pesado, mete um \"ah, esse daí tá dando pro juiz!\" pra ele, é xingamento, mas, pra mim... é um fetiche interessantíssimo, Nossa Senhora"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 28688,
+        "role": "entrega",
+        "description": "homem em pé em um palco de stand-up comedy falando ao microfone",
+        "spokenText": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+        "onScreenText": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+        "setting": "palco de comédia",
+        "objects": [
+          "microfone"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "entrega"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

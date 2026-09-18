@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena",
+      "look_montado"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "amizade_e_afeto"
+    ],
+    "subjects": [
+      "loucuras de fã na adolescência",
+      "lembranças da época da escola",
+      "histórias com sandy e junior"
+    ],
+    "quotes": [
+      "muita gente me criticou e falou que eu era louca",
+      "eu era muito apaixonada",
+      "eu guardava tudo dele"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estudio",
+    "objects": [
+      "microfone"
+    ],
+    "screenTitle": null,
+    "openingLine": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei.",
+    "transcript": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei. Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15. Só que é mentira. E que criança veio aí, você tá vendo? Na verdade, é mentira, porque a Sandy nunca tinha beijado. E por diversas vezes a gente teve a oportunidade de ficar e eu não fiquei porque eu achava que a Sandy só podia beijar com quem. Aqui, eu não revelei o pior, que eu acho que é muito pior. Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom? Não vai caber tudo num vídeo, mas vou contar. Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinha umas simpatias para fazer a pessoa gostar. Aí, uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas, do tipo: ai, ele me ama, ele me ama, ele me ama. E eu ficava assim, ó, a tarde. E agora o pior. Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu só, eu só, não tinha muita noção. Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy, mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último espetinho, papel, eu guardava lá. Aí, nossas famílias eram muito amigas, então a gente sempre foi muito próximo e eu era muito amiga da irmã dele, então, muito próximo. Tá bom? Aí, tipo, a gente ia churrasco, aí ele terminava o espetinho assim, sabe, o palitinho, e falava: ah, joga para mim no lixo. Eu achava que ele sabia que eu guardava, né? Não é possível. Aí, aí eu pegava aquele palitinho e guardava na minha caixinha. Aí tinha tipo chiclete: ah, joga para mim no lixo. Eu, ahum. Aí eu pegava o chiclete e guardava na minha caixinha. Não era para fazer nada de errado, assim, não era, era só porque tipo, sei lá. E aí, sabe aqueles, aquelas, o kinder ovo e tem aquelas cápsulas dentro? Então, tem um dia que eles dormiram lá em casa, ele e a irmã dele, e o cabelo dele era todo cacheado assim, parecia de anjinho, e aí ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei na minha caixinha. Tem muito mais. Se vocês quiserem a parte dois, me avisa.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "text": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4200,
+        "role": "gancho",
+        "description": "criadora falando para a camera com oculos",
+        "spokenText": "Muita gente me criticou e falou que eu era louca",
+        "onScreenText": "EU SOU NORMAL",
+        "setting": "fundo neutro",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "historia",
+      "cta"
+    ],
+    "promise": "contar o que aconteceu",
+    "cta": "Se vocês quiserem a parte dois, me avisa.",
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

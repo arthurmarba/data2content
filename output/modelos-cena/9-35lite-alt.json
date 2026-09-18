@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "reason": "gemini_result_unknown: Solicitação registrada sem resposta recuperável; não reenviar automaticamente.",
+  "retryable": false
+}

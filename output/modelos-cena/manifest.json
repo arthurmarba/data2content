@@ -1,0 +1,1399 @@
+{
+  "id": "modelos-cena-2026-09-18",
+  "createdAt": "2026-09-18T19:05:33.442Z",
+  "usdBrl": 6.5,
+  "capBrl": 8,
+  "items": [
+    {
+      "metricId": "6aad604df5cce10f897468e8",
+      "mediaId": "18095447201103859",
+      "creatorId": "692da44d7c0ace62652ccda8",
+      "duration": 79.874,
+      "profile": {
+        "creatorId": "692da44d7c0ace62652ccda8",
+        "territoryIds": [
+          "cozinha",
+          "bem-estar",
+          "viagem",
+          "autocuidado"
+        ],
+        "primaryTerritoryId": "cozinha",
+        "narrative": "Um explorador que vive e compartilha o melhor de Montes Claros e Minas Gerais",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "Restaurantes e lanchonetes",
+            "roleId": "estabelecimento",
+            "roleLabel": "Estabelecimento",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Docerias e festivais de doces",
+            "roleId": "comida_em_cena",
+            "roleLabel": "Comida em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Lojas de motos e carros",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Produtos manipulados e suplementos",
+            "roleId": "produto_em_cena",
+            "roleLabel": "Produto em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "O criador e sua esposa",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Celulares com aplicativos",
+            "roleId": "equipamento_em_cena",
+            "roleLabel": "Equipamento em cena",
+            "group": "objeto",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Descobrir novos sabores e lugares na cidade",
+            "subjectId": "viajar",
+            "label": "Viajar"
+          },
+          {
+            "ownLabel": "Compartilhar dicas úteis para o dia a dia em Montes Claros",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "Aproveitar a vida a dois explorando a região",
+            "subjectId": "vida_a_dois",
+            "label": "Vida a dois"
+          },
+          {
+            "ownLabel": "Experimentar e recomendar estabelecimentos gastronômicos",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Explorar destinos e experiências em Minas Gerais",
+            "subjectId": "viajar",
+            "label": "Viajar"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "estabelecimento",
+          "parceiro_em_cena"
+        ],
+        "toneIds": [
+          "direto"
+        ],
+        "subjects": [
+          "padaria com opções de café a sobremesa",
+          "padaria tradicional em montes claros",
+          "opções de salgados para almoço",
+          "sobremesas e salada de frutas"
+        ],
+        "placeId": "estabelecimento_local",
+        "transcript": "Hoje nós vamos provar para vocês que dá pra ir do café à sobremesa sem sair do centro. Por isso o rango hoje é aqui na Padaria Central Nota 10. Vamos começar pela KS pra poder abrir o apetite. Padaria Central aqui é tradicional, fia, desde 1999. Já começa, ó, cafezinho gelado. Você pode abrir o apetite no café da manhã ou no almoço também, né, que esse calorzão aí. E pra acompanhar o café gelado dele, eu já vou logo nesse bolo central aqui que tá maravilhoso. E você mesmo se serve. E se você tá na correria do almoço, aqui você encontra várias opções salgadas pra aproveitar, como o Beirute, torta de carne e esse aqui que é o salgado português. Não pode faltar o clássico molho rosé. E pra acompanhar tudo isso, eu pedi uma vitamina de açaí. Melhor molhinho rosé que eu já comi foi esse aqui. Chega tá desmanchando. Não precisava de garfo e faca. Não podia faltar a sobremesa, que tá um bolo no pote de brigadeiro. Esse de beijinho, salada de fruta com opção de quê? Suco de laranja e iogurte. Dica importante pra gente finalizar é que a padaria oferece o quê? Delivery. E retirada, ó. O delivery mais rápido das padarias de Montes Claros é aqui na Padaria Central. E vem aproveitar o café da manhã, almoço. Isso mesmo. Que você faz refeição completa do dia inteiro. Então vem aproveitar. Tchau, tchau pra vocês."
+      }
+    },
+    {
+      "metricId": "6aac7f11f5cce10f89743a2b",
+      "mediaId": "18076810754453757",
+      "creatorId": "6a021d220ef12ab7df1bd92d",
+      "duration": 96.453,
+      "profile": {
+        "creatorId": "6a021d220ef12ab7df1bd92d",
+        "territoryIds": [
+          "cultura",
+          "relacoes",
+          "bem-estar"
+        ],
+        "primaryTerritoryId": "cultura",
+        "narrative": "Uma entusiasta que celebra a cultura pop e as conexões da vida adulta",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "a própria criadora",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "amigos e colegas",
+            "roleId": "amigo_em_cena",
+            "roleLabel": "Amigo em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "óculos como acessório pessoal",
+            "roleId": "look_montado",
+            "roleLabel": "Look montado",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ambientes de bastidores (Globo/Projac)",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ambientes internos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Casa",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Estúdios",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Escritórios",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Relembrar ícones dos anos 90 com amigos",
+            "subjectId": "amizade_e_afeto",
+            "label": "Amizade e afeto"
+          },
+          {
+            "ownLabel": "Compartilhar curiosidades dos bastidores da televisão",
+            "subjectId": "criar_conteudo",
+            "label": "Criar conteúdo"
+          },
+          {
+            "ownLabel": "Inspirar a busca por bem-estar e crescimento pessoal",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          },
+          {
+            "ownLabel": "Compartilhar dicas de saúde e bem-estar",
+            "subjectId": "cuidar_de_si",
+            "label": "Cuidar de si"
+          },
+          {
+            "ownLabel": "Refletir sobre a vida e o crescimento pessoal",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "sozinho_na_cena",
+          "look_montado"
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "paixão adolescente",
+          "simpatias para conquistar",
+          "guardar objetos de quem gosta",
+          "história de amor na adolescência"
+        ],
+        "placeId": "area_de_servico",
+        "transcript": "Muita gente me criticou e falou que eu era louca depois disso aqui que eu contei. Tinha um cara que eu era apaixonada por ele e numa revista falou que a Sandy só tinha beijado depois dos 15, só que é mentira. E é mentira. É criança, vê, é um exemplo que você tá dando. É verdade, não tinha nada. Porque diversas vezes a gente teve oportunidade de ficar e eu não fiquei porque eu falei, a Sandy só beijou com 15. Aqui eu não revelei o pior, que eu acho que é muito pior. Mas antes de contar, eu quero deixar bem claro que eu era adolescente e eu não tinha muita noção. Se eu já não tenho hoje, eu tinha menos, tá bom? Não vai caber tudo num vídeo, mas vou contar. Esse cara que eu falei que eu era apaixonada, eu era realmente muito apaixonada. Eu já desmaiei por conta dele. Eu, eu fazia simpatia, tinha aquelas revistinhas, vinha na Capricho, mas também vinham umas simpatias para fazer a pessoa gostar. Aí uma delas era que eu tinha que ficar atravessando a rua e ficar falando algumas coisas do tipo, ai, ele me ama, ele me ama, ele me ama. E eu ficava assim, ó, à tarde. E agora o pior. Gente, mas antes de eu contar o pior, eu juro que eu sou normal. Eu, eu era, eu, eu só, eu só não tinha muita noção. Eu tinha uma caixinha, lembrando que eu nunca nem tinha beijado por conta da Sandy. Mas eu tinha uma caixinha que eu guardava tudo dele. Aí, por exemplo, o último chiclete, papel, eu guardava lá. Aí, nossas famílias eram muito amigas, então, ele sempre foi muito próximo e eu era muito amiga da irmã dele, então, muito próximo. Tá bom. Aí, tipo, a gente foi num churrasco. Aí ele terminava o espetinho assim, sabe, o palitinho? Ele falava, joga pra mim no lixo. Eu acho que ele sabia que eu gostava dele, não é possível. Aí, eu pegava aquele palitinho e guardava na minha caixinha. Aí tinha tipo chiclete, ele falava, joga pra mim no lixo. Eu, ahã. Aí eu pegava o chiclete e guardava na minha caixinha. Não era pra fazer nada de errado assim, não era. Era só porque tipo, sei lá. E aí, sabe aqueles, aquelas, o Kinder Ovo e tem aquelas cápsulas dentro? Então. Tem um dia que eles dormiram lá na minha casa, ele e a irmã dele. E o cabelo dele era todo cacheadinho assim, parecia de anjinho. E aí, ele dormiu, na hora que ele acordou, eu fui lá, peguei os cabelos que caíam no travesseiro e guardei nesse potinho. Tem muito mais. Se vocês quiserem a parte dois, me avisa."
+      }
+    },
+    {
+      "metricId": "6aac7f13f5cce10f89743a3a",
+      "mediaId": "18385170256225499",
+      "creatorId": "6a021d220ef12ab7df1bd92d",
+      "duration": 47.157,
+      "profile": {
+        "creatorId": "6a021d220ef12ab7df1bd92d",
+        "territoryIds": [
+          "cultura",
+          "relacoes",
+          "bem-estar"
+        ],
+        "primaryTerritoryId": "cultura",
+        "narrative": "Uma entusiasta que celebra a cultura pop e as conexões da vida adulta",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "a própria criadora",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "amigos e colegas",
+            "roleId": "amigo_em_cena",
+            "roleLabel": "Amigo em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "óculos como acessório pessoal",
+            "roleId": "look_montado",
+            "roleLabel": "Look montado",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ambientes de bastidores (Globo/Projac)",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ambientes internos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Casa",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Estúdios",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Escritórios",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Relembrar ícones dos anos 90 com amigos",
+            "subjectId": "amizade_e_afeto",
+            "label": "Amizade e afeto"
+          },
+          {
+            "ownLabel": "Compartilhar curiosidades dos bastidores da televisão",
+            "subjectId": "criar_conteudo",
+            "label": "Criar conteúdo"
+          },
+          {
+            "ownLabel": "Inspirar a busca por bem-estar e crescimento pessoal",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          },
+          {
+            "ownLabel": "Compartilhar dicas de saúde e bem-estar",
+            "subjectId": "cuidar_de_si",
+            "label": "Cuidar de si"
+          },
+          {
+            "ownLabel": "Refletir sobre a vida e o crescimento pessoal",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "sozinho_na_cena",
+          "look_montado"
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          "herança genética",
+          "fã de sandy e junior",
+          "fã dos beatles"
+        ],
+        "placeId": "sala",
+        "transcript": "Várias vezes já me perguntaram se eu era uma personagem e eu falei não eu juro que não. Porém eu sei que eu vivo no mundo meio da fantasia, mas eu tenho histórico. Olha os quadros que meu pai tem no escritório dele. E não para por aí, tá? Eu aprendi a ser fã tipo Sandy Júnior, porque olha o meu pai. Ele sempre foi fã dos Beatles, ele enquadrou todos os discos. E quando ele era jovem, ele usava o cabelo igualzinho do Paul McCartney e também usava essas roupas aí. Ou seja, é genética, mas eu acho que eu vim num nível muito, muito mais forte. Me conta o que você herdou do seu pai, da sua mãe, da sua tia, da sua avó? Não sei, mas procura que tem."
+      }
+    },
+    {
+      "metricId": "6aad604df5cce10f897468ea",
+      "mediaId": "18153338812523140",
+      "creatorId": "692da44d7c0ace62652ccda8",
+      "duration": 59.58,
+      "profile": {
+        "creatorId": "692da44d7c0ace62652ccda8",
+        "territoryIds": [
+          "cozinha",
+          "bem-estar",
+          "viagem",
+          "autocuidado"
+        ],
+        "primaryTerritoryId": "cozinha",
+        "narrative": "Um explorador que vive e compartilha o melhor de Montes Claros e Minas Gerais",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "Restaurantes e lanchonetes",
+            "roleId": "estabelecimento",
+            "roleLabel": "Estabelecimento",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Docerias e festivais de doces",
+            "roleId": "comida_em_cena",
+            "roleLabel": "Comida em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Lojas de motos e carros",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Produtos manipulados e suplementos",
+            "roleId": "produto_em_cena",
+            "roleLabel": "Produto em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "O criador e sua esposa",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Celulares com aplicativos",
+            "roleId": "equipamento_em_cena",
+            "roleLabel": "Equipamento em cena",
+            "group": "objeto",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Descobrir novos sabores e lugares na cidade",
+            "subjectId": "viajar",
+            "label": "Viajar"
+          },
+          {
+            "ownLabel": "Compartilhar dicas úteis para o dia a dia em Montes Claros",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "Aproveitar a vida a dois explorando a região",
+            "subjectId": "vida_a_dois",
+            "label": "Vida a dois"
+          },
+          {
+            "ownLabel": "Experimentar e recomendar estabelecimentos gastronômicos",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Explorar destinos e experiências em Minas Gerais",
+            "subjectId": "viajar",
+            "label": "Viajar"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "estabelecimento",
+          "parceiro_em_cena"
+        ],
+        "toneIds": [],
+        "subjects": [
+          "prato solidário",
+          "parmegiana artesanal",
+          "ajudar crianças com câncer",
+          "restaurante octoo"
+        ],
+        "placeId": "estabelecimento_local",
+        "transcript": "Cortando de colher. Eita, mas tô aguando! Vem com a gente então que o Prato Solidário de hoje é aqui no Octoo. Hoje é dia de comer parmegiana. Ah, então vamos embora. O Prato Solidário acabou de chegar aqui na nossa mesa e a parmegiana aqui do Octoo é a pedida perfeita para você poder aproveitar. Ela vai te servir muito bem, custa R$ 59,90, acompanha fritas, acompanha um arrozinho maravilhoso, mas o grande diferencial mesmo é que o molho da parmegiana é feito artesanalmente. Eu já tô com água na boca! E é claro, né? Além de você fazer uma refeição saborosa aqui no Octoo, 15% do valor do prato vai pra Fundação Sara, vai pra campanha do Setembro Dourado e pra poder ajudar as crianças. Chegou a parte boa, gente. Vai ser a hora da gente comer uma parmegiana saborosíssima. Molhinho caseiro, feito na casa. Não pode faltar. E é claro que todos os detalhes e informações do prato e do restaurante estão na legenda do vídeo! Absurdo isso aqui! Hum."
+      }
+    },
+    {
+      "metricId": "6aac7f13f5cce10f89743a3e",
+      "mediaId": "18117432508945075",
+      "creatorId": "6a413af29f33af0b8710b042",
+      "duration": 10.516,
+      "profile": {
+        "creatorId": "6a413af29f33af0b8710b042",
+        "territoryIds": [
+          "maternidade",
+          "vida-familiar",
+          "cozinha",
+          "futebol"
+        ],
+        "primaryTerritoryId": "maternidade",
+        "narrative": "uma mãe carioca que vive a vida real com paixão",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "A filha (Liv)",
+            "roleId": "filho_em_cena",
+            "roleLabel": "Filho em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "A criadora e o marido",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Comidas e receitas infantis",
+            "roleId": "comida_em_cena",
+            "roleLabel": "Comida em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Roupas e acessórios infantis",
+            "roleId": "look_montado",
+            "roleLabel": "Look montado",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ambientes domésticos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Sala",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Cozinha",
+            "roleId": "cozinha",
+            "roleLabel": "Gastronomia",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Brinquedos infantis",
+            "roleId": "brinquedo_em_cena",
+            "roleLabel": "Brinquedo em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Motoquinha",
+            "roleId": "carro",
+            "roleLabel": "Carro",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Quartos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "vivenciando a maternidade no dia a dia",
+            "subjectId": "criacao_dos_filhos",
+            "label": "Criar filho"
+          },
+          {
+            "ownLabel": "compartilhando a rotina familiar",
+            "subjectId": "vida_em_familia",
+            "label": "Vida em família"
+          },
+          {
+            "ownLabel": "mostrando meu estilo de vida",
+            "subjectId": "estilo_e_look",
+            "label": "Estilo e look"
+          },
+          {
+            "ownLabel": "celebrando a identidade carioca e o Rio",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          },
+          {
+            "ownLabel": "preparando receitas infantis com afeto",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          }
+        ],
+        "misplacedTerritoryLabels": [
+          {
+            "label": "lifestyle",
+            "belongsTo": "tema"
+          }
+        ],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "filho_em_cena",
+          "look_montado"
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "filha de 2 anos",
+          "roupa de banho infantil",
+          "pronúncia de biquíni"
+        ],
+        "placeId": "estabelecimento_local",
+        "transcript": "Você tá de quê? Biquíney. Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney. A partir de agora, todo mundo concorda que a palavra é biquíney."
+      }
+    },
+    {
+      "metricId": "6aac7f24f5cce10f89743af3",
+      "mediaId": "18088514144292515",
+      "creatorId": "6928899e2619c0d8776dd508",
+      "duration": 37.475,
+      "profile": {
+        "creatorId": "6928899e2619c0d8776dd508",
+        "territoryIds": [
+          "casa-real",
+          "consumo",
+          "cultura",
+          "relacoes"
+        ],
+        "primaryTerritoryId": "casa-real",
+        "narrative": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "A própria criadora",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ambientes domésticos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Cozinha",
+            "roleId": "cozinha",
+            "roleLabel": "Gastronomia",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Sala",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Lojas",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Móveis",
+            "roleId": "movel_em_cena",
+            "roleLabel": "Móvel em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Colchões",
+            "roleId": "movel_em_cena",
+            "roleLabel": "Móvel em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Xícaras de café ou bebidas",
+            "roleId": "estabelecimento",
+            "roleLabel": "Estabelecimento",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Marido",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Amigas",
+            "roleId": "amigo_em_cena",
+            "roleLabel": "Amigo em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ruas e paisagens urbanas de Blumenau",
+            "roleId": "familia_em_cena",
+            "roleLabel": "Família em cena",
+            "group": "vida",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor",
+          "critico"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Encontrar o inusitado nas situações do dia a dia em Blumenau",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "Compartilhar as pequenas alegrias e desafios da vida a dois",
+            "subjectId": "vida_a_dois",
+            "label": "Vida a dois"
+          },
+          {
+            "ownLabel": "Descobrir e valorizar o comércio e os costumes locais",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Recomendar produtos e serviços locais que facilitam o dia a dia",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Compartilhar o processo de reforma e decoração de ambientes",
+            "subjectId": "rotina_da_casa",
+            "label": "Rotina da casa"
+          },
+          {
+            "ownLabel": "Comentar notícias e fofocas de famosos com humor",
+            "subjectId": "cultura_e_famosos",
+            "label": "Cultura e famosos"
+          }
+        ],
+        "misplacedTerritoryLabels": [
+          {
+            "label": "Humor cotidiano",
+            "belongsTo": "tom"
+          }
+        ],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "sozinho_na_cena"
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "não conseguir mais viajar de primeira classe",
+          "dor no cóccix em viagens longas",
+          "dificuldade de voltar para a classe econômica"
+        ],
+        "placeId": "estabelecimento_local",
+        "transcript": "não dá de andar de primeira classe, tá? Não dá, cara. Porque você anda uma vez de primeira classe, aí quando tem que voltar pra andar na econômica, tu não aceita, gente. 12 horas, juro. Eu acho que conforme a gente vai ficando mais velha, também vai piorando. Eu sou pequena, então nunca tive problema assim, doer meu joelho, algo do gênero. O meu cóccix, sério. Misericórdia do Senhor. Então assim, é melhor nem ter a primeira experiência na classe executiva ou na primeira classe, porque quando tu volta pra econômica, meu Deus."
+      }
+    },
+    {
+      "metricId": "6aac7f29f5cce10f89743b30",
+      "mediaId": "18433873636178825",
+      "creatorId": "6928899e2619c0d8776dd508",
+      "duration": 20.454,
+      "profile": {
+        "creatorId": "6928899e2619c0d8776dd508",
+        "territoryIds": [
+          "casa-real",
+          "consumo",
+          "cultura",
+          "relacoes"
+        ],
+        "primaryTerritoryId": "casa-real",
+        "narrative": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "A própria criadora",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ambientes domésticos",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Cozinha",
+            "roleId": "cozinha",
+            "roleLabel": "Gastronomia",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Sala",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Lojas",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Móveis",
+            "roleId": "movel_em_cena",
+            "roleLabel": "Móvel em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Colchões",
+            "roleId": "movel_em_cena",
+            "roleLabel": "Móvel em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Xícaras de café ou bebidas",
+            "roleId": "estabelecimento",
+            "roleLabel": "Estabelecimento",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Marido",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Amigas",
+            "roleId": "amigo_em_cena",
+            "roleLabel": "Amigo em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ruas e paisagens urbanas de Blumenau",
+            "roleId": "familia_em_cena",
+            "roleLabel": "Família em cena",
+            "group": "vida",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor",
+          "critico"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Encontrar o inusitado nas situações do dia a dia em Blumenau",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "Compartilhar as pequenas alegrias e desafios da vida a dois",
+            "subjectId": "vida_a_dois",
+            "label": "Vida a dois"
+          },
+          {
+            "ownLabel": "Descobrir e valorizar o comércio e os costumes locais",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Recomendar produtos e serviços locais que facilitam o dia a dia",
+            "subjectId": "consumo_e_achados",
+            "label": "Consumo e achados"
+          },
+          {
+            "ownLabel": "Compartilhar o processo de reforma e decoração de ambientes",
+            "subjectId": "rotina_da_casa",
+            "label": "Rotina da casa"
+          },
+          {
+            "ownLabel": "Comentar notícias e fofocas de famosos com humor",
+            "subjectId": "cultura_e_famosos",
+            "label": "Cultura e famosos"
+          }
+        ],
+        "misplacedTerritoryLabels": [
+          {
+            "label": "Humor cotidiano",
+            "belongsTo": "tom"
+          }
+        ],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "sozinho_na_cena"
+        ],
+        "toneIds": [
+          "direto"
+        ],
+        "subjects": [
+          "desrespeito na alemanha",
+          "pessoas com rinite na alemanha",
+          "espirrar em público na alemanha"
+        ],
+        "placeId": "carro_local",
+        "transcript": "Não sei se vocês sabem, mas aqui na Alemanha é falta de respeito quando está com rinite, fica tipo, sabe? E aí eles têm tipo lenço e pegam assim, ó, quando está na mesma restaurante, de um lado para o outro. E é super alto."
+      }
+    },
+    {
+      "metricId": "6aac7f15f5cce10f89743a4c",
+      "mediaId": "17948686581277126",
+      "creatorId": "6a972e8871c0b73be44e4204",
+      "duration": 95.548,
+      "profile": {
+        "creatorId": "6a972e8871c0b73be44e4204",
+        "territoryIds": [
+          "cultura",
+          "futebol",
+          "moda"
+        ],
+        "primaryTerritoryId": "cultura",
+        "narrative": "um criador que explora o desconhecido para ver o mundo de outra forma",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "Cenário de estúdio com iluminação colorida",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Óculos e acessórios pessoais",
+            "roleId": "look_montado",
+            "roleLabel": "Look montado",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Ambientes externos urbanos",
+            "roleId": "rua",
+            "roleLabel": "Rua",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Itens de decoração em prateleiras",
+            "roleId": "movel_em_cena",
+            "roleLabel": "Móvel em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Figurinos temáticos",
+            "roleId": "look_montado",
+            "roleLabel": "Look montado",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "O criador em primeiro plano reagindo a conteúdos na tela",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "Microfone",
+            "roleId": "equipamento_em_cena",
+            "roleLabel": "Equipamento em cena",
+            "group": "objeto",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "critico"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "analisar os bastidores e tensões por trás de grandes produções audiovisuais",
+            "subjectId": "criar_conteudo",
+            "label": "Criar conteúdo"
+          },
+          {
+            "ownLabel": "montar looks urbanos com acessórios marcantes para eventos na rua",
+            "subjectId": "estilo_e_look",
+            "label": "Estilo e look"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "trabalho",
+          "look_montado",
+          "movel_em_cena",
+          "sozinho_na_cena"
+        ],
+        "toneIds": [],
+        "subjects": [
+          "indicações de artistas brasileiros ao grammy latino",
+          "indicação de filme brasileiro ao oscar",
+          "reconhecimento da cultura brasileira"
+        ],
+        "placeId": "estudio",
+        "transcript": "Investir em cultura dá resultado sim, o Brasil acabou de provar isso mais uma vez. Corta! É, meu amor, enquanto tem uns que falam que arte e cultura é coisa de gente inútil, olha onde só as produções do Brasil têm chegado. Hoje saiu a lista dos indicados ao Grammy Latino 2026. E o Brasil colocou mais de 30 nomes nessa lista. E claro que não pode faltar ela, né, gente? O álbum mais comentado do ano é o álbum Equilibrium de Anitta. E ele está indicado na categoria Melhor Álbum do Ano. Além de ter sido indicado também na categoria Melhor Álbum do Ano Pop Contemporâneo em Língua Portuguesa. Também temos nomes como João Gomes, Marina Sena, Ana Castela, Luana Santana, Ferrugem, Emicida, Luedji Luna, entre outros nomes da música brasileira. Mas vocês estão achando que só os músicos que estão fazendo barulho? Meu amor, o Brasil tá chiquérrimo! Tem cinema vindo aí também. O filme brasileiro Feito Pipa, dirigido por Alan Debbert e estrelado por Lázaro Ramos, foi escolhido pela Academia Brasileira de Cinema a disputar na categoria de Melhor Filme Internacional do Ano no Oscar de 2027. O filme conta a história do Gugu, um menino do sertão do Ceará que vive com sua avó e tem que lidar com questões de família como a sua infância, perdas. Meus amores, esse filme ele é muito premiado. Ele já ganhou o Urso de Cristal, o Grande Prêmio do Júri no Festival de Berlim, e cinco prêmios no Festival de Gramado. Ou seja, tem brasileiro chegando no Grammy, tem brasileiro chegando no Oscar, e eu só consigo pensar em uma coisa: nós somos chique bem. Agora me conta, qual brasileiro vocês querem ver levando esse prêmio? Pena que não dá, né, mas poderia ser todos."
+      }
+    },
+    {
+      "metricId": "6aac7f24f5cce10f89743af6",
+      "mediaId": "17885576661618079",
+      "creatorId": "6a9034d78a90f1f35488ff29",
+      "duration": 29.951,
+      "profile": {
+        "creatorId": "6a9034d78a90f1f35488ff29",
+        "territoryIds": [
+          "futebol",
+          "cultura"
+        ],
+        "primaryTerritoryId": "futebol",
+        "narrative": "um observador bem-humorado que faz rir das situações do cotidiano",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "o criador em frente à câmera",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "produtos de supermercado",
+            "roleId": "produto_em_cena",
+            "roleLabel": "Produto em cena",
+            "group": "objeto",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "fazer piada com as pequenas manias e gafes do dia a dia",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "ironizar as principais notícias e tendências da semana",
+            "subjectId": "cultura_e_famosos",
+            "label": "Cultura e famosos"
+          },
+          {
+            "ownLabel": "reagir com sarcasmo a notícias de celebridades e eventos pop",
+            "subjectId": "cultura_e_famosos",
+            "label": "Cultura e famosos"
+          }
+        ],
+        "misplacedTerritoryLabels": [
+          {
+            "label": "comédia",
+            "belongsTo": "tom"
+          }
+        ],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "sozinho_na_cena"
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "ser bissexual e gostar de futebol",
+          "xingamentos de héteros no estádio",
+          "xingamentos de héteros e fetiches lgbt"
+        ],
+        "placeId": "estudio",
+        "transcript": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual, tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense. No estádio, os héteros xingam de um jeito que o LGBT entende outra forma. Vou dar um exemplo. O jogador tá lá fazendo m3rd4. Aí o hétero fala: \"ah, seu v14d0!\". Pra ele, é xingamento, pra mim é esperança. Às vezes, ele quer pegar mais pesado, mete um: \"ah, esse daí tá dando pro juiz!\". Pra ele, é xingamento. Mas pra mim... é um fetiche interessantíssimo. Nossa Senhora."
+      }
+    },
+    {
+      "metricId": "6aac7f13f5cce10f89743a3f",
+      "mediaId": "18123430754485902",
+      "creatorId": "6a7c923db608879964a64d4f",
+      "duration": 71.562,
+      "profile": {
+        "creatorId": "6a7c923db608879964a64d4f",
+        "territoryIds": [
+          "carreira",
+          "cozinha"
+        ],
+        "primaryTerritoryId": "carreira",
+        "narrative": "um criador que busca se desenvolver no conteúdo digital através de interações divertidas",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "facilidade com câmeras",
+            "roleId": "equipamento_em_cena",
+            "roleLabel": "Equipamento em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "casal",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "casal jovem",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "descobrir como monetizar meu conteúdo",
+            "subjectId": "trabalho_e_renda",
+            "label": "Trabalho e renda"
+          },
+          {
+            "ownLabel": "superar dificuldades empresariais",
+            "subjectId": "crescer_por_dentro",
+            "label": "Crescer por dentro"
+          },
+          {
+            "ownLabel": "participar de desafios com a esposa",
+            "subjectId": "vida_a_dois",
+            "label": "Vida a dois"
+          },
+          {
+            "ownLabel": "surpreender com situações inesperadas",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "enfrentar desafios de fé e espiritualidade",
+            "subjectId": "fe_e_proposito",
+            "label": "Fé e propósito"
+          },
+          {
+            "ownLabel": "viver momentos engraçados do dia a dia",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          }
+        ],
+        "misplacedTerritoryLabels": [
+          {
+            "label": "humor",
+            "belongsTo": "tom"
+          }
+        ],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "equipamento_em_cena",
+          "parceiro_em_cena"
+        ],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "esposa ajusta banco do carro",
+          "marido não consegue entrar no carro",
+          "marido zomba da esposa",
+          "esposa zomba do marido"
+        ],
+        "placeId": "varanda_quintal",
+        "transcript": "Vocês não vão acreditar. Tá rindo ali, né? Eu vou mostrar uma coisa pra vocês. Nem tá tanto assim. Olha isso aqui. Não. Como que eu dirijo, Dani? Uai, é só ir pra trás. Pra quem não sabe, a Dani tava dirigindo e agora quem vai dirigir é eu. Ah, você fica me zoando, né? Gente, olha isso aqui. Ele fica me zoando. Não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar pra ver se vai. Ele fica me zoando só porque eu sou baixinha. Uai, mas eu tenho 1,90m, não tem como. Não passa minha perna. Não é possível não. Gente, mas eu sou tão pequena assim? Você não tem como, vê agora. Eu não saio. Não sai? Tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Não, tem que baixar aqui, ué, também. Eu não abaixei o banco. Jesus, toma de conta. Amor do céu, você dirige em cima do volante. Mas é porque eu sou pequena. Ah, rapaz, ué. Duas horas que também. Agora sim. Agora entrou. Aí, ele."
+      }
+    },
+    {
+      "metricId": "6aac7f32f5cce10f89743b93",
+      "mediaId": "18002253018005253",
+      "creatorId": "6aa703d00576671a6761e711",
+      "duration": 31.832,
+      "profile": {
+        "creatorId": "6aa703d00576671a6761e711",
+        "territoryIds": [
+          "relacoes",
+          "fe",
+          "casa-real"
+        ],
+        "primaryTerritoryId": "relacoes",
+        "narrative": "Viver o cotidiano a dois com fé e bom humor",
+        "narrativeConfirmed": false,
+        "assets": [
+          {
+            "ownLabel": "cozinha",
+            "roleId": "cozinha",
+            "roleLabel": "Gastronomia",
+            "group": "cenario",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "humor",
+          "casual"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "Negociar linguagens de amor e manias na rotina do noivado",
+            "subjectId": "o_cotidiano",
+            "label": "O cotidiano"
+          },
+          {
+            "ownLabel": "Conversar sobre sentimentos e o dia a dia enquanto cozinham juntos",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          },
+          {
+            "ownLabel": "Partilhar momentos de oração e confiança nas promessas divinas",
+            "subjectId": "fe_e_proposito",
+            "label": "Fé e propósito"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [],
+        "toneIds": [
+          "humor"
+        ],
+        "subjects": [
+          "inimigo quer desanimar",
+          "café dá energia",
+          "vitória dos baianos",
+          "anjo desceu"
+        ],
+        "placeId": "sala",
+        "transcript": "Sai da frente, capeta! A vitória dos baianos, sim! A caminho de casa no vale de Jaboque, o anjo desceu! A batalha travada pela madrugada era o anjo e eu. Agarrado no anjo, vencendo a guerra, eu não vou soltar. Mesmo estando ferido, em meio à batalha, a vitória me dá. A caminho, a caminho de casa no vale de Jaboque, o anjo desceu!"
+      }
+    },
+    {
+      "metricId": "6aac7f19f5cce10f89743a76",
+      "mediaId": "18099952064376612",
+      "creatorId": "6986566ae713c39411143dc1",
+      "duration": 88.9,
+      "profile": {
+        "creatorId": "6986566ae713c39411143dc1",
+        "territoryIds": [
+          "cozinha",
+          "casa-real"
+        ],
+        "primaryTerritoryId": "cozinha",
+        "narrative": "viver o cotidiano com mais presença e paixão",
+        "narrativeConfirmed": true,
+        "assets": [
+          {
+            "ownLabel": "cozinha",
+            "roleId": "cozinha",
+            "roleLabel": "Gastronomia",
+            "group": "cenario",
+            "confirmed": true
+          },
+          {
+            "ownLabel": "casa",
+            "roleId": "casa",
+            "roleLabel": "Casa",
+            "group": "cenario",
+            "confirmed": true
+          },
+          {
+            "ownLabel": "a criadora (Taís)",
+            "roleId": "sozinho_na_cena",
+            "roleLabel": "Sozinho na cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "pratos de comida elaborados",
+            "roleId": "comida_em_cena",
+            "roleLabel": "Comida em cena",
+            "group": "objeto",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "estúdio de Masterchef",
+            "roleId": "trabalho",
+            "roleLabel": "Trabalho",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "parceiro ou amigo",
+            "roleId": "parceiro_em_cena",
+            "roleLabel": "Parceiro em cena",
+            "group": "vida",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ambientes de lazer e viagem",
+            "roleId": "viagem_em_cena",
+            "roleLabel": "Viagem em cena",
+            "group": "cenario",
+            "confirmed": false
+          },
+          {
+            "ownLabel": "ingredientes frescos",
+            "roleId": "comida_em_cena",
+            "roleLabel": "Comida em cena",
+            "group": "objeto",
+            "confirmed": false
+          }
+        ],
+        "toneIds": [
+          "direto",
+          "humor",
+          "acolhedor"
+        ],
+        "subjects": [
+          {
+            "ownLabel": "cozinhar em casa para a família",
+            "subjectId": "vida_em_familia",
+            "label": "Vida em família"
+          },
+          {
+            "ownLabel": "compartilhar a experiência de participar de um reality show de culinária",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          },
+          {
+            "ownLabel": "refletir sobre desafios e conquistas pessoais na cozinha e na vida",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          },
+          {
+            "ownLabel": "celebrar a cultura e os sabores do Brasil na cozinha",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          },
+          {
+            "ownLabel": "compartilhar memórias afetivas através da comida caseira",
+            "subjectId": "cozinhar",
+            "label": "Cozinhar"
+          }
+        ],
+        "misplacedTerritoryLabels": [],
+        "maturity": "instagram_enriched"
+      },
+      "referencia": {
+        "assetRoleIds": [
+          "cozinha",
+          "sozinho_na_cena",
+          "comida_em_cena"
+        ],
+        "toneIds": [
+          "direto",
+          "acolhedor"
+        ],
+        "subjects": [
+          "receita de arroz de brócolis",
+          "aproveitar 100% do brócolis",
+          "origem portuguesa da culinária carioca",
+          "comida com gosto de brasil"
+        ],
+        "placeId": "cozinha_local",
+        "transcript": "Arroz de brócolis, um clássico do Rio de Janeiro, você sabia disso? Nessa série de receitas eu quero convidar você pra comer o Brasil junto comigo, porque é você e eu que vamos manter a cultura culinária desse país vivo, então vamos lá. Uma coisa que eu amei dessa receita é que além de aproveitar 100% do brócolis, a gente pode fazer ela com arroz amanhecido. Truque pra ficar verde é um pouquinho de bicarbonato de sódio. Ferve bem rapidinho, são 3 minutos. Tira da água fervendo e ó, joga na água com gelo pra parar esse cozimento e preservar a cor. Então é caule e folhas na panela e depois no liquidificador e as flores bem picadinha pra refogar. Azeite, alho, brócolis e arroz. E por esses ingredientes a gente já tem uma pista de onde vem esse prato. Na verdade não só esse, mas toda a botecagem carioca, ela tem muita origem portuguesa, então a gente vê bastante esses ingredientes. E você vai salvar esse vídeo porque isso não é filtro, tá? Ele fica verde assim mesmo. Pra acompanhar, lascas de alho eu vi que é obrigatório. E geralmente esse arroz ele acompanha picanha ou galeto, mas a minha versão eu fiz com alcatra e essas batatas eu fiz na AirFryer, porque gente, confesso que eu tô um pouquinho fitness, tá? E não, gente, as folhas e os talos não dão um gosto amargo no arroz. Quero saber dos cariocas, né, se eu conseguir pelo menos chegar perto aí desse prato de vocês. E quero saber de você que tá me assistindo aí, o que tem gosto de Brasil pra você? Comida da sua mãe, da sua avó, da sua tia, deixa aqui nos comentários pra eu fazer nos próximos vídeos. Beijo."
+      }
+    }
+  ]
+}

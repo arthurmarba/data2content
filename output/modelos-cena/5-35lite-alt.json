@@ -1,0 +1,79 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "o problema de viajar na classe econômica",
+      "acostumar-se com o conforto",
+      "dores no corpo após viagem longa"
+    ],
+    "quotes": [
+      "não dá mais para ir na 1ª classe",
+      "porque você anda uma vez de 1ª classe aí quando tem que voltar pra andar na econômica tu não aceita gente",
+      "eu acho que conforme a gente vai ficando mais velha também vai piorando"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "carro_local",
+    "objects": [
+      "fone de ouvido"
+    ],
+    "screenTitle": "não dá mais para ir na 1ª classe",
+    "openingLine": "não dá mais para ir na 1ª classe",
+    "transcript": "não dá de andar de 1ª classe tá não dá cara porque você anda uma vez de 1ª classe aí quando tem que voltar pra andar na econômica tu não aceita gente doze horas juro eu acho que conforme a gente vai ficando mais velha também vai piorando eu sou pequena então nunca tive problema assim doer meu joelho algo do gênero o meu cóccix sério misericórdia do senhor então assim é melhor nem ter a primeira experiência na classe executiva ou na primeira classe porque quando tu volta pra econômica meu deus",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 37000,
+        "text": "não dá de andar de 1ª classe tá não dá cara porque você anda uma vez de 1ª classe aí quando tem que voltar pra andar na econômica tu não aceita gente doze horas juro eu acho que conforme a gente vai ficando mais velha também vai piorando eu sou pequena então nunca tive problema assim doer meu joelho algo do gênero o meu cóccix sério misericórdia do senhor então assim é melhor nem ter a primeira experiência na classe executiva ou na primeira classe porque quando tu volta pra econômica meu deus"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 37000,
+        "role": "gancho",
+        "description": "criadora falando sobre viajar de primeira classe e econômica no trem",
+        "spokenText": "não dá de andar de 1ª classe tá",
+        "onScreenText": "não dá mais para ir na 1ª classe",
+        "setting": "trem",
+        "objects": [
+          "fone de ouvido"
+        ],
+        "framing": [
+          "close",
+          "selfie"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "desenvolvimento",
+      "conclusão"
+    ],
+    "promise": "explicar por que não dá mais para andar de primeira classe",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

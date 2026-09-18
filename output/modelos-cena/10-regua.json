@@ -1,0 +1,108 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "fe_e_proposito"
+    ],
+    "subjects": [
+      "inimigo quer desanimar",
+      "café dá energia",
+      "vitória dos baianos",
+      "anjo desceu"
+    ],
+    "quotes": [
+      "Sai da frente, capeta!",
+      "A vitória dos baianos, sim!",
+      "A caminho de casa no vale de Jaboque, o anjo desceu!"
+    ],
+    "framingIds": [
+      "plano_aberto",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "sala",
+    "objects": [
+      "planta",
+      "televisão",
+      "ar condicionado"
+    ],
+    "screenTitle": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+    "openingLine": "Sai da frente, capeta!",
+    "transcript": "Sai da frente, capeta! A vitória dos baianos, sim! A caminho de casa no vale de Jaboque, o anjo desceu! A batalha travada pela madrugada era o anjo e eu. Agarrado no anjo, vencendo a guerra, eu não vou soltar. Mesmo estando ferido, em meio à batalha, a vitória me dá. A caminho, a caminho de casa no vale de Jaboque, o anjo desceu!",
+    "transcriptSegments": [
+      {
+        "startMs": 1000,
+        "endMs": 2000,
+        "text": "Sai da frente, capeta!"
+      },
+      {
+        "startMs": 3000,
+        "endMs": 5000,
+        "text": "A vitória dos baianos, sim!"
+      },
+      {
+        "startMs": 9000,
+        "endMs": 13000,
+        "text": "A caminho de casa no vale de Jaboque, o anjo desceu!"
+      },
+      {
+        "startMs": 13000,
+        "endMs": 17000,
+        "text": "A batalha travada pela madrugada era o anjo e eu."
+      },
+      {
+        "startMs": 17000,
+        "endMs": 22000,
+        "text": "Agarrado no anjo, vencendo a guerra, eu não vou soltar."
+      },
+      {
+        "startMs": 22000,
+        "endMs": 26000,
+        "text": "Mesmo estando ferido, em meio à batalha, a vitória me dá."
+      },
+      {
+        "startMs": 26000,
+        "endMs": 30000,
+        "text": "A caminho, a caminho de casa no vale de Jaboque, o anjo desceu!"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 30000,
+        "role": "gancho",
+        "description": "mulher de roupão dança e canta em frente à TV",
+        "spokenText": "Sai da frente, capeta!",
+        "onScreenText": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+        "setting": "sala",
+        "objects": [
+          "planta",
+          "televisão",
+          "ar condicionado"
+        ],
+        "framing": [
+          "plano aberto",
+          "câmera fixa"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

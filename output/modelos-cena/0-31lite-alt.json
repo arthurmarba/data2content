@@ -1,0 +1,222 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "estabelecimento",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "viajar",
+      "consumo_e_achados"
+    ],
+    "subjects": [
+      "opções de lanches no centro",
+      "padaria tradicional em montes claros",
+      "serviço de delivery e retirada"
+    ],
+    "quotes": [
+      "dá pra ir do café à sobremesa sem sair do centro",
+      "não pode faltar o clássico molho rosé",
+      "a padaria oferece o quê? Delivery e retirada"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "açaí",
+      "beirute",
+      "torta de carne",
+      "bolo de pote"
+    ],
+    "screenTitle": null,
+    "openingLine": "Hoje nós vamos provar para vocês que",
+    "transcript": "Hoje nós vamos provar para vocês que dá pra ir do café à sobremesa sem sair do centro. Por isso o rango hoje é aqui na Padaria Central nota 10. Vamos começar pela KS para poder abrir o apetite. Padaria Central aqui é tradicional, desde 1999. Já começo ó, cafezinho gelado, você pode abrir o apetite no café da manhã ou no almoço também né, que esse calorzão aí. E pra acompanhar o café gelado dele eu já vou logo nesse bolo central aqui que tá maravilhoso e você mesmo se serve. E se você tá na correria do almoço aqui você encontra várias opções salgadas pra aproveitar, como o beirute, torta de carne e esse aqui que é o salgado português. Não pode faltar o clássico molho rosé. E pra acompanhar tudo isso eu pedi uma vitamina de açaí. Melhor molhinho rosé que eu já comi foi esse aqui. Precisa nem de garfo e faca. Não podia faltar sobremesa, aqui tá um bolo no pote de brigadeiro, esse de beijinho, uma salada de fruta com opção de quê? Suco de laranja e iogurte. Dica importante pra gente finalizar é que a padaria oferece o quê? Delivery e retirada. O delivery mais rápido das padarias de Montes Claros é aqui na Padaria Central. E vem aproveitar o café da manhã, almoço, que você faz refeição completa do dia inteiro. Então vem aproveitar, tchau tchau pra vocês.",
+    "transcriptSegments": [],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 2000,
+        "role": "gancho",
+        "description": "criador e esposa na frente da padaria",
+        "spokenText": "Hoje nós vamos provar para vocês que dá pra ir do café à sobremesa sem sair do centro.",
+        "onScreenText": "nós vocês",
+        "setting": "rua",
+        "objects": [],
+        "framing": [
+          "E2",
+          "E4",
+          "E6"
+        ]
+      },
+      {
+        "startMs": 2000,
+        "endMs": 10000,
+        "role": "demonstração",
+        "description": "mostrando a vitrine e o interior da padaria",
+        "spokenText": "Por isso o rango hoje é aqui na Padaria Central nota 10.",
+        "onScreenText": "ir do café à sobremesa sem sair do centro",
+        "setting": "estabelecimento",
+        "objects": [
+          "açaí",
+          "beirute"
+        ],
+        "framing": [
+          "E6",
+          "E7"
+        ]
+      },
+      {
+        "startMs": 10000,
+        "endMs": 20000,
+        "role": "explicação",
+        "description": "criador tomando café gelado",
+        "spokenText": "Já começo ó, cafezinho gelado, você pode abrir o apetite no café da manhã ou no almoço também né, que esse calorzão aí.",
+        "onScreenText": "nota 10 começar KS apetite",
+        "setting": "estabelecimento",
+        "objects": [
+          "açaí"
+        ],
+        "framing": [
+          "E2",
+          "E5"
+        ]
+      },
+      {
+        "startMs": 20000,
+        "endMs": 30000,
+        "role": "demonstração",
+        "description": "esposa servindo bolo",
+        "spokenText": "E pra acompanhar o café gelado dele eu já vou logo nesse bolo central aqui que tá maravilhoso e você mesmo se serve.",
+        "onScreenText": "acompanhar gelado bolo maravilhoso",
+        "setting": "estabelecimento",
+        "objects": [
+          "bolo de pote"
+        ],
+        "framing": [
+          "E2",
+          "E6"
+        ]
+      },
+      {
+        "startMs": 30000,
+        "endMs": 40000,
+        "role": "demonstração",
+        "description": "mostrando salgados",
+        "spokenText": "E se você tá na correria do almoço aqui você encontra várias opções salgadas pra aproveitar, como o beirute, torta de carne e esse aqui que é o salgado português.",
+        "onScreenText": "almoço opções salgadas beirute torta de carne salgado português",
+        "setting": "estabelecimento",
+        "objects": [
+          "beirute",
+          "torta de carne"
+        ],
+        "framing": [
+          "E6",
+          "E7"
+        ]
+      },
+      {
+        "startMs": 40000,
+        "endMs": 50000,
+        "role": "demonstração",
+        "description": "criador colocando molho no salgado",
+        "spokenText": "Não pode faltar o clássico molho rosé. E pra acompanhar tudo isso eu pedi uma vitamina de açaí.",
+        "onScreenText": "clássico molho rosé acompanhar açaí",
+        "setting": "estabelecimento",
+        "objects": [
+          "açaí"
+        ],
+        "framing": [
+          "E2",
+          "E5"
+        ]
+      },
+      {
+        "startMs": 50000,
+        "endMs": 60000,
+        "role": "demonstração",
+        "description": "criador comendo salgado",
+        "spokenText": "Melhor molhinho rosé que eu já comi foi esse aqui. Precisa nem de garfo e faca.",
+        "onScreenText": "molhin rosé faca",
+        "setting": "estabelecimento",
+        "objects": [],
+        "framing": [
+          "E1",
+          "E5"
+        ]
+      },
+      {
+        "startMs": 60000,
+        "endMs": 70000,
+        "role": "demonstração",
+        "description": "mostrando sobremesas",
+        "spokenText": "Não podia faltar sobremesa, aqui tá um bolo no pote de brigadeiro, esse de beijinho, uma salada de fruta com opção de quê? Suco de laranja e iogurte.",
+        "onScreenText": "sobremesa pote brigadeiro beijinho fruta laranja iogurte",
+        "setting": "estabelecimento",
+        "objects": [
+          "bolo de pote"
+        ],
+        "framing": [
+          "E2",
+          "E6"
+        ]
+      },
+      {
+        "startMs": 70000,
+        "endMs": 80000,
+        "role": "cta",
+        "description": "criador e esposa na frente da padaria",
+        "spokenText": "Dica importante pra gente finalizar é que a padaria oferece o quê? Delivery e retirada. O delivery mais rápido das padarias de Montes Claros é aqui na Padaria Central.",
+        "onScreenText": "Importante padaria delivery retirada",
+        "setting": "rua",
+        "objects": [],
+        "framing": [
+          "E2",
+          "E4",
+          "E6"
+        ]
+      },
+      {
+        "startMs": 80000,
+        "endMs": 85000,
+        "role": "cta",
+        "description": "criador e esposa se despedindo",
+        "spokenText": "E vem aproveitar o café da manhã, almoço, que você faz refeição completa do dia inteiro. Então vem aproveitar, tchau tchau pra vocês.",
+        "onScreenText": "refeição dia inteiro",
+        "setting": "rua",
+        "objects": [],
+        "framing": [
+          "E2",
+          "E4",
+          "E6"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "demonstração",
+      "explicação",
+      "cta"
+    ],
+    "promise": "mostrar opções de café e almoço na Padaria Central",
+    "cta": "vem aproveitar, tchau tchau pra vocês",
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

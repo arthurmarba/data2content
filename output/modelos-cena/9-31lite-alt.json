@@ -1,0 +1,75 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "equipamento_em_cena",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "vida_a_dois",
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "dificuldade de ajustar o banco do carro",
+      "diferença de altura entre o casal"
+    ],
+    "quotes": [
+      "Eu não esperava por isso",
+      "Como que eu dirijo, Daiane?",
+      "Ele fica me zoando só porque eu sou baixinha"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela"
+    ],
+    "placeId": "carro_local",
+    "objects": [
+      "carro"
+    ],
+    "screenTitle": "Eu não esperava por isso 😱",
+    "openingLine": "Eu não esperava por isso 😱",
+    "transcript": "Eu não esperava por isso. Vocês não vão acreditar. Tá rindo ali, né? Eu vou mostrar uma coisa pra vocês. Nem tá tanto assim. Olha isso aqui. Não. Como que eu dirijo, Daiane? Vai, só ir pra trás. Pra quem não sabe, a Daiane tava dirigindo e agora quem vai dirigir é eu. Ai, você fica me zoando. Gente, olha isso aqui. Não, não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar pra ver se vai. Ele fica me zoando só porque eu sou baixinha. Mano, eu tenho 1,90, não tem como. Mano, não passa nem a... Ele fica me zoando. Não é possível, não. Gente, mas eu sou tão pequena assim? Nossa, amor, não tem como, vem agora. Eu não saio. Não sai? Tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Ai, Jesus, toma de conta. Amor do céu, você dirige em cima do volante, é? Mas é porque eu sou baixinha. Ah, rapaz, mas. Duas horas que também. Agora sim. Agora entrou.",
+    "transcriptSegments": [],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 110000,
+        "role": "demonstração",
+        "description": "o criador tenta entrar no carro que estava ajustado para a esposa, que é bem mais baixa que ele",
+        "spokenText": "Eu não esperava por isso. Vocês não vão acreditar. Tá rindo ali, né? Eu vou mostrar uma coisa pra vocês. Nem tá tanto assim. Olha isso aqui. Não. Como que eu dirijo, Daiane? Vai, só ir pra trás. Pra quem não sabe, a Daiane tava dirigindo e agora quem vai dirigir é eu. Ai, você fica me zoando. Gente, olha isso aqui. Não, não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar pra ver se vai. Ele fica me zoando só porque eu sou baixinha. Mano, eu tenho 1,90, não tem como. Mano, não passa nem a... Ele fica me zoando. Não é possível, não. Gente, mas eu sou tão pequena assim? Nossa, amor, não tem como, vem agora. Eu não saio. Não sai? Tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Ai, Jesus, toma de conta. Amor do céu, você dirige em cima do volante, é? Mas é porque eu sou baixinha. Ah, rapaz, mas. Duas horas que também. Agora sim. Agora entrou.",
+        "onScreenText": "Eu não esperava por isso 😱",
+        "setting": "carro",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "E1",
+          "E2",
+          "E4",
+          "E6"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "demonstração"
+    ],
+    "promise": "mostrar a dificuldade do criador em entrar no carro após a esposa dirigir",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

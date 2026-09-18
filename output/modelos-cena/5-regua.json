@@ -1,0 +1,120 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "não conseguir mais viajar de primeira classe",
+      "dor no cóccix em viagens longas",
+      "não aceitar voltar para a classe econômica"
+    ],
+    "quotes": [
+      "não dá de andar de primeira classe tá",
+      "tu não aceita gente",
+      "eu acho que conforme a gente vai ficando mais velha também vai piorando"
+    ],
+    "framingIds": [
+      "close",
+      "selfie_no_braco"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "fone de ouvido"
+    ],
+    "screenTitle": "não dá mais para ir na 1ª classe",
+    "openingLine": "não dá de andar de primeira classe tá",
+    "transcript": "não dá de andar de primeira classe tá. Não dá, cara. Porque você anda uma vez de primeira classe, aí quando tem que voltar pra andar na econômica, tu não aceita, gente. 12 horas, juro. Eu acho que conforme a gente vai ficando mais velha, também vai piorando. Eu sou pequena, então nunca tive problema assim, doer meu joelho, algo do gênero. O meu cóccix, sério. Misericórdia do Senhor. Então assim, é melhor nem ter a primeira experiência na classe executiva ou na primeira classe, porque quando tu volta pra econômica, meu Deus.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 3600,
+        "text": "não dá de andar de primeira classe tá."
+      },
+      {
+        "startMs": 3600,
+        "endMs": 4400,
+        "text": "Não dá, cara."
+      },
+      {
+        "startMs": 4400,
+        "endMs": 12200,
+        "text": "Porque você anda uma vez de primeira classe, aí quando tem que voltar pra andar na econômica, tu não aceita, gente."
+      },
+      {
+        "startMs": 12200,
+        "endMs": 13200,
+        "text": "12 horas, juro."
+      },
+      {
+        "startMs": 13200,
+        "endMs": 17000,
+        "text": "Eu acho que conforme a gente vai ficando mais velha, também vai piorando."
+      },
+      {
+        "startMs": 17000,
+        "endMs": 22000,
+        "text": "Eu sou pequena, então nunca tive problema assim, doer meu joelho, algo do gênero."
+      },
+      {
+        "startMs": 22000,
+        "endMs": 23400,
+        "text": "O meu cóccix, sério."
+      },
+      {
+        "startMs": 23400,
+        "endMs": 26200,
+        "text": "Misericórdia do Senhor."
+      },
+      {
+        "startMs": 26200,
+        "endMs": 32000,
+        "text": "Então assim, é melhor nem ter a primeira experiência na classe executiva ou na primeira classe,"
+      },
+      {
+        "startMs": 32000,
+        "endMs": 37400,
+        "text": "porque quando tu volta pra econômica, meu Deus."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 37400,
+        "role": "gancho",
+        "description": "A criadora está sentada em um trem, falando diretamente para a câmera sobre a dificuldade de voltar para a classe econômica após experimentar a primeira classe.",
+        "spokenText": "não dá de andar de primeira classe tá",
+        "onScreenText": "não dá mais para ir na 1ª classe",
+        "setting": "interior de um trem",
+        "objects": [
+          "fone de ouvido"
+        ],
+        "framing": [
+          "close",
+          "selfie no braço"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho"
+    ],
+    "promise": "explicar por que não dá mais para viajar na primeira classe",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

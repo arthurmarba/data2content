@@ -1,0 +1,101 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "filho_em_cena",
+      "parceiro_em_cena",
+      "look_montado",
+      "casa"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "criacao_dos_filhos",
+      "vida_em_familia",
+      "estilo_e_look"
+    ],
+    "subjects": [
+      "filha falando biquíney",
+      "filha chamando biquíni de biquíney",
+      "mãe achando graça da fala da filha"
+    ],
+    "quotes": [
+      "Achei biquíney um jeito bem garota de falar, né?",
+      "Acho que eu vou aderir biquíney a partir de agora"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_na_mao"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "xícara",
+      "chapéu"
+    ],
+    "screenTitle": "Pov: você tem uma patricinha de 2 anos",
+    "openingLine": "Você tá de quê? Biquíney!",
+    "transcript": "Você tá de quê? Biquíney! Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney a partir de agora, todo mundo concorda que a palavra é biquíney?",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 2500,
+        "text": "Você tá de quê? Biquíney!"
+      },
+      {
+        "startMs": 2500,
+        "endMs": 10000,
+        "text": "Achei biquíney um jeito bem garota de falar, né? Acho que eu vou aderir biquíney a partir de agora, todo mundo concorda que a palavra é biquíney?"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 2500,
+        "role": "gancho",
+        "description": "filha pequena com chapéu falando biquíney",
+        "spokenText": "Você tá de quê? Biquíney!",
+        "onScreenText": "Pov: você tem uma patricinha de 2 anos",
+        "setting": "sala",
+        "objects": [
+          "chapéu"
+        ],
+        "framing": [
+          "câmera na mão"
+        ]
+      },
+      {
+        "startMs": 2500,
+        "endMs": 10000,
+        "role": "scene_2",
+        "description": "mãe segurando xícara falando para a câmera",
+        "spokenText": "Achei biquíney um jeito bem garota de falar, né?",
+        "onScreenText": null,
+        "setting": "estabelecimento",
+        "objects": [
+          "xícara"
+        ],
+        "framing": [
+          "selfie no braço"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "entrega"
+    ],
+    "promise": "mostrar a filha falando biquíney",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

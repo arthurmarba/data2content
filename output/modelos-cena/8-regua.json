@@ -1,0 +1,198 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "ser bissexual e gostar de futebol",
+      "xingamentos de héteros no estádio",
+      "xingamentos de futebol e fetiche"
+    ],
+    "quotes": [
+      "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+      "no estádio, os héteros xingam de um jeito que o LGBT entende outra forma",
+      "pra ele, é xingamento, pra mim é esperança"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_artificial",
+      "produzido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "estudio",
+    "objects": [
+      "microfone",
+      "banqueta"
+    ],
+    "screenTitle": null,
+    "openingLine": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+    "transcript": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual, tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense. No estádio, os héteros xingam de um jeito que o LGBT entende outra forma. Vou dar um exemplo. O jogador tá lá fazendo m3rd4. Aí o hétero fala: \"ah, seu v14d0!\" Pra ele, é xingamento, pra mim é esperança. Às vezes, ele quer pegar mais pesado, mete um \"ah, esse daí tá dando pro juiz!\" Pra ele é xingamento. Mas pra mim... É um fetiche interessantíssimo. Nossa Senhora.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4800,
+        "text": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual"
+      },
+      {
+        "startMs": 4800,
+        "endMs": 7000,
+        "text": "tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense."
+      },
+      {
+        "startMs": 7000,
+        "endMs": 8700,
+        "text": "No estádio, os héteros xingam de um jeito que o LGBT entende outra forma."
+      },
+      {
+        "startMs": 8700,
+        "endMs": 9200,
+        "text": "Vou dar um exemplo."
+      },
+      {
+        "startMs": 9200,
+        "endMs": 10000,
+        "text": "O jogador tá lá fazendo m3rd4."
+      },
+      {
+        "startMs": 10000,
+        "endMs": 11000,
+        "text": "Aí o hétero fala: \"ah, seu v14d0!\""
+      },
+      {
+        "startMs": 11000,
+        "endMs": 13900,
+        "text": "Pra ele, é xingamento, pra mim é esperança."
+      },
+      {
+        "startMs": 13900,
+        "endMs": 16500,
+        "text": "Às vezes, ele quer pegar mais pesado, mete um \"ah, esse daí tá dando pro juiz!\""
+      },
+      {
+        "startMs": 16500,
+        "endMs": 19500,
+        "text": "Pra ele é xingamento."
+      },
+      {
+        "startMs": 19500,
+        "endMs": 22000,
+        "text": "Mas pra mim..."
+      },
+      {
+        "startMs": 22000,
+        "endMs": 25000,
+        "text": "É um fetiche interessantíssimo."
+      },
+      {
+        "startMs": 25000,
+        "endMs": 27000,
+        "text": "Nossa Senhora."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4800,
+        "role": "gancho",
+        "description": "O criador, em um palco de stand-up, fala sobre as deduções que as pessoas fazem por ele ser bissexual.",
+        "spokenText": "mas tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+        "onScreenText": "mas tem muitas coisas que as pessoas deduzem",
+        "setting": "estúdio ou fundo neutro",
+        "objects": [
+          "microfone",
+          "banqueta"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 4800,
+        "endMs": 8700,
+        "role": "contexto",
+        "description": "Ele menciona que as pessoas acham que ele não gosta de futebol e que os héteros xingam de um jeito que o LGBT entende de outra forma.",
+        "spokenText": "tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense. No estádio, os héteros xingam de um jeito que o LGBT entende outra forma.",
+        "onScreenText": "tipo, as pessoas acham que eu não gosto de futebol",
+        "setting": "estúdio ou fundo neutro",
+        "objects": [
+          "microfone",
+          "banqueta"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 8700,
+        "endMs": 13900,
+        "role": "explicação",
+        "description": "Ele dá um exemplo de xingamento no futebol e como ele, sendo bissexual, o interpreta de forma diferente.",
+        "spokenText": "Vou dar um exemplo. O jogador tá lá fazendo m3rd4. Aí o hétero fala: \"ah, seu v14d0!\" Pra ele, é xingamento, pra mim é esperança.",
+        "onScreenText": "o jogador tá lá fazendo m3rd4",
+        "setting": "estúdio ou fundo neutro",
+        "objects": [
+          "microfone",
+          "banqueta"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 13900,
+        "endMs": 19500,
+        "role": "explicação",
+        "description": "Ele continua com outro exemplo de xingamento e a sua interpretação.",
+        "spokenText": "Às vezes, ele quer pegar mais pesado, mete um \"ah, esse daí tá dando pro juiz!\" Pra ele é xingamento.",
+        "onScreenText": "às vezes, ele quer pegar mais pesado",
+        "setting": "estúdio ou fundo neutro",
+        "objects": [
+          "microfone",
+          "banqueta"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 19500,
+        "endMs": 27000,
+        "role": "virada",
+        "description": "Ele finaliza a piada com a sua interpretação dos xingamentos como um fetiche.",
+        "spokenText": "Mas pra mim... É um fetiche interessantíssimo. Nossa Senhora.",
+        "onScreenText": "mas, pra mim....",
+        "setting": "estúdio ou fundo neutro",
+        "objects": [
+          "microfone",
+          "banqueta"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "explicação",
+      "virada"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

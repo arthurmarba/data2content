@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "sozinho_na_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "preconceitos sobre bissexualidade",
+      "xingamentos em estádios de futebol"
+    ],
+    "quotes": [
+      "pra ele, é xingamento, pra mim é esperança",
+      "é um fetiche interessantíssimo"
+    ],
+    "framingIds": [
+      "plano_medio",
+      "camera_fixa",
+      "gravado_por_outro"
+    ],
+    "aestheticIds": [
+      "luz_artificial",
+      "produzido",
+      "legenda_na_tela"
+    ],
+    "placeId": "estabelecimento_local",
+    "objects": [
+      "microfone"
+    ],
+    "screenTitle": null,
+    "openingLine": "Tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+    "transcript": "Tem muitas coisas que as pessoas deduzem por eu ser bissexual. Tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense. No estádio, os héteros xingam de um jeito que o LGBT entende de outra forma. Vou dar um exemplo. O jogador tá lá fazendo merda, aí o hétero vai: ah, seu viado! Pra ele, é xingamento, pra mim é esperança. Às vezes, ele quer pegar mais pesado, mete um: ah, esse daí tá dando pro juiz! Pra ele, é xingamento, mas, pra mim, é um fetiche interessantíssimo. Nossa senhora.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 29000,
+        "text": "Tem muitas coisas que as pessoas deduzem por eu ser bissexual. Tipo, as pessoas acham, por exemplo, que eu não gosto de futebol, é uma mentira, sou botafoguense. No estádio, os héteros xingam de um jeito que o LGBT entende de outra forma. Vou dar um exemplo. O jogador tá lá fazendo merda, aí o hétero vai: ah, seu viado! Pra ele, é xingamento, pra mim é esperança. Às vezes, ele quer pegar mais pesado, mete um: ah, esse daí tá dando pro juiz! Pra ele, é xingamento, mas, pra mim, é um fetiche interessantíssimo. Nossa senhora."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 29000,
+        "role": "explicação",
+        "description": "o criador faz stand-up em um palco com fundo azul",
+        "spokenText": "Tem muitas coisas que as pessoas deduzem por eu ser bissexual",
+        "onScreenText": null,
+        "setting": "palco de stand-up",
+        "objects": [
+          "microfone"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "explicação"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}

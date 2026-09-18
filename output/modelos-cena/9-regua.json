@@ -1,0 +1,396 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "equipamento_em_cena",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [
+      "humor"
+    ],
+    "subjectIds": [
+      "vida_a_dois",
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "esposa ajusta banco do carro",
+      "marido não consegue dirigir",
+      "marido tenta entrar no carro",
+      "marido reclama da altura do banco"
+    ],
+    "quotes": [
+      "Vocês não vão acreditar",
+      "Para quem não sabe, a Dani tava dirigindo e agora quem vai dirigir é eu",
+      "Não é possível, não"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "plano_aberto",
+      "selfie_no_braco",
+      "camera_na_mao",
+      "gravado_por_outro"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "com_musica",
+      "legenda_na_tela"
+    ],
+    "placeId": "varanda_quintal",
+    "objects": [
+      "carro"
+    ],
+    "screenTitle": "Eu não esperava por isso 🤯",
+    "openingLine": "Vocês não vão acreditar.",
+    "transcript": "Vocês não vão acreditar. Tá rindo ali, né? Eu vou mostrar uma coisa para vocês. Nem tá tanto assim. Olha isso aqui. Não. Como que eu dirijo, Dani? Uai, é só ir para trás. Para quem não sabe, a Dani tava dirigindo e agora quem vai dirigir é eu. Ah, você fica me zoando, né? Gente, olha isso aqui. Ele fica me zoando. Não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar para ver se vai. Ele fica me zoando só porque eu sou baixinha. Uai, mas eu tenho 1,90 m, não tem como. Mano, não passa a minha. Não é possível, não. Gente, mas eu sou tão pequena assim? Você não tem como, vê agora. Eu não saio. Não sai? Tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Não, tem que baixar aqui, eu também. Eu não abaixei o banco. Jesus, toma de conta. Amor do céu, você dirige em cima do volante, é? Mas é porque eu sou pequena. Ah, rapaz, uai. Duas horas que também. Agora sim. Agora entrou. Aí, ele.",
+    "transcriptSegments": [
+      {
+        "startMs": 1000,
+        "endMs": 2400,
+        "text": "Vocês não vão acreditar."
+      },
+      {
+        "startMs": 4600,
+        "endMs": 5200,
+        "text": "Tá rindo ali, né?"
+      },
+      {
+        "startMs": 5200,
+        "endMs": 6800,
+        "text": "Eu vou mostrar uma coisa para vocês."
+      },
+      {
+        "startMs": 7800,
+        "endMs": 8600,
+        "text": "Nem tá tanto assim."
+      },
+      {
+        "startMs": 8600,
+        "endMs": 9400,
+        "text": "Olha isso aqui."
+      },
+      {
+        "startMs": 9400,
+        "endMs": 9700,
+        "text": "Não."
+      },
+      {
+        "startMs": 10700,
+        "endMs": 11400,
+        "text": "Como que eu dirijo, Dani?"
+      },
+      {
+        "startMs": 12000,
+        "endMs": 12800,
+        "text": "Uai, é só ir para trás."
+      },
+      {
+        "startMs": 13700,
+        "endMs": 17200,
+        "text": "Para quem não sabe, a Dani tava dirigindo e agora quem vai dirigir é eu."
+      },
+      {
+        "startMs": 17400,
+        "endMs": 18400,
+        "text": "Ah, você fica me zoando, né?"
+      },
+      {
+        "startMs": 18400,
+        "endMs": 19200,
+        "text": "Gente, olha isso aqui."
+      },
+      {
+        "startMs": 19600,
+        "endMs": 20400,
+        "text": "Ele fica me zoando."
+      },
+      {
+        "startMs": 20400,
+        "endMs": 22900,
+        "text": "Não, não, não, espera, eu vou tentar entrar."
+      },
+      {
+        "startMs": 22900,
+        "endMs": 24000,
+        "text": "Filma eu tentando entrar para ver se vai."
+      },
+      {
+        "startMs": 24000,
+        "endMs": 26200,
+        "text": "Ele fica me zoando só porque eu sou baixinha."
+      },
+      {
+        "startMs": 26200,
+        "endMs": 28000,
+        "text": "Uai, mas eu tenho 1,90 m, não tem como."
+      },
+      {
+        "startMs": 33000,
+        "endMs": 34000,
+        "text": "Mano, não passa a minha."
+      },
+      {
+        "startMs": 38800,
+        "endMs": 39600,
+        "text": "Não é possível, não."
+      },
+      {
+        "startMs": 40400,
+        "endMs": 41800,
+        "text": "Gente, mas eu sou tão pequena assim?"
+      },
+      {
+        "startMs": 42000,
+        "endMs": 43000,
+        "text": "Você não tem como, vê agora."
+      },
+      {
+        "startMs": 43800,
+        "endMs": 44200,
+        "text": "Eu não saio."
+      },
+      {
+        "startMs": 45000,
+        "endMs": 45400,
+        "text": "Não sai?"
+      },
+      {
+        "startMs": 46000,
+        "endMs": 46400,
+        "text": "Tem que sair, ué."
+      },
+      {
+        "startMs": 47600,
+        "endMs": 48400,
+        "text": "Nossa senhora."
+      },
+      {
+        "startMs": 49400,
+        "endMs": 50800,
+        "text": "Vida, não tem condição, gente."
+      },
+      {
+        "startMs": 51800,
+        "endMs": 52200,
+        "text": "Olha."
+      },
+      {
+        "startMs": 53800,
+        "endMs": 55000,
+        "text": "Não, tem que baixar aqui, eu também."
+      },
+      {
+        "startMs": 55400,
+        "endMs": 56400,
+        "text": "Eu não abaixei o banco."
+      },
+      {
+        "startMs": 57400,
+        "endMs": 58800,
+        "text": "Jesus, toma de conta."
+      },
+      {
+        "startMs": 59800,
+        "endMs": 61600,
+        "text": "Amor do céu, você dirige em cima do volante, é?"
+      },
+      {
+        "startMs": 62000,
+        "endMs": 63000,
+        "text": "Mas é porque eu sou pequena."
+      },
+      {
+        "startMs": 63800,
+        "endMs": 64600,
+        "text": "Ah, rapaz, uai."
+      },
+      {
+        "startMs": 66400,
+        "endMs": 67200,
+        "text": "Duas horas que também."
+      },
+      {
+        "startMs": 68200,
+        "endMs": 69000,
+        "text": "Agora sim."
+      },
+      {
+        "startMs": 69000,
+        "endMs": 69600,
+        "text": "Agora entrou."
+      },
+      {
+        "startMs": 70400,
+        "endMs": 70800,
+        "text": "Aí, ele."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 2900,
+        "role": "gancho",
+        "description": "Homem sorrindo para a câmera, com texto na tela.",
+        "spokenText": "Vocês não vão acreditar.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 2900,
+        "endMs": 7700,
+        "role": "contexto",
+        "description": "Homem sorrindo para a câmera, com a esposa aparecendo atrás do carro e depois a câmera se vira para o céu.",
+        "spokenText": "Tá rindo ali, né? Eu vou mostrar uma coisa para vocês.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "close",
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 7700,
+        "endMs": 12900,
+        "role": "problema",
+        "description": "Homem filma a esposa dentro do carro, com o banco muito para frente.",
+        "spokenText": "Nem tá tanto assim. Olha isso aqui. Não. Como que eu dirijo, Dani? Uai, é só ir para trás.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 12900,
+        "endMs": 18300,
+        "role": "explicação",
+        "description": "Homem explica que a esposa estava dirigindo e agora ele vai dirigir, enquanto a esposa reclama.",
+        "spokenText": "Para quem não sabe, a Dani tava dirigindo e agora quem vai dirigir é eu. Ah, você fica me zoando, né?",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 18300,
+        "endMs": 23900,
+        "role": "virada",
+        "description": "Homem filma a esposa dentro do carro, que está com o banco muito para frente, e ele diz que vai tentar entrar.",
+        "spokenText": "Gente, olha isso aqui. Ele fica me zoando. Não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar para ver se vai.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 23900,
+        "endMs": 37900,
+        "role": "demonstração",
+        "description": "Homem tenta entrar no carro com o banco muito para frente, e a esposa ri.",
+        "spokenText": "Ele fica me zoando só porque eu sou baixinha. Uai, mas eu tenho 1,90 m, não tem como. Mano, não passa a minha. Não é possível, não.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 37900,
+        "endMs": 44900,
+        "role": "problema",
+        "description": "Homem tenta entrar no carro, mas não consegue por causa do banco muito para frente.",
+        "spokenText": "Gente, mas eu sou tão pequena assim? Você não tem como, vê agora. Eu não saio.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 44900,
+        "endMs": 56900,
+        "role": "contexto",
+        "description": "Esposa pergunta se ele não sai, e ele tenta ajustar o banco, mas não consegue.",
+        "spokenText": "Não sai? Tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Não, tem que baixar aqui, eu também. Eu não abaixei o banco.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 56900,
+        "endMs": 67900,
+        "role": "problema",
+        "description": "Homem tenta ajustar o banco, mas não consegue, e a esposa ri.",
+        "spokenText": "Jesus, toma de conta. Amor do céu, você dirige em cima do volante, é? Mas é porque eu sou pequena. Ah, rapaz, uai. Duas horas que também.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      },
+      {
+        "startMs": 67900,
+        "endMs": 71000,
+        "role": "entrega",
+        "description": "Homem finalmente consegue entrar no carro e a esposa ri.",
+        "spokenText": "Agora sim. Agora entrou. Aí, ele.",
+        "onScreenText": "Eu não esperava por isso 🤯",
+        "setting": "quintal",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "contexto",
+      "problema",
+      "explicação",
+      "virada",
+      "demonstração",
+      "entrega"
+    ],
+    "promise": "mostrar algo inesperado que aconteceu com o casal",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-2.5-flash",
+    "version": "cena_mapa_v4"
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "cozinha",
+      "sozinho_na_cena",
+      "comida_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "acolhedor"
+    ],
+    "subjectIds": [
+      "vida_em_familia",
+      "cozinhar"
+    ],
+    "subjects": [
+      "receita de arroz de brócolis",
+      "aproveitamento integral de alimentos",
+      "origem portuguesa da culinária carioca",
+      "memórias afetivas de comida"
+    ],
+    "quotes": [
+      "Arroz de brócolis é um clássico do Rio de Janeiro",
+      "além de aproveitar 100% do brócolis, a gente pode fazer ela com arroz amanhecido",
+      "O que tem gosto de Brasil pra você?"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "luz_artificial",
+      "produzido",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "cozinha_local",
+    "objects": [
+      "liquidificador",
+      "frigideira",
+      "pilão",
+      "tábua de corte"
+    ],
+    "screenTitle": "ARROZ DE BRÓCOLIS",
+    "openingLine": "Arroz de brócolis é um clássico do Rio de Janeiro",
+    "transcript": "Arroz de brócolis é um clássico do Rio de Janeiro. Você sabia disso? Nessa série de receitas eu quero convidar você pra comer o Brasil junto comigo, porque é você e eu que vamos manter a cultura culinária desse país vivo. Então vamos lá. Uma coisa que eu amei dessa receita é que além de aproveitar 100% do brócolis, a gente pode fazer ela com arroz amanhecido. Truque pra ficar verde é um pouquinho de bicarbonato de sódio. Ferve bem rapidinho, são 3 minutos. Tira da água fervendo e ó, joga na água com gelo pra parar esse cozimento e preservar a cor. Então é caule e folhas na panela e depois no liquidificador e as flores bem picadinha pra refogar. Azeite, alho, brócolis e arroz. E por esses ingredientes a gente já tem uma pista de onde vem esse prato. Na verdade não só esse, mas toda a botecagem carioca, ela tem muita origem portuguesa, então a gente vê bastante esses ingredientes. E você vai salvar esse vídeo porque isso não é filtro tá, ele fica verde assim mesmo. Pra acompanhar, lascas de alho eu vi que é obrigatório e geralmente esse arroz ele acompanha picanha ou galeto, mas a minha versão eu fiz com alcatra e essas batatas eu fiz na AirFryer, porque gente, confesso que eu tô um pouquinho fitness tá. E não gente, as folhas e os talos não dão um gosto amargo no arroz. Quero saber dos cariocas né, se eu consegui pelo menos chegar perto aí desse prato de vocês. E quero saber de você que tá me assistindo aí, o que tem gosto de Brasil pra você? Comida da sua mãe, da sua vó, da sua tia, deixa aqui nos comentários pra eu fazer nos próximos vídeos. Beijo.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 128000,
+        "text": "Arroz de brócolis é um clássico do Rio de Janeiro. Você sabia disso? Nessa série de receitas eu quero convidar você pra comer o Brasil junto comigo, porque é você e eu que vamos manter a cultura culinária desse país vivo. Então vamos lá. Uma coisa que eu amei dessa receita é que além de aproveitar 100% do brócolis, a gente pode fazer ela com arroz amanhecido. Truque pra ficar verde é um pouquinho de bicarbonato de sódio. Ferve bem rapidinho, são 3 minutos. Tira da água fervendo e ó, joga na água com gelo pra parar esse cozimento e preservar a cor. Então é caule e folhas na panela e depois no liquidificador e as flores bem picadinha pra refogar. Azeite, alho, brócolis e arroz. E por esses ingredientes a gente já tem uma pista de onde vem esse prato. Na verdade não só esse, mas toda a botecagem carioca, ela tem muita origem portuguesa, então a gente vê bastante esses ingredientes. E você vai salvar esse vídeo porque isso não é filtro tá, ele fica verde assim mesmo. Pra acompanhar, lascas de alho eu vi que é obrigatório e geralmente esse arroz ele acompanha picanha ou galeto, mas a minha versão eu fiz com alcatra e essas batatas eu fiz na AirFryer, porque gente, confesso que eu tô um pouquinho fitness tá. E não gente, as folhas e os talos não dão um gosto amargo no arroz. Quero saber dos cariocas né, se eu consegui pelo menos chegar perto aí desse prato de vocês. E quero saber de você que tá me assistindo aí, o que tem gosto de Brasil pra você? Comida da sua mãe, da sua vó, da sua tia, deixa aqui nos comentários pra eu fazer nos próximos vídeos. Beijo."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 3000,
+        "role": "gancho",
+        "description": "Taís mostra o prato pronto e fala sobre o arroz de brócolis",
+        "spokenText": "Arroz de brócolis é um clássico do Rio de Janeiro. Você sabia disso?",
+        "onScreenText": "ARROZ DE BRÓCOLIS",
+        "setting": "cozinha",
+        "objects": [
+          "prato de comida"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 3000,
+        "endMs": 13000,
+        "role": "explicação",
+        "description": "Taís corta o brócolis na tábua",
+        "spokenText": "Nessa série de receitas eu quero convidar você pra comer o Brasil junto comigo",
+        "onScreenText": "COMENDO O BRASIL",
+        "setting": "cozinha",
+        "objects": [
+          "tábua de corte",
+          "faca"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 13000,
+        "endMs": 33000,
+        "role": "demonstração",
+        "description": "Taís ferve o brócolis e usa o choque térmico",
+        "spokenText": "Uma coisa que eu amei dessa receita é que além de aproveitar 100% do brócolis",
+        "onScreenText": null,
+        "setting": "cozinha",
+        "objects": [
+          "panela",
+          "pegador"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 33000,
+        "endMs": 56000,
+        "role": "explicação",
+        "description": "Taís bate o brócolis no liquidificador e refoga o arroz",
+        "spokenText": "Então é caule e folhas na panela e depois no liquidificador",
+        "onScreenText": null,
+        "setting": "cozinha",
+        "objects": [
+          "liquidificador",
+          "panela"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 56000,
+        "endMs": 108000,
+        "role": "demonstração",
+        "description": "Taís frita a carne e monta o prato",
+        "spokenText": "Pra acompanhar, lascas de alho eu vi que é obrigatório",
+        "onScreenText": null,
+        "setting": "cozinha",
+        "objects": [
+          "frigideira",
+          "pegador"
+        ],
+        "framing": [
+          "plano médio"
+        ]
+      },
+      {
+        "startMs": 108000,
+        "endMs": 128000,
+        "role": "cta",
+        "description": "Taís come o arroz e pede comentários",
+        "spokenText": "O que tem gosto de Brasil pra você?",
+        "onScreenText": "O QUE TEM GOSTO DE BRASIL PRA VOCÊ?",
+        "setting": "cozinha",
+        "objects": [
+          "prato de comida"
+        ],
+        "framing": [
+          "close"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "explicação",
+      "demonstração",
+      "cta"
+    ],
+    "promise": "ensinar a fazer um arroz de brócolis clássico do Rio de Janeiro",
+    "cta": "deixa aqui nos comentários pra eu fazer nos próximos vídeos",
+    "offMap": false,
+    "provider": "gemini-3.1-flash-lite",
+    "version": "cena_mapa_v4"
+  }
+}
