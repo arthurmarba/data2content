@@ -19,6 +19,8 @@ export interface CallClaudeOptions {
   intensity?: ClaudeIntensity;
   systemPrompt?: string;
   maxTokens?: number;
+  /** Nível de raciocínio dos modelos Gemini 3.x, quando a intensidade não basta. */
+  thinkingLevel?: "low" | "medium" | "high";
   /** Nome do fluxo no GeminiUsageLog; sem ele o gasto aparece como "llm". */
   usageTag?: string;
   /** Ignorado — mantido para compatibilidade de assinatura. */
@@ -70,9 +72,9 @@ export async function callClaudeJSON<T = unknown>(
   prompt: string,
   options: CallClaudeOptions = {},
 ): Promise<T> {
-  const { intensity = "medium", systemPrompt, maxTokens, usageTag } = options;
+  const { intensity = "medium", systemPrompt, maxTokens, usageTag, thinkingLevel } = options;
   return llmGenerateJSON<T>(
-    { prompt, system: systemPrompt, intensity, maxTokens, usageTag },
+    { prompt, system: systemPrompt, intensity, maxTokens, usageTag, thinkingLevel },
     { scope: LLM_SCOPE },
   );
 }

@@ -97,3 +97,6 @@ keys/
 
 # Dados financeiros exportados do Stripe: nunca no repositório público
 /output/stripe/
+
+# Saídas de experimento de custo (dados de criadores, não versionar)
+output/mapa-*/

@@ -47,6 +47,9 @@ export async function classifyContentWithAi(description: string): Promise<Classi
       maxTokens: 2048,
       model: preferredGeminiModel,
       json: true,
+      // Sem etiqueta, o fluxo mais frequente do dia (198 chamadas em 18/09/2026)
+      // some dentro de "llm" no registro de uso e não dá para dimensionar custo.
+      usageTag: "classificacao_texto",
     },
     { scope: "CLASSIFICATION" },
   );

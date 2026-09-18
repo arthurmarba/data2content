@@ -55,6 +55,32 @@ Aplicado:
   (`enqueueOnboardingReadings`, chamada pelo worker de refresh quando o motivo é
   `conexao`), em vez de esperar a repescagem.
 
+## Mapa: medido e adotado em 18/09/2026
+
+Experimento com 10 criadores reais, mesma pergunta e mesma temperatura, padrões do
+Instagram vindos de checkpoints já pagos (`scripts/compareMapaThinking.ts`, 80 chamadas,
+~R$ 1,20). Divergência = chip presente numa resposta e ausente na outra.
+
+| Variante | Entrada/chamada | Raciocínio | Ruído entre execuções | Tom igual ao original |
+| --- | --- | --- | --- | --- |
+| Produção anterior (mapa inteiro, raciocínio médio) | 19,4 mil | 915 | 15 | referência |
+| Sem o campo `suggestions` | 2,9 mil | 0 | 113 | 1/10 |
+| Só a âncora (seção, texto, estado) | 3,2 mil | 0 | 49 | 7/10 |
+| **Âncora + "repita a redação já proposta"** | **3,3 mil** | **0** | **9** | **9/10** |
+
+Duas lições: o histórico de sugestões era 96% da entrada (33.736 de 35.043 caracteres),
+e ele não estava lá à toa — **o texto já proposto ancora a redação dos chips**. Cortar o
+campo inteiro deixou a resposta 7× mais instável, o que encheria a fila do criador de
+quase-duplicatas. Mandar só a âncora e pedir explicitamente para repetir a redação
+resolve os dois lados.
+
+Adotado: âncora enxuta, instrução de redação e `thinkingLevel: "low"` no
+enriquecimento. Custo da chamada: **US$ 0,0197 → US$ 0,0042 (−79%)**, sem perda de
+conteúdo (311 chips contra 315).
+
+Também etiquetada a classificação de texto (`classificacao_texto`): eram 198 chamadas
+por dia escondidas dentro de "llm" no registro de uso.
+
 ## Frentes, em ordem
 
 ### 0. Medir a base (17/09, sem custo)

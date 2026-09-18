@@ -20,7 +20,46 @@ export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
-function buildPrompt(mapa: IMapaData, patterns: InstagramPatterns): string {
+/**
+ * O que o modelo precisa ver do mapa — e só isso.
+ *
+ * O documento carrega o histórico de sugestões com evidências, revisões e datas de
+ * cada chip proposto: medido em 18/09/2026, 96% dos 35 mil caracteres enviados a
+ * cada enriquecimento (33.736 de média). Quem reconcilia sugestões é
+ * `reconcileMapSuggestions`, com o documento do banco, depois da resposta — o
+ * modelo não precisa das evidências.
+ *
+ * Mas cortar o campo inteiro sai caro de outro jeito: medido nos mesmos 10
+ * criadores, sem nenhuma sugestão à vista a resposta ficou 7× mais instável (113
+ * divergências entre duas execuções contra 15), porque o texto já proposto ancora a
+ * redação dos chips. Sem âncora, cada enriquecimento reescreve o mesmo conceito e
+ * enche a fila do criador de quase-duplicatas.
+ *
+ * O meio-termo é mandar só a âncora — seção, texto e estado: 935 caracteres de
+ * média, 97% menos que o histórico completo.
+ */
+function mapaParaPrompt(mapa: IMapaData) {
+  return {
+    narrativa_central:     mapa.narrativa_central,
+    territorios:           mapa.territorios,
+    temas:                 mapa.temas,
+    narrativas_adjacentes: mapa.narrativas_adjacentes,
+    assets:                mapa.assets,
+    tom:                   mapa.tom,
+    formatos:              mapa.formatos,
+    observacoes:           mapa.observacoes,
+    maturidade:            mapa.maturidade,
+    fonte:                 mapa.fonte,
+    suggestions:           (mapa.suggestions ?? []).map(suggestion => ({
+      section: suggestion.section,
+      value:   suggestion.value,
+      state:   suggestion.state,
+    })),
+  };
+}
+
+/** Exportado para o experimento de nível de raciocínio fazer a MESMA pergunta. */
+export function buildPrompt(mapa: IMapaData, patterns: InstagramPatterns): string {
   return `Você é o sistema de mapeamento narrativo da Data2Content.
 
 Você tem dois conjuntos de dados sobre o MESMO criador (o dono desta conta):
@@ -33,7 +72,7 @@ real. Atenção: os padrões do Instagram descrevem o CONTEÚDO; a narrativa que
 você gera é sobre QUEM ELE É. Não copie a descrição do conteúdo para a narrativa.
 
 Mapa atual (onboarding declarativo):
-${JSON.stringify(mapa, null, 2)}
+${JSON.stringify(mapaParaPrompt(mapa), null, 2)}
 
 Padrões do Instagram (comportamento real):
 ${JSON.stringify(patterns, null, 2)}
@@ -66,6 +105,9 @@ Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
   Linguagem calma, sem julgamento. Vazio [] se não houver.
 
 Regras:
+- REDAÇÃO JÁ PROPOSTA: o campo "suggestions" traz chips que você já propôs antes
+  para este criador. Se for propor o MESMO conceito, repita a redação de lá
+  palavra por palavra em vez de reescrever — reescrever gera duplicata na tela dele.
 - Não invente informações que não existam em nenhuma das fontes.
 - Se o Instagram confirma o mapa, mantenha o mapa.
 - Se a amostragem for baixa, seja conservador.
@@ -124,8 +166,12 @@ export async function enrichMapaWithInstagram(
     | "observacoes"
   >;
 
+  // Raciocínio baixo: comparado com "medium" em 10 criadores reais (18/09/2026),
+  // mesma pergunta e mesma temperatura — tom e narrativa equivalentes, divergências
+  // só de redação, e 9,1 mil tokens de raciocínio a menos.
   const raw = await callClaudeJSON<RawEnriched>(buildPrompt(mapaAtual, patterns), {
     intensity: "high",
+    thinkingLevel: "low",
     maxTokens: 1024,
     usageTag: "mapa_instagram",
   });
