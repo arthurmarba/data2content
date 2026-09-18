@@ -1,0 +1,4 @@
+interface:
+  display_name: "Data2Content"
+  short_description: "Direção de produto para agentes D2C"
+  default_prompt: "Use $data2content para planejar ou implementar uma feature da Data2Content preservando o propósito do produto e a jornada do criador."

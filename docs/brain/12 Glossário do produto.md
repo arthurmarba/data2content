@@ -16,12 +16,17 @@ Cada degrau só existe se o de baixo existir. É por isso que não dá pra "gera
 Um **elemento de vida** do criador: a filha, a cozinha do apartamento, o cachorro, o carro velho. Não é credencial, não é habilidade, não é prêmio. Se cabe num currículo, não é asset.
 
 ### Território
-Um **substantivo** — o assunto onde o criador vive. Maternidade, gastronomia, moda. "Humor" não é território; "humor de casal" é, porque tem assunto embaixo.
+Um **substantivo** — o assunto onde o criador vive. Maternidade, gastronomia, moda. "Humor" não é território; "humor de casal" é, porque tem assunto embaixo. Curto (1 a 3 palavras), sem verbo e sem sufixo de público ("…para criadores").
+
+### Tema
+O **cruzamento entre território e narrativa**: uma cena concreta, quase filmável, que só existe porque *este* criador ocupa *aquele* território. Não é o território repetido em gerúndio — território "paternidade" + narrativa "sair do piloto automático" dá o tema "sair do trabalho e ir correndo pra casa ver a família", não "ser pai".
+
+O tema ficou de fora desta lista por um tempo, embora exista no código (`mapaLayersGuide.ts`) e viaje no MCP como `themes`. É ele que se cruza com os assets para virar pauta.
 
 ### Narrativa
 Uma **tensão ou uma missão** — o que está em jogo na vida do criador. Não é descrição, não é nicho. É a frase que explica por que o conteúdo dele importa.
 
-Uma narrativa só é considerada firme com **duas leituras concordando** ou com confirmação explícita do criador. Ver [[Seu Mapa]].
+Uma narrativa só é considerada **firme** com **duas leituras concordando** — Instagram e vídeo (`resolveEvidenceLevel`). A confirmação do criador não entra nessa conta: ela protege o núcleo de ser sobrescrito, e ajuda a liberar pauta, que é outro portão. Ver [[Seu Mapa]] e [[Pauta exige narrativa]].
 
 ### Pauta
 O assunto de um vídeo específico, nascido do cruzamento entre narrativa e território.

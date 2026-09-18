@@ -25,14 +25,30 @@ Dentro de `lib/mapaSeed/`, os arquivos contam a história do processo: `seedMapa
 
 ## As camadas
 
-A ordem importa e está descrita em `mapaLayersGuide.ts`:
+São **duas direções da mesma cadeia**, e as duas valem. Quem lê só uma acha que a outra
+está errada.
+
+**Geração** — como a IA constrói, escrito em `mapaLayersGuide.ts`:
+
+> narrativa → território → **tema** → asset
+
+**Dependência** — o que autoriza o quê, no glossário e no `CLAUDE.md`:
 
 > asset → território → narrativa → pauta
 
-Ver [[12 Glossário do produto]] pra definição de cada uma. Duas regras que o código guarda:
+O **tema** é o cruzamento território × narrativa: uma cena quase filmável, não o território
+repetido em gerúndio. Ele existe no código e viaja no MCP (`themes`), mas ainda não está no
+glossário.
 
-1. **Narrativa só é firme com duas leituras concordando** ou com confirmação explícita do criador.
-2. **Pauta exige narrativa + território.** Audiência sozinha não libera. Ver [[Pauta exige narrativa]].
+Ver [[12 Glossário do produto]] pra definição de cada camada. E cuidado com duas regras que
+parecem uma só — são portões diferentes, em arquivos diferentes:
+
+1. **Liberar pauta** exige narrativa **e** territórios *presentes* — confirmados pelo criador
+   **ou** detectados pela síntese. Audiência sozinha não libera. O gate está na V2:
+   confirmação explícita enriquece, mas **não é mais portão duro**
+   (`contentIdeasReadinessGate.ts`). Ver [[Pauta exige narrativa]].
+2. **Narrativa firme** é outro carimbo: `creatorMap.ts` só marca `narrativeIsFirm` quando
+   `evidenceLevel === "two_readings"`. Com uma leitura só, é ponto de partida declarado.
 
 ## A confusão a evitar
 
