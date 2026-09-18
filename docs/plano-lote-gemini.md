@@ -151,6 +151,65 @@ metade da entrada por vídeo (8 mil contra 17 mil tokens). A resolução `high` 
 quadro) é configurável por parte do pedido e pode recuperar detalhe visual; tom e fala
 dependem do áudio e podem não melhorar com isso.
 
+## O lote voltou a aceitar o gemini-2.5-flash (18/09/2026)
+
+A recusa de 14/09 (`code 5 · Requested entity was not found`) **não se repete**. Job de
+texto com a configuração de produção (`thinkingBudget: 0`, JSON, teto 1024) concluiu em
+107 s com a resposta correta e `finishReason: STOP`; um segundo job no
+gemini-3.5-flash-lite também passou.
+
+Consequência: **o lote deixou de depender de troca de modelo.** A fase 1 pode rodar no
+modelo atual, com a qualidade de hoje e sem risco. Falta a prova com vídeo pela Files
+API — o ponto exato onde a prova de 14/09 falhou, e ali por culpa nossa (arquivo apagado
+antes do job terminar).
+
+Atenção ao redigir a fase 1: um job de texto sem `thinkingBudget: 0` e com teto baixo
+volta **sem texto e sem erro** — o raciocínio come o teto. Foi o que aconteceu na
+primeira sonda e parecia recusa do modelo.
+
+### Prova com vídeo (18/09/2026): passou
+
+Reel de 18,6 MB pela Files API, `fileData` por URI no pedido embutido, mesma
+configuração de produção, arquivo apagado **só depois** do job terminar:
+
+- `JOB_STATE_SUCCEEDED` em **2 minutos** (contra 5 h e 18,8 h nas tentativas de 14/09,
+  que na verdade morreram por arquivo apagado cedo).
+- Resposta com transcrição de verdade, `finishReason` normal, `error: null`.
+- Uso: 23.631 tokens de entrada — 21.040 de vídeo, 2.560 de áudio, 31 de texto —, em
+  linha com os ~20 mil das leituras de produção.
+- `serviceTier: "standard"`: o desconto ainda precisa ser conferido na fatura, não na
+  resposta.
+
+Com isso, os três riscos que sustentavam a fase 1 caíram: o modelo é aceito, o vídeo
+funciona e o tempo de retorno observado é de minutos, não de horas. O prazo de sábado
+18:00 continua valendo como rede de segurança até haver medição de p95 com volume.
+
+## Qualidade em resolução alta (18/09/2026, 12 Reels, chamada normal)
+
+Repetição do teste de 15/09 com `mediaResolution: MEDIA_RESOLUTION_HIGH` por parte,
+comparando com a leitura que já estava salva em produção
+(`scripts/compareSceneModels.ts`). Régua = o próprio gemini-2.5-flash relendo o mesmo
+vídeo, a temperatura 0.
+
+| Medida | Régua (2.5 relendo) | 3.1-flash-lite alta | 3.5-flash-lite alta |
+| --- | --- | --- | --- |
+| Elementos perdidos / inventados | 0 / 0 | 1 / 2 | 0 / 5 |
+| Tom igual | 100% | 33% | 25% |
+| Assuntos iguais | 72% | 9% | 3% |
+| Lugar igual | 100% | 67% | 67% |
+| Semelhança da fala (pior caso) | 0,974 (0,868) | 0,821 (0,598) | 0,692 (0,060) |
+| Custo por leitura | US$ 0,0122 | US$ 0,0066 | US$ 0,0083 |
+
+**Resolução alta não resolve.** A entrada dos candidatos ficou igual à do 2.5 (215 mil
+contra 221 mil tokens nas 12 leituras), ou seja, o desconto vinha só da saída — e o que
+falha é tom, assunto e fala, que dependem de áudio e interpretação, não de detalhe
+visual. Os dois candidatos estão fora.
+
+Dois enganos nossos apareceram no caminho e foram corrigidos: `thinkingBudget: 0` é
+campo do 2.5 e derruba os modelos 3.x com 400 (ver
+`brain/30 Armadilhas/thinkingBudget zero derruba os modelos 3.md`), e a resolução de
+mídia não era configurável, o que tornava a comparação injusta.
+
 ## Fases
 
 **0. Prova de conceito (custo < R$ 0,20).** Script com 3 vídeos (curto, médio e acima de

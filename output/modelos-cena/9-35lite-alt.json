@@ -1,5 +1,224 @@
 {
-  "ok": false,
-  "reason": "gemini_result_unknown: Solicitação registrada sem resposta recuperável; não reenviar automaticamente.",
-  "retryable": false
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "equipamento_em_cena",
+      "parceiro_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor"
+    ],
+    "subjectIds": [
+      "vida_a_dois",
+      "o_cotidiano"
+    ],
+    "subjects": [
+      "altura do banco do carro",
+      "dificuldade para entrar no carro"
+    ],
+    "quotes": [
+      "Vocês não vão acreditar",
+      "Como que eu dirijo, Naila?",
+      "Nossa senhora, vida não tem condição gente"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "selfie_no_braco",
+      "camera_fixa",
+      "camera_na_mao",
+      "gravado_por_outro"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "carro_local",
+    "objects": [
+      "carro",
+      "volante",
+      "banco do carro"
+    ],
+    "screenTitle": "Eu não esperava por isso 😱",
+    "openingLine": "Vocês não vão acreditar. Tá rindo ali, né?",
+    "transcript": "Vocês não vão acreditar. Tá rindo ali, né? Eu vou mostrar uma coisa para vocês. Olha isso aqui. Como que eu dirijo, Naila? Para quem não sabe, a Naila estava dirigindo e agora quem vai dirigir sou eu. Você fica me zoando. Gente, olha isso aqui. Não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar para ver se vai. Ele fica me zoando só porque eu sou baixinha. Mano, eu tenho 1,90 m, não tem como. Mano, não passa nem a Não, não passa, tem que sair, ué. Nossa senhora. Vida, não tem condição, gente. Olha. Meu Deus do céu, você dirige em cima do volante? Mas é porque eu sou pequena. Ah, rapaz, oi. Voz horária que tem. Agora sim. Agora entrou.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 1320,
+        "text": "Vocês não vão acreditar."
+      },
+      {
+        "startMs": 1320,
+        "endMs": 5060,
+        "text": "Tá rindo ali, né? Eu vou mostrar uma coisa para vocês."
+      },
+      {
+        "startMs": 5060,
+        "endMs": null,
+        "text": "Olha isso aqui."
+      },
+      {
+        "startMs": 7440,
+        "endMs": 11640,
+        "text": "Como que eu dirijo, Naila? Para quem não sabe, a Naila estava dirigindo e agora quem vai dirigir sou eu."
+      },
+      {
+        "startMs": 11640,
+        "endMs": 13840,
+        "text": "Você fica me zoando. Gente, olha isso aqui."
+      },
+      {
+        "startMs": 19040,
+        "endMs": 23180,
+        "text": "Não, não, não, espera, eu vou tentar entrar. Filma eu tentando entrar para ver se vai."
+      },
+      {
+        "startMs": 23180,
+        "endMs": 25340,
+        "text": "Ele fica me zoando só porque eu sou baixinha."
+      },
+      {
+        "startMs": 25340,
+        "endMs": 28440,
+        "text": "Mano, eu tenho 1,90 m, não tem como."
+      },
+      {
+        "startMs": 38440,
+        "endMs": 41480,
+        "text": "Nossa senhora. Vida, não tem condição, gente. Olha."
+      },
+      {
+        "startMs": 43880,
+        "endMs": 45220,
+        "text": "Mas é porque eu sou pequena."
+      },
+      {
+        "startMs": 45220,
+        "endMs": 47200,
+        "text": "Ah, rapaz, oi."
+      },
+      {
+        "startMs": 48180,
+        "endMs": 51400,
+        "text": "Nossa senhora. Vida, não tem condição, gente."
+      },
+      {
+        "startMs": 54380,
+        "endMs": 56320,
+        "text": "Eu não abaixei o banco."
+      },
+      {
+        "startMs": 56500,
+        "endMs": 60140,
+        "text": "Jesus, toma de conta. Amor do céu, você dirige em cima do volante?"
+      },
+      {
+        "startMs": 60320,
+        "endMs": 62400,
+        "text": "Mas é porque eu sou pequena."
+      },
+      {
+        "startMs": 62400,
+        "endMs": 63360,
+        "text": "Ah, rapaz, oi."
+      },
+      {
+        "startMs": 64140,
+        "endMs": 65820,
+        "text": "Agora sim. Agora entrou."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 5060,
+        "role": "gancho",
+        "description": "marido mostra esposa rindo dentro do carro",
+        "spokenText": "Vocês não vão acreditar",
+        "onScreenText": "Eu não esperava por isso 😱",
+        "setting": "rua",
+        "objects": [
+          "carro"
+        ],
+        "framing": [
+          "E1",
+          "E4",
+          "E5"
+        ]
+      },
+      {
+        "startMs": 5060,
+        "endMs": 17500,
+        "role": "problema",
+        "description": "marido mostra que a esposa estava dirigindo e o banco está muito pra frente",
+        "spokenText": "Olha isso aqui. Como que eu dirijo, Naila?",
+        "onScreenText": "Eu não esperava por isso 😱",
+        "setting": "rua",
+        "objects": [
+          "carro",
+          "banco"
+        ],
+        "framing": [
+          "E1",
+          "E5",
+          "E8"
+        ]
+      },
+      {
+        "startMs": 17500,
+        "endMs": 56000,
+        "role": "tentativa",
+        "description": "marido tenta entrar no carro com o banco na posição da esposa baixinha e sofre",
+        "spokenText": "Filma eu tentando entrar para ver se vai",
+        "onScreenText": "Eu não esperava por isso 😱",
+        "setting": "carro",
+        "objects": [
+          "carro",
+          "banco",
+          "volante"
+        ],
+        "framing": [
+          "E2",
+          "E6",
+          "E8"
+        ]
+      },
+      {
+        "startMs": 56000,
+        "endMs": 66400,
+        "role": "entrega",
+        "description": "marido abaixa o banco e consegue entrar no carro",
+        "spokenText": "Agora sim. Agora entrou.",
+        "onScreenText": "Eu não esperava por isso 😱",
+        "setting": "carro",
+        "objects": [
+          "carro",
+          "banco",
+          "volante"
+        ],
+        "framing": [
+          "E1",
+          "E2",
+          "E5"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "problema",
+      "tentativa",
+      "entrega"
+    ],
+    "promise": "mostrar a situação engraçada com o carro da esposa",
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
 }

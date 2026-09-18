@@ -1,5 +1,72 @@
 {
-  "ok": false,
-  "reason": "gemini_result_unknown: Solicitação registrada sem resposta recuperável; não reenviar automaticamente.",
-  "retryable": false
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [],
+    "toneIds": [
+      "humor",
+      "casual"
+    ],
+    "subjectIds": [
+      "fe_e_proposito"
+    ],
+    "subjects": [
+      "começar o dia com café",
+      "confiança nas promessas divinas"
+    ],
+    "quotes": [
+      "A vitória dos baianos sim"
+    ],
+    "framingIds": [
+      "plano_aberto",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "caseiro",
+      "corte_rapido",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "sala",
+    "objects": [
+      "televisão",
+      "ar-condicionado"
+    ],
+    "screenTitle": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+    "openingLine": null,
+    "transcript": "A vitória dos baianos sim",
+    "transcriptSegments": [
+      {
+        "startMs": 3000,
+        "endMs": 6000,
+        "text": "A vitória dos baianos sim"
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 31000,
+        "role": "demonstração",
+        "description": "mulher dançando na sala de roupão após tomar café",
+        "spokenText": "A vitória dos baianos sim",
+        "onScreenText": "Inimigo: hoje ela desanima Eu depois de um gole de café",
+        "setting": "sala",
+        "objects": [
+          "televisão",
+          "ar-condicionado"
+        ],
+        "framing": [
+          "plano aberto"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "demonstração"
+    ],
+    "promise": null,
+    "cta": null,
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
 }

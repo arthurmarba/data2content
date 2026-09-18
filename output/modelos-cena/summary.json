@@ -97,5 +97,38 @@
     "assuntosIguais": 0,
     "lugarIgual": false,
     "fala": 0.768
+  },
+  {
+    "indice": 9,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": false,
+    "fala": 0.556
+  },
+  {
+    "indice": 10,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.06
+  },
+  {
+    "indice": 11,
+    "variante": "35lite-alt",
+    "ok": true,
+    "elementosPerdidos": 0,
+    "elementosInventados": 0,
+    "tomIgual": false,
+    "assuntosIguais": 0,
+    "lugarIgual": true,
+    "fala": 0.829
   }
 ]

@@ -1,5 +1,107 @@
 {
-  "ok": false,
-  "reason": "gemini_result_unknown: Solicitação registrada sem resposta recuperável; não reenviar automaticamente.",
-  "retryable": false
+  "ok": true,
+  "result": {
+    "responseFormat": "scene_legacy_v1",
+    "assetRoleIds": [
+      "cozinha",
+      "sozinho_na_cena",
+      "comida_em_cena"
+    ],
+    "toneIds": [
+      "direto",
+      "humor",
+      "acolhedor"
+    ],
+    "subjectIds": [
+      "cozinhar"
+    ],
+    "subjects": [
+      "preparar arroz de brócolis tradicional",
+      "aproveitar cem por cento do brócolis",
+      "receitas com origem portuguesa no rio de janeiro",
+      "comida afetiva brasileira"
+    ],
+    "quotes": [
+      "Arroz de brócolis é um clássico do Rio de Janeiro, você sabia disso?",
+      "Nessa série de receitas eu quero convidar você para comer o Brasil junto comigo",
+      "O que tem gosto de Brasil pra você?"
+    ],
+    "framingIds": [
+      "close",
+      "plano_medio",
+      "camera_fixa"
+    ],
+    "aestheticIds": [
+      "luz_natural",
+      "caseiro",
+      "legenda_na_tela",
+      "com_musica"
+    ],
+    "placeId": "cozinha_local",
+    "objects": [
+      "panela",
+      "faca",
+      "liquidificador",
+      "prato"
+    ],
+    "screenTitle": "ARROZ DE BRÓCOLIS",
+    "openingLine": "Arroz de brócolis é um clássico do Rio de Janeiro, você sabia disso?",
+    "transcript": "Arroz de brócolis é um clássico do Rio de Janeiro, você sabia disso? Nessa série de receitas eu quero convidar você para comer o Brasil junto comigo, porque é você e eu que vamos manter a cultura culinária desse país viva, então vamos lá. Uma coisa que eu amei dessa receita é que além de aproveitar cem por cento do brócolis, a gente pode fazer ela com arroz amanhecido. Truque para ficar verde é um pouquinho de bicarbonato de sódio, ferve bem rapidinho, são três minutos. Tira da água fervendo e joga na água com gelo para parar esse cozimento e preservar a cor. Então é caule e folhas na panela e depois no liquidificador e as flores bem picadinha para refogar. Azeite, alho, brócolis e arroz. E por esses ingredientes a gente já tem uma pista de onde vem esse prato, na verdade não só esse, mas toda a botecagem carioca ela tem muita origem portuguesa, então a gente vê bastante esses ingredientes. E você vai salvar esse vídeo, porque isso não é filtro tá, ele fica verde assim mesmo. Para acompanhar lascas de alho eu vi que é obrigatório, e geralmente esse arroz ele acompanha picanha ou galeto, mas a minha versão eu fiz com alcatra e essas batatas eu fiz na Airfryer, porque gente confesso que eu tô um pouquinho fitness tá. E não gente, as folhas e os talos não dão um gosto amargo no arroz. Quero saber dos cariocas né, se eu conseguir pelo menos chegar perto aí desse prato de vocês. E quero saber de você que tá me assistindo aí, o que que tem gosto de Brasil para você? Comida da sua mãe, da sua vó, da sua tia, deixa aqui nos comentários para eu fazer nos próximos vídeos. Beijo.",
+    "transcriptSegments": [
+      {
+        "startMs": 0,
+        "endMs": 4000,
+        "text": "Arroz de brócolis é um clássico do Rio de Janeiro, você sabia disso?"
+      },
+      {
+        "startMs": 4000,
+        "endMs": 13000,
+        "text": "Nessa série de receitas eu quero convidar você para comer o Brasil junto comigo, porque é você e eu que vamos manter a cultura culinária desse país viva, então vamos lá."
+      }
+    ],
+    "sceneTimeline": [
+      {
+        "startMs": 0,
+        "endMs": 4000,
+        "role": "gancho",
+        "description": "taís mostra o prato pronto de arroz de brócolis",
+        "spokenText": "Arroz de brócolis é um clássico do Rio de Janeiro, você sabia disso?",
+        "onScreenText": "ARROZ DE BRÓCOLIS",
+        "setting": "cozinha",
+        "objects": [
+          "prato"
+        ],
+        "framing": [
+          "close"
+        ]
+      },
+      {
+        "startMs": 4000,
+        "endMs": 13000,
+        "role": "apresentação",
+        "description": "panela com arroz sendo mexido e texto na tela sobre a série",
+        "spokenText": "Nessa série de receitas eu quero convidar você para comer o Brasil junto comigo",
+        "onScreenText": "COMENDO O BRASIL Ep 01 Arroz de Brócolis",
+        "setting": "cozinha",
+        "objects": [
+          "panela"
+        ],
+        "framing": [
+          "médio"
+        ]
+      }
+    ],
+    "narrativeStructure": [
+      "gancho",
+      "apresentação",
+      "demonstração",
+      "explicação",
+      "cta"
+    ],
+    "promise": "ensinar a fazer um arroz de brócolis tradicional carioca aproveitando cem por cento do ingrediente",
+    "cta": "deixa aqui nos comentários para eu fazer nos próximos vídeos",
+    "offMap": false,
+    "provider": "gemini-3.5-flash-lite",
+    "version": "cena_mapa_v4"
+  }
 }
