@@ -115,6 +115,20 @@ preço igual ou menor: `gemini-3.5-flash-lite` (mesmo preço do 2.5-flash) e
 `gemini-3.1-flash-lite` (US$ 0,25/M entrada, US$ 1,50/M saída; metade no lote). A troca
 só entra depois de comparação de qualidade contra a oscilação natural do 2.5-flash.
 
+## Tempo real de um lote com vídeo (14–15/09/2026)
+
+Dois lotes de 13 Reels (Files API por URI) levaram **5 h** (gemini-3.5-flash-lite) e
+**18,8 h** (gemini-3.1-flash-lite) para concluir. Lotes só de texto voltaram em 1–3 min.
+Nenhum item foi lido: os arquivos foram apagados logo após criar o job e todos
+voltaram com `code 7 · The caller does not have permission` (sem cobrança).
+
+Consequências para o desenho:
+- manter os arquivos da Files API até o job terminar (expiram em 48 h; apagar só na
+  coleta);
+- o prazo de domingo 18:00 é curto demais: um lote pode passar de 18 h. Antecipar o
+  corte para sábado 18:00 (ou tirar do lote os posts da semana corrente a partir de
+  sexta) e medir de novo antes de liberar.
+
 ## Qualidade dos candidatos (14–15/09/2026, 13 Reels, chamada normal)
 
 Mesmo pedido da produção, `thinkingLevel: LOW`, comparado às duas leituras do

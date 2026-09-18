@@ -30,7 +30,10 @@ const classificationWorkerUrl = process.env.CLASSIFICATION_WORKER_URL
   || `${appBaseUrl}/api/worker/classify-content`;
 const sceneWorkerUrl = `${appBaseUrl}/api/worker/classify-published-scene`;
 const MAX_CLASSIFICATIONS = Number(process.env.INTELLIGENCE_RECOVERY_CLASSIFICATION_LIMIT || 100);
-const MAX_SCENES = Number(process.env.INTELLIGENCE_RECOVERY_SCENE_LIMIT || 40);
+// 150 por execução, de 6 em 6 horas, drena um atraso de mil posts em poucos dias sem
+// abrir a torneira: o teto real de gasto é a trava de orçamento do Gemini, e quem já
+// tem leitura nunca é reenfileirado.
+const MAX_SCENES = Number(process.env.INTELLIGENCE_RECOVERY_SCENE_LIMIT || 150);
 const REQUEUE_AFTER_MS = Number(process.env.INTELLIGENCE_RECOVERY_REQUEUE_HOURS || 6) * 60 * 60 * 1000;
 
 async function authorized(request: NextRequest, body: string): Promise<boolean> {

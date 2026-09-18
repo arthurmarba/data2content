@@ -31,6 +31,23 @@ export async function enqueueInstagramMapEnrichment(userId: string) {
   return publish('enrich-mapa-instagram', { userId }, `mapa-instagram-${userId}-${Math.floor(Date.now() / 300000)}`, 30);
 }
 
+/** Conexão nova: os posts recentes entram na leitura no ato, sem esperar a repescagem
+ * de 6 em 6 horas. Cada post ainda passa pelas travas de acesso, versão e saldo, e
+ * quem já foi lido é ignorado — chamar de novo numa reconexão não gasta nada. */
+export async function enqueueOnboardingReadings(userId: string, limit = 30): Promise<number> {
+  if (!Types.ObjectId.isValid(userId)) return 0;
+  await connectToDatabase();
+  const posts = await Metric.find({
+    user: userId,
+    postDate: { $gte: new Date(Date.now() - 90 * 86400000) },
+    instagramMediaId: { $nin: [null, ''] },
+    type: { $in: ['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'] },
+  }).sort({ postDate: -1 }).limit(limit).select('_id').lean();
+  let enfileirados = 0;
+  for (const post of posts) if (await enqueuePublishedReading(String(post._id))) enfileirados += 1;
+  return enfileirados;
+}
+
 /** O cron continua a recuperar falhas; a classificação concluída entrega o post
  * diretamente à leitura, respeitando acesso, versão e a pausa do provedor. */
 export async function enqueuePublishedReading(metricId: string) {

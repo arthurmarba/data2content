@@ -6,7 +6,7 @@ import { logger } from '@/app/lib/logger';
 import { triggerDataRefresh } from '@/app/lib/instagram';
 import mongoose from 'mongoose'; // Para validar ObjectId
 import { invalidateDashboardHomeSummaryCache } from '@/app/lib/cache/dashboardCache';
-import { enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
+import { enqueueInstagramMapEnrichment, enqueueOnboardingReadings } from '@/app/lib/creatorWeeklyReport/queue';
 import { generateCreatorWeeklyReport } from '@/app/lib/creatorWeeklyReport/service';
 import { isCreatorWeeklyProfileExperienceEnabled } from '@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag';
 
@@ -110,6 +110,16 @@ export async function POST(request: NextRequest) {
         // Enriquece o MapaSeed com os posts recentes do Instagram.
         // Non-fatal: nunca bloqueia a resposta do worker.
         await enqueueInstagramMapEnrichment(userId);
+
+        // Conexão nova: manda ler os 30 posts mais recentes agora, para o criador não
+        // esperar dias de repescagem até o mapa e o relatório terem evidência.
+        if (payload?.motivo === 'conexao') {
+          const leituras = await enqueueOnboardingReadings(userId).catch((error) => {
+            logger.error(`${TAG} Falha não fatal ao enfileirar leituras iniciais de User ${userId}:`, error);
+            return 0;
+          });
+          logger.info(`${TAG} Conexão nova de User ${userId}: ${leituras} leituras iniciais enfileiradas.`);
+        }
 
         // O relatório individual é materializado depois do sync, usando as
         // métricas que acabaram de chegar. Falha aqui não invalida a conexão:

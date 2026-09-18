@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import Evidence from '@/app/models/PublishedContentEvidence';
 import { VISUAL_READING_REVISION } from '@/app/lib/relatorio/readingRevision';
-import { enqueuePublishedReading, enqueueProfileRefresh } from './queue';
+import { enqueuePublishedReading, enqueueProfileRefresh, enqueueOnboardingReadings } from './queue';
 jest.mock('@/app/models/PublishedContentEvidence', () => ({ __esModule: true, default: { exists: jest.fn() } }));
 const mockPublish = jest.fn();
 const mockMetric = jest.fn();
@@ -10,7 +10,11 @@ const mockProvider = jest.fn();
 jest.mock('@upstash/qstash', () => ({ Client: jest.fn().mockImplementation(() => ({ publishJSON: mockPublish })) }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/lib/logger', () => ({ logger: { warn: jest.fn() } }));
-jest.mock('@/app/models/Metric', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: () => mockMetric() }) }) } }));
+const mockRecentes = jest.fn();
+jest.mock('@/app/models/Metric', () => ({ __esModule: true, default: {
+  findById: () => ({ select: () => ({ lean: () => mockMetric() }) }),
+  find: () => ({ sort: () => ({ limit: (n: number) => ({ select: () => ({ lean: () => mockRecentes(n) }) }) }) }),
+} }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: () => mockUser() }) }) } }));
 jest.mock('@/app/models/ContentReadingState', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: () => mockProvider() }) }) } }));
 const id = '69e8f96564be9f1592a5ca6e';
@@ -29,6 +33,17 @@ it('liga a classificação concluída à leitura e agrupa eventos do perfil', as
   expect(mockPublish.mock.calls[0][0].url).toContain('/classify-published-scene');
   await enqueueProfileRefresh(id); await enqueueProfileRefresh(id);
   expect(mockPublish.mock.calls[1][0].deduplicationId).toBe(mockPublish.mock.calls[2][0].deduplicationId);
+});
+it('na conexão nova, lê os 30 posts mais recentes e ignora quem já tem leitura', async () => {
+  mockRecentes.mockImplementation(async (limite: number) => {
+    expect(limite).toBe(30);
+    return [{ _id: id }, { _id: id }];
+  });
+  (Evidence.exists as jest.Mock).mockResolvedValueOnce({ _id: id });
+  mockMetric.mockResolvedValueOnce({ user: id, instagramMediaId: 'post', type: 'IMAGE', postDate: new Date(), sceneElements: { version: VISUAL_READING_REVISION } });
+  mockMetric.mockResolvedValue({ user: id, instagramMediaId: 'post', type: 'REEL', postDate: new Date() });
+  expect(await enqueueOnboardingReadings(id)).toBe(1);
+  expect(mockPublish).toHaveBeenCalledTimes(1);
 });
 it('respeita indisponibilidade do provedor e acesso da conta', async () => {
   mockProvider.mockResolvedValue({ state: 'paused', nextAttemptAt: new Date(Date.now() + 3600000) });

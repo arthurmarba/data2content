@@ -43,9 +43,11 @@ export async function enqueueInstagramRefresh(userId: string): Promise<void> {
   }
 
   try {
+    // `motivo` diferencia a conexão da varredura periódica: só na conexão o worker
+    // manda ler os posts recentes de imediato.
     const response = await qstashClient.publishJSON({
       url: workerUrl,
-      body: { userId },
+      body: { userId, motivo: "conexao" },
     });
     logger.info(
       `${TAG} Refresh de Instagram enfileirado on-connect para userId=${userId}. Message ID: ${response.messageId}`,
