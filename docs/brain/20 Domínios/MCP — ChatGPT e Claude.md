@@ -241,3 +241,43 @@ pede `pages_read_engagement`; liberar catálogo não significa liberar todas as
 contas na Meta. A aprovação avançada será tratada depois desta entrega, por
 pedido de Arthur. Não confundir atualização do MCP com atualização/aprovação
 da submissão ChatGPT.
+
+## D2C Admin no Codex: pacote local, servidor remoto — 19/09/2026
+
+O plugin pessoal `d2c-admin` é instalado localmente, mas o `.mcp.json` aponta
+para `https://data2content.ai/api/mcp/admin`. Portanto, o Codex precisa
+de OAuth próprio na primeira conexão; login no site ou no Chrome não autoriza
+o MCP. Uma consulta direta pelo código local (`getPublicInstagramCreator` com
+`.env.local`) não prova que o plugin esteja conectado.
+
+O servidor OAuth da Data2Content anuncia os scopes do MCP comum e do Admin
+juntos em `/.well-known/oauth-authorization-server`. O Codex, no login sem
+parâmetros, pediu a lista inteira, incluindo `profile:write` e `scripts:write`.
+Isso não serve para `/api/mcp/admin`: a autorização desse recurso rejeita scopes
+do MCP comum. Para autorizar o plugin, iniciar o login com os sete scopes de
+leitura administrativa explícitos:
+
+```bash
+codex mcp login d2c-admin --scopes admin:creators:search,admin:creator:read,admin:content:read,admin:metrics:read,admin:intelligence:read,admin:audience:read,admin:creators:compare
+```
+
+O processo de login precisa continuar aberto até o callback no `127.0.0.1`.
+No Terminal integrado ao Codex, `codex` não estava no `PATH` em 19/09 e o
+comando nem iniciou. Nesse ambiente, usar o executável completo
+`/Applications/ChatGPT.app/Contents/Resources/codex` no lugar de `codex`.
+Links antigos expiram; não reutilizar URLs de uma tentativa encerrada. A abertura
+automática da página de autorização no Chrome "Arthur Marbá" retornou
+`ERR_BLOCKED_BY_CLIENT` em 19/09. Se isso se repetir, usar `--no-browser` com
+os mesmos scopes, manter o terminal aberto e abrir o URL gerado manualmente
+no perfil correto. Conferir que o consentimento só pede leitura. Depois de
+autorizar uma vez, novas conversas podem reutilizar a conexão. Para pesquisa
+de um @ externo, a ferramenta é
+`get_public_instagram_creator`; `search_external_creators` é só homologação com
+dados fictícios do Marketplace e não serve para essa análise.
+
+Outra falha vista no login do Codex em 19/09: após abrir o link com scopes
+corretos, o servidor devolveu `redirect_uri não pertence ao cliente`. O Codex
+usa porta local variável no callback OAuth, mas `createMcpConsentRequest` exigia
+correspondência exata com a URI registrada. A correção permite variar somente
+a porta de um callback HTTP loopback com mesmo host, caminho e query, mantendo
+comparação exata para qualquer outro endereço.

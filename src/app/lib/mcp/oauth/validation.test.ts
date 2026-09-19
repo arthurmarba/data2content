@@ -5,6 +5,7 @@ import {
   parseOAuthClientScopes,
   parseOAuthScopes,
   parseOAuthScopesForResource,
+  redirectUriBelongsToClient,
   assertMcpResource,
   validatePkceChallenge,
   validatePkceVerifier,
@@ -44,6 +45,16 @@ describe("MCP OAuth validation", () => {
     "not-a-url",
   ])("rejects unsafe redirect URI %s", (redirectUri) => {
     expect(() => validateRedirectUri(redirectUri)).toThrow(McpOAuthError);
+  });
+
+  it("aceita porta variável somente para o mesmo callback local", () => {
+    const registered = ["http://127.0.0.1:58000/callback/codex"];
+    expect(redirectUriBelongsToClient(registered, "http://127.0.0.1:59000/callback/codex")).toBe(true);
+    expect(redirectUriBelongsToClient(registered, "http://localhost:59000/callback/codex")).toBe(false);
+    expect(redirectUriBelongsToClient(registered, "http://127.0.0.1:59000/callback/outro")).toBe(false);
+    expect(redirectUriBelongsToClient(registered, "http://127.0.0.1:59000/callback/codex?x=1")).toBe(false);
+    expect(redirectUriBelongsToClient(["http://[::1]:58000/callback"], "http://[::1]:59000/callback")).toBe(true);
+    expect(redirectUriBelongsToClient(["https://exemplo.com:58000/callback"], "https://exemplo.com:59000/callback")).toBe(false);
   });
 
   it("requires PKCE S256 with valid challenge and verifier", () => {

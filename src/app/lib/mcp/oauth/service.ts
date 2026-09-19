@@ -27,6 +27,7 @@ import {
   isScopeSubset,
   parseOAuthClientScopes,
   parseOAuthScopesForResource,
+  redirectUriBelongsToClient,
   validatePkceChallenge,
   validatePkceVerifier,
   validateRedirectUri,
@@ -135,7 +136,7 @@ export async function createMcpConsentRequest(
   await connectToDatabase();
   const client = await McpOAuthClientModel.findOne({ clientId: input.clientId }).lean();
   if (!client) throw new McpOAuthError("unauthorized_client", 400, "Cliente OAuth desconhecido.");
-  if (!client.redirectUris.includes(redirectUri)) {
+  if (!redirectUriBelongsToClient(client.redirectUris, redirectUri)) {
     throw new McpOAuthError("invalid_request", 400, "redirect_uri não pertence ao cliente.");
   }
   const scopes = parseOAuthScopesForResource(input.scope, resource);

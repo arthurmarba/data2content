@@ -92,6 +92,26 @@ export function validateRedirectUri(value: unknown): string {
   return parsed.toString();
 }
 
+export function redirectUriBelongsToClient(registeredUris: string[], requestedUri: string): boolean {
+  if (registeredUris.includes(requestedUri)) return true;
+
+  const requested = new URL(requestedUri);
+  const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(requested.hostname);
+  if (requested.protocol !== "http:" || !loopback) return false;
+
+  // Clientes nativos podem escolher outra porta local a cada login (RFC 8252).
+  return registeredUris.some((uri) => {
+    const registered = new URL(uri);
+    return registered.protocol === "http:"
+      && registered.hostname === requested.hostname
+      && registered.pathname === requested.pathname
+      && registered.search === requested.search
+      && registered.username === requested.username
+      && registered.password === requested.password
+      && registered.hash === requested.hash;
+  });
+}
+
 export function validatePkceChallenge(value: unknown, method: unknown): string {
   if (method !== "S256" || typeof value !== "string" || !PKCE_CHALLENGE_PATTERN.test(value)) {
     throw new McpOAuthError("invalid_request", 400, "PKCE S256 é obrigatório.");
