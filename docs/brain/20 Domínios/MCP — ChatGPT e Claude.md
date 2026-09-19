@@ -242,13 +242,26 @@ contas na Meta. A aprovação avançada será tratada depois desta entrega, por
 pedido de Arthur. Não confundir atualização do MCP com atualização/aprovação
 da submissão ChatGPT.
 
-## D2C Admin no Codex: pacote local, servidor remoto — 19/09/2026
+## D2C Admin no Codex: servidor local — 19/09/2026
 
-O plugin pessoal `d2c-admin` é instalado localmente, mas o `.mcp.json` aponta
-para `https://data2content.ai/api/mcp/admin`. Portanto, o Codex precisa
-de OAuth próprio na primeira conexão; login no site ou no Chrome não autoriza
-o MCP. Uma consulta direta pelo código local (`getPublicInstagramCreator` com
-`.env.local`) não prova que o plugin esteja conectado.
+O plugin pessoal `d2c-admin` usa `scripts/run-mcp-admin-local.sh`, que inicia
+`scripts/mcpAdminLocal.ts` por stdio com `.env.local`. A configuração do plugin
+passa `--user-id` com a conta de Arthur; o servidor confirma no banco que ela
+continua administradora e respeita `MCP_ADMIN_ALLOWED_USER_IDS`, quando definido.
+O stdout fica reservado ao protocolo, e os logs vão para stderr. Esse caminho
+roda no computador, acessa a base configurada e dispensa OAuth no navegador.
+Foi testado com a listagem das 19 ferramentas e uma consulta real de
+`get_public_instagram_creator` para @thestevenmellor (20 publicações). Para
+uma nova conversa, pedir simplesmente para usar D2C Admin e analisar o @.
+
+O histórico abaixo explica os problemas do antigo caminho remoto OAuth.
+
+Antes dessa mudança, o pacote era instalado localmente, mas o `.mcp.json`
+apontava para `https://data2content.ai/api/mcp/admin`. Nesse caminho remoto,
+o Codex precisava de OAuth próprio na primeira conexão; login no site ou no
+Chrome não autorizava o MCP. Uma consulta direta pelo código local
+(`getPublicInstagramCreator` com `.env.local`) não provava que o plugin
+estivesse conectado.
 
 O servidor OAuth da Data2Content anuncia os scopes do MCP comum e do Admin
 juntos em `/.well-known/oauth-authorization-server`. O Codex, no login sem

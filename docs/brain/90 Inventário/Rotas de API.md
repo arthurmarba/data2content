@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-15
+atualizado: 2026-09-19
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -10,7 +10,7 @@ atualizado: 2026-09-15
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**436 rotas** em **56 grupos**.
+**438 rotas** em **57 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
-- [cron](#cron) — 20 rotas
+- [cron](#cron) — 21 rotas
 - [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -57,6 +57,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [public](#public) — 1 rota
 - [publis](#publis) — 5 rotas
 - [questions](#questions) — 1 rota
+- [radar](#radar) — 1 rota
 - [reports](#reports) — 1 rota
 - [resolve-user-id](#resolve-user-id) — 1 rota
 - [scripts](#scripts) — 5 rotas
@@ -371,6 +372,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | --- | --- | --- |
 | `/api/cron/acquisition-conversions` | POST | `src/app/api/cron/acquisition-conversions/route.ts` |
 | `/api/cron/backfill-post-covers` | POST | `src/app/api/cron/backfill-post-covers/route.ts` |
+| `/api/cron/batch-readings` | GET, POST | `src/app/api/cron/batch-readings/route.ts` |
 | `/api/cron/campaign-radar` | GET | `src/app/api/cron/campaign-radar/route.ts` |
 | `/api/cron/creator-weekly-reports` | GET, POST | `src/app/api/cron/creator-weekly-reports/route.ts` |
 | `/api/cron/expire-trials` | POST | `src/app/api/cron/expire-trials/route.ts` |
@@ -646,6 +648,12 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | Endereço | Métodos | Arquivo |
 | --- | --- | --- |
 | `/api/questions` | GET | `src/app/api/questions/route.ts` |
+
+## radar
+
+| Endereço | Métodos | Arquivo |
+| --- | --- | --- |
+| `/api/radar/source-icon/[sourceId]` | GET | `src/app/api/radar/source-icon/[sourceId]/route.ts` |
 
 ## reports
 

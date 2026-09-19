@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-15
+atualizado: 2026-09-19
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-15
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **96 modelos.**
+Todo dado persistido é um modelo Mongoose. **97 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -65,6 +65,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **DailyMetric** | `—` | `src/app/models/DailyMetric.ts` |
 | **DailyMetricSnapshot** | `daily_metric_snapshots` | `src/app/models/DailyMetricSnapshot.ts` |
 | **FeatureFlag** | `—` | `src/app/models/FeatureFlag.ts` |
+| **GeminiBatchJob** | `gemini_batch_jobs` | `src/app/models/GeminiBatchJob.ts` |
 | **GeminiBudgetPolicy** | `gemini_budget_policies` | `src/app/models/GeminiBudget.ts` |
 | **GeminiOperation** | `gemini_operations` | `src/app/models/GeminiOperation.ts` |
 | **GeminiShadowComparison** | `geminishadowcomparisons` | `src/app/models/GeminiShadowComparison.ts` |

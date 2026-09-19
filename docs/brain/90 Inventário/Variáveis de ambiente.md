@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-15
+atualizado: 2026-09-19
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-15
 
 # Variáveis de ambiente
 
-**429 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**431 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 27 |
+| `CRON_SECRET` | 29 |
 
 ## FACEBOOK
 
@@ -49,17 +49,19 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `GEMINI_API_KEY` | 30 |
+| `GEMINI_API_KEY` | 34 |
+| `GEMINI_BATCH_READINGS` | 6 |
 | `GEMINI_MODEL_SCRIPT` | 4 |
 | `GEMINI_MODEL_SCRIPT_JUDGE` | 4 |
 | `GEMINI_THINKING_LEVEL_SCRIPTS` | 4 |
+| `GEMINI_CENA_MODEL` | 3 |
 | `GEMINI_SCRIPT_MODEL` | 3 |
 | `GEMINI_MAPA_MODEL` | 2 |
 | `GEMINI_MODEL` | 2 |
 | `GEMINI_THINKING_BUDGET` | 2 |
 | `GEMINI_THINKING_LEVEL` | 2 |
 | `GEMINI_ADJACENT_MODEL` | 1 |
-| `GEMINI_CENA_MODEL` | 1 |
+| `GEMINI_BATCH_MAX_ITENS` | 1 |
 | `GEMINI_CLASSIFICATION_MODEL` | 1 |
 | `GEMINI_COLLAB_MODEL` | 1 |
 | `GEMINI_INSTAGRAM_MODEL` | 1 |
@@ -73,7 +75,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `GOOGLE_GENAI_API_KEY` | 9 |
+| `GOOGLE_GENAI_API_KEY` | 13 |
 | `GOOGLE_GEMINI_API_KEY` | 7 |
 | `GOOGLE_CLIENT_ID` | 1 |
 | `GOOGLE_CLIENT_SECRET` | 1 |
@@ -139,7 +141,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 66 |
+| `NEXT_PUBLIC_APP_URL` | 67 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -218,8 +220,8 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 35 |
-| `QSTASH_NEXT_SIGNING_KEY` | 35 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 37 |
+| `QSTASH_NEXT_SIGNING_KEY` | 37 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -313,7 +315,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 123 |
+| `NODE_ENV` | 124 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
