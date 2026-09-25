@@ -98,7 +98,7 @@ async function topPostsFor(userId: unknown): Promise<PostResumo[]> {
   const posts = await Metric.find({ user: userId })
     .sort({ "stats.total_interactions": -1 })
     .limit(TOP_POSTS)
-    .select("postLink postDate type format description thumbnailUrl instagramMediaId stats")
+    .select("postLink postDate type format description thumbnailUrl coverUrl instagramMediaId stats")
     .lean();
 
   return posts.map((p: any) => ({
@@ -107,7 +107,7 @@ async function topPostsFor(userId: unknown): Promise<PostResumo[]> {
     type: p.type ?? "",
     format: Array.isArray(p.format) ? p.format : [],
     description: (p.description ?? "").slice(0, 280),
-    thumbnailUrl: p.thumbnailUrl ?? null,
+    thumbnailUrl: p.thumbnailUrl || p.coverUrl || null,
     totalInteractions: p.stats?.total_interactions ?? 0,
     instagramMediaId: p.instagramMediaId ?? null,
   }));

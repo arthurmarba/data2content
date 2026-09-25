@@ -289,7 +289,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         type: 1,
         coverUrl: 1,
         mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },
-        thumbnailUrl: { $ifNull: ['$thumbnailUrl', '$thumbnail_url'] },
+        thumbnailUrl: { $ifNull: ['$thumbnailUrl', { $ifNull: ['$thumbnail_url', '$coverUrl'] }] },
         instagramMediaId: 1,
         postLink: 1,
       }

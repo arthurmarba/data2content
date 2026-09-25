@@ -35,6 +35,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 | `plano-evolucao-perfil-2026-09-08.md` | 09/2026 | Plano de melhorias do Perfil: recuperação das leituras, atualização real, assuntos recentes, ganchos, confiança e revisão da narrativa |
 | `auditoria-atualizacao-perfil-2026-09-08.md` · `brain/30 Armadilhas/Perfil atualizado sem leitura nova.md` | 09/2026 | Reclamação de perfil parado: cobertura real, narrativa confirmada, ganchos antigos e critérios de evolução |
 | `brain/40 Decisões/Histórico diário conserva oito meses e uma referência.md` | 09/2026 | Retenção aprovada de snapshots, preservação de conteúdo e expiração de PDFs |
+| `plano-deduplicacao-capas-metricas-2026-09-25.md` | 09/2026 | Plano de compatibilidade, migração e recuperação das miniaturas duplicadas dos posts |
 | `auditoria-mongodb-armazenamento-2026-09-07.md` · `brain/30 Armadilhas/Expiração declarada não garante limpeza no MongoDB.md` | 09/2026 | Volume real do Atlas, PDFs vencidos, dados órfãos e cenários de retenção; avaliação sem exclusões |
 | `radar-coleta-gratuita-operacao.md` | 09/2026 | Implementação, operação administrativa, coleta sem APIs pagas e próximos passos |
 | `radar-varredura-2026-09-07.md` | 09/2026 | Varredura manual de 07/09: o que está aberto hoje, squads de marca e origens novas |
