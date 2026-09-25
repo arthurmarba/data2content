@@ -69,3 +69,17 @@ it('resolve criação simultânea sem duplicar relatório', async () => {
   expect(result.id).toBe(stored._id);
   expect(mockUpdateReport).not.toHaveBeenCalled();
 });
+
+it('entrega a capa ao relatório quando a miniatura não está gravada', async () => {
+  const coverUrl = 'https://cdn.example/capa?oe=antigo';
+  mockMetrics.mockResolvedValue([{ ...post, coverUrl, thumbnailUrl: undefined }]);
+  mockUpdateReport.mockImplementation((_query, update) => mockLean({ ...stored, ...update.$set }));
+
+  await generateCreatorWeeklyReport({ userId, now });
+
+  expect(mockUpdateReport.mock.calls[0][1].$set.payload).toEqual(
+    expect.objectContaining({
+      weeklyVideo: expect.objectContaining({ thumbnailUrl: coverUrl }),
+    }),
+  );
+});
