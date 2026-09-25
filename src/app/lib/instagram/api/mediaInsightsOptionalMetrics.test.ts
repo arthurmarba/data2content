@@ -41,6 +41,27 @@ describe("métrica opcional recusada não derruba a leitura do post", () => {
     expect(result).toMatchObject({ success: true, data: { reach: 500 } });
   });
 
+  it("repete quando o cliente Graph lança o erro real de follows", async () => {
+    graphApiRequest
+      .mockRejectedValueOnce(new Error("Falha na requisição (Erro 400): (#100) The Media Insights API does not support the follows metric for this media product type."))
+      .mockResolvedValueOnce(ok);
+
+    const result = await fetchMediaInsights("media-1", "token", REEL_INSIGHTS_METRICS);
+
+    expect(graphApiRequest).toHaveBeenCalledTimes(2);
+    expect(requestedMetrics()).not.toContain("follows");
+    expect(result).toMatchObject({ success: true, data: { reach: 500 } });
+  });
+
+  it("não remove follows em uma falha de permissão ou em outra métrica", async () => {
+    graphApiRequest.mockRejectedValueOnce(new Error("Falha na requisição (Erro 403): Permissão insuficiente"));
+
+    const result = await fetchMediaInsights("media-1", "token", REEL_INSIGHTS_METRICS);
+
+    expect(graphApiRequest).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+  });
+
   it("não repete a pergunta recusada nos próximos posts da mesma execução", async () => {
     graphApiRequest.mockResolvedValueOnce(invalidMetric).mockResolvedValue(ok);
     await fetchMediaInsights("media-1", "token", REEL_INSIGHTS_METRICS);

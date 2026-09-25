@@ -90,6 +90,8 @@ describe("summarizeInstagramMetrics", () => {
     expect(summary?.topFormats).toEqual(["reel", "carrossel"]);
     expect(summary?.reachOverTime).toEqual([0, 0, 0, 0, 2000, 1000]);
     expect(summary?.newestPostDate).toBe("2026-05-20T12:00:00.000Z");
+    expect(summary?.newestAnalyzedPostDate).toBe("2026-05-20T12:00:00.000Z");
+    expect(summary?.postsPublishedInWindow).toBe(3);
   });
 
   it("ignores posts without postDate, stats or reach-compatible values", () => {
@@ -106,6 +108,21 @@ describe("summarizeInstagramMetrics", () => {
     expect(summary?.postsAnalyzed).toBe(1);
     expect(summary?.avgReachPerPost).toBe(1000);
     expect(summary?.avgInteractionsPerPost).toBe(100);
+  });
+
+  it("não chama de último post o último que recebeu métricas", () => {
+    const summary = summarizeInstagramMetrics(
+      [
+        { postDate: "2026-05-23T12:00:00.000Z", type: "REEL", stats: { video_duration_seconds: 34 } },
+        { postDate: "2026-05-20T12:00:00.000Z", type: "REEL", stats: { reach: 1000 } },
+      ],
+      now,
+    );
+
+    expect(summary?.newestPostDate).toBe("2026-05-23T12:00:00.000Z");
+    expect(summary?.newestAnalyzedPostDate).toBe("2026-05-20T12:00:00.000Z");
+    expect(summary?.postsPublishedInWindow).toBe(2);
+    expect(summary?.postsAnalyzed).toBe(1);
   });
 
   it("returns null when no current analyzable metrics exist", () => {
