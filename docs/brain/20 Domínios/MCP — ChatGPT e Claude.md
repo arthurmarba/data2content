@@ -281,3 +281,18 @@ usa porta local variável no callback OAuth, mas `createMcpConsentRequest` exigi
 correspondência exata com a URI registrada. A correção permite variar somente
 a porta de um callback HTTP loopback com mesmo host, caminho e query, mantendo
 comparação exata para qualquer outro endereço.
+
+## Pesquisa de inspirações por assunto — 25/09/2026
+
+`research_inspiration_content` não pode selecionar os posts mais recentes e só
+depois filtrar o tema em memória. Com 300 candidatos recentes, a busca por
+“marketing” devolvia vazio apesar de haver posts elegíveis dentro dos 180 dias
+pedidos. No modo `by_topic`, aplique a pré-seleção por palavras normalizadas nos
+campos pesquisáveis antes de `$sort` e `$limit`; aceite as variantes com e sem
+acento. O ranking continua sendo feito em memória sobre os candidatos encontrados.
+
+Falhas de ferramenta podem voltar ao cliente como resposta MCP mesmo quando a
+requisição HTTP termina com 200. Na investigação, confira `[mcp][tool_call_failed]`;
+registre código e nome do erro do Mongo, sem mensagem nem consulta com dados do
+creator. Não use apenas o status HTTP para concluir que todas as ferramentas
+funcionaram.
