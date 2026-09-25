@@ -157,6 +157,34 @@ function queryTokens(value: string): string[] {
   return [...new Set(normalized(value).split(" ").filter((token) => token.length >= 3 && !stopwords.has(token)))].slice(0, 16);
 }
 
+const TOPIC_SEARCH_FIELDS = [
+  "description", "format", "context", "proposal", "tone", "contentIntent",
+  "narrativeForm", "contentSignals", "stance", "proofStyle", "commercialMode",
+  "sceneElements.subjects", "sceneElements.subjectIds", "sceneElements.objects",
+  "sceneElements.placeId", "sceneElements.framingIds", "sceneElements.aestheticIds",
+  "sceneElements.openingLine", "sceneElements.screenTitle",
+] as const;
+
+const TOPIC_ACCENTS: Record<string, string> = {
+  a: "[aáàâãä]", c: "[cç]", e: "[eéèêë]", i: "[iíìîï]",
+  n: "[nñ]", o: "[oóòôõö]", u: "[uúùûü]", y: "[yýÿ]",
+};
+
+export function buildInspirationTopicMatch(query: string): Record<string, unknown> | null {
+  const tokens = queryTokens(query);
+  if (!tokens.length) return null;
+  // O ranking compara texto sem acentos. A pré-seleção no Mongo precisa aceitar
+  // as mesmas palavras antes do limite de candidatos.
+  const pattern = tokens
+    .map((token) => [...token].map((char) => TOPIC_ACCENTS[char] ?? char).join(""))
+    .join("|");
+  return {
+    $or: TOPIC_SEARCH_FIELDS.map((field) => ({
+      [field]: { $regex: pattern, $options: "i" },
+    })),
+  };
+}
+
 function formatOf(metric: ResearchMetric): McpInspirationFormat | "other" {
   const type = normalized(metric.type);
   const formats = stringValues(metric.format).map(normalized);
@@ -644,8 +672,11 @@ export async function researchMcpInspirationContent(params: McpInspirationResear
   if (params.filters.maxDurationSeconds != null) durationQuery.$lte = params.filters.maxDurationSeconds;
   if (Object.keys(durationQuery).length) baseMatch["stats.video_duration_seconds"] = durationQuery;
 
+  const topicMatch = params.mode === "by_topic" ? buildInspirationTopicMatch(params.query) : null;
+
   const metrics = await MetricModel.aggregate<ResearchMetric>([
     { $match: baseMatch },
+    ...(topicMatch ? [{ $match: topicMatch }] : []),
     ...createBasePipeline(),
     {
       $match: {

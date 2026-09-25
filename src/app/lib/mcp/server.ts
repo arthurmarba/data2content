@@ -950,12 +950,21 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         });
         return appendFreeClosingReminder(name, result, context);
       } catch (error) {
+        const dbError = error && typeof error === "object"
+          ? error as { code?: unknown; codeName?: unknown }
+          : null;
         logger.error("[mcp][tool_call_failed]", {
           tool: name,
           accountRef,
           clientId: context.identity.clientId || "unknown",
           durationMs: Date.now() - startedAt,
           errorCode: error instanceof Error ? error.name : "unknown_error",
+          // Códigos do Mongo ajudam a identificar a falha sem registrar consultas,
+          // mensagens ou dados privados do creator.
+          dbErrorCode: typeof dbError?.code === "number" ? dbError.code : undefined,
+          dbErrorCodeName: typeof dbError?.codeName === "string" && /^[A-Za-z0-9_]{1,60}$/.test(dbError.codeName)
+            ? dbError.codeName
+            : undefined,
         });
         throw error;
       }
