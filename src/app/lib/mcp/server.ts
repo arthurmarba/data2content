@@ -1940,7 +1940,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Resumir performance do Instagram",
       description:
-        "Use this when the user asks for a strategic summary of their Instagram performance in the current 60-day analysis window.",
+        "Use this when the user asks for a strategic summary of their Instagram performance in the current 60-day analysis window. newestPostDate is the latest published post; newestAnalyzedPostDate is the latest post with reach-compatible insights. If they differ, explain the metrics gap, not a posting gap. For posting frequency or content count, use analyze_creator_period.",
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("metrics:read"),
     },

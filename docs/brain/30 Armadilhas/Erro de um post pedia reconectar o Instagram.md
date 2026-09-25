@@ -36,3 +36,19 @@ sincronização não é sinônimo de conexão caída.
 ## Ligações
 
 [[Seu Mapa]] · [[Filas e rotinas]]
+
+## Outra consequência da mesma recusa — 25/09/2026
+
+Em Reels recentes do Ronaldo, a Meta recusou `follows` com `(#100) The Media
+Insights API does not support the follows metric for this media product type`.
+`graphApiRequest` lançou o erro antes de devolver uma resposta; por isso a
+retentativa de `fetchMediaInsights`, que só examinava `response.error`, não rodou.
+A sincronização guardou a publicação sem alcance ou visualizações. O resumo de
+performance filtrava esses posts e informava 06/09 como `newestPostDate`, embora
+houvesse publicação em 24/09 (horário de Brasília).
+
+A leitura agora repete a consulta sem `follows` quando essa recusa específica vem
+como exceção. O resumo separa `newestPostDate` (publicação mais recente) de
+`newestAnalyzedPostDate` (publicação mais recente com métricas) e informa quantos
+posts existiam na janela. Depois de publicar a correção, ressincronizar o criador
+para preencher as métricas faltantes; mudar só o texto do MCP não recupera dados.
