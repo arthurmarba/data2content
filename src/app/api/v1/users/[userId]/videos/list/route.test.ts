@@ -22,6 +22,24 @@ beforeEach(() => {
 describe('GET /api/v1/users/[userId]/videos/list', () => {
   const userId = new Types.ObjectId().toString();
 
+  it('mantém a miniatura na resposta quando o post guarda apenas a capa', async () => {
+    const coverUrl = 'https://cdn.example/capa?oe=antigo';
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [{ id: 'post-1', coverUrl, thumbnailUrl: null, stats: { views: 42 } }],
+      totalPosts: 1,
+      page: 1,
+      limit: 10,
+    });
+
+    const res = await GET(createRequest(userId), { params: { userId } });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.posts[0]).toEqual(expect.objectContaining({
+      id: 'post-1', coverUrl, thumbnailUrl: coverUrl, stats: { views: 42 },
+    }));
+  });
+
   it('returns videos with pagination using defaults', async () => {
     mockFindUserPosts.mockResolvedValueOnce({
       posts: [{ id: 1 }],

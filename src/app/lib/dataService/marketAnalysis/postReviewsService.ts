@@ -231,7 +231,7 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
                 creatorContextId: '$creatorContextId',
                 postDate: '$post.postDate',
                 coverUrl: '$post.coverUrl',
-                thumbnailUrl: '$post.thumbnailUrl',
+                thumbnailUrl: { $ifNull: ['$post.thumbnailUrl', { $ifNull: ['$post.coverUrl', '$post.thumbnail_url'] }] },
                 thumbnail_url: '$post.thumbnail_url',
                 mediaUrl: '$post.mediaUrl',
                 media_url: '$post.media_url',

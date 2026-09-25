@@ -70,6 +70,7 @@
     "tests/**/*",
     "playwright/**/*",
     ".playwright-cli/**/*",
-    "tmp/**/*"
+    "tmp/**/*",
+    "output/**/*"
   ]
 }

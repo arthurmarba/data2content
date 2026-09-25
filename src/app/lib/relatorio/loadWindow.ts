@@ -18,6 +18,7 @@ import UserModel from "@/app/models/User";
 import { idsToLabels } from "@/app/lib/classification";
 import { v2IdsToLabels } from "@/app/lib/classificationV2";
 import { logger } from "@/app/lib/logger";
+import { resolveMetricThumbnailUrl } from "@/app/lib/instagram/metricThumbnail";
 import { durationBucketFor, extractAbsoluteMetrics,
   extractRawMetrics, rawRetention, type ReportPost } from "./postMetrics";
 import { currentAssetRoleId } from "./mapRegistry";
@@ -206,7 +207,7 @@ function toReportPost(metric: RawMetric): ReportPost {
     sceneRead: Boolean(metric.sceneElements?.version),
     openingLine: (metric.sceneElements?.openingLine as string | undefined) ?? null,
     postLink: metric.postLink ?? null,
-    thumbnailUrl: metric.thumbnailUrl ?? metric.coverUrl ?? null,
+    thumbnailUrl: resolveMetricThumbnailUrl(metric),
     description: typeof metric.description === "string" ? metric.description : "",
   };
 }

@@ -7,6 +7,7 @@ import { buildProfileEvolution, isoDate, type ReadingStateInput } from './evolut
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric from "@/app/models/Metric";
+import { resolveMetricThumbnailUrl } from "@/app/lib/instagram/metricThumbnail";
 import CreatorWeeklyReport from "@/app/models/CreatorWeeklyReport";
 import { lastClosedWeek, type WeekWindow } from "@/app/lib/relatorio/weekWindow";
 import { buildCreatorWeeklyReport, type CreatorWeeklyReportMetricInput } from "./engine";
@@ -65,6 +66,7 @@ export async function generateCreatorWeeklyReport(params: {
     )
     .sort({ postDate: 1 })
     .lean<CreatorWeeklyReportMetricInput[]>();
+  for (const metric of metrics) metric.thumbnailUrl = resolveMetricThumbnailUrl(metric);
 
   const [states, map, user, snapshots] = await Promise.all([
     ContentReadingState.find({ _id: { $in: ['provider:gemini', ...metrics.map(metric => String(metric._id))] } }).select('_id state reason nextAttemptAt').lean(),
