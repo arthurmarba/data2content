@@ -30,6 +30,18 @@ jest.mock("./adminCreatorAnalysis", () => ({
   getMcpAdminCreatorAnalysis: jest.fn(async () => ({ targetCreatorRef: "creator:507f1f77bcf86cd799439021", map: { hasMap: true } })),
   getMcpAdminScriptEvidence: jest.fn(async () => ({ targetCreatorRef: "creator:507f1f77bcf86cd799439021", receipt: { noPaidModelCalls: true } })),
 }));
+jest.mock("./creatorImages", () => ({
+  MCP_CREATOR_IMAGES_MAX: 12,
+  getMcpCreatorImages: jest.fn(async () => ({
+    schemaVersion: "admin_creator_images_v1",
+    items: [
+      { kind: "profile_picture", contentId: null, postDate: null, format: null, postLink: null, caption: null, delivered: true, source: "stored_url", failure: null },
+      { kind: "content_cover", contentId: "507f1f77bcf86cd799439031", postDate: "2026-09-01T12:00:00.000Z", format: "REEL", postLink: null, caption: null, delivered: false, source: null, failure: "url_expired_and_account_disconnected" },
+    ],
+    images: [{ index: 0, data: "aW1hZ2Vt", mimeType: "image/jpeg" }],
+    coverage: { requested: 2, delivered: 1, instagramConnected: false, warnings: [] },
+  })),
+}));
 jest.mock("./creatorMap", () => ({ loadMcpCreatorMap: jest.fn(async () => ({ hasMap: true, narrativeIsFirm: false })) }));
 
 jest.mock("@/app/lib/logger", () => ({
@@ -203,6 +215,7 @@ describe("Data2Content admin MCP server", () => {
         "list_creator_top_content",
         "research_creator_inspirations",
         "compare_creators",
+        "get_creator_images",
       ]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
       expect(tools.every((tool) => tool.annotations?.destructiveHint === false)).toBe(true);
@@ -423,6 +436,30 @@ describe("Data2Content admin MCP server", () => {
         contentId: "507f1f77bcf86cd799439031",
         includeTranscript: true,
       });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("returns creator images inline, bound to the selected creator", async () => {
+    const { getMcpCreatorImages } = jest.requireMock("./creatorImages");
+    const { client, server } = await connect();
+    try {
+      const result = await client.callTool({
+        name: "get_creator_images",
+        arguments: { creatorRef, contentIds: ["507f1f77bcf86cd799439031"] },
+      });
+      expect(getMcpCreatorImages).toHaveBeenCalledWith({
+        userId: creatorId,
+        contentIds: ["507f1f77bcf86cd799439031"],
+        recentLimit: 6,
+        includeProfilePicture: true,
+      });
+      const content = result.content as Array<Record<string, unknown>>;
+      expect(content.filter(item => item.type === "image")).toEqual([{ type: "image", data: "aW1hZ2Vt", mimeType: "image/jpeg" }]);
+      expect(JSON.stringify(textPayload(result))).not.toContain("aW1hZ2Vt");
+      expect(textPayload(result)).toMatchObject({ targetCreatorRef: creatorRef, coverage: { delivered: 1 } });
     } finally {
       await client.close();
       await server.close();

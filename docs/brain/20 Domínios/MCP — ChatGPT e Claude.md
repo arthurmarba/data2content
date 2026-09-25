@@ -296,3 +296,18 @@ requisição HTTP termina com 200. Na investigação, confira `[mcp][tool_call_f
 registre código e nome do erro do Mongo, sem mensagem nem consulta com dados do
 creator. Não use apenas o status HTTP para concluir que todas as ferramentas
 funcionaram.
+
+## Imagens dentro da resposta — 25/09/2026
+
+`get_creator_images` (MCP administrativo, `creatorImages.ts`) devolve a foto de perfil
+e as capas dos posts **como bloco de imagem**, não como link. O Claude trabalha com lista
+fechada de domínios e `fbcdn.net` não está nela: link de capa ali é link morto. O servidor
+da D2C baixa (só de hosts do Instagram), reduz para 480px e manda os bytes.
+
+- A capa **existe no banco**: `Metric.coverUrl` (e `thumbnailUrl` quando diferente). O
+  contrato textual do MCP é que não a expõe — não confundir com "a base não guarda".
+- URL do Instagram vence. Se a guardada falhar e a conta estiver conectada, pede uma nova
+  à Meta (`fetchSingleInstagramMedia` / `profile_picture_url`) **sem gravar** — o MCP
+  administrativo é somente leitura. Conta desconectada: devolve
+  `url_expired_and_account_disconnected`, nunca inventa imagem.
+- Teto de 12 imagens por chamada; os bytes não entram no JSON auditado.
