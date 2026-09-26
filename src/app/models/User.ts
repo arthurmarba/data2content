@@ -496,6 +496,8 @@ export interface IUser extends Document {
   pluginWeeklyEmailSentAt?: Date | null;
   /** A pessoa pediu para não receber o e-mail semanal do plugin. */
   pluginWeeklyEmailOptOutAt?: Date | null;
+  /** Quando a oferta da conexão do Claude foi mostrada (uma vez por pessoa). */
+  pluginConnectOfferSeenAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
   userPreferences?: IUserPreferences;
   userLongTermGoals?: IUserLongTermGoal[];
@@ -870,6 +872,7 @@ const userSchema = new Schema<IUser>(
     },
     pluginWeeklyEmailSentAt: { type: Date, default: undefined },
     pluginWeeklyEmailOptOutAt: { type: Date, default: undefined },
+    pluginConnectOfferSeenAt: { type: Date, default: undefined },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
     userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
