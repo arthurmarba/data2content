@@ -492,10 +492,12 @@ export interface IUser extends Document {
   weeklyMapaWhatsAppSentAt?: Date | null;
   /** Primeiro chat (ChatGPT ou Claude) pelo qual a pessoa conectou a Data2Content. */
   pluginOrigin?: { client: "chatgpt" | "claude"; firstConnectedAt: Date } | null;
-  /** Último envio do e-mail semanal para quem veio de um plugin e não assinou. */
-  pluginWeeklyEmailSentAt?: Date | null;
+  /** Última vez que o e-mail semanal do plugin avaliou esta conta (enviou ou pulou). */
+  pluginWeeklyEmailCheckedAt?: Date | null;
   /** A pessoa pediu para não receber o e-mail semanal do plugin. */
   pluginWeeklyEmailOptOutAt?: Date | null;
+  /** Pautas já mostradas no e-mail semanal do plugin (as mais recentes), para não repetir. */
+  pluginWeeklyEmailIdeaIds?: string[];
   /** Quando a oferta da conexão do Claude foi mostrada (uma vez por pessoa). */
   pluginConnectOfferSeenAt?: Date | null;
   /** Quando a oferta depois da narrativa, no primeiro acesso, foi mostrada (uma vez por pessoa). */
@@ -872,8 +874,9 @@ const userSchema = new Schema<IUser>(
       ),
       default: undefined,
     },
-    pluginWeeklyEmailSentAt: { type: Date, default: undefined },
+    pluginWeeklyEmailCheckedAt: { type: Date, default: undefined },
     pluginWeeklyEmailOptOutAt: { type: Date, default: undefined },
+    pluginWeeklyEmailIdeaIds: { type: [String], default: undefined },
     pluginConnectOfferSeenAt: { type: Date, default: undefined },
     onboardingOfferSeenAt: { type: Date, default: undefined },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },

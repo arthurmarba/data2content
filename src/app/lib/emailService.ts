@@ -7,6 +7,7 @@ import { subscriptionCanceledEmail } from '@/emails/subscriptionCanceled';
 import { paymentReceiptEmail } from '@/emails/paymentReceipt';
 import { vipInviteEmail } from '@/emails/vipInvite';
 import { freeMonthEndingEmail } from '@/emails/freeMonthEnding';
+import { pluginWeeklyEmail, type PluginWeeklyEmailParams } from '@/emails/pluginWeekly';
 import { proposalReplyEmail, ProposalReplyEmailParams } from '@/emails/proposalReply';
 import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/proposalReceivedEmail';
 import { campaignBriefConfirmation, CampaignBriefConfirmationParams } from '@/emails/campaignBriefConfirmation';
@@ -249,3 +250,10 @@ export async function sendProposalUpgradePromptEmail(
     logger.error('[emailService] Falha ao enviar upsell de proposta', err);
   }
 }
+
+/** E-mail semanal do plugin. Lança em caso de falha: quem chama só marca como enviado o que saiu. */
+export async function sendPluginWeeklyEmail(to: string, params: PluginWeeklyEmailParams) {
+  const template = pluginWeeklyEmail(params);
+  await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
+}
+
