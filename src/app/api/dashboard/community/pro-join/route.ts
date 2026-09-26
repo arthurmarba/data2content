@@ -1,3 +1,4 @@
+import { parsePluginClient, type PluginClient } from "@/app/lib/plugin/pluginClient";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
@@ -23,27 +24,25 @@ function resolveCommunityUrl(): string {
   }
 }
 
-function resolvePremiumRequiredUrl(source: "chatgpt" | null): URL {
+function resolvePremiumRequiredUrl(source: PluginClient | null): URL {
   const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
   const url = new URL(CREATOR_PROFILE_ROUTE, base);
   url.searchParams.set(PAYWALL_URL_PARAM, "1");
   url.searchParams.set(PAYWALL_CONTEXT_PARAM, "community");
-  if (source === "chatgpt") {
-    url.searchParams.set("source", "chatgpt");
+  if (source) {
+    url.searchParams.set("source", source);
   }
   return url;
 }
 
 export async function GET(request?: NextRequest) {
-  const source = request?.nextUrl.searchParams.get("source") === "chatgpt"
-    ? "chatgpt"
-    : null;
+  const source = parsePluginClient(request?.nextUrl.searchParams.get("source"));
   const session = await getServerSession(await resolveAuthOptions());
   const userId = (session as { user?: { id?: string } } | null)?.user?.id;
 
   if (!userId) {
     const callbackPath = source
-      ? "/api/dashboard/community/pro-join?source=chatgpt"
+      ? `/api/dashboard/community/pro-join?source=${source}`
       : "/api/dashboard/community/pro-join";
     const callbackUrl = encodeURIComponent(callbackPath);
     return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, process.env.NEXTAUTH_URL || "http://localhost:3000"));

@@ -15,6 +15,13 @@ import {
 import { ProfileSettingsPage } from "@/app/dashboard/boards/components/videoUpload/appPreview/ProfileSettingsPage";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import { track } from "@/lib/track";
+import {
+  PLUGIN_CLIENT_LABEL,
+  pluginClientFromNextTarget,
+  pluginFunnelEventName,
+  pluginPaywallContext,
+  pluginReadyPath,
+} from "@/app/lib/plugin/pluginClient";
 
 type QuickItem = {
   title: string;
@@ -35,6 +42,7 @@ export default function InstagramPreConnectPage() {
     requestedNextTarget === "calculator" ||
     requestedNextTarget === "chat" ||
     requestedNextTarget === "chatgpt-plugin" ||
+    requestedNextTarget === "claude-plugin" ||
     requestedNextTarget === "instagram-connection" ||
     requestedNextTarget === "narrative-map" ||
     requestedNextTarget === "planner" ||
@@ -44,18 +52,31 @@ export default function InstagramPreConnectPage() {
       : "media-kit";
   const isPostCreationFlow = nextTarget === "post-creation";
   const isNarrativeMapFlow = nextTarget === "narrative-map";
-  const isChatGptPluginFlow = nextTarget === "chatgpt-plugin";
+  const pluginClient = pluginClientFromNextTarget(nextTarget);
+  const isPluginFlow = pluginClient !== null;
+  const pluginLabel = pluginClient ? PLUGIN_CLIENT_LABEL[pluginClient] : null;
+  const trackPluginFunnel = (step: "instagram_connect_started" | "instagram_connect_failed" | "instagram_connect_skipped", status: string | null) => {
+    if (!pluginClient) return;
+    track(pluginFunnelEventName(pluginClient), {
+      creator_id: session?.user?.id ?? null,
+      step,
+      source: `${pluginClient}_post_checkout`,
+      context: pluginPaywallContext(pluginClient),
+      status,
+      event_id: null,
+    });
+  };
   const backTarget = isPostCreationFlow
     ? "/calendar"
-    : isChatGptPluginFlow
-      ? "/dashboard/chatgpt/ready"
+    : pluginClient
+      ? pluginReadyPath(pluginClient)
     : nextTarget === "narrative-map"
       ? CREATOR_PROFILE_ROUTE
       : "/dashboard?intent=instagram";
   const connectLabel = isPostCreationFlow
     ? "Autorizar e voltar ao board"
-    : isChatGptPluginFlow
-      ? "Conectar e voltar ao ChatGPT"
+    : pluginLabel
+      ? `Conectar e voltar ao ${pluginLabel}`
     : isNarrativeMapFlow
       ? "Conectar e voltar ao mapa"
       : "Autorizar Instagram pela Meta";
@@ -103,18 +124,13 @@ export default function InstagramPreConnectPage() {
     oauthErrorCode === "UNKNOWN" ? null : reconnectErrorMessageForCode(oauthErrorCode);
   const displayError = error ?? oauthErrorMessage;
   useEffect(() => {
-    if (!isChatGptPluginFlow || oauthErrorCode === "UNKNOWN") return;
+    if (!isPluginFlow || oauthErrorCode === "UNKNOWN") return;
     if (trackedOauthErrorRef.current === oauthErrorCode) return;
     trackedOauthErrorRef.current = oauthErrorCode;
-    track("chatgpt_funnel_event", {
-      creator_id: session?.user?.id ?? null,
-      step: "instagram_connect_failed",
-      source: "chatgpt_post_checkout",
-      context: "chatgpt_intelligence",
-      status: `oauth_${oauthErrorCode.toLowerCase()}`,
-      event_id: null,
-    });
-  }, [isChatGptPluginFlow, oauthErrorCode, session?.user?.id]);
+    trackPluginFunnel("instagram_connect_failed", `oauth_${oauthErrorCode.toLowerCase()}`);
+    // trackPluginFunnel lê só valores estáveis desta renderização.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPluginFlow, oauthErrorCode, session?.user?.id]);
   const showAuthorizationDetails = () => {
     if (postCreationDetailsRef.current) {
       postCreationDetailsRef.current.open = true;
@@ -134,16 +150,7 @@ export default function InstagramPreConnectPage() {
   const startConnect = async () => {
     setLoading(true);
     setError(null);
-    if (isChatGptPluginFlow) {
-      track("chatgpt_funnel_event", {
-        creator_id: session?.user?.id ?? null,
-        step: "instagram_connect_started",
-        source: "chatgpt_post_checkout",
-        context: "chatgpt_intelligence",
-        status: null,
-        event_id: null,
-      });
-    }
+    trackPluginFunnel("instagram_connect_started", null);
     try {
       await startInstagramReconnect({
         nextTarget,
@@ -151,44 +158,27 @@ export default function InstagramPreConnectPage() {
       });
     } catch (e: any) {
       console.error("Falha ao iniciar fluxo Facebook/Instagram:", e);
-      if (isChatGptPluginFlow) {
-        track("chatgpt_funnel_event", {
-          creator_id: session?.user?.id ?? null,
-          step: "instagram_connect_failed",
-          source: "chatgpt_post_checkout",
-          context: "chatgpt_intelligence",
-          status: "authorization_start_failed",
-          event_id: null,
-        });
-      }
+      trackPluginFunnel("instagram_connect_failed", "authorization_start_failed");
       setError(e?.message || "Erro inesperado. Tente novamente.");
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    if (isChatGptPluginFlow) {
-      track("chatgpt_funnel_event", {
-        creator_id: session?.user?.id ?? null,
-        step: "instagram_connect_skipped",
-        source: "chatgpt_post_checkout",
-        context: "chatgpt_intelligence",
-        status: null,
-        event_id: null,
-      });
-    }
+    trackPluginFunnel("instagram_connect_skipped", null);
     router.push(backTarget);
   };
 
   const connectCopy = (() => {
     switch (nextTarget) {
       case "chatgpt-plugin":
+      case "claude-plugin":
         return {
-          title: "Aprofunde a inteligência no ChatGPT",
+          title: `Aprofunde a inteligência no ${pluginLabel}`,
           subtitle:
             "Ao conectar, a Data2Content poderá usar o contexto dos seus próprios conteúdos para planejar, criar pautas e roteirizar com mais profundidade. A conexão é opcional e nunca publica nada.",
           backLabel: "Agora não",
-          cta: "Conectar e voltar ao ChatGPT",
+          cta: `Conectar e voltar ao ${pluginLabel}`,
         };
       case "narrative-map":
         return {
@@ -396,7 +386,7 @@ export default function InstagramPreConnectPage() {
             >
               <p className="font-semibold">Não conseguimos abrir a autorização.</p>
               <p className="mt-1">{displayError}</p>
-              {isChatGptPluginFlow ? (
+              {isPluginFlow ? (
                 <a
                   href="/suporte-plugin"
                   className="mt-3 inline-flex font-semibold underline underline-offset-2"

@@ -2,6 +2,7 @@ import {
   default as BillingSuccessPage,
   buildProfileActivationHref,
   isChatGptCheckoutFlow,
+  pluginCheckoutClient,
   normalizeBillingSuccessPostCheckoutIntent,
   resolveBillingSuccessAttemptId,
   sanitizeBillingSuccessReturnTo,
@@ -87,6 +88,9 @@ describe("billing success postCheckoutIntent helpers", () => {
     expect(isChatGptCheckoutFlow("/dashboard/profile?source=chatgpt", null)).toBe(true);
     expect(isChatGptCheckoutFlow("/dashboard/profile", "chatgpt_profile_upgrade")).toBe(true);
     expect(isChatGptCheckoutFlow("/dashboard/profile", "account_menu_upgrade")).toBe(false);
+    expect(isChatGptCheckoutFlow("/dashboard/profile?source=claude", null)).toBe(false);
+    expect(pluginCheckoutClient("/dashboard/profile?source=claude&intent=pautas", null)).toBe("claude");
+    expect(pluginCheckoutClient("/dashboard/profile", "account_menu_upgrade")).toBeNull();
   });
 
   it("identifica tanto o Checkout hospedado quanto a assinatura do Payment Element", () => {

@@ -480,6 +480,16 @@ jest.mock("./catalog", () => ({
   })),
   getMcpPerformanceSummary: jest.fn(async () => null),
   listMcpTopContent: jest.fn(async () => []),
+  listMcpCreatorContentIdeas: jest.fn(async () => ({
+    schemaVersion: "creator_content_ideas_v1",
+    generatedAt: "2026-09-26T12:00:00.000Z",
+    territoryFilter: null,
+    total: 1,
+    returned: 1,
+    unpostedAvailable: 1,
+    items: [{ id: "idea:507f1f77bcf86cd799439031", title: "Pauta de amostra", status: "active" }],
+    usage: ["Pautas ancoradas no mapa."],
+  })),
 }));
 
 jest.mock("./config", () => ({
@@ -618,7 +628,7 @@ describe("Data2Content MCP server", () => {
     return { client, server };
   }
 
-  it("conta gratuita: lembrete uma vez só, nunca em search, e busca sem pautas", async () => {
+  it("conta gratuita: lembrete uma vez só, nunca em search, e pautas da própria conta visíveis", async () => {
     const catalog = jest.requireMock("./catalog");
     catalog.getMcpCreatorProfile.mockResolvedValueOnce({
       name: "Creator de teste",
@@ -631,16 +641,68 @@ describe("Data2Content MCP server", () => {
 
       const search = await client.callTool({ name: "search", arguments: { query: "roteiro" } });
       expect((search.content as unknown[]).length).toBe(1);
-      expect(catalog.searchMcpKnowledge).toHaveBeenLastCalledWith(
-        "507f1f77bcf86cd799439011",
-        "roteiro",
-        expect.objectContaining({ includeContentIdeas: false }),
-      );
 
-      const idea = await client.callTool({ name: "fetch", arguments: { id: "idea:507f1f77bcf86cd799439012" } });
-      expect(idea.isError).toBe(true);
-      expect(JSON.stringify(idea.content)).toContain("private_creator_intelligence_unavailable");
+      const ideas = await client.callTool({ name: "list_content_ideas", arguments: {} });
+      expect(ideas.isError).not.toBe(true);
+      expect(ideas.structuredContent).toMatchObject({
+        planNote: { weeklyNewIdeasIncluded: false },
+      });
     } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("no Claude, o limite aponta o perfil com a origem e o pedido certos", async () => {
+    const config = jest.requireMock("./config");
+    const profileSpy = jest.spyOn(config, "getMcpProfileUrl");
+    const server = createD2CMcpServer({
+      identity: {
+        userId: "507f1f77bcf86cd799439011",
+        subject: "oauth-subject",
+        scopes: ["profile:read", "intelligence:read", "metrics:read", "content:read"],
+        issuer: "https://auth.example.test",
+        token: "not-used-in-tools",
+      },
+      clientSurface: "claude",
+      accountState: {
+        accountAvailable: true,
+        reason: "ready_free",
+        accessLevel: "free",
+        entitlement: {
+          eligible: false,
+          reason: "subscription_required",
+          normalizedStatus: "inactive",
+          validUntil: null,
+          instagramConnected: false,
+        },
+        instagramConnected: false,
+        creatorNorth: "Ajudo creators a transformar conhecimento em conteúdo claro.",
+        northDeclared: true,
+        communityInvitePending: false,
+        capabilities: {
+          aggregateCommunityContext: true,
+          privateCreatorIntelligence: false,
+          membershipBenefits: false,
+        },
+      },
+    });
+    const client = new Client({ name: "d2c-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    try {
+      const result = await client.callTool({
+        name: "analyze_creator_period",
+        arguments: { startDate: "2026-08-01", endDate: "2026-08-07" },
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse((result.content as Array<{ text: string }>)[0]!.text);
+      expect(body).toMatchObject({ error: "private_creator_intelligence_unavailable", feature: "analise" });
+      expect(body.message).toContain("não está incluída no plano atual");
+      expect(body.message).not.toMatch(/assin|preço|upgrade/i);
+      expect(profileSpy).toHaveBeenCalledWith("claude", "analise");
+    } finally {
+      profileSpy.mockRestore();
       await client.close();
       await server.close();
     }

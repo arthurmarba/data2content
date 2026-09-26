@@ -43,6 +43,9 @@ import {
   isMcpCampaignRadarEnabled,
 } from "./config";
 import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNorth";
+import type { McpClientSurface } from "./clientSurface";
+import type { PluginIntent } from "@/app/lib/plugin/pluginClient";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
 import { getMcpFollowerGrowth } from "./followerGrowth";
@@ -57,6 +60,8 @@ import { SCRIPT_GOALS } from "@/app/lib/scripts/scriptEvidenceSelection";
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
   accountState: McpAccountState;
+  /** De qual chat vem a conexão; decide links e medição. Sem valor, ChatGPT. */
+  clientSurface?: McpClientSurface;
 }
 
 const READ_ONLY_ANNOTATIONS = {
@@ -218,7 +223,7 @@ function appendFreeClosingReminder(
             message:
               "Seu perfil personalizado Data2Content reúne seu Norte e mostra como contextualizar " +
               "as respostas com seus próprios conteúdos.",
-            url: getMcpProfileUrl(),
+            url: getMcpProfileUrl(context.clientSurface ?? "chatgpt"),
             instruction: "Inclua este lembrete uma única vez, ao final da resposta ao usuário.",
           },
         }),
@@ -509,6 +514,11 @@ const contentIdeasOutputSchema = z.object({
   unpostedAvailable: z.number().int().nonnegative(),
   items: z.array(z.record(z.unknown())),
   usage: z.array(z.string()),
+  planNote: z.object({
+    weeklyNewIdeasIncluded: z.boolean(),
+    message: z.string(),
+    profileUrl: z.string(),
+  }).optional(),
 });
 
 const creatorIntelligenceOutputSchema = z.object({
@@ -848,70 +858,111 @@ const inspirationComparisonOutputSchema = z.object({
   }),
 });
 
-function instagramRequiredResult() {
+// O que cada limite deixa de fora, dito sem vender: a regra da OpenAI permite
+// explicar que o recurso não está no plano atual e apontar uma página
+// informativa; nunca mostrar plano, preço ou pedir assinatura.
+const GATED_FEATURE_LABEL: Record<Exclude<PluginIntent, "mapa">, string> = {
+  analise: "A análise dos seus próprios posts",
+  pautas: "A geração de pautas novas toda semana",
+  inspiracoes: "A pesquisa de referências nominais da comunidade",
+  collabs: "A sugestão de collabs com creators da comunidade",
+  roteiro: "A escrita com as referências dos seus próprios vídeos",
+};
+
+/** Códigos de limite de plano, para medir onde a pessoa quis mais. */
+const PLAN_GATE_ERRORS = new Set([
+  "private_creator_intelligence_unavailable",
+  "membership_feature_unavailable",
+  "community_inspiration_unavailable",
+  "instagram_connection_required",
+]);
+
+function instagramRequiredResult(client: McpClientSurface, intent: Exclude<PluginIntent, "mapa"> = "analise") {
   return {
     isError: true,
     content: jsonText({
       error: "instagram_connection_required",
+      feature: intent,
       message:
         "Para analisar seus próprios conteúdos — incluindo métricas, cenário, gancho, roteiro, " +
         "tom de voz, duração, assunto, dia e horário — conecte seu Instagram à Data2Content. " +
         "A conexão é opcional para os outros benefícios.",
-      connectUrl: getInstagramConnectUrl(),
+      connectUrl: getInstagramConnectUrl(client),
       nextAction: "connect_instagram_or_continue_with_aggregate_context",
     }),
   };
 }
 
-function profileRequiredResult() {
+function profileRequiredResult(client: McpClientSurface, intent: Exclude<PluginIntent, "mapa"> = "analise") {
   return {
     isError: true,
     content: jsonText({
       error: "private_creator_intelligence_unavailable",
+      feature: intent,
       message:
-        "Posso continuar usando seu Norte e padrões agregados da comunidade. Para entender como " +
-        "a Data2Content pode contextualizar as respostas com seus próprios conteúdos, consulte " +
-        "seu perfil personalizado.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL[intent]} não está incluída no plano atual desta conta. Posso continuar ` +
+        "usando seu Norte e padrões agregados da comunidade. O link abre seu perfil Data2Content " +
+        "direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, intent),
       nextAction: "open_personalized_profile",
     }),
   };
 }
 
-function membershipRequiredResult() {
+function membershipRequiredResult(client: McpClientSurface) {
   return {
     isError: true,
     content: jsonText({
       error: "membership_feature_unavailable",
+      feature: "collabs",
       message:
-        "Este recurso da comunidade não está disponível no estado atual da conta. Consulte seu " +
-        "perfil personalizado para entender os recursos disponíveis.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL.collabs} não está incluída no plano atual desta conta. O link abre seu ` +
+        "perfil Data2Content direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, "collabs"),
       nextAction: "open_personalized_profile",
     }),
   };
 }
 
-function communityInspirationRequiredResult() {
+function communityInspirationRequiredResult(client: McpClientSurface) {
   return {
     isError: true,
     content: jsonText({
       error: "community_inspiration_unavailable",
+      feature: "inspiracoes",
       message:
-        "Posso continuar usando seu Norte e padrões agregados da comunidade, sem identificar " +
-        "creators ou expor métricas particulares. Para conhecer os recursos disponíveis para " +
-        "pesquisar referências específicas, consulte seu perfil personalizado.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL.inspiracoes} não está incluída no plano atual desta conta. Posso ` +
+        "continuar com padrões agregados da comunidade, sem identificar creators nem expor métricas " +
+        "particulares. O link abre seu perfil Data2Content direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, "inspiracoes"),
       nextTool: "build_creator_radar",
       nextAction: "continue_with_aggregate_context_or_open_profile",
     }),
   };
 }
 
-function privateCreatorContextRequiredResult(context: D2CMcpContext) {
-  if (context.accountState.accessLevel !== "pro") return profileRequiredResult();
-  if (!context.accountState.instagramConnected) return instagramRequiredResult();
+function privateCreatorContextRequiredResult(
+  context: D2CMcpContext,
+  intent: Exclude<PluginIntent, "mapa"> = "analise",
+) {
+  const client = context.clientSurface ?? "chatgpt";
+  if (context.accountState.accessLevel !== "pro") return profileRequiredResult(client, intent);
+  if (!context.accountState.instagramConnected) return instagramRequiredResult(client, intent);
   return null;
+}
+
+/** Lê o código de limite de um resultado de erro, quando for um. */
+function planGateOf(result: CallToolResult): { error: string; feature: string | null } | null {
+  if (result.isError !== true) return null;
+  const first = (result.content ?? [])[0];
+  if (!first || first.type !== "text") return null;
+  try {
+    const body = JSON.parse(first.text) as { error?: unknown; feature?: unknown };
+    if (typeof body.error !== "string" || !PLAN_GATE_ERRORS.has(body.error)) return null;
+    return { error: body.error, feature: typeof body.feature === "string" ? body.feature : null };
+  } catch {
+    return null;
+  }
 }
 
 function scopeRequiredResult(requiredScope: string) {
@@ -1061,6 +1112,18 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           durationMs: Date.now() - startedAt,
           isError: result.isError === true,
         });
+        // Bater num limite é o sinal de intenção do funil: registra o que a
+        // pessoa pediu e de qual chat, sem conteúdo da conversa.
+        const gate = planGateOf(result);
+        if (gate) {
+          logUsageEvent(context.identity.userId, "mcp_plan_gate", "plugin", {
+            tool: name,
+            error: gate.error,
+            feature: gate.feature,
+            client: context.clientSurface ?? "chatgpt",
+            accessLevel: context.accountState.accessLevel,
+          });
+        }
         // O SDK valida a saída depois deste ponto e, se falhar, o creator recebe
         // erro enquanto o log acima diz sucesso. Registramos só os caminhos do
         // problema — nunca os valores.
@@ -1146,9 +1209,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async () => {
       if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
-      const profileUrl = getMcpProfileUrl();
-      const instagramConnectUrl = getInstagramConnectUrl();
-      const communityJoinUrl = getMcpCommunityJoinUrl();
+      const client = context.clientSurface ?? "chatgpt";
+      const profileUrl = getMcpProfileUrl(client);
+      const instagramConnectUrl = getInstagramConnectUrl(client);
+      const communityJoinUrl = getMcpCommunityJoinUrl(client);
       const conversationPolicy = buildMcpConversationPolicy(context.accountState, {
         profileUrl,
         instagramConnectUrl,
@@ -1354,8 +1418,6 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         content: jsonText({
           results: await searchMcpKnowledge(context.identity.userId, query, {
             includeInstagramPosts: context.accountState.capabilities.privateCreatorIntelligence,
-            // Pautas são Pro, como em list_content_ideas: a busca não pode ser o atalho.
-            includeContentIdeas: context.accountState.accessLevel === "pro",
           }),
         }),
       };
@@ -1379,9 +1441,6 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (/^post:/i.test(id)) {
         const unavailable = privateCreatorContextRequiredResult(context);
         if (unavailable) return unavailable;
-      }
-      if (/^idea:/i.test(id) && context.accountState.accessLevel !== "pro") {
-        return profileRequiredResult();
       }
       const item = await fetchMcpKnowledgeItem(context.identity.userId, id);
       if (!item) {
@@ -1457,17 +1516,24 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
       }
-      // Pautas completas são Pro (`evaluateMapaAccess.podeVerPautas`). A recusa
-      // devolve o caminho do perfil, nunca oferta de plano — ver conversationPolicy.
-      if (context.accountState.accessLevel !== "pro") {
-        return profileRequiredResult();
-      }
+      // As pautas que já existem na conta são da pessoa, como no app. O que o
+      // plano atual pode não incluir é receber pautas novas toda semana.
       const result = await listMcpCreatorContentIdeas({
         userId: context.identity.userId,
         territory,
         limit,
       });
-      return structuredJsonResult(result as unknown as Record<string, unknown>);
+      if (context.accountState.accessLevel === "pro") {
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
+      }
+      return structuredJsonResult({
+        ...result,
+        planNote: {
+          weeklyNewIdeasIncluded: false,
+          message: `${GATED_FEATURE_LABEL.pautas} não está incluída no plano atual desta conta.`,
+          profileUrl: getMcpProfileUrl(context.clientSurface ?? "chatgpt", "pautas"),
+        },
+      });
     },
   );
 
@@ -1672,7 +1738,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       if (mode === "similar_to_me") {
         const unavailable = privateCreatorContextRequiredResult(context);
@@ -1722,7 +1788,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       const result = await analyzeMcpInspirationContent({
         userId: context.identity.userId,
@@ -1759,7 +1825,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       const result = await compareMcpInspirationContents({
         userId: context.identity.userId,
@@ -1824,7 +1890,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     securitySchemes: oauthSecuritySchemes("content:read", "metrics:read", "intelligence:read"),
   }, async (args: any) => {
     for (const scope of ["content:read", "metrics:read", "intelligence:read"]) if (!hasScope(context, scope)) return scopeRequiredResult(scope);
-    const unavailable = privateCreatorContextRequiredResult(context);
+    const unavailable = privateCreatorContextRequiredResult(context, "roteiro");
     if (unavailable) return unavailable;
     return withScriptEngineErrors(async () => {
       const result = await prepareMcpScriptEvidence({ ...args, userId: context.identity.userId,
@@ -1906,7 +1972,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         };
       }
       if (context.accountState.accessLevel === "free" && inspirationContentIds.length > 0) {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       if (context.accountState.capabilities.privateCreatorIntelligence) {
         for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
@@ -1973,7 +2039,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
         return scopeRequiredResult("scripts:generate");
       }
-      const unavailable = privateCreatorContextRequiredResult(context);
+      const unavailable = privateCreatorContextRequiredResult(context, "roteiro");
       if (unavailable) return unavailable;
       for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
         if (!hasScope(context, scope)) return scopeRequiredResult(scope);
@@ -2074,7 +2140,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["collabs:read", "strategy:read"])) {
         return scopeRequiredResult("collabs:read");
       }
-      if (!context.accountState.capabilities.membershipBenefits) return membershipRequiredResult();
+      if (!context.accountState.capabilities.membershipBenefits) return membershipRequiredResult(context.clientSurface ?? "chatgpt");
       const result = await getMcpCollabCreatorSuggestions({
         userId: context.identity.userId,
         themeKeyword,

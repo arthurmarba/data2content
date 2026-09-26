@@ -398,10 +398,16 @@ Uma revisão de código achou respostas que podiam sair erradas no Claude e no C
 - **Semana contra trimestre.** `analyze_creator_period` traz `summary` com mediana e total sobre todos os posts do período (a lista de posts continua limitada) e `maturity`: post com menos de 7 dias ainda acumula, e o aviso `recent_posts_still_accumulating` impede de chamar isso de queda.
 - **Padrões visuais por mediana.** A diferença contra a base só aparece com pelo menos 3 posts; antes, um viral fazia qualquer objeto dele parecer 3x.
 - **Roteiro.** Salvar de novo com o mesmo `clientRequestId` e texto editado atualiza o roteiro (`saveResult`). A crítica com pacote vencido (7 dias) segue com evidência atual e avisa, em vez de falhar. Erros do motor viram mensagem legível, e o rascunho diz qual motor escreveu (`receipt.engine`).
-- **Pautas.** As não publicadas vêm primeiro; `total` é o total real. Conta gratuita não recebe pautas por `search`/`fetch`, a mesma regra de `list_content_ideas`. O app mostra pautas a qualquer conta; se a regra mudar, muda nos três lugares.
+- **Pautas.** As não publicadas vêm primeiro; `total` é o total real. Desde 26/09 a conta gratuita vê as pautas que já existem na conta, como no app (`list_content_ideas`, `search`, `fetch`); o que o plano gratuito não inclui é receber pautas novas toda semana, e a resposta diz isso em `planNote`. Arthur decidiu gerar pautas de amostra para quem vem do plugin.
 - **Acabamento.** O lembrete da conta gratuita não duplica mais: a checagem serializava o array e as aspas do JSON interno vinham escapadas, então nunca casava. Ele também não entra em `search`/`fetch`, que devem ter um bloco só. O aviso de publis dizia "no ChatGPT" também no Claude. A recusa da Meta na pesquisa por @ fala com o creator; o detalhe técnico vai à parte. Saída fora do formato declarado agora aparece no log como `[mcp][tool_output_invalid]`, porque o SDK valida depois do log de sucesso.
 
 Pendente, decisão de produto: o ranking antigo de collab considera qualquer creator ativo e conectado, sem pedir opt-in de collab. As propostas da aba Collabs pedem.
 
 `scripts/smokePluginReview.ts` agora compara a lista de ferramentas do servidor com `chatgpt-app-submission.json` (28) e registra mapa, radar, collabs e resumo do período das contas de revisão.
+
+## Origem da conversa e limites de plano — 26/09/2026
+
+O MCP sabe se a conversa vem do Claude ou do ChatGPT (`clientSurface.ts`, pelo registro OAuth do cliente: o Claude volta para `claude.ai`, o ChatGPT para `chatgpt.com`). Os links levam `source=claude` ou `source=chatgpt`. Antes, todo link dizia ChatGPT, e quem vinha do Claude terminava numa tela "volte ao ChatGPT". A volta depois da assinatura e da conexão do Instagram tem rota própria para o Claude (`/dashboard/claude/ready`). O evento de funil do Claude (`claude_funnel_event`) é separado do evento do ChatGPT, porque aquele alimenta o pixel de anúncios da OpenAI.
+
+Cada limite de plano diz o que ficou de fora ("… não está incluída no plano atual desta conta"), sem falar em assinatura, preço ou upgrade: é o que a regra da OpenAI permite. O link leva `intent` (`analise`, `pautas`, `inspiracoes`, `collabs`, `roteiro`) para o site abrir na parte certa. Cada limite batido vira um `UsageEvent` `mcp_plan_gate` (categoria `plugin`) com ferramenta, pedido e origem. É a medida de intenção do funil.
 

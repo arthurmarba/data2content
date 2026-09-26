@@ -12,7 +12,8 @@ export type InstagramReconnectNextTarget =
   | "planner"
   | "post-creation"
   | "campaigns"
-  | "chatgpt-plugin";
+  | "chatgpt-plugin"
+  | "claude-plugin";
 
 type StartInstagramReconnectOptions = {
   nextTarget: InstagramReconnectNextTarget;

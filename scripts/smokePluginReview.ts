@@ -54,7 +54,9 @@ async function main() {
       const radar = await call("build_creator_radar", { periodDays: 180 });
       report[`${tier}Radar`] = { panoramaScope: radar.panoramaScope, sampleSize: radar.communityPanorama?.sampleSize, warnings: radar.coverage?.warnings };
       if (tier === "free") {
-        await call("list_content_ideas", {}, true);
+        // Pautas que já existem são da conta; o que o plano gratuito não inclui é a renovação semanal.
+        const freeIdeas = await call("list_content_ideas", {});
+        assert.equal(freeIdeas.planNote?.weeklyNewIdeasIncluded, false);
         await call("get_script_evidence_pack", { prompt: "Roteiro com referências próprias" }, true);
         await call("analyze_creator_period", { startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo" }, true);
         continue;

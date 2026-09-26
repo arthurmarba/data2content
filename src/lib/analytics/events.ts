@@ -623,6 +623,7 @@ export const analyticsEventCatalog = {
       step: '' as (
         | 'resources_viewed'
         | 'profile_viewed'
+        | 'offer_viewed'
         | 'profile_upgrade_clicked'
         | 'coupon_copied'
         | 'checkout_started'
@@ -633,6 +634,33 @@ export const analyticsEventCatalog = {
         | 'instagram_connect_failed'
         | 'return_to_chatgpt_clicked'
         | 'return_to_chatgpt_unavailable'
+        | null
+        | undefined
+      ),
+      source: '' as StringMaybe,
+      context: '' as StringMaybe,
+      status: '' as StringMaybe,
+      event_id: '' as StringMaybe,
+    },
+  },
+  // Mesma jornada, começando no Claude. Separado do evento do ChatGPT porque
+  // aquele alimenta o pixel de anúncios da OpenAI.
+  claude_funnel_event: {
+    group: 'funnel',
+    description: 'A user advanced through the Data2Content acquisition or activation journey started in Claude.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      step: '' as (
+        | 'profile_viewed'
+        | 'offer_viewed'
+        | 'profile_upgrade_clicked'
+        | 'checkout_started'
+        | 'subscription_activated'
+        | 'instagram_connect_started'
+        | 'instagram_connected'
+        | 'instagram_connect_skipped'
+        | 'instagram_connect_failed'
+        | 'return_to_claude_clicked'
         | null
         | undefined
       ),

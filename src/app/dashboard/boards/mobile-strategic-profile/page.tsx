@@ -1,3 +1,4 @@
+import { parsePluginClient, parsePluginIntent } from "@/app/lib/plugin/pluginClient";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
@@ -94,6 +95,7 @@ export type MobileStrategicProfilePageProps = {
     state?: string | string[];
     affiliate?: string | string[];
     source?: string | string[];
+    intent?: string | string[];
   }>;
 };
 
@@ -120,8 +122,11 @@ export async function renderCreatorProfilePage({
     const profilePath = surface === "journey" ? "/dashboard/jornada" : surface === "responsive"
         ? "/dashboard/profile"
         : "/dashboard/boards/mobile-strategic-profile";
-    const callbackPath = resolvedSearchParams?.source === "chatgpt"
-      ? `${profilePath}?source=chatgpt`
+    // Quem vem de um plugin volta com a origem e o pedido, para o funil seguir.
+    const pluginSource = parsePluginClient(resolvedSearchParams?.source);
+    const pluginIntent = parsePluginIntent(resolvedSearchParams?.intent);
+    const callbackPath = pluginSource
+      ? `${profilePath}?source=${pluginSource}${pluginIntent ? `&intent=${pluginIntent}` : ""}`
       : profilePath;
     const callbackUrl = encodeURIComponent(callbackPath);
     redirect(`/login?callbackUrl=${callbackUrl}&intent=strategic_profile`);

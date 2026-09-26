@@ -23,70 +23,70 @@
       "tool": "build_creator_radar",
       "isError": false,
       "expectedError": false,
-      "durationMs": 2021
+      "durationMs": 2011
     },
     {
       "tier": "pro",
       "tool": "list_content_ideas",
       "isError": false,
       "expectedError": false,
-      "durationMs": 283
+      "durationMs": 278
     },
     {
       "tier": "pro",
       "tool": "get_creator_profile",
       "isError": false,
       "expectedError": false,
-      "durationMs": 140
+      "durationMs": 139
     },
     {
       "tier": "pro",
       "tool": "get_creator_content_dna",
       "isError": false,
       "expectedError": false,
-      "durationMs": 144
+      "durationMs": 142
     },
     {
       "tier": "pro",
       "tool": "get_creator_intelligence_snapshot",
       "isError": false,
       "expectedError": false,
-      "durationMs": 1003
+      "durationMs": 1021
     },
     {
       "tier": "pro",
       "tool": "search",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 138
     },
     {
       "tier": "pro",
       "tool": "fetch",
       "isError": false,
       "expectedError": false,
-      "durationMs": 137
+      "durationMs": 142
     },
     {
       "tier": "pro",
       "tool": "analyze_creator_period",
       "isError": false,
       "expectedError": false,
-      "durationMs": 290
+      "durationMs": 287
     },
     {
       "tier": "pro",
       "tool": "get_follower_growth",
       "isError": false,
       "expectedError": false,
-      "durationMs": 143
+      "durationMs": 142
     },
     {
       "tier": "pro",
       "tool": "get_performance_summary",
       "isError": false,
       "expectedError": false,
-      "durationMs": 141
+      "durationMs": 142
     },
     {
       "tier": "pro",
@@ -100,49 +100,49 @@
       "tool": "list_top_content",
       "isError": false,
       "expectedError": false,
-      "durationMs": 140
+      "durationMs": 138
     },
     {
       "tier": "pro",
       "tool": "get_content_deep_analysis",
       "isError": false,
       "expectedError": false,
-      "durationMs": 286
+      "durationMs": 280
     },
     {
       "tier": "pro",
       "tool": "research_inspiration_content",
       "isError": false,
       "expectedError": false,
-      "durationMs": 961
+      "durationMs": 1096
     },
     {
       "tier": "pro",
       "tool": "analyze_inspiration_content",
       "isError": false,
       "expectedError": false,
-      "durationMs": 579
+      "durationMs": 571
     },
     {
       "tier": "pro",
       "tool": "compare_inspiration_contents",
       "isError": false,
       "expectedError": false,
-      "durationMs": 297
+      "durationMs": 296
     },
     {
       "tier": "pro",
       "tool": "recommend_collab_creators",
       "isError": false,
       "expectedError": false,
-      "durationMs": 615
+      "durationMs": 606
     },
     {
       "tier": "pro",
       "tool": "find_campaign_opportunities",
       "isError": false,
       "expectedError": false,
-      "durationMs": 460
+      "durationMs": 452
     },
     {
       "tier": "free",
@@ -163,28 +163,28 @@
       "tool": "build_creator_radar",
       "isError": false,
       "expectedError": false,
-      "durationMs": 1990
+      "durationMs": 1705
     },
     {
       "tier": "free",
       "tool": "list_content_ideas",
-      "isError": true,
-      "expectedError": true,
-      "durationMs": 0
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 272
     },
     {
       "tier": "free",
       "tool": "get_script_evidence_pack",
       "isError": true,
       "expectedError": true,
-      "durationMs": 1
+      "durationMs": 10
     },
     {
       "tier": "free",
       "tool": "analyze_creator_period",
       "isError": true,
       "expectedError": true,
-      "durationMs": 0
+      "durationMs": 2
     }
   ],
   "missingOutputSchemas": [

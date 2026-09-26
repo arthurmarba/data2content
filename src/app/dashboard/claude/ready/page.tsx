@@ -1,10 +1,10 @@
 import { PluginReadyScreen } from "@/app/dashboard/plugin/PluginReadyScreen";
 
-export default async function ChatGptReadyPage({
+export default async function ClaudeReadyPage({
   searchParams,
 }: {
   searchParams: Promise<{ instagramLinked?: string }>;
 }) {
   const params = await searchParams;
-  return <PluginReadyScreen client="chatgpt" instagramLinked={params.instagramLinked === "true"} />;
+  return <PluginReadyScreen client="claude" instagramLinked={params.instagramLinked === "true"} />;
 }
