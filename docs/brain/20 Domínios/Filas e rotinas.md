@@ -29,7 +29,9 @@ limpeza publicado na Vercel. Ver [[Histórico diário conserva oito meses e uma 
 ## As rotinas que mexem com dinheiro ou com o criador
 
 - `mature-affiliate-commissions` — libera comissão
-- `expire-trials`, `notify-free-month-ending`, `whatsapp-trial` — ciclo de assinatura
+- `expire-trials`, `notify-free-month-ending` — ciclo de assinatura
+  (`whatsapp-trial` foi removida em 26/09/2026: o teste de 48h no WhatsApp estava
+  desligado desde 11/2025 e a rotina dava 404 — ver [[Rotina do QStash falha em silêncio]])
 - `weekly-report-close` — **grava um retrato que não volta atrás** (ver [[Relatório Semanal]])
 - `weekly-mapa-whatsapp`, `weekly-whatsapp-message`, `send-daily-tips` — falam com o criador
 

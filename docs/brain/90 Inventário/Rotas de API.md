@@ -10,7 +10,7 @@ atualizado: 2026-09-26
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**441 rotas** em **58 grupos**.
+**440 rotas** em **58 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
-- [cron](#cron) — 23 rotas
+- [cron](#cron) — 22 rotas
 - [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -393,7 +393,6 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/cron/weekly-report-close` | GET, POST | `src/app/api/cron/weekly-report-close/route.ts` |
 | `/api/cron/weekly-scene-evaluation` | GET, POST | `src/app/api/cron/weekly-scene-evaluation/route.ts` |
 | `/api/cron/weekly-whatsapp-message` | GET, POST | `src/app/api/cron/weekly-whatsapp-message/route.ts` |
-| `/api/cron/whatsapp-trial` | GET, POST | `src/app/api/cron/whatsapp-trial/route.ts` |
 
 ## dashboard
 
