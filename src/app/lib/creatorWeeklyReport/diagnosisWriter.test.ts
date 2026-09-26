@@ -85,6 +85,14 @@ describe("validateDiagnosis", () => {
     if (!result.ok) expect(result.problems).toContain("a manchete usa palavra vaga; diga a coisa concreta");
   });
 
+  it("recusa multiplicador na manchete: a amostra só vem no parágrafo", () => {
+    const result = validateDiagnosis({ ...GOOD, headline: "Seu horário da manhã rendeu 3,2× em compartilhamentos" }, FACTS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems).toContain("a manchete tem multiplicador; ele vai no parágrafo, ao lado da amostra");
+    // Contagem simples não é multiplicador.
+    expect(validateDiagnosis({ ...GOOD, headline: "Com 7 posts de manhã, o horário virou sua aposta" }, FACTS).ok).toBe(true);
+  });
+
   it("recusa resposta que nem é objeto", () => {
     expect(validateDiagnosis(null, FACTS).ok).toBe(false);
   });
