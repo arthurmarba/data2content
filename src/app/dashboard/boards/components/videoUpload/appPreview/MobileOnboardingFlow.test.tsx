@@ -76,11 +76,18 @@ describe("MobileOnboardingFlow — tela única de Norte", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar meu primeiro mapa" }));
 
     expect(screen.getByText("Seu mapa está começando a tomar forma.")).toBeInTheDocument();
-    await waitFor(() => expect(onComplete).toHaveBeenCalledWith({
+    // A narrativa aparece antes do app: antes ela era calculada e descartada.
+    expect(await screen.findByRole("heading", { name: seedSignal.label })).toBeInTheDocument();
+    expect(screen.getByText("processo criativo")).toBeInTheDocument();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(screen.queryByText(/assinar|R\$/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onComplete).toHaveBeenCalledWith({
       answers: { creatorPurpose: purpose },
       seedSignal,
       skipped: false,
-    }));
+      offerEligible: false,
+    });
 
     expect(JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string)).toEqual({
       creatorPurpose: purpose,
@@ -110,7 +117,8 @@ describe("MobileOnboardingFlow — tela única de Norte", () => {
     expect(screen.getByLabelText("Seu Norte")).toHaveValue(purpose);
 
     fireEvent.click(screen.getByRole("button", { name: "Criar meu primeiro mapa" }));
-    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Continuar" }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
@@ -130,7 +138,25 @@ describe("MobileOnboardingFlow — tela única de Norte", () => {
       answers: {},
       seedSignal: null,
       skipped: true,
+      offerEligible: false,
     }));
     expect(JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string)).toEqual({ skip: true });
   });
+
+  it("repassa a oferta reservada pelo servidor depois da narrativa", async () => {
+    const onComplete = jest.fn();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, skipped: false, seedSignal, offer: { eligible: true } }),
+    } as Response);
+    render(<MobileOnboardingFlow open onComplete={onComplete} />);
+
+    fireEvent.change(screen.getByLabelText("Seu Norte"), {
+      target: { value: "Ajudo mães que empreendem a organizar a rotina sem culpa." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar meu primeiro mapa" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continuar" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ offerEligible: true }));
+  });
 });
+

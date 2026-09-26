@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
+import { claimOnboardingOffer } from "@/app/lib/onboarding/offerAfterNarrative";
 
 export async function GET() {
   return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
@@ -85,7 +86,12 @@ export async function POST(request: Request) {
       : await import("@/app/lib/mapaSeed/seedMapaSeedFromPurpose")
           .then(({ seedMapaSeedFromPurpose }) => seedMapaSeedFromPurpose(userId, parsed.creatorPurpose));
 
-    return NextResponse.json({ ok: true, skipped: parsed.skipped, seedSignal });
+    const offer = await claimOnboardingOffer(userId, {
+      skipped: parsed.skipped,
+      hasNarrative: Boolean(seedSignal?.label),
+    }).catch(() => ({ eligible: false, reason: "disabled" as const }));
+
+    return NextResponse.json({ ok: true, skipped: parsed.skipped, seedSignal, offer });
   } catch (err) {
     console.error("[onboarding] Erro ao salvar respostas:", err);
     return NextResponse.json({ message: "Não foi possível salvar as respostas." }, { status: 500 });
