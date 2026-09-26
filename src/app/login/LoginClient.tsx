@@ -20,6 +20,11 @@ function LoginContent() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const isReviewAccess = searchParams.get("review") === "1";
   const isMcpAccess = searchParams.get("mcp") === "1";
+  const mcpAssistant = searchParams.get("assistant") === "claude"
+    ? "Claude"
+    : searchParams.get("assistant") === "chatgpt"
+      ? "ChatGPT"
+      : null;
   const [showReviewAccess, setShowReviewAccess] = useState(isReviewAccess);
   const callbackUrl = normalizeInternalCallbackUrl(
     searchParams.get("callbackUrl") || MAIN_DASHBOARD_ROUTE,
@@ -151,7 +156,7 @@ function LoginContent() {
             className="mx-auto h-auto w-24 brightness-0"
           />
           <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-zinc-400">
-            Data2Content + ChatGPT
+            {mcpAssistant ? `Data2Content + ${mcpAssistant}` : "Data2Content"}
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-950">
             Crie ou conecte sua conta Data2Content
