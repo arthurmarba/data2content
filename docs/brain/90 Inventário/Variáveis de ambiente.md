@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Variáveis de ambiente
 
-**435 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**429 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -173,7 +173,6 @@ atualizado: 2026-09-26
 | `NEXT_PUBLIC_DEMO_POST_ID` | 1 |
 | `NEXT_PUBLIC_DEMO_USER_ID` | 1 |
 | `NEXT_PUBLIC_POST_CREATION_DEBUG` | 1 |
-| `NEXT_PUBLIC_PRO_UPGRADE_URL` | 1 |
 | `NEXT_PUBLIC_SCRIPT_LAYOUT_V2` | 1 |
 | `NEXT_PUBLIC_SCRIPT_UI_CAPTION_TABS` | 1 |
 | `NEXT_PUBLIC_SITE_URL` | 1 |
@@ -301,11 +300,6 @@ atualizado: 2026-09-26
 | `WHATSAPP_TEMPLATE_REDIRECT` | 1 |
 | `WHATSAPP_TEST_TEMPLATE` | 1 |
 | `WHATSAPP_TIPS_TEMPLATE` | 1 |
-| `WHATSAPP_TRIAL_CRON_LIMIT` | 1 |
-| `WHATSAPP_TRIAL_EXPIRE_TEMPLATE` | 1 |
-| `WHATSAPP_TRIAL_FALLBACK_TEMPLATE` | 1 |
-| `WHATSAPP_TRIAL_GRACE_MINUTES` | 1 |
-| `WHATSAPP_TRIAL_UPSELL_URL` | 1 |
 
 ## YOUTUBE
 
