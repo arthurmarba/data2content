@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Variáveis de ambiente
 
-**430 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**434 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -100,6 +100,7 @@ atualizado: 2026-09-26
 | `MCP_ADMIN_CONNECTION_SCOPES` | 8 |
 | `MCP_ADMIN_ENABLED` | 8 |
 | `MCP_OAUTH_PRIVATE_JWK` | 7 |
+| `MCP_CLAUDE_CONNECT_OFFER_ENABLED` | 6 |
 | `MCP_OAUTH_AUDIENCE` | 5 |
 | `MCP_OAUTH_ISSUER` | 5 |
 | `MCP_OAUTH_JWKS_URL` | 5 |
@@ -134,14 +135,14 @@ atualizado: 2026-09-26
 | Variável | Usos no código |
 | --- | --- |
 | `NEXTAUTH_URL` | 38 |
-| `NEXTAUTH_SECRET` | 22 |
+| `NEXTAUTH_SECRET` | 26 |
 | `NEXTAUTH_SESSION_DB_REVALIDATION_CACHE_TTL_MS` | 1 |
 
 ## NEXT_PUBLIC
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 67 |
+| `NEXT_PUBLIC_APP_URL` | 68 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -157,6 +158,8 @@ atualizado: 2026-09-26
 | `NEXT_PUBLIC_BASE_URL` | 4 |
 | `NEXT_PUBLIC_CHAT_AI_URL` | 3 |
 | `NEXT_PUBLIC_CAMPAIGN_RADAR_ENABLED` | 2 |
+| `NEXT_PUBLIC_CHATGPT_PLUGIN_URL` | 2 |
+| `NEXT_PUBLIC_CLAUDE_CONNECTOR_URL` | 2 |
 | `NEXT_PUBLIC_DEMO_MEDIAKIT_HANDLE` | 2 |
 | `NEXT_PUBLIC_POST_CREATION_BRAND_MATCHES_ENABLED` | 2 |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | 2 |
@@ -164,7 +167,6 @@ atualizado: 2026-09-26
 | `NEXT_PUBLIC_BILLING_STATUS_CLIENT_CACHE_TTL_MS` | 1 |
 | `NEXT_PUBLIC_CHAT_THREAD_HISTORY_CACHE_MAX_ENTRIES` | 1 |
 | `NEXT_PUBLIC_CHAT_THREAD_HISTORY_CACHE_TTL_MS` | 1 |
-| `NEXT_PUBLIC_CHATGPT_PLUGIN_URL` | 1 |
 | `NEXT_PUBLIC_COMMUNITY_FREE_URL` | 1 |
 | `NEXT_PUBLIC_COMMUNITY_VIP_URL` | 1 |
 | `NEXT_PUBLIC_DEMO_POST_ID` | 1 |
@@ -220,8 +222,8 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 37 |
-| `QSTASH_NEXT_SIGNING_KEY` | 37 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 38 |
+| `QSTASH_NEXT_SIGNING_KEY` | 38 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -325,6 +327,7 @@ atualizado: 2026-09-26
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
 | `MOBILE_STRATEGIC_PROFILE_SERVER_ENABLED` | 6 |
+| `ONBOARDING_OFFER_AFTER_NARRATIVE_ENABLED` | 6 |
 | `PLANNER_FREEZE_ENABLED` | 6 |
 | `PLAYWRIGHT_BROWSERS_PATH` | 6 |
 | `SCRIPTS_OPENAI_FALLBACK_ENABLED` | 6 |
@@ -366,6 +369,7 @@ atualizado: 2026-09-26
 | `SMTP_PASS` | 2 |
 | `SMTP_USER` | 2 |
 | `STREAM_READ_TIMEOUT_MS` | 2 |
+| `USAGE_EVENTS_DISABLED` | 2 |
 | `VERCEL` | 2 |
 | `ADMIN_AI_CACHE_ENABLED` | 1 |
 | `ADMIN_MONITORING_SUMMARY_CACHE_TTL_MS` | 1 |
