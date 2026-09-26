@@ -73,6 +73,12 @@ export interface DiagnosisFacts {
     /** Dimensões lidas em que nada passou do normal ainda. */
     semResposta: Array<{ dimensao: string; postsLidos: number }>;
   };
+  /**
+   * Assuntos que a leitura reconheceu nos posts, com as palavras da leitura.
+   * Servem para ligar um padrão a um território do mapa quando a ligação é
+   * evidente pelas palavras — não para criar território novo.
+   */
+  assuntosObservados: string[];
   /** O post da semana que mais rendeu contra o próprio normal. */
   melhorPostDaSemana: {
     assunto: string | null;
@@ -187,6 +193,7 @@ export function buildDiagnosisFacts(params: {
         .filter((highlight) => highlight.kind !== "answer")
         .map((highlight) => ({ dimensao: highlight.label, postsLidos: highlight.analysedPosts })),
     },
+    assuntosObservados: cleanList(report.overview?.observedSubjects ?? [], 8),
     melhorPostDaSemana: video
       ? {
           assunto: video.subject,

@@ -17,7 +17,7 @@ import {
 } from "./diagnosisFacts";
 import type { CreatorWeeklyDiagnosisContent } from "./types";
 
-export const DIAGNOSIS_PROMPT_VERSION = "diagnostico_v2";
+export const DIAGNOSIS_PROMPT_VERSION = "diagnostico_v3";
 
 export const DIAGNOSIS_LIMITS = {
   headline: 80,
@@ -39,15 +39,16 @@ Regras que não se quebram:
 3. O normal é a mediana do próprio criador nos últimos 90 dias. Nunca compare com outro criador nem com média de mercado.
 4. "regras" já se repetiram o bastante para virar decisão. "testes" renderam acima do normal em poucos posts: são aposta, e você diz isso. Nunca trate um teste como regra.
 5. Território, narrativa, asset e tom: use as palavras exatas do mapa. Não invente rótulo novo. Sem mapa, não fale de narrativa.
+   A Data2Content lê conteúdo pela narrativa, não só pelo número. Quando um padrão, um assunto de "assuntosObservados" ou o melhor post da semana tocar evidentemente um território do mapa, diga qual território é, com a palavra do mapa. Evidente quer dizer que as palavras batem; se não batem, não force a ligação.
 6. Post com menos dias que "maturidadeDias" ainda está acumulando números. Não chame isso de queda.
 7. Nunca fale de plano, preço, assinatura, algoritmo ou "poste mais". Nunca prometa resultado.
 8. Diga o que ainda não dá para saber, sem enrolar. Mas não termine em "talvez": termine num teste que decide.
 
 Formato (JSON):
-- headline: uma frase, até ${DIAGNOSIS_LIMITS.headline} caracteres, que diz o que a semana revela. Sem ponto de exclamação. Diferente de "manchetePassada".
+- headline: uma frase, até ${DIAGNOSIS_LIMITS.headline} caracteres, que diz a coisa concreta: o quê (o dia, o cenário, o assunto, o jeito de gravar) e em que pé está. Nada de palavras vagas como "pistas", "insights", "oportunidades" ou "potencial". Coerente com o parágrafo: se tudo ainda é aposta, a manchete não chama de "claro" nem de "certo". Sem ponto de exclamação. Diferente de "manchetePassada".
 - paragraphs: UM parágrafo curto (no máximo ${DIAGNOSIS_LIMITS.paragraphs}), até ${DIAGNOSIS_LIMITS.paragraph} caracteres. Diz o que está funcionando, com a evidência, e o que a semana mostrou. Sem repetir a manchete.
 - nextTest: uma ação concreta para a próxima semana, até ${DIAGNOSIS_LIMITS.nextTest} caracteres, e o que o resultado dela vai dizer. Ela não aparece no Perfil: abre a conversa no Claude.
-- question: a pergunta que fica em aberto, até ${DIAGNOSIS_LIMITS.question} caracteres, terminando com "?". É o botão que leva ao Claude: específica dos fatos deste criador, algo que ele vai querer conversar. Nunca genérica como "quer saber mais?".`;
+- question: a pergunta que fica em aberto, até ${DIAGNOSIS_LIMITS.question} caracteres, terminando com "?". É o botão que leva ao Claude, então precisa ser uma DÚVIDA de verdade sobre o conteúdo deste criador, que os fatos ainda não resolvem — "É o sábado ou o jeito de gravar que faz as pessoas compartilharem?", "Por que os vídeos na cozinha rendem mais que os da sala?". Nunca um convite de sim ou não ("Quer…?", "Que tal…?", "Gostaria…?") e nunca o teste repetido em forma de pergunta.`;
 
 export const DIAGNOSIS_JSON_SCHEMA = {
   type: "object",
@@ -71,6 +72,12 @@ const NUMBER_WORDS: Record<string, number> = {
   oito: 8, nove: 9, dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
   quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19, vinte: 20,
 };
+
+/** Pergunta que é convite de sim ou não, não dúvida: não serve de gancho. */
+const INVITE_QUESTION = /^(?:e\s+)?(?:voc[êe]\s+)?(?:quer|querer|gostaria|deseja|topa|que tal|vamos|posso|podemos)\b/i;
+
+/** Palavras que enfeitam a manchete sem dizer o quê. */
+const VAGUE_HEADLINE = /\b(?:pistas?|insights?|oportunidades?|potencial)\b/i;
 
 const FORBIDDEN: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /R\$/, reason: "fala de preço" },
@@ -111,6 +118,10 @@ export function validateDiagnosis(raw: unknown, facts: DiagnosisFacts): Diagnosi
   if (!content.nextTest) problems.push("faltou o teste da próxima semana");
   if (content.nextTest.length > DIAGNOSIS_LIMITS.nextTest) problems.push(`teste passou de ${DIAGNOSIS_LIMITS.nextTest} caracteres`);
   if (!content.question.endsWith("?")) problems.push("a pergunta precisa terminar com ?");
+  if (INVITE_QUESTION.test(content.question)) {
+    problems.push("a pergunta é um convite de sim ou não; precisa ser uma dúvida real sobre o conteúdo");
+  }
+  if (VAGUE_HEADLINE.test(content.headline)) problems.push("a manchete usa palavra vaga; diga a coisa concreta");
   if (content.question.length > DIAGNOSIS_LIMITS.question) problems.push(`pergunta passou de ${DIAGNOSIS_LIMITS.question} caracteres`);
   if (facts.manchetePassada && content.headline.toLocaleLowerCase("pt-BR") === facts.manchetePassada.toLocaleLowerCase("pt-BR")) {
     problems.push("repetiu a manchete da semana passada");

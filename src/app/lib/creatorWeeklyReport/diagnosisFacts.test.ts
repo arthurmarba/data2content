@@ -43,6 +43,11 @@ describe("diagnosisFacts", () => {
     expect(semMapa.mapa).toBeNull();
   });
 
+  it("leva os assuntos que a leitura reconheceu, para ligar padrão a território", () => {
+    const facts = buildDiagnosisFacts({ report: CREATOR_WEEKLY_REPORT_DEMO, map: MAP, now: NOW });
+    expect(facts.assuntosObservados).toEqual(CREATOR_WEEKLY_REPORT_DEMO.overview.observedSubjects.slice(0, 8));
+  });
+
   it("conta os dias desde a publicação do melhor post, para não chamar post novo de queda", () => {
     const facts = buildDiagnosisFacts({ report: CREATOR_WEEKLY_REPORT_DEMO, map: MAP, now: NOW });
     expect(facts.melhorPostDaSemana?.diasDesdeAPublicacao).toBeGreaterThanOrEqual(0);

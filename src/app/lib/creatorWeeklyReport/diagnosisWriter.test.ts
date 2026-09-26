@@ -67,6 +67,24 @@ describe("validateDiagnosis", () => {
     }
   });
 
+  it("recusa pergunta que é convite de sim ou não — o gancho precisa ser uma dúvida", () => {
+    for (const question of [
+      "Quer avaliar se vale testar um post no próximo sábado em plano médio?",
+      "Você gostaria de testar a manhã de novo?",
+      "Que tal gravar na natureza?",
+    ]) {
+      const result = validateDiagnosis({ ...GOOD, question }, FACTS);
+      expect(result.ok).toBe(false);
+    }
+    expect(validateDiagnosis({ ...GOOD, question: "É o horário ou a natureza que faz o vídeo render?" }, FACTS).ok).toBe(true);
+  });
+
+  it("recusa manchete que enfeita sem dizer o quê", () => {
+    const result = validateDiagnosis({ ...GOOD, headline: "Sem posts nesta semana, mas há pistas claras nos seus testes" }, FACTS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problems).toContain("a manchete usa palavra vaga; diga a coisa concreta");
+  });
+
   it("recusa resposta que nem é objeto", () => {
     expect(validateDiagnosis(null, FACTS).ok).toBe(false);
   });

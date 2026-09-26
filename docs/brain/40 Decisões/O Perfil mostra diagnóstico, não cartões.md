@@ -26,6 +26,14 @@ O Arthur pediu o card mais enxuto e o conector em primeiro plano: "a plataforma 
 - **O botão copia o próprio diagnóstico** (manchete, parágrafo, teste e pergunta) e abre uma conversa nova. O pedido manda o Claude partir dele em vez de refazer a análise. Isso resolve a consistência entre site e conversa sem ferramenta nova no conector.
 - O link `claude.ai/new?q=` (conversa já escrita) ficou de fora: há relatos de que foi retirado. Copiar e abrir funciona sempre.
 
+## O texto (ajustado em 26/09/2026 depois do primeiro diagnóstico real)
+
+O primeiro diagnóstico real (conta do Arthur) acertou os números e a amostra, mas terminava em "Quer avaliar se vale testar…?" — convite de sim ou não, que não puxa conversa — e tinha manchete genérica ("pistas claras", contradizendo "testes a confirmar"). Regras que ficaram (`diagnosisWriter.ts`, versão `diagnostico_v3`):
+
+- **A pergunta é uma dúvida real** que os fatos ainda não resolvem ("É o sábado ou o enquadramento…?"). Pergunta que começa com "Quer", "Gostaria", "Que tal", "Vamos"… é recusada.
+- **A manchete diz a coisa concreta** e concorda com o parágrafo. "Pistas", "insights", "oportunidades" e "potencial" são recusados.
+- **Território só quando é evidente.** Os fatos levam os assuntos que a leitura reconheceu; o texto nomeia o território do mapa quando as palavras batem, e não força quando não batem.
+
 ## Por quê
 
 Os cartões eram verdadeiros, mas deixavam a síntese para quem lia: dez respostas de peso visual igual, e a pessoa tinha que descobrir sozinha o que aquilo dizia sobre ela. E a gaveta "Peça ao Claude" tinha 26 pedidos genéricos, nenhum nascido do que a pessoa acabou de ler. Uma pergunta aberta sobre os posts dela é motivo mais forte para abrir o Claude.
