@@ -1,7 +1,7 @@
 ---
 tipo: decisão
 área: produto
-status: decidido em 26/09/2026 · etapa 1 construída, desligada por chave
+status: decidido em 26/09/2026 · ligado em produção no mesmo dia (PR #910)
 ---
 
 # O Perfil mostra um diagnóstico, não cartões
@@ -33,6 +33,18 @@ O primeiro diagnóstico real (conta do Arthur) acertou os números e a amostra, 
 - **A pergunta é uma dúvida real** que os fatos ainda não resolvem ("É o sábado ou o enquadramento…?"). Pergunta que começa com "Quer", "Gostaria", "Que tal", "Vamos"… é recusada.
 - **A manchete diz a coisa concreta** e concorda com o parágrafo. "Pistas", "insights", "oportunidades" e "potencial" são recusados.
 - **Território só quando é evidente.** Os fatos levam os assuntos que a leitura reconheceu; o texto nomeia o território do mapa quando as palavras batem, e não força quando não batem.
+
+## Linguagem de gente, não de planilha (26/09/2026, pedido do Arthur)
+
+Mesmo certo, o texto soava como computador ("13,0× o seu normal, em 2 posts") e deixava para o leitor a tradução. O Arthur pediu linguagem prática e direta para leigo ("a gente percebeu que você tem X% mais quando faz tal coisa"). Ficou assim (`diagnostico_v5`):
+
+- **O número vira efeito, calculado antes do modelo** (`humanEffect` em `diagnosisFacts.ts`): "o dobro de compartilhamentos", "50% mais salvamentos", "13 vezes mais visualizações"; abaixo de 10% vira "um pouco mais". O modelo não recebe mais o multiplicador cru, então não tem decimal para copiar.
+- **A certeza vira frase** ("já se repetiu o bastante: dá pra confiar", "aconteceu em poucos posts: ainda é cedo").
+- **A voz:** "A gente percebeu que…", no máximo 3 números no texto, manchete sem número.
+- **A conferência recusa o jeito computador:** símbolo ×, número com decimal, "mediana", "índice", "amostra", "métrica", "dimensão".
+- A linha do pé virou "Lemos 18 dos seus 24 posts dos últimos 3 meses".
+
+Exemplo real: *"A gente percebeu que seus vídeos gravados em plano médio tiveram o dobro de compartilhamentos do que seus outros posts. Isso apareceu em 5 posts, então vale repetir para confirmar."*
 
 ## Por quê
 

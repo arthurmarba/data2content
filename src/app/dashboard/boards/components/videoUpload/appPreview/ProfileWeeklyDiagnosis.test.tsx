@@ -15,13 +15,13 @@ beforeEach(() => {
 });
 
 describe("diagnóstico da semana no Perfil", () => {
-  it("é enxuto: manchete, evidência com o multiplicador em destaque, pergunta e amostra", () => {
+  it("é enxuto: manchete, evidência com o efeito em destaque, pergunta e amostra", () => {
     render(<ProfileWeeklyDiagnosis view={CREATOR_WEEKLY_DIAGNOSIS_DEMO} isDemo={false} tag={null} claudeConnected />);
 
     expect(screen.getByRole("heading", { name: ENTRY.headline })).toBeTruthy();
     expect(screen.getByText(ENTRY.question)).toBeTruthy();
     expect(screen.getByText(ENTRY.sampleLine)).toBeTruthy();
-    expect(screen.getByText("2,4×").tagName).toBe("B");
+    expect(screen.getByText("o dobro").tagName).toBe("B");
     // O teste da semana não ocupa a tela: ele vai junto para o Claude.
     expect(screen.queryByText(ENTRY.nextTest)).toBeNull();
     expect(screen.queryByText(/exemplo/i)).toBeNull();
