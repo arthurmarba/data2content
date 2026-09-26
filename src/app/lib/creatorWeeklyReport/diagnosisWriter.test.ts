@@ -11,11 +11,11 @@ const FACTS = buildDiagnosisFacts({
 });
 
 const GOOD = {
-  headline: "Seu horário da manhã virou regra; o resto ainda é aposta.",
+  headline: "Suas manhãs viraram o seu melhor horário",
   paragraphs: [
-    "Posts entre 4h e 8h renderam 3,2× o seu normal, em 7 posts dos últimos 90 dias. A natureza rendeu 7,5×, mas em 1 post só: é pista, não padrão.",
+    "A gente percebeu que, quando você posta entre 4h e 8h, seus posts têm o triplo do resultado de costume — isso já aconteceu em 7 posts.",
   ],
-  nextTest: "Grave um vídeo em natureza, no horário da manhã. Se ele render de novo, vira regra.",
+  nextTest: "Grave um vídeo em natureza e poste de manhã. Se ele for bem de novo, a natureza entra no seu jeito de gravar.",
   question: "A natureza funciona por ela ou pelo horário em que você posta?",
 };
 
@@ -89,8 +89,21 @@ describe("validateDiagnosis", () => {
     const result = validateDiagnosis({ ...GOOD, headline: "Seu horário da manhã rendeu 3,2× em compartilhamentos" }, FACTS);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.problems).toContain("a manchete tem multiplicador; ele vai no parágrafo, ao lado da amostra");
-    // Contagem simples não é multiplicador.
-    expect(validateDiagnosis({ ...GOOD, headline: "Com 7 posts de manhã, o horário virou sua aposta" }, FACTS).ok).toBe(true);
+    // A manchete fala em palavras: nem contagem entra.
+    const counted = validateDiagnosis({ ...GOOD, headline: "Com 7 posts de manhã, o horário virou seu forte" }, FACTS);
+    expect(counted.ok).toBe(false);
+    if (!counted.ok) expect(counted.problems).toContain("a manchete tem número; ela diz o achado em palavras");
+  });
+
+  it("recusa o jeito computador: ×, decimal, palavra de relatório e número demais", () => {
+    const machine = [
+      "A gente percebeu que posts entre 4h e 8h rendem 3,2× o normal, em 7 posts.",
+      "A mediana dos seus posts entre 4h e 8h ficou alta em 7 posts.",
+      "Entre 4h e 8h, em 7 posts de 90 dias, com 1 post na natureza, tudo subiu.",
+    ];
+    for (const paragraph of machine) {
+      expect(validateDiagnosis({ ...GOOD, paragraphs: [paragraph] }, FACTS).ok).toBe(false);
+    }
   });
 
   it("recusa resposta que nem é objeto", () => {
@@ -133,6 +146,6 @@ describe("writeDiagnosis", () => {
   });
 
   it("manda os fatos inteiros no pedido", () => {
-    expect(buildDiagnosisPrompt(FACTS)).toContain('"indice": "3,2×"');
+    expect(buildDiagnosisPrompt(FACTS)).toContain('"efeito": "o triplo do resultado de costume"');
   });
 });

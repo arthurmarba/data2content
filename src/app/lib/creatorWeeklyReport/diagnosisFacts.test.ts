@@ -4,6 +4,7 @@ import {
   buildDiagnosisFacts,
   diagnosisSampleLine,
   formatDiagnosisIndex,
+  humanEffect,
   isDiagnosisEligible,
 } from "./diagnosisFacts";
 
@@ -25,7 +26,13 @@ describe("diagnosisFacts", () => {
     expect(facts.padroes.regras.every((fact) => fact.posts >= 6)).toBe(true);
     expect(facts.padroes.testes.some((fact) => fact.posts === 1)).toBe(true);
     expect(facts.padroes.regras[0]).toEqual(
-      expect.objectContaining({ dimensao: "Horário", acao: "Poste entre 4h e 8h", indice: "3,2×", posts: 7 }),
+      expect.objectContaining({
+        dimensao: "Horário",
+        acao: "Poste entre 4h e 8h",
+        efeito: "o triplo do resultado de costume",
+        posts: 7,
+        firmeza: "já se repetiu o bastante: dá pra confiar",
+      }),
     );
   });
 
@@ -57,7 +64,8 @@ describe("diagnosisFacts", () => {
   it("aceita como número citável tudo o que está nos fatos, inclusive dentro dos rótulos", () => {
     const facts = buildDiagnosisFacts({ report: CREATOR_WEEKLY_REPORT_DEMO, map: MAP, now: NOW });
     const allowed = allowedNumbers(facts);
-    expect(allowed.has("3.2")).toBe(true);
+    // O modelo não recebe o multiplicador cru: só o efeito já em palavras.
+    expect(allowed.has("3.2")).toBe(false);
     expect(allowed.has("14")).toBe(true);
     expect(allowed.has("90")).toBe(true);
     expect(allowed.has("8")).toBe(true);
@@ -70,9 +78,19 @@ describe("diagnosisFacts", () => {
     expect(formatDiagnosisIndex(Number.NaN)).toBeNull();
   });
 
+  it("diz o efeito como gente, arredondando para a ordem de grandeza", () => {
+    expect(humanEffect(1.04, "compartilhamentos")).toBe("um pouco mais de compartilhamentos");
+    expect(humanEffect(1.53, "salvamentos")).toBe("50% mais salvamentos");
+    expect(humanEffect(2.34, "compartilhamentos")).toBe("o dobro de compartilhamentos");
+    expect(humanEffect(3.2, "visualizações")).toBe("o triplo de visualizações");
+    expect(humanEffect(13.04, "compartilhamentos")).toBe("13 vezes mais compartilhamentos");
+    expect(humanEffect(2.1, null)).toBe("o dobro do resultado de costume");
+    expect(humanEffect(0.8, "salvamentos")).toBeNull();
+  });
+
   it("calcula a linha de amostra", () => {
     expect(diagnosisSampleLine({ posts90d: 18, postsWeek: 2, postsWithScene: 12, scenePercent: 67 })).toBe(
-      "12 de 18 posts lidos · comparado com os seus últimos 90 dias",
+      "Lemos 12 dos seus 18 posts dos últimos 3 meses",
     );
   });
 

@@ -22,16 +22,17 @@ import { ProfileSectionHeader } from "./ProfileSectionHeader";
  * dia a dia; por isso o gancho não é rodapé, é o fim natural da leitura. Quem
  * ainda não conectou encontra o passo a passo ali mesmo, sem trocar de tela.
  *
- * O número não sai de cena: vai dentro do texto, com a amostra, e o
- * multiplicador em negrito — é o dado que decide. A linha de amostra no pé é
- * calculada, nunca escrita pelo modelo.
+ * O número não sai de cena, mas fala como gente: "o dobro de compartilhamentos,
+ * em 9 posts", com o efeito em negrito — é o dado que decide. A linha de
+ * amostra no pé é calculada, nunca escrita pelo modelo.
  *
  * Rótulos, pergunta e passos são `div`/`li`, não `p`: na Jornada,
  * `.j-workspace p` impõe 14px, cinza e margem própria. Só o parágrafo do texto
  * usa `p`, e ali o estilo da Jornada é o certo.
  */
 
-const MULTIPLIER = /(\d+(?:,\d+)?×)/g;
+/** O efeito em palavras ("o dobro", "50% mais") é o dado que decide: vai em negrito. */
+const EFFECT = /(o dobro|o triplo|\d+ vezes mais|\d+% mais|\d+% acima)/g;
 
 /** Pergunta de reserva, para quando ainda não há diagnóstico a continuar. */
 const FALLBACK_HANDOFF =
@@ -39,9 +40,9 @@ const FALLBACK_HANDOFF =
 
 const LABEL = "text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]";
 
-/** Negrito nos multiplicadores ("2,4×"): o resto do parágrafo segue no tom do texto. */
+/** Negrito no efeito ("o dobro", "50% mais"): o resto do parágrafo segue no tom do texto. */
 function withEmphasis(text: string): ReactNode[] {
-  return text.split(MULTIPLIER).map((part, index) =>
+  return text.split(EFFECT).map((part, index) =>
     index % 2 === 1 ? (
       <b key={index} className="font-semibold text-[var(--ds-color-ink)]">
         {part}

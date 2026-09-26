@@ -11,14 +11,14 @@ export const CREATOR_WEEKLY_DIAGNOSIS_DEMO: CreatorWeeklyDiagnosisView = {
   shown: {
     weekKey: "demo",
     rangeLabel: "4 a 10 de agosto",
-    headline: "Seus vídeos na cozinha estão segurando a conta.",
+    headline: "A cozinha é onde seus vídeos mais são compartilhados",
     paragraphs: [
-      "Os vídeos gravados na cozinha foram compartilhados 2,4× o seu normal, em 9 posts dos últimos 90 dias — em 7 deles você falava da sua rotina.",
+      "A gente percebeu que, quando você grava na cozinha, seus vídeos são compartilhados o dobro do que costumam ser — e isso já aconteceu em 9 posts. Em 7 deles você falava da sua rotina.",
     ],
     nextTest:
-      "Grave um vídeo de rotina fora da cozinha. Se ele render parecido, o assunto é seu; se cair, é o cenário que segura.",
-    question: "É a cozinha ou é a rotina que faz as pessoas compartilharem?",
-    sampleLine: "18 de 24 posts lidos · comparado com os seus últimos 90 dias",
+      "Grave um vídeo sobre a sua rotina fora da cozinha. Se ele for bem compartilhado, o que puxa é o assunto; se não, é o cenário.",
+    question: "É a cozinha ou a sua rotina que faz as pessoas compartilharem?",
+    sampleLine: "Lemos 18 dos seus 24 posts dos últimos 3 meses",
     writtenAt: "2026-08-11T15:00:00.000Z",
   },
 };
