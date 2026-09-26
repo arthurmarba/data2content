@@ -11,10 +11,16 @@ type VisualSignalEvidence = {
   value: string;
   postCount: number;
   shareOfAnalyzed: number;
-  avgInteractions: number | null;
+  medianInteractions: number | null;
   liftVsAnalyzedBaseline: number | null;
   evidencePostIds: string[];
 };
+
+/**
+ * Com menos posts que isto, a diferença para a base é ruído: um post viral com
+ * uma cadeira no fundo fazia "cadeira" parecer 3x melhor.
+ */
+export const MCP_VISUAL_MIN_POSTS_FOR_LIFT = 3;
 
 function normalizeText(value: unknown, maxLength = 240): string | null {
   const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -46,9 +52,13 @@ function round(value: number, decimals = 4): number {
   return Math.round(value * factor) / factor;
 }
 
-function average(values: number[]): number | null {
+// Mediana, como no resto do produto: a média deixava um post fora da curva
+// decidir o padrão.
+function median(values: number[]): number | null {
   if (!values.length) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
 function sceneRecord(document: McpVisualMetricDocument): Record<string, unknown> | null {
@@ -97,24 +107,27 @@ function buildDimension(params: {
 
   return Array.from(groups.entries())
     .map(([value, entry]) => {
-      const avgInteractions = average(entry.interactions);
+      const medianInteractions = median(entry.interactions);
       const lift =
-        avgInteractions != null && params.baselineInteractions != null && params.baselineInteractions > 0
-          ? avgInteractions / params.baselineInteractions
+        entry.interactions.length >= MCP_VISUAL_MIN_POSTS_FOR_LIFT &&
+        medianInteractions != null &&
+        params.baselineInteractions != null &&
+        params.baselineInteractions > 0
+          ? medianInteractions / params.baselineInteractions
           : null;
       return {
         value,
         postCount: entry.postCount,
         shareOfAnalyzed:
           params.analyzedCount > 0 ? round(entry.postCount / params.analyzedCount) : 0,
-        avgInteractions: avgInteractions == null ? null : round(avgInteractions, 2),
+        medianInteractions: medianInteractions == null ? null : round(medianInteractions, 2),
         liftVsAnalyzedBaseline: lift == null ? null : round(lift, 3),
         evidencePostIds: entry.evidencePostIds,
       };
     })
     .sort((left, right) => {
       if (right.postCount !== left.postCount) return right.postCount - left.postCount;
-      return (right.avgInteractions ?? -1) - (left.avgInteractions ?? -1);
+      return (right.medianInteractions ?? -1) - (left.medianInteractions ?? -1);
     })
     .slice(0, params.limit ?? 8);
 }
@@ -124,7 +137,7 @@ export function buildMcpVisualPlaybook(documents: McpVisualMetricDocument[]) {
   const interactionValues = analyzed
     .map(interactionsOf)
     .filter((value): value is number => value != null);
-  const baselineInteractions = average(interactionValues);
+  const baselineInteractions = median(interactionValues);
   const base = {
     documents: analyzed,
     analyzedCount: analyzed.length,
@@ -155,7 +168,8 @@ export function buildMcpVisualPlaybook(documents: McpVisualMetricDocument[]) {
       interactionsAvailable: interactionValues.length,
     },
     baseline: {
-      avgInteractions: baselineInteractions == null ? null : round(baselineInteractions, 2),
+      medianInteractions: baselineInteractions == null ? null : round(baselineInteractions, 2),
+      liftRequiresMinPosts: MCP_VISUAL_MIN_POSTS_FOR_LIFT,
     },
     patterns: {
       assetRoles: buildDimension({ ...base, select: fromArray("assetRoleIds", 120) }),

@@ -1,6 +1,7 @@
 // src/app/billing/success/page.tsx
 "use client";
 
+import { parsePluginClient, pluginInstagramNextTarget, type PluginClient } from "@/app/lib/plugin/pluginClient";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -108,15 +109,21 @@ export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): PostC
     : null;
 }
 
-export function isChatGptCheckoutFlow(returnTo: string | null, source: string | null): boolean {
-  if (source === "chatgpt_profile_upgrade") return true;
-  if (!returnTo) return false;
+/** De qual chat veio a assinatura, quando veio de um plugin. */
+export function pluginCheckoutClient(returnTo: string | null, source: string | null): PluginClient | null {
+  if (source === "chatgpt_profile_upgrade") return "chatgpt";
+  if (source === "claude_profile_upgrade") return "claude";
+  if (!returnTo) return null;
   try {
     const url = new URL(returnTo, "https://d2c.local");
-    return url.searchParams.get("source") === "chatgpt";
+    return parsePluginClient(url.searchParams.get("source"));
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function isChatGptCheckoutFlow(returnTo: string | null, source: string | null): boolean {
+  return pluginCheckoutClient(returnTo, source) === "chatgpt";
 }
 
 export function buildProfileActivationHref(
@@ -232,8 +239,9 @@ export default function BillingSuccessPage() {
         if (resolvedPostCheckoutIntent === "join_community" && paymentConfirmed) {
           redirectHref = buildProfileActivationHref(resolvedReturnTo, "whatsapp");
         } else if (resolvedPostCheckoutIntent === "connect_instagram" && paymentConfirmed) {
-          redirectHref = isChatGptCheckoutFlow(resolvedReturnTo, resolvedSource)
-            ? "/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin"
+          const checkoutClient = pluginCheckoutClient(resolvedReturnTo, resolvedSource);
+          redirectHref = checkoutClient
+            ? `/dashboard/instagram/connect?source=${checkoutClient}&next=${pluginInstagramNextTarget(checkoutClient)}`
             : buildProfileActivationHref(resolvedReturnTo, "instagram");
         } else if (resolvedPostCheckoutIntent === "watch_recorded_meeting" && paymentConfirmed) {
           redirectHref = resolvedReturnTo ?? RECORDED_MEETINGS_ROUTE;
@@ -277,6 +285,17 @@ export default function BillingSuccessPage() {
             currency: null,
             value: null,
           });
+          if (pluginCheckoutClient(resolvedReturnTo, resolvedSource) === "claude") {
+            // Fora do evento do ChatGPT: ele alimenta os anúncios da OpenAI.
+            track("claude_funnel_event", {
+              creator_id: user.id,
+              step: "subscription_activated",
+              source: resolvedSource ?? "claude",
+              context: resolvedContext ?? "claude_intelligence",
+              status: interval,
+              event_id: null,
+            });
+          }
           if (
             isChatGptCheckoutFlow(resolvedReturnTo, resolvedSource)
           ) {

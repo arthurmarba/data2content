@@ -42,15 +42,21 @@ async function main() {
     }
     try {
       const { tools } = await client.listTools();
-      assert.equal(tools.length, 26);
       const imported = JSON.parse(await fs.readFile("chatgpt-app-submission.json", "utf8"));
+      // O arquivo da submissão é a lista que a OpenAI vê: servidor e arquivo precisam bater.
+      assert.deepEqual(tools.map(tool => tool.name).sort(), Object.keys(imported.tools).sort());
       for (const tool of tools) for (const hint of ["readOnlyHint", "destructiveHint", "openWorldHint"] as const) assert.equal(tool.annotations?.[hint], imported.tools[tool.name].annotations[hint], `${tool.name}/${hint}`);
       report.missingOutputSchemas = tools.filter(t => !t.outputSchema).map(t => t.name);
       await call("get_account_state");
       const map = await call("get_creator_map"); assert.equal(map.hasMap, true); assert.equal(map.evidenceLevel, "declared");
-      await call("build_creator_radar", { periodDays: 180 });
+      // O caso 1 da OpenAI espera o mapa "apenas declarativo": confirmação no card mudaria a resposta.
+      report[`${tier}Map`] = { narrativeConfirmedByCreator: map.narrativeConfirmedByCreator, narrativeIsFirm: map.narrativeIsFirm, warnings: map.warnings };
+      const radar = await call("build_creator_radar", { periodDays: 180 });
+      report[`${tier}Radar`] = { panoramaScope: radar.panoramaScope, sampleSize: radar.communityPanorama?.sampleSize, warnings: radar.coverage?.warnings };
       if (tier === "free") {
-        await call("list_content_ideas", {}, true);
+        // Pautas que já existem são da conta; o que o plano gratuito não inclui é a renovação semanal.
+        const freeIdeas = await call("list_content_ideas", {});
+        assert.equal(freeIdeas.planNote?.weeklyNewIdeasIncluded, false);
         await call("get_script_evidence_pack", { prompt: "Roteiro com referências próprias" }, true);
         await call("analyze_creator_period", { startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo" }, true);
         continue;
@@ -62,6 +68,7 @@ async function main() {
       if (found.results?.[0]?.id) await call("fetch", { id: found.results[0].id });
       const period = await call("analyze_creator_period", { startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo" });
       report.periodInventory = period.inventory;
+      report.periodSummary = { summary: period.summary, maturity: period.maturity, warnings: period.coverage?.warnings };
       assert.equal(period.inventory.totalPosts, 3);
       const growth = await call("get_follower_growth", { startDate: "2026-08-01", endDate: "2026-08-07", timeZone: "America/Sao_Paulo" });
       report.followerCoverage = growth.coverage;
@@ -73,7 +80,8 @@ async function main() {
       const ids = (research.items || []).map((item: any) => item.inspirationId || item.id).filter(Boolean);
       if (ids[0]) await call("analyze_inspiration_content", { inspirationId: ids[0] });
       if (ids.length >= 2) await call("compare_inspiration_contents", { inspirationIds: ids.slice(0, 2) });
-      await call("recommend_collab_creators", { themeKeyword: "criação de conteúdo", periodDays: 180, limit: 2 });
+      const collabs = await call("recommend_collab_creators", { themeKeyword: "criação de conteúdo", periodDays: 180, limit: 2 });
+      report.collabs = { preparedProposals: collabs.preparedProposals?.length ?? 0, creators: collabs.creators?.length ?? 0, withSharedTerritory: (collabs.creators || []).filter((creator: any) => creator.sharedTerritories?.length).length, warnings: collabs.coverage?.warnings };
       await call("find_campaign_opportunities", { query: "criação de conteúdo", limit: 2 });
       if (WRITE) {
         const pack = await call("get_script_evidence_pack", { prompt: "Clareza na criação de conteúdo", startsAt: "2026-08-01T00:00:00-03:00", endsAt: "2026-08-31T23:59:59-03:00", lookbackDays: 180 });

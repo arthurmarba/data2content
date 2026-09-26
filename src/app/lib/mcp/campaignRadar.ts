@@ -13,7 +13,7 @@ import {
 } from "@/app/lib/campaignRadar/matching";
 
 const FREE_ACCESS_NOTICE =
-  "Sua conta permite consultar uma publicidade selecionada por semana no ChatGPT. " +
+  "Sua conta permite consultar uma publicidade selecionada por semana nesta conversa. " +
   "Outras publicidades não estão disponíveis para esta conta no momento. " +
   "Você pode conferir as informações da sua conta na plataforma Data2Content.";
 
@@ -124,8 +124,11 @@ export function extractCampaignRadarPrivateSignals(snapshot: unknown): string[] 
   const performanceLearning = record(root.performanceLearning);
   const creatorVoice = record(root.creatorVoice);
   const dnaProfile = record(creatorVoice?.dnaProfile);
+  const creatorMap = record(root.creatorMap);
   const candidates: string[] = [];
 
+  // O mapa é o dicionário: os territórios dele vêm antes das categorias de legenda.
+  appendStrings(candidates, creatorMap?.territories);
   appendStrings(candidates, strategy?.resolvedCategories);
   appendStrings(candidates, strategy?.rankedCategories);
   const captionEvidence = Array.isArray(performanceLearning?.captionEvidence)

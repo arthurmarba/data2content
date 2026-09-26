@@ -9,10 +9,24 @@ import { readMcpOAuthSessionUserId } from "@/app/lib/mcp/oauth/session";
 import { enforceCurrentLegalAcceptance } from "@/lib/auth/enforceCurrentLegalAcceptance";
 
 export const metadata: Metadata = {
-  title: "Conectar Data2Content ao ChatGPT",
+  title: "Conectar a Data2Content",
   description: "Autorize um assistente a consultar sua conta Data2Content.",
   robots: { index: false, follow: false },
 };
+
+/** Nome do chat que está conectando, pelo registro OAuth; antes a tela dizia sempre "ChatGPT". */
+function assistantLabel(consent: { clientName?: string | null; redirectUri?: string | null }): string {
+  const host = (() => {
+    try {
+      return new URL(consent.redirectUri ?? "").hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  if (host === "claude.ai" || host.endsWith(".claude.ai") || host === "claude.com" || host.endsWith(".claude.com")) return "Claude";
+  if (host === "chatgpt.com" || host.endsWith(".chatgpt.com") || host.endsWith(".openai.com")) return "ChatGPT";
+  return consent.clientName?.trim() || "assistente";
+}
 
 const SCOPE_LABELS: Record<string, string> = {
   "profile:read": "Consultar seu perfil de creator",
@@ -36,7 +50,7 @@ const SCOPE_LABELS: Record<string, string> = {
   "admin:creators:compare": "Comparar creators e padrões de conteúdo",
 };
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, assistant }: { children: React.ReactNode; assistant?: string }) {
   return (
     <main className="min-h-screen bg-[#f6f7f9] px-5 py-12 text-[#17191d]">
       <section className="mx-auto w-full max-w-lg rounded-3xl border border-black/10 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)] sm:p-9">
@@ -44,7 +58,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#17191d] text-sm font-black text-white">D2C</div>
           <div>
             <p className="text-sm font-semibold text-black/50">Data2Content</p>
-            <h1 className="text-xl font-bold tracking-tight">Conectar ao ChatGPT</h1>
+            <h1 className="text-xl font-bold tracking-tight">
+              {assistant ? `Conectar ao ${assistant}` : "Conectar assistente"}
+            </h1>
           </div>
         </div>
         {children}
@@ -69,6 +85,12 @@ export default async function McpAuthorizePage({
     const login = new URL("/login", getMcpAppBaseUrl());
     login.searchParams.set("callbackUrl", callbackUrl);
     login.searchParams.set("mcp", "1");
+    // O login mostra o nome do chat que está conectando.
+    const pendingConsent = await readMcpConsentRequest(requestToken).catch(() => null);
+    const pendingAssistant = pendingConsent ? assistantLabel(pendingConsent) : null;
+    if (pendingAssistant === "Claude" || pendingAssistant === "ChatGPT") {
+      login.searchParams.set("assistant", pendingAssistant.toLowerCase());
+    }
     redirect(login.toString());
   }
 
@@ -81,8 +103,9 @@ export default async function McpAuthorizePage({
   } catch {
     return <Shell><p className="text-sm text-red-700">Esta solicitação expirou ou já foi utilizada.</p></Shell>;
   }
+  const assistant = assistantLabel(consent);
   if (String(consent.userId) !== userId) {
-    return <Shell><p className="text-sm text-red-700">Esta solicitação pertence a outra conta Data2Content.</p></Shell>;
+    return <Shell assistant={assistant}><p className="text-sm text-red-700">Esta solicitação pertence a outra conta Data2Content.</p></Shell>;
   }
 
   const adminConsent = isMcpAdminResource(consent.resource);
@@ -92,7 +115,7 @@ export default async function McpAuthorizePage({
   ]);
   if (adminConsent && !adminAuthorization?.authorized) {
     return (
-      <Shell>
+      <Shell assistant={assistant}>
         <h2 className="text-2xl font-bold tracking-tight">Acesso administrativo necessário</h2>
         <p className="mt-3 text-sm leading-6 text-black/60">
           Esta conexão permite consultar dados de outros creators da plataforma e só pode ser autorizada por uma conta administradora habilitada.
@@ -108,7 +131,7 @@ export default async function McpAuthorizePage({
   }
   if (!adminConsent && !accountState?.accountAvailable) {
     return (
-      <Shell>
+      <Shell assistant={assistant}>
         <h2 className="text-2xl font-bold tracking-tight">Não foi possível validar sua conta</h2>
         <p className="mt-3 text-sm leading-6 text-black/60">
           Entre novamente na Data2Content e tente conectar sua conta ao {consent.clientName}.
@@ -130,7 +153,7 @@ export default async function McpAuthorizePage({
   );
 
   return (
-    <Shell>
+    <Shell assistant={assistant}>
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6f51d8]">Autorizar acesso</p>
       <h2 className="mt-2 text-2xl font-bold tracking-tight">{consent.clientName} quer acessar sua conta</h2>
       <p className="mt-3 text-sm leading-6 text-black/60">

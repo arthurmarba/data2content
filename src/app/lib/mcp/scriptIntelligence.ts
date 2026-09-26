@@ -78,14 +78,24 @@ export async function critiqueMcpCreatorScript(params: {
   lookbackDays?: number;
 }) {
   const session = params.clientRequestId ? await readScriptEvidenceSession(params.userId, params.clientRequestId) : null;
-  if (params.clientRequestId && !session) throw new Error("evidence_session_expired_or_unavailable");
+  // O pacote dura sete dias. Uma conversa retomada depois disso não deve falhar:
+  // a crítica segue com evidência atual e avisa que não é o mesmo pacote.
+  const sessionExpired = Boolean(params.clientRequestId && !session);
   const result = await critiqueCreatorScriptV3({ ...params, evidencePack: session?.pack as CreatorScriptEvidencePack | undefined });
   return {
     ...result,
+    evidenceSession: {
+      requestedClientRequestId: params.clientRequestId ?? null,
+      reusedSamePack: Boolean(session),
+      expiredOrUnavailable: sessionExpired,
+    },
     responseContract: {
       rules: [
         "Trate o diagnóstico como aderência ao histórico do próprio creator, não como garantia de performance.",
         "Não invente evidências ausentes do evidenceReceipt.",
+        ...(sessionExpired
+          ? ["O pacote de referências original expirou (validade de sete dias): diga que a revisão usou as evidências atuais do creator, não as mesmas referências do rascunho."]
+          : []),
       ],
     },
   };

@@ -58,6 +58,14 @@ describe("MCP configuration", () => {
     );
   });
 
+  it("marca a origem Claude e o pedido que bateu no limite", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://data2content.ai";
+
+    expect(getMcpProfileUrl("claude", "pautas")).toBe(
+      "https://data2content.ai/dashboard/profile?source=claude&intent=pautas",
+    );
+  });
+
   it("keeps the campaign radar disabled unless the exact rollout flag is enabled", () => {
     process.env.MCP_CAMPAIGN_RADAR_ENABLED = "true";
     expect(isMcpCampaignRadarEnabled()).toBe(false);

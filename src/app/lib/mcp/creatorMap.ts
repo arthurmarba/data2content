@@ -14,12 +14,16 @@
 
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import CreatorMapConfirmationsModel from "@/app/models/CreatorMapConfirmations";
 import MapaSeedModel from "@/app/models/MapaSeed";
 
 export const MCP_CREATOR_MAP_SCHEMA_VERSION = "creator_map_v1";
 
 /** Quanta evidência sustenta a leitura, na ordem em que o mapa amadurece. */
 export type McpCreatorMapEvidenceLevel = "declared" | "one_reading" | "two_readings";
+
+/** O que o creator respondeu no card "Seu Mapa" sobre cada dimensão. */
+export type McpMapConfirmationState = "pending" | "confirmed" | "dismissed";
 
 export interface McpCreatorMap {
   schemaVersion: typeof MCP_CREATOR_MAP_SCHEMA_VERSION;
@@ -35,10 +39,34 @@ export interface McpCreatorMap {
   sources: string[];
   evidenceLevel: McpCreatorMapEvidenceLevel;
   narrativeIsFirm: boolean;
+  narrativeConfirmedByCreator: boolean;
+  confirmations: {
+    narrative: McpMapConfirmationState;
+    territories: McpMapConfirmationState;
+    tone: McpMapConfirmationState;
+  };
+  confirmedAssets: string[];
+  /** O que o creator recusou no card. Serve para não voltar a sugerir, nunca como dicionário. */
+  rejectedByCreator: {
+    narrative: string | null;
+    territories: string[];
+    tone: string | null;
+    assets: string[];
+    adjacentNarratives: string[];
+  };
   updatedAt: string | null;
   vocabulary: Record<string, string>;
   usage: string[];
   warnings: string[];
+}
+
+/** Forma mínima de `CreatorMapConfirmations` que o MCP precisa ler. */
+export interface McpMapConfirmationsInput {
+  narrative?: { state?: string | null; confirmedValue?: string | null } | null;
+  territories?: { state?: string | null; confirmedValue?: string | null } | null;
+  tone?: { state?: string | null; confirmedValue?: string | null } | null;
+  assets?: Array<{ label?: string | null; state?: string | null }> | null;
+  adjacentNarratives?: Array<{ label?: string | null; state?: string | null }> | null;
 }
 
 type AnyRecord = Record<string, unknown>;
@@ -102,18 +130,132 @@ const MAP_VOCABULARY: Record<string, string> = {
 const MAP_USAGE = [
   "Use este mapa como dicionário: ao falar de território, narrativa, asset ou tom, use os termos daqui em vez de inventar rótulo novo.",
   "Pauta nasce do cruzamento entre narrativa e território. Audiência sozinha não sustenta pauta.",
-  "Quando evidenceLevel for 'declared', trate a narrativa como ponto de partida declarado pelo creator, não como diagnóstico.",
+  "Quando evidenceLevel for 'declared' e narrativeConfirmedByCreator for false, trate a narrativa como ponto de partida declarado pelo creator, não como diagnóstico.",
+  "Quando narrativeConfirmedByCreator for true, o próprio creator confirmou a narrativa no mapa: use-a como firme, dizendo que foi confirmada por ele.",
+  "Nunca sugira o que está em rejectedByCreator: o creator recusou esses itens no próprio mapa.",
 ];
+
+function normalizeLabel(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function asConfirmationState(value: unknown): McpMapConfirmationState {
+  return value === "confirmed" || value === "dismissed" ? value : "pending";
+}
+
+/**
+ * A resposta vale para a frase que o creator viu. Se o mapa mudou depois (nova
+ * leitura trocou a narrativa), a confirmação antiga não fala da frase atual e a
+ * dimensão volta a ser pendente. Confirmações antigas sem `confirmedValue` valem
+ * como estão — é o mesmo tratamento do card.
+ */
+function resolveDimensionState(
+  dimension: { state?: string | null; confirmedValue?: string | null } | null | undefined,
+  currentValue: string | null,
+): McpMapConfirmationState {
+  const state = asConfirmationState(dimension?.state);
+  if (state === "pending") return state;
+  const confirmedValue = typeof dimension?.confirmedValue === "string" ? dimension.confirmedValue.trim() : "";
+  if (!confirmedValue || !currentValue) return state;
+  return normalizeLabel(confirmedValue) === normalizeLabel(currentValue) ? state : "pending";
+}
+
+function labelsWithState(
+  items: Array<{ label?: string | null; state?: string | null }> | null | undefined,
+  state: McpMapConfirmationState,
+): Set<string> {
+  return new Set(
+    (items ?? [])
+      .filter((item) => asConfirmationState(item?.state) === state && typeof item?.label === "string")
+      .map((item) => normalizeLabel(item.label as string))
+      .filter(Boolean),
+  );
+}
+
+/**
+ * Aplica ao mapa o que o creator respondeu no card "Seu Mapa". Recusa tem efeito:
+ * o item sai do dicionário e vai para `rejectedByCreator`. Confirmação da
+ * narrativa a torna firme mesmo sem duas leituras — regra do próprio produto.
+ */
+export function applyMcpMapConfirmations(
+  map: McpCreatorMap,
+  confirmations: McpMapConfirmationsInput | null,
+): McpCreatorMap {
+  if (!map.hasMap || !confirmations) return map;
+
+  const narrativeState = resolveDimensionState(confirmations.narrative, map.narrative);
+  const territoriesState = resolveDimensionState(
+    confirmations.territories,
+    map.territories.length ? map.territories.join(" | ") : null,
+  );
+  const toneState = resolveDimensionState(confirmations.tone, map.tone);
+  const dismissedAssets = labelsWithState(confirmations.assets, "dismissed");
+  const confirmedAssetKeys = labelsWithState(confirmations.assets, "confirmed");
+  const dismissedAdjacent = labelsWithState(confirmations.adjacentNarratives, "dismissed");
+
+  const narrative = narrativeState === "dismissed" ? null : map.narrative;
+  const territories = territoriesState === "dismissed" ? [] : map.territories;
+  const tone = toneState === "dismissed" ? null : map.tone;
+  const assets = map.assets.filter((asset) => !dismissedAssets.has(normalizeLabel(asset)));
+  const adjacentNarratives = map.adjacentNarratives.filter(
+    (label) => !dismissedAdjacent.has(normalizeLabel(label)),
+  );
+  const narrativeConfirmedByCreator = Boolean(narrative) && narrativeState === "confirmed";
+
+  const next: McpCreatorMap = {
+    ...map,
+    narrative,
+    territories,
+    tone,
+    assets,
+    adjacentNarratives,
+    narrativeConfirmedByCreator,
+    narrativeIsFirm: Boolean(narrative) && (map.evidenceLevel === "two_readings" || narrativeConfirmedByCreator),
+    confirmations: { narrative: narrativeState, territories: territoriesState, tone: toneState },
+    confirmedAssets: assets.filter((asset) => confirmedAssetKeys.has(normalizeLabel(asset))),
+    rejectedByCreator: {
+      narrative: narrativeState === "dismissed" ? map.narrative : null,
+      territories: territoriesState === "dismissed" ? map.territories : [],
+      tone: toneState === "dismissed" ? map.tone : null,
+      assets: map.assets.filter((asset) => dismissedAssets.has(normalizeLabel(asset))),
+      adjacentNarratives: map.adjacentNarratives.filter((label) => dismissedAdjacent.has(normalizeLabel(label))),
+    },
+  };
+  next.warnings = buildWarnings(next);
+  return next;
+}
 
 function buildWarnings(map: McpCreatorMap): string[] {
   const warnings: string[] = [];
-  if (!map.narrative) warnings.push("narrative_missing");
-  if (map.territories.length === 0) warnings.push("territories_missing");
-  if (!map.tone) warnings.push("tone_not_established_yet");
+  if (map.rejectedByCreator.narrative) warnings.push("narrative_rejected_by_creator");
+  else if (!map.narrative) warnings.push("narrative_missing");
+  if (map.rejectedByCreator.territories.length) warnings.push("territories_rejected_by_creator");
+  else if (map.territories.length === 0) warnings.push("territories_missing");
+  if (map.rejectedByCreator.tone) warnings.push("tone_rejected_by_creator");
+  else if (!map.tone) warnings.push("tone_not_established_yet");
   if (map.evidenceLevel === "declared") warnings.push("map_not_enriched_by_readings");
-  if (!map.narrativeIsFirm) warnings.push("narrative_not_firm_yet");
+  if (map.narrative && !map.narrativeIsFirm) warnings.push("narrative_not_firm_yet");
   return warnings;
 }
+
+const EMPTY_CONFIRMATIONS: McpCreatorMap["confirmations"] = {
+  narrative: "pending",
+  territories: "pending",
+  tone: "pending",
+};
+
+const EMPTY_REJECTIONS: McpCreatorMap["rejectedByCreator"] = {
+  narrative: null,
+  territories: [],
+  tone: null,
+  assets: [],
+  adjacentNarratives: [],
+};
 
 /**
  * Carrega o mapa do próprio creator. Devolve `hasMap: false` — e não erro —
@@ -135,6 +277,10 @@ export async function loadMcpCreatorMap(userId: string): Promise<McpCreatorMap> 
     sources: [],
     evidenceLevel: "declared",
     narrativeIsFirm: false,
+    narrativeConfirmedByCreator: false,
+    confirmations: EMPTY_CONFIRMATIONS,
+    confirmedAssets: [],
+    rejectedByCreator: EMPTY_REJECTIONS,
     updatedAt: null,
     vocabulary: MAP_VOCABULARY,
     usage: MAP_USAGE,
@@ -144,12 +290,23 @@ export async function loadMcpCreatorMap(userId: string): Promise<McpCreatorMap> 
   if (!Types.ObjectId.isValid(userId)) return empty;
   await connectToDatabase();
 
-  const seed = await MapaSeedModel.findOne({ userId: new Types.ObjectId(userId) })
-    .select(
-      "mapa.narrativa_central mapa.territorios mapa.temas mapa.narrativas_adjacentes " +
-        "mapa.assets mapa.tom mapa.formatos mapa.maturidade mapa.fonte updatedAt",
-    )
-    .lean<AnyRecord | null>();
+  const userObjectId = new Types.ObjectId(userId);
+  let confirmationsUnavailable = false;
+  const [seed, confirmations] = await Promise.all([
+    MapaSeedModel.findOne({ userId: userObjectId })
+      .select(
+        "mapa.narrativa_central mapa.territorios mapa.temas mapa.narrativas_adjacentes " +
+          "mapa.assets mapa.tom mapa.formatos mapa.maturidade mapa.fonte updatedAt",
+      )
+      .lean<AnyRecord | null>(),
+    CreatorMapConfirmationsModel.findOne({ userId: userObjectId })
+      .select("narrative territories tone assets adjacentNarratives")
+      .lean<McpMapConfirmationsInput | null>()
+      .catch(() => {
+        confirmationsUnavailable = true;
+        return null;
+      }),
+  ]);
 
   const mapa = seed?.mapa as AnyRecord | undefined;
   if (!mapa) return empty;
@@ -173,6 +330,10 @@ export async function loadMcpCreatorMap(userId: string): Promise<McpCreatorMap> 
     sources,
     evidenceLevel,
     narrativeIsFirm: Boolean(narrative) && evidenceLevel === "two_readings",
+    narrativeConfirmedByCreator: false,
+    confirmations: EMPTY_CONFIRMATIONS,
+    confirmedAssets: [],
+    rejectedByCreator: EMPTY_REJECTIONS,
     updatedAt:
       seed?.updatedAt instanceof Date ? (seed.updatedAt as Date).toISOString() : null,
     vocabulary: MAP_VOCABULARY,
@@ -180,7 +341,12 @@ export async function loadMcpCreatorMap(userId: string): Promise<McpCreatorMap> 
     warnings: [],
   };
   map.warnings = buildWarnings(map);
-  return map;
+  const withConfirmations = applyMcpMapConfirmations(map, confirmations);
+  if (confirmationsUnavailable) {
+    // Sem as respostas do creator, um item recusado pode reaparecer: avise.
+    withConfirmations.warnings = [...withConfirmations.warnings, "creator_confirmations_unavailable"];
+  }
+  return withConfirmations;
 }
 
 /** Resumo curto do mapa para embutir em respostas maiores sem inflar o payload. */
@@ -193,5 +359,6 @@ export function summarizeMcpCreatorMap(map: McpCreatorMap) {
     tone: map.tone,
     evidenceLevel: map.evidenceLevel,
     narrativeIsFirm: map.narrativeIsFirm,
+    narrativeConfirmedByCreator: map.narrativeConfirmedByCreator,
   };
 }

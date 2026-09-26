@@ -43,6 +43,9 @@ import {
   isMcpCampaignRadarEnabled,
 } from "./config";
 import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNorth";
+import type { McpClientSurface } from "./clientSurface";
+import type { PluginIntent } from "@/app/lib/plugin/pluginClient";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
 import { getMcpFollowerGrowth } from "./followerGrowth";
@@ -57,6 +60,8 @@ import { SCRIPT_GOALS } from "@/app/lib/scripts/scriptEvidenceSelection";
 export interface D2CMcpContext {
   identity: McpAuthenticatedIdentity;
   accountState: McpAccountState;
+  /** De qual chat vem a conexão; decide links e medição. Sem valor, ChatGPT. */
+  clientSurface?: McpClientSurface;
 }
 
 const READ_ONLY_ANNOTATIONS = {
@@ -179,6 +184,23 @@ function buildToolDescriptor(name: string, config: D2CToolConfig) {
   };
 }
 
+// search e fetch seguem o formato da OpenAI (um único bloco de texto com o
+// JSON); um segundo bloco quebra quem lê esse contrato.
+const FREE_REMINDER_EXCLUDED_TOOLS = new Set([
+  "get_account_state",
+  "find_campaign_opportunities",
+  "search",
+  "fetch",
+]);
+
+function alreadyCarriesProfileLink(result: CallToolResult): boolean {
+  // Cada bloco é lido como veio. Serializar o array inteiro escapava as aspas
+  // do JSON interno e a checagem nunca encontrava nada.
+  return (result.content ?? []).some((item) =>
+    item.type === "text" &&
+    (item.text.includes('"profileUrl"') || item.text.includes('"closingReminder"')));
+}
+
 function appendFreeClosingReminder(
   toolName: string,
   result: CallToolResult,
@@ -186,13 +208,8 @@ function appendFreeClosingReminder(
 ): CallToolResult {
   if (context.accountState.accessLevel !== "free") return result;
   if (result.isError === true) return result;
-  if (toolName === "get_account_state") return result;
-  if (toolName === "find_campaign_opportunities") return result;
-
-  const serializedContent = JSON.stringify(result.content ?? []);
-  if (serializedContent.includes('"profileUrl"') || serializedContent.includes('"closingReminder"')) {
-    return result;
-  }
+  if (FREE_REMINDER_EXCLUDED_TOOLS.has(toolName)) return result;
+  if (alreadyCarriesProfileLink(result)) return result;
 
   return {
     ...result,
@@ -206,7 +223,7 @@ function appendFreeClosingReminder(
             message:
               "Seu perfil personalizado Data2Content reúne seu Norte e mostra como contextualizar " +
               "as respostas com seus próprios conteúdos.",
-            url: getMcpProfileUrl(),
+            url: getMcpProfileUrl(context.clientSurface ?? "chatgpt"),
             instruction: "Inclua este lembrete uma única vez, ao final da resposta ao usuário.",
           },
         }),
@@ -302,6 +319,21 @@ const periodAnalysisOutputSchema = z.object({
     evidenceReturned: z.number().int().nonnegative(),
     evidenceTruncated: z.boolean(),
   }),
+  metricUnits: z.record(z.string()),
+  summary: z.object({
+    basis: z.literal("all_posts_in_period"),
+    metrics: z.record(z.object({
+      availablePosts: z.number().int().nonnegative(),
+      median: z.number().nullable(),
+      total: z.number().nullable(),
+    })),
+  }),
+  maturity: z.object({
+    matureAfterDays: z.number().int().positive(),
+    postsYoungerThanMatureAge: z.number().int().nonnegative(),
+    youngestPostAgeDays: z.number().nullable(),
+    note: z.string(),
+  }),
   coverage: z.object({
     counting: z.object({
       complete: z.boolean(),
@@ -344,6 +376,7 @@ const periodAnalysisOutputSchema = z.object({
     publishedEvidenceRecords: z.number().int().nonnegative(),
     mustNotEstimate: z.literal(true),
     transcriptCoverageCountsOnlyVideos: z.literal(true).optional(),
+    metricsAreCurrentTotals: z.literal(true),
   }),
 });
 
@@ -351,7 +384,7 @@ const visualSignalSchema = z.object({
   value: z.string(),
   postCount: z.number().int().nonnegative(),
   shareOfAnalyzed: z.number().min(0).max(1),
-  avgInteractions: z.number().nullable(),
+  medianInteractions: z.number().nullable(),
   liftVsAnalyzedBaseline: z.number().nullable(),
   evidencePostIds: z.array(z.string()),
 });
@@ -385,6 +418,8 @@ const creatorRadarOutputSchema = z
   .object({
     schemaVersion: z.literal("creator_radar_v1"),
     creatorNorth: z.string(),
+    panoramaScope: z.enum(["related_to_creator_topics", "general_community"]).optional(),
+    topicBasis: z.record(z.unknown()).optional(),
     // O radar tem caminhos de retorno diferentes conforme a cobertura
     // encontrada; só schemaVersion e creatorNorth saem sempre.
     narrativePreview: z.record(z.unknown()).optional(),
@@ -431,7 +466,10 @@ const creatorMapSummarySchema = z.object({
   tone: z.string().nullable(),
   evidenceLevel: z.enum(["declared", "one_reading", "two_readings"]),
   narrativeIsFirm: z.boolean(),
+  narrativeConfirmedByCreator: z.boolean(),
 });
+
+const mapConfirmationStateSchema = z.enum(["pending", "confirmed", "dismissed"]);
 
 const creatorMapOutputSchema = z.object({
   schemaVersion: z.literal(MCP_CREATOR_MAP_SCHEMA_VERSION),
@@ -447,6 +485,20 @@ const creatorMapOutputSchema = z.object({
   sources: z.array(z.string()),
   evidenceLevel: z.enum(["declared", "one_reading", "two_readings"]),
   narrativeIsFirm: z.boolean(),
+  narrativeConfirmedByCreator: z.boolean(),
+  confirmations: z.object({
+    narrative: mapConfirmationStateSchema,
+    territories: mapConfirmationStateSchema,
+    tone: mapConfirmationStateSchema,
+  }),
+  confirmedAssets: z.array(z.string()),
+  rejectedByCreator: z.object({
+    narrative: z.string().nullable(),
+    territories: z.array(z.string()),
+    tone: z.string().nullable(),
+    assets: z.array(z.string()),
+    adjacentNarratives: z.array(z.string()),
+  }),
   updatedAt: z.string().nullable(),
   vocabulary: z.record(z.string()),
   usage: z.array(z.string()),
@@ -458,8 +510,15 @@ const contentIdeasOutputSchema = z.object({
   generatedAt: z.string(),
   territoryFilter: z.string().nullable(),
   total: z.number().int().nonnegative(),
+  returned: z.number().int().nonnegative(),
+  unpostedAvailable: z.number().int().nonnegative(),
   items: z.array(z.record(z.unknown())),
   usage: z.array(z.string()),
+  planNote: z.object({
+    weeklyNewIdeasIncluded: z.boolean(),
+    message: z.string(),
+    profileUrl: z.string(),
+  }).optional(),
 });
 
 const creatorIntelligenceOutputSchema = z.object({
@@ -478,7 +537,10 @@ const creatorIntelligenceOutputSchema = z.object({
       ratio: z.number().min(0).max(1),
       interactionsAvailable: z.number().int().nonnegative(),
     }),
-    baseline: z.object({ avgInteractions: z.number().nullable() }),
+    baseline: z.object({
+      medianInteractions: z.number().nullable(),
+      liftRequiresMinPosts: z.number().int().positive(),
+    }),
     patterns: z.record(z.array(visualSignalSchema)),
     analysisProviderVersions: z.array(
       z.object({ providerVersion: z.string(), postCount: z.number().int().nonnegative() }),
@@ -569,11 +631,14 @@ const scriptDraftOutputSchema = z.object({
   receipt: z.object({
     usedCreatorIntelligence: z.boolean(),
     usedCommunityInspiration: z.boolean(),
+    engine: z.enum(["creator_evidence_v3", "generic_prompt", "legacy_fallback"]),
+    evidenceEngineFallbackUsed: z.boolean(),
   }),
 });
 
 const scriptSaveOutputSchema = z.object({
   schemaVersion: z.literal("script_save_v1"),
+  saveResult: z.enum(["created", "unchanged", "updated"]),
   savedScript: z.object({
     id: z.string(),
     title: z.string(),
@@ -602,6 +667,25 @@ const collabSuggestionsOutputSchema = z.object({
     periodDays: z.number().int(),
     limit: z.number().int(),
   }),
+  viewerTerritories: z.array(z.string()),
+  preparedProposals: z.array(
+    z.object({
+      proposalId: z.string().nullable(),
+      territory: z.string().nullable(),
+      idea: z.object({ title: z.string(), angle: z.string(), hook: z.string() }),
+      partner: z.object({
+        name: z.string(),
+        username: z.string().nullable(),
+        mediaKitUrl: z.string().nullable(),
+      }),
+      fitReason: z.string().nullable(),
+      sharedSignals: z.array(z.string()),
+      recordingDirection: z.string().nullable(),
+      mode: z.string().nullable(),
+      suggestedFormat: z.string().nullable(),
+      matchesTheme: z.boolean(),
+    }),
+  ),
   creators: z.array(
     z.object({
       id: z.string(),
@@ -611,6 +695,7 @@ const collabSuggestionsOutputSchema = z.object({
       avatarUrl: z.string().nullable(),
       followers: z.number().nullable(),
       mediaKitUrl: z.string().nullable(),
+      sharedTerritories: z.array(z.string()),
       match: z.object({
         score: z.number(),
         type: z.enum(["THEME_MATCH", "HIGH_ENGAGEMENT", "HIGH_REACH", "AUDIENCE_SCALE", "CONSISTENT"]),
@@ -621,19 +706,18 @@ const collabSuggestionsOutputSchema = z.object({
       evidence: z.object({
         source: z.enum(["avg_interactions", "total_interactions"]),
         postCount: z.number().nullable(),
-        avgInteractions: z.number().nullable(),
-        avgReach: z.number().nullable(),
-        avgShares: z.number().nullable(),
-        avgSaves: z.number().nullable(),
         latestPostDate: z.string().nullable(),
+        privateMetricsExposed: z.literal(false),
       }),
     }),
   ),
   coverage: z.object({
     returnedCreators: z.number().int().nonnegative(),
+    preparedProposals: z.number().int().nonnegative(),
     onlyActiveConnectedCreators: z.literal(true),
     warnings: z.array(z.string()),
   }),
+  usage: z.array(z.string()),
   receipt: z.object({
     generatedAt: z.string(),
     source: z.literal("data2content_collab_scoring"),
@@ -709,6 +793,7 @@ const inspirationResearchOutputSchema = z.object({
   coverage: z.object({
     candidatePosts: z.number().int().nonnegative(),
     eligibleOptInCreators: z.number().int().nonnegative(),
+    creatorsInCandidatePool: z.number().int().nonnegative(),
     returnedPosts: z.number().int().nonnegative(),
     sceneAnalysisAvailable: z.number().int().nonnegative(),
     velocityAvailable: z.number().int().nonnegative(),
@@ -773,70 +858,111 @@ const inspirationComparisonOutputSchema = z.object({
   }),
 });
 
-function instagramRequiredResult() {
+// O que cada limite deixa de fora, dito sem vender: a regra da OpenAI permite
+// explicar que o recurso não está no plano atual e apontar uma página
+// informativa; nunca mostrar plano, preço ou pedir assinatura.
+const GATED_FEATURE_LABEL: Record<Exclude<PluginIntent, "mapa">, string> = {
+  analise: "A análise dos seus próprios posts",
+  pautas: "A geração de pautas novas toda semana",
+  inspiracoes: "A pesquisa de referências nominais da comunidade",
+  collabs: "A sugestão de collabs com creators da comunidade",
+  roteiro: "A escrita com as referências dos seus próprios vídeos",
+};
+
+/** Códigos de limite de plano, para medir onde a pessoa quis mais. */
+const PLAN_GATE_ERRORS = new Set([
+  "private_creator_intelligence_unavailable",
+  "membership_feature_unavailable",
+  "community_inspiration_unavailable",
+  "instagram_connection_required",
+]);
+
+function instagramRequiredResult(client: McpClientSurface, intent: Exclude<PluginIntent, "mapa"> = "analise") {
   return {
     isError: true,
     content: jsonText({
       error: "instagram_connection_required",
+      feature: intent,
       message:
         "Para analisar seus próprios conteúdos — incluindo métricas, cenário, gancho, roteiro, " +
         "tom de voz, duração, assunto, dia e horário — conecte seu Instagram à Data2Content. " +
         "A conexão é opcional para os outros benefícios.",
-      connectUrl: getInstagramConnectUrl(),
+      connectUrl: getInstagramConnectUrl(client),
       nextAction: "connect_instagram_or_continue_with_aggregate_context",
     }),
   };
 }
 
-function profileRequiredResult() {
+function profileRequiredResult(client: McpClientSurface, intent: Exclude<PluginIntent, "mapa"> = "analise") {
   return {
     isError: true,
     content: jsonText({
       error: "private_creator_intelligence_unavailable",
+      feature: intent,
       message:
-        "Posso continuar usando seu Norte e padrões agregados da comunidade. Para entender como " +
-        "a Data2Content pode contextualizar as respostas com seus próprios conteúdos, consulte " +
-        "seu perfil personalizado.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL[intent]} não está incluída no plano atual desta conta. Posso continuar ` +
+        "usando seu Norte e padrões agregados da comunidade. O link abre seu perfil Data2Content " +
+        "direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, intent),
       nextAction: "open_personalized_profile",
     }),
   };
 }
 
-function membershipRequiredResult() {
+function membershipRequiredResult(client: McpClientSurface) {
   return {
     isError: true,
     content: jsonText({
       error: "membership_feature_unavailable",
+      feature: "collabs",
       message:
-        "Este recurso da comunidade não está disponível no estado atual da conta. Consulte seu " +
-        "perfil personalizado para entender os recursos disponíveis.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL.collabs} não está incluída no plano atual desta conta. O link abre seu ` +
+        "perfil Data2Content direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, "collabs"),
       nextAction: "open_personalized_profile",
     }),
   };
 }
 
-function communityInspirationRequiredResult() {
+function communityInspirationRequiredResult(client: McpClientSurface) {
   return {
     isError: true,
     content: jsonText({
       error: "community_inspiration_unavailable",
+      feature: "inspiracoes",
       message:
-        "Posso continuar usando seu Norte e padrões agregados da comunidade, sem identificar " +
-        "creators ou expor métricas particulares. Para conhecer os recursos disponíveis para " +
-        "pesquisar referências específicas, consulte seu perfil personalizado.",
-      profileUrl: getMcpProfileUrl(),
+        `${GATED_FEATURE_LABEL.inspiracoes} não está incluída no plano atual desta conta. Posso ` +
+        "continuar com padrões agregados da comunidade, sem identificar creators nem expor métricas " +
+        "particulares. O link abre seu perfil Data2Content direto nessa parte.",
+      profileUrl: getMcpProfileUrl(client, "inspiracoes"),
       nextTool: "build_creator_radar",
       nextAction: "continue_with_aggregate_context_or_open_profile",
     }),
   };
 }
 
-function privateCreatorContextRequiredResult(context: D2CMcpContext) {
-  if (context.accountState.accessLevel !== "pro") return profileRequiredResult();
-  if (!context.accountState.instagramConnected) return instagramRequiredResult();
+function privateCreatorContextRequiredResult(
+  context: D2CMcpContext,
+  intent: Exclude<PluginIntent, "mapa"> = "analise",
+) {
+  const client = context.clientSurface ?? "chatgpt";
+  if (context.accountState.accessLevel !== "pro") return profileRequiredResult(client, intent);
+  if (!context.accountState.instagramConnected) return instagramRequiredResult(client, intent);
   return null;
+}
+
+/** Lê o código de limite de um resultado de erro, quando for um. */
+function planGateOf(result: CallToolResult): { error: string; feature: string | null } | null {
+  if (result.isError !== true) return null;
+  const first = (result.content ?? [])[0];
+  if (!first || first.type !== "text") return null;
+  try {
+    const body = JSON.parse(first.text) as { error?: unknown; feature?: unknown };
+    if (typeof body.error !== "string" || !PLAN_GATE_ERRORS.has(body.error)) return null;
+    return { error: body.error, feature: typeof body.feature === "string" ? body.feature : null };
+  } catch {
+    return null;
+  }
 }
 
 function scopeRequiredResult(requiredScope: string) {
@@ -860,6 +986,42 @@ function scopeRequiredResult(requiredScope: string) {
       reconnectRequired: true,
     }),
   };
+}
+
+// O motor de roteiro sinaliza entrada inválida lançando erro com um código. Sem
+// esta tradução, o modelo recebia o código cru e nenhuma orientação.
+const SCRIPT_ENGINE_ERRORS: Record<string, string> = {
+  invalid_own_content_ids:
+    "Os IDs de conteúdo próprio informados não são válidos. Use IDs devolvidos pelas ferramentas desta conta.",
+  own_content_unavailable:
+    "Algum conteúdo próprio informado não pertence a esta conta ou está fora do período pedido.",
+  private_creator_evidence_unavailable:
+    "As evidências dos próprios conteúdos não estão disponíveis para esta conta agora.",
+  invalid_evidence_period:
+    "O período é inválido: o início precisa vir antes do fim, o fim não pode estar no futuro e o intervalo tem no máximo um ano.",
+  prompt_required: "Descreva o pedido do roteiro.",
+  invalid_script_id: "O roteiro informado não é válido. Use o id devolvido por save_script.",
+  script_unavailable_for_account: "Não encontrei esse roteiro nesta conta. Use o id devolvido por save_script.",
+};
+
+function scriptEngineErrorResult(error: unknown): CallToolResult | null {
+  const message = error instanceof Error ? error.message : "";
+  const code = Object.keys(SCRIPT_ENGINE_ERRORS).find((key) => message.startsWith(key));
+  if (!code) return null;
+  return {
+    isError: true,
+    content: jsonText({ error: code, message: SCRIPT_ENGINE_ERRORS[code] }),
+  };
+}
+
+async function withScriptEngineErrors(run: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  try {
+    return await run();
+  } catch (error) {
+    const known = scriptEngineErrorResult(error);
+    if (known) return known;
+    throw error;
+  }
 }
 
 function hasScope(context: D2CMcpContext, requiredScope: string): boolean {
@@ -908,8 +1070,9 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         "Antes de responder o que o creator deve postar, qual é o posicionamento dele, quais assuntos "  +
         "são dele ou como o conteúdo deve soar, use get_creator_map e trate o mapa como dicionário: use "  +
         "os termos dele em vez de inventar rótulo novo. Território é substantivo, narrativa é tensão ou "  +
-        "missão, asset é elemento de vida — nunca credencial. Quando evidenceLevel for declared, "  +
-        "apresente a narrativa como declaração do creator, não como diagnóstico. Para pedidos de pauta "  +
+        "missão, asset é elemento de vida — nunca credencial. Quando evidenceLevel for declared e "  +
+        "narrativeConfirmedByCreator for false, apresente a narrativa como declaração do creator, não como "  +
+        "diagnóstico. Nunca sugira o que estiver em rejectedByCreator. Para pedidos de pauta "  +
         "ou do que gravar, use list_content_ideas antes de inventar assunto novo; se nenhuma servir, "  +
         "diga por quê antes de propor outra. Para escrever com os conteúdos vencedores do próprio " +
         "criador, use get_script_evidence_pack e escreva nesta conversa com as referências retornadas. " +
@@ -949,6 +1112,32 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           durationMs: Date.now() - startedAt,
           isError: result.isError === true,
         });
+        // Bater num limite é o sinal de intenção do funil: registra o que a
+        // pessoa pediu e de qual chat, sem conteúdo da conversa.
+        const gate = planGateOf(result);
+        if (gate) {
+          logUsageEvent(context.identity.userId, "mcp_plan_gate", "plugin", {
+            tool: name,
+            error: gate.error,
+            feature: gate.feature,
+            client: context.clientSurface ?? "chatgpt",
+            accessLevel: context.accountState.accessLevel,
+          });
+        }
+        // O SDK valida a saída depois deste ponto e, se falhar, o creator recebe
+        // erro enquanto o log acima diz sucesso. Registramos só os caminhos do
+        // problema — nunca os valores.
+        if (config.outputSchema && result.isError !== true && result.structuredContent) {
+          const check = config.outputSchema.safeParse(result.structuredContent);
+          if (!check.success) {
+            logger.error("[mcp][tool_output_invalid]", {
+              tool: name,
+              accountRef,
+              clientId: context.identity.clientId || "unknown",
+              issues: check.error.issues.slice(0, 10).map((issue) => `${issue.path.join(".")}:${issue.code}`),
+            });
+          }
+        }
         return appendFreeClosingReminder(name, result, context);
       } catch (error) {
         const dbError = error && typeof error === "object"
@@ -985,6 +1174,9 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       return { isError: true, content: jsonText({
         error: error instanceof PublicInstagramResearchError ? error.code : "instagram_public_research_unavailable",
         message: error instanceof PublicInstagramResearchError ? error.message : "Não foi possível consultar o Instagram agora. Tente novamente mais tarde.",
+        ...(error instanceof PublicInstagramResearchError && error.technicalDetail
+          ? { technicalDetail: error.technicalDetail, technicalDetailAudience: "suporte; não repita ao creator" }
+          : {}),
       }) };
     }
   }
@@ -1017,9 +1209,10 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     async () => {
       if (!hasScope(context, "profile:read")) return scopeRequiredResult("profile:read");
-      const profileUrl = getMcpProfileUrl();
-      const instagramConnectUrl = getInstagramConnectUrl();
-      const communityJoinUrl = getMcpCommunityJoinUrl();
+      const client = context.clientSurface ?? "chatgpt";
+      const profileUrl = getMcpProfileUrl(client);
+      const instagramConnectUrl = getInstagramConnectUrl(client);
+      const communityJoinUrl = getMcpCommunityJoinUrl(client);
       const conversationPolicy = buildMcpConversationPolicy(context.accountState, {
         profileUrl,
         instagramConnectUrl,
@@ -1098,7 +1291,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Construir radar inicial do creator",
       description:
-        "Use this after the creator has a North. It correlates that declaration with aggregate patterns from opted-in Data2Content community content and returns no creator identities or private metrics. Use it for the free narrative preview and the first content directions.",
+        "Use this after the creator has a North. It looks for opted-in Data2Content community posts about the creator's own map territories (or North) that performed above their authors' baselines and returns only aggregate patterns, with no creator identities or private metrics. panoramaScope says whether the patterns are about the creator's subject or general community patterns. Use it for the free narrative preview and the first content directions.",
       inputSchema: z.object({
         periodDays: z.number().int().min(30).max(365).default(180),
       }),
@@ -1284,7 +1477,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Consultar o mapa narrativo do creator",
       description:
-        "Use this before answering anything about what the creator should post, what their positioning is, which subjects belong to them, or how their content should sound. It returns the creator's own map — central narrative, territories, themes, life assets, tone and formats — plus how much evidence supports it. Treat this map as the dictionary: use its exact terms instead of inventing labels, and never present a narrative marked as merely declared as if it were a diagnosis.",
+        "Use this before answering anything about what the creator should post, what their positioning is, which subjects belong to them, or how their content should sound. It returns the creator's own map — central narrative, territories, themes, life assets, tone and formats — plus how much evidence supports it and what the creator confirmed or rejected in their own map. Treat this map as the dictionary: use its exact terms instead of inventing labels, never present a narrative that is merely declared and unconfirmed as if it were a diagnosis, and never suggest anything listed in rejectedByCreator.",
       outputSchema: creatorMapOutputSchema,
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("intelligence:read"),
@@ -1305,7 +1498,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Listar as pautas do creator",
       description:
-        "Use this when the user asks what to record, what to post next, or wants ideas. It returns content ideas Data2Content already anchored in the creator's narrative and territories, each with its angle, hook, life assets, suggested format and why it fits. Prefer developing one of these over inventing a new subject; ideas marked as posted were already published.",
+        "Use this when the user asks what to record, what to post next, or wants ideas. It returns content ideas Data2Content already anchored in the creator's narrative and territories, each with its angle, hook, life assets, suggested format and why it fits. Unposted ideas come first; total counts every idea in the account and returned how many came back. Prefer developing one of these over inventing a new subject; ideas marked as posted were already published.",
       inputSchema: z.object({
         territory: z
           .string()
@@ -1323,17 +1516,24 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["intelligence:read", "strategy:read"])) {
         return scopeRequiredResult("intelligence:read");
       }
-      // Pautas completas são Pro (`evaluateMapaAccess.podeVerPautas`). A recusa
-      // devolve o caminho do perfil, nunca oferta de plano — ver conversationPolicy.
-      if (context.accountState.accessLevel !== "pro") {
-        return profileRequiredResult();
-      }
+      // As pautas que já existem na conta são da pessoa, como no app. O que o
+      // plano atual pode não incluir é receber pautas novas toda semana.
       const result = await listMcpCreatorContentIdeas({
         userId: context.identity.userId,
         territory,
         limit,
       });
-      return structuredJsonResult(result as unknown as Record<string, unknown>);
+      if (context.accountState.accessLevel === "pro") {
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
+      }
+      return structuredJsonResult({
+        ...result,
+        planNote: {
+          weeklyNewIdeasIncluded: false,
+          message: `${GATED_FEATURE_LABEL.pautas} não está incluída no plano atual desta conta.`,
+          profileUrl: getMcpProfileUrl(context.clientSurface ?? "chatgpt", "pautas"),
+        },
+      });
     },
   );
 
@@ -1348,7 +1548,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Analisar período exato do creator",
       description:
-        "Use this when the user asks how many posts they published, what they published, or how their content performed between exact dates. Always use it for last week, last month, recent posting frequency, or any claim about content count. It returns the complete count plus a bounded evidence list; never estimate beyond its receipt and coverage.",
+        "Use this when the user asks how many posts they published, what they published, or how their content performed between exact dates. Always use it for last week, last month, recent posting frequency, or any claim about content count. It returns the complete count, per-metric medians and totals over every post in the period, the unit of each metric, how many posts are still too recent to compare, and a bounded evidence list; never estimate beyond its receipt and coverage.",
       inputSchema: z.object({
         startDate: z
           .string()
@@ -1538,7 +1738,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       if (mode === "similar_to_me") {
         const unavailable = privateCreatorContextRequiredResult(context);
@@ -1588,7 +1788,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       const result = await analyzeMcpInspirationContent({
         userId: context.identity.userId,
@@ -1625,7 +1825,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         return scopeRequiredResult("intelligence:read");
       }
       if (context.accountState.accessLevel !== "pro") {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       const result = await compareMcpInspirationContents({
         userId: context.identity.userId,
@@ -1690,11 +1890,13 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     securitySchemes: oauthSecuritySchemes("content:read", "metrics:read", "intelligence:read"),
   }, async (args: any) => {
     for (const scope of ["content:read", "metrics:read", "intelligence:read"]) if (!hasScope(context, scope)) return scopeRequiredResult(scope);
-    const unavailable = privateCreatorContextRequiredResult(context);
+    const unavailable = privateCreatorContextRequiredResult(context, "roteiro");
     if (unavailable) return unavailable;
-    const result = await prepareMcpScriptEvidence({ ...args, userId: context.identity.userId,
-      includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence });
-    return structuredJsonResult(result);
+    return withScriptEngineErrors(async () => {
+      const result = await prepareMcpScriptEvidence({ ...args, userId: context.identity.userId,
+        includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence });
+      return structuredJsonResult(result);
+    });
   });
 
   registerTool("record_script_feedback", {
@@ -1705,7 +1907,8 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     annotations: DESTRUCTIVE_IDEMPOTENT_WRITE_ANNOTATIONS, securitySchemes: oauthSecuritySchemes("scripts:write"),
   }, async (args: any) => {
     if (!hasScope(context, "scripts:write")) return scopeRequiredResult("scripts:write");
-    return structuredJsonResult(await recordMcpScriptFeedback({ ...args, userId: context.identity.userId }));
+    return withScriptEngineErrors(async () =>
+      structuredJsonResult(await recordMcpScriptFeedback({ ...args, userId: context.identity.userId })));
   });
 
   registerTool<{
@@ -1724,7 +1927,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Gerar rascunho de roteiro personalizado",
       description:
-        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. When generation is grounded in the creator's own published evidence, the result carries a generation block with the estimated duration, validation warnings and an evidence receipt: report those limits instead of hiding them. Quando usa evidências próprias, guarda o pacote e o rascunho em uma sessão privada com validade de sete dias para revisão e proveniência. Não adiciona o roteiro à biblioteca nem publica conteúdo; mostre o rascunho completo e use save_script somente após confirmação explícita.",
+        "Use this when the user asks Data2Content to create a new script. It uses the deepest context available for the account: the declared North and aggregate community patterns for free accounts, plus private creator intelligence when available. It can also use inspiration:<id> references returned by community research, but only as abstract patterns and never by copying third-party wording or identity. When generation is grounded in the creator's own published evidence, the result carries a generation block with the estimated duration, validation warnings and an evidence receipt: report those limits instead of hiding them. receipt.engine says which engine wrote the draft; when receipt.evidenceEngineFallbackUsed is true, tell the user the evidence engine was unavailable and the draft is generic. Quando usa evidências próprias, guarda o pacote e o rascunho em uma sessão privada com validade de sete dias para revisão e proveniência. Não adiciona o roteiro à biblioteca nem publica conteúdo; mostre o rascunho completo e use save_script somente após confirmação explícita.",
       inputSchema: z.object({
         prompt: z.string().trim().min(3).max(2000).describe("Briefing completo do roteiro desejado"),
         title: z.string().trim().max(180).default("").describe("Título opcional pedido pelo usuário"),
@@ -1769,7 +1972,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         };
       }
       if (context.accountState.accessLevel === "free" && inspirationContentIds.length > 0) {
-        return communityInspirationRequiredResult();
+        return communityInspirationRequiredResult(context.clientSurface ?? "chatgpt");
       }
       if (context.accountState.capabilities.privateCreatorIntelligence) {
         for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
@@ -1779,17 +1982,19 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       const contextualPrompt = context.accountState.creatorNorth
         ? `Norte declarado pelo creator: ${context.accountState.creatorNorth}\n\nPedido atual: ${prompt}`
         : prompt;
-      const result = await generateMcpScriptDraft({
-        userId: context.identity.userId,
-        prompt: contextualPrompt,
-        title: title || null,
-        lookbackDays,
-        targetDurationSeconds,
-        inspirationContentIds,
-        includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
-        startsAt, endsAt, goal, format, ownContentIds,
+      return withScriptEngineErrors(async () => {
+        const result = await generateMcpScriptDraft({
+          userId: context.identity.userId,
+          prompt: contextualPrompt,
+          title: title || null,
+          lookbackDays,
+          targetDurationSeconds,
+          inspirationContentIds,
+          includePrivateIntelligence: context.accountState.capabilities.privateCreatorIntelligence,
+          startsAt, endsAt, goal, format, ownContentIds,
+        });
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
       });
-      return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
   );
 
@@ -1834,19 +2039,21 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasScriptGenerationScope && !hasLegacyGenerationScopes) {
         return scopeRequiredResult("scripts:generate");
       }
-      const unavailable = privateCreatorContextRequiredResult(context);
+      const unavailable = privateCreatorContextRequiredResult(context, "roteiro");
       if (unavailable) return unavailable;
       for (const scope of ["content:read", "metrics:read", "intelligence:read"] as const) {
         if (!hasScope(context, scope)) return scopeRequiredResult(scope);
       }
-      const result = await critiqueMcpCreatorScript({
-        userId: context.identity.userId,
-        content,
-        prompt: prompt || undefined,
-        targetDurationSeconds,
-        clientRequestId, lookbackDays,
+      return withScriptEngineErrors(async () => {
+        const result = await critiqueMcpCreatorScript({
+          userId: context.identity.userId,
+          content,
+          prompt: prompt || undefined,
+          targetDurationSeconds,
+          clientRequestId, lookbackDays,
+        });
+        return structuredJsonResult(result as unknown as Record<string, unknown>);
       });
-      return structuredJsonResult(result as unknown as Record<string, unknown>);
     },
   );
 
@@ -1860,7 +2067,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Salvar roteiro confirmado",
       description:
-        "Use this only after the user has seen a generated or edited script and explicitly confirmed that they want it saved in Data2Content. Never call it in the same step as generation and never infer confirmation from the original request to create a draft. The clientRequestId makes retries idempotent.",
+        "Use this only after the user has seen a generated or edited script and explicitly confirmed that they want it saved in Data2Content. Never call it in the same step as generation and never infer confirmation from the original request to create a draft. The clientRequestId makes retries idempotent; saving an edited version with the same clientRequestId updates that script, and saveResult says whether it was created, unchanged or updated.",
       inputSchema: z.object({
         clientRequestId: z
           .string()
@@ -1908,7 +2115,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Recomendar creators Data2Content para collab",
       description:
-        "Use this when the user asks which Data2Content creators could be good collaboration partners for a topic, campaign, content territory, or script. It only returns other active, Instagram-connected creators who meet the platform evidence threshold. Explain why each match was suggested using score parts, sample size, recency, theme affinity, engagement and reach; do not present the ranking as guaranteed performance or permission to contact.",
+        "Use this when the user asks which Data2Content creators could be good collaboration partners for a topic, campaign, content territory, or script. It first returns the collab proposals already prepared in the creator's Collabs tab — each with the shared territory, the pauta and how to record it together — and then other active, Instagram-connected creators ranked by theme and evidence, each with the territories both maps share. Only claim a shared territory when it is listed. Other creators' private metrics are used for ranking but never returned; do not present the ranking as guaranteed performance or permission to contact.",
       inputSchema: z.object({
         themeKeyword: z
           .string()
@@ -1933,7 +2140,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       if (!hasAnyScope(context, ["collabs:read", "strategy:read"])) {
         return scopeRequiredResult("collabs:read");
       }
-      if (!context.accountState.capabilities.membershipBenefits) return membershipRequiredResult();
+      if (!context.accountState.capabilities.membershipBenefits) return membershipRequiredResult(context.clientSurface ?? "chatgpt");
       const result = await getMcpCollabCreatorSuggestions({
         userId: context.identity.userId,
         themeKeyword,
@@ -1965,7 +2172,16 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           content: jsonText({ error: "insufficient_metrics", message: "Ainda não há métricas suficientes." }),
         };
       }
-      return { content: jsonText(summary) };
+      return {
+        content: jsonText({
+          ...summary,
+          analysisNotes: [
+            "As métricas são o total acumulado hoje. A janela atual tem posts mais novos que a anterior, que tiveram menos tempo para acumular: não chame de queda uma diferença pequena sem dizer isso.",
+            "Os valores por post são médias: um post fora da curva puxa a média. Para mediana de um período exato, use analyze_creator_period.",
+            "Taxas são frações de 0 a 1 (0.05 = 5%). Tempos de Reels estão em segundos.",
+          ],
+        }),
+      };
     },
   );
 
@@ -2143,9 +2359,12 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       userMessage(
         `Avalie se vale postar isto:\n\n${(args as unknown as { idea: string }).idea}\n\n` +
           "Consulte get_creator_map antes de julgar. Responda em três eixos: (1) narrativa — isso é " +
-          "meu?; (2) audiência — isso conversa com quem me vê?; (3) marca — isso me aproxima de ser " +
-          "contratado? Feche com um veredito binário: vale postar ou não vale. Não responda 'talvez' " +
-          "— se faltar informação, diga qual e escolha assim mesmo.",
+          "meu? (use o mapa); (2) audiência — isso conversa com quem me vê? (use get_creator_content_dna " +
+          "e list_top_content quando disponíveis); (3) marca — isso me aproxima de ser contratado? (use " +
+          "find_campaign_opportunities quando disponível). Em cada eixo, diga de onde veio a evidência; " +
+          "quando uma ferramenta não estiver disponível ou não trouxer dado, diga que aquele eixo é " +
+          "julgamento seu, sem dado da conta. Feche com um veredito binário: vale postar ou não vale. " +
+          "Não responda 'talvez' — se faltar informação, diga qual e escolha assim mesmo.",
       ),
   );
 
@@ -2158,11 +2377,13 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     },
     () =>
       userMessage(
-        "Analise minha última semana de conteúdo. Use analyze_creator_period com as datas exatas dos " +
-          "últimos 7 dias e compare com meus próprios 90 dias — a semana entrega, o trimestre compara. " +
-          "Nunca me compare com outro criador nem com média de mercado. Consulte get_creator_map para " +
-          "falar dos meus territórios pelos nomes certos. Respeite coverage.warnings: se a cobertura " +
-          "for parcial, diga isso antes de concluir qualquer coisa.",
+        "Analise minha última semana de conteúdo. Use analyze_creator_period duas vezes, com datas " +
+          "exatas: os últimos 7 dias e os 90 dias anteriores. Compare as medianas de summary.metrics — a " +
+          "semana entrega, o trimestre compara. Posts com menos de 7 dias ainda acumulam números " +
+          "(maturity): diga isso e não chame de queda o que é só post recente. Use metricUnits para dizer " +
+          "as unidades certas. Nunca me compare com outro criador nem com média de mercado. Consulte " +
+          "get_creator_map para falar dos meus territórios pelos nomes certos. Respeite coverage.warnings: " +
+          "se a cobertura for parcial, diga isso antes de concluir qualquer coisa.",
       ),
   );
 
@@ -2175,9 +2396,11 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     () =>
       userMessage(
         "Encontre criadores que combinam comigo para uma collab. Use get_creator_map e " +
-          "recommend_collab_creators. Para cada sugestão, diga qual território nós dividimos e qual " +
-          "seria a ideia de gravação — uma collab sem pauta não é uma collab. Não prometa que a outra " +
-          "pessoa vai topar.",
+          "recommend_collab_creators. Comece pelas propostas já preparadas (preparedProposals), que " +
+          "trazem território, pauta e direção de gravação. Para os demais, diga o território que dividimos " +
+          "só quando ele vier em sharedTerritories; se não vier, diga que não há território em comum " +
+          "registrado e apresente a ideia de gravação como hipótese. Uma collab sem pauta não é uma " +
+          "collab. Não prometa que a outra pessoa vai topar.",
       ),
   );
 

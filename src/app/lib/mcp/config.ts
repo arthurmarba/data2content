@@ -1,3 +1,5 @@
+import { pluginInstagramNextTarget, type PluginClient, type PluginIntent } from "@/app/lib/plugin/pluginClient";
+
 const DEFAULT_MCP_SCOPES = [
   "profile:read",
   "profile:write",
@@ -210,14 +212,20 @@ export function getMcpAdminAuditRetentionDays(): number {
   return Math.min(365, Math.max(30, Number.isFinite(value) ? value : 180));
 }
 
-export function getMcpProfileUrl(): string {
-  return `${getMcpAppBaseUrl()}/dashboard/profile?source=chatgpt`;
+/**
+ * Página de perfil para quem vem do chat. `intent` diz o que a pessoa pediu
+ * quando bateu no limite, para o site abrir direto na parte certa.
+ */
+export function getMcpProfileUrl(client: PluginClient = "chatgpt", intent?: PluginIntent | null): string {
+  const params = new URLSearchParams({ source: client });
+  if (intent) params.set("intent", intent);
+  return `${getMcpAppBaseUrl()}/dashboard/profile?${params.toString()}`;
 }
 
-export function getInstagramConnectUrl(): string {
-  return `${getMcpAppBaseUrl()}/dashboard/instagram/connect?source=chatgpt&next=chatgpt-plugin`;
+export function getInstagramConnectUrl(client: PluginClient = "chatgpt"): string {
+  return `${getMcpAppBaseUrl()}/dashboard/instagram/connect?source=${client}&next=${pluginInstagramNextTarget(client)}`;
 }
 
-export function getMcpCommunityJoinUrl(): string {
-  return `${getMcpAppBaseUrl()}/api/dashboard/community/pro-join?source=chatgpt`;
+export function getMcpCommunityJoinUrl(client: PluginClient = "chatgpt"): string {
+  return `${getMcpAppBaseUrl()}/api/dashboard/community/pro-join?source=${client}`;
 }

@@ -41,20 +41,21 @@ describe("MCP creator visual intelligence", () => {
       ratio: 0.6667,
       interactionsAvailable: 2,
     });
-    expect(playbook.baseline.avgInteractions).toBe(200);
+    expect(playbook.baseline.medianInteractions).toBe(200);
     expect(playbook.patterns.objects[0]).toMatchObject({
       value: "celular",
       postCount: 2,
       shareOfAnalyzed: 1,
-      avgInteractions: 200,
-      liftVsAnalyzedBaseline: 1,
+      medianInteractions: 200,
+      // Dois posts não bastam para afirmar diferença contra a base.
+      liftVsAnalyzedBaseline: null,
       evidencePostIds: ["post-1", "post-2"],
     });
     expect(playbook.patterns.objects[1]).toMatchObject({
       value: "caneca",
       postCount: 1,
-      avgInteractions: 300,
-      liftVsAnalyzedBaseline: 1.5,
+      medianInteractions: 300,
+      liftVsAnalyzedBaseline: null,
     });
     expect(playbook.analysisProviderVersions).toEqual([
       { providerVersion: "gemini:scene_v1", postCount: 2 },
@@ -73,11 +74,31 @@ describe("MCP creator visual intelligence", () => {
       },
     ]);
 
-    expect(playbook.baseline.avgInteractions).toBeNull();
+    expect(playbook.baseline.medianInteractions).toBeNull();
     expect(playbook.patterns.openingLines[0]).toMatchObject({
       value: "Eu parei de fazer isso",
-      avgInteractions: null,
+      medianInteractions: null,
       liftVsAnalyzedBaseline: null,
     });
+  });
+
+  it("usa mediana e só calcula diferença com posts suficientes", () => {
+    const post = (id: string, interactions: number, objects: string[]) => ({
+      _id: id,
+      stats: { total_interactions: interactions },
+      sceneElements: { objects, provider: "gemini", version: "scene_v1" },
+    });
+    const playbook = buildMcpVisualPlaybook([
+      post("p1", 100, ["mesa"]),
+      post("p2", 120, ["mesa"]),
+      post("p3", 140, ["mesa"]),
+      post("p4", 10_000, ["cadeira"]),
+      post("p5", 90, ["sofá"]),
+    ]);
+    expect(playbook.baseline.medianInteractions).toBe(120);
+    const mesa = playbook.patterns.objects.find((item) => item.value === "mesa");
+    const cadeira = playbook.patterns.objects.find((item) => item.value === "cadeira");
+    expect(mesa).toMatchObject({ medianInteractions: 120, liftVsAnalyzedBaseline: 1 });
+    expect(cadeira).toMatchObject({ postCount: 1, liftVsAnalyzedBaseline: null });
   });
 });

@@ -7,6 +7,7 @@ import { rememberScriptEvidence, scriptProvenanceForSave } from "@/app/lib/scrip
 import CreatorContentIdeaModel from "@/app/models/CreatorContentIdea";
 import ScriptEntryModel from "@/app/models/ScriptEntry";
 import UserModel from "@/app/models/User";
+import MapaSeedModel from "@/app/models/MapaSeed";
 import { buildInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/instagramMetricsSummaryService";
 import {
   buildIntelligencePromptSnapshot,
@@ -16,6 +17,7 @@ import { generateScriptFromPrompt } from "@/app/lib/scripts/ai";
 import { generateCreatorScriptV3 } from "@/app/lib/scripts/creatorScriptGenerationV3";
 import { logger } from "@/app/lib/logger";
 import { buildCollabCreatorSuggestions } from "@/app/lib/planner/collabCreatorSuggestionsService";
+import { suggestMcpCollabCreators } from "./collabIntelligence";
 import { getMcpAppBaseUrl } from "./config";
 import { loadMcpCreatorMap, summarizeMcpCreatorMap } from "./creatorMap";
 import {
@@ -100,7 +102,7 @@ async function generateScriptDraftContent(params: {
   try {
     if (params.includePrivateIntelligence === false) {
       const draft = await generateScriptFromPrompt({ prompt: params.prompt, title: params.title });
-      return { title: draft.title, content: draft.content, generation: null };
+      return { title: draft.title, content: draft.content, generation: null, engine: "generic_prompt" as const };
     }
     const result = await generateCreatorScriptV3({
       userId: params.userId,
@@ -119,6 +121,7 @@ async function generateScriptDraftContent(params: {
       title: result.title,
       content: result.content,
       evidencePack: result.evidencePack,
+      engine: "creator_evidence_v3" as const,
       generation: {
         version: result.generationVersion,
         provider: result.provider,
@@ -150,6 +153,8 @@ async function generateScriptDraftContent(params: {
       title: generated.title,
       content: generated.content,
       generation: null,
+      // Sem isto a resposta não dizia que o motor com evidências falhou.
+      engine: "legacy_fallback" as const,
     };
   }
 }
@@ -231,6 +236,8 @@ export async function generateMcpScriptDraft(params: {
     receipt: {
       usedCreatorIntelligence: Boolean(intelligenceContext),
       usedCommunityInspiration: inspirationReferences.ids.length > 0,
+      engine: generated.engine,
+      evidenceEngineFallbackUsed: generated.engine === "legacy_fallback",
     },
   };
 }
@@ -246,27 +253,53 @@ export async function saveMcpScript(params: {
   const title = compactText(params.title, 180) || "Roteiro sem título";
   const content = params.content.trim().slice(0, 20_000);
   if (!content) throw new Error("script_content_required");
-  const evidenceProvenance = await scriptProvenanceForSave(params.userId, params.clientRequestId, content);
+  const filter = { userId: userObjectId, clientRequestId: params.clientRequestId };
+  const existing = await ScriptEntryModel.findOne(filter).select("_id title content").lean<{
+    _id: Types.ObjectId;
+    title?: string;
+    content?: string;
+  } | null>();
 
-  const saved = await ScriptEntryModel.findOneAndUpdate(
-    { userId: userObjectId, clientRequestId: params.clientRequestId },
-    {
-      $setOnInsert: {
-        userId: userObjectId,
-        clientRequestId: params.clientRequestId,
-        title,
-        content,
-        source: "ai",
-        linkType: "standalone",
-        evidenceProvenance,
+  // Repetir o mesmo texto é seguro (idempotente). Texto diferente com a mesma
+  // chave é o creator salvando a versão editada do mesmo rascunho: antes a
+  // resposta dizia "salvo" e devolvia a versão antiga.
+  let saveResult: "created" | "unchanged" | "updated";
+  let saved: Record<string, any> | null;
+  if (existing && existing.content === content && existing.title === title) {
+    saveResult = "unchanged";
+    saved = await ScriptEntryModel.findById(existing._id).lean();
+  } else if (existing) {
+    saveResult = "updated";
+    const evidenceProvenance = await scriptProvenanceForSave(params.userId, params.clientRequestId, content);
+    saved = await ScriptEntryModel.findOneAndUpdate(
+      { _id: existing._id, userId: userObjectId },
+      { $set: { title, content, evidenceProvenance } },
+      { new: true },
+    ).lean();
+  } else {
+    saveResult = "created";
+    const evidenceProvenance = await scriptProvenanceForSave(params.userId, params.clientRequestId, content);
+    saved = await ScriptEntryModel.findOneAndUpdate(
+      filter,
+      {
+        $setOnInsert: {
+          userId: userObjectId,
+          clientRequestId: params.clientRequestId,
+          title,
+          content,
+          source: "ai",
+          linkType: "standalone",
+          evidenceProvenance,
+        },
       },
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
-  ).lean();
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    ).lean();
+  }
   if (!saved) throw new Error("script_save_failed");
 
   return {
     schemaVersion: "script_save_v1" as const,
+    saveResult,
     savedScript: {
       id: `script:${saved._id}`,
       title: saved.title,
@@ -287,6 +320,35 @@ export async function saveMcpScript(params: {
   };
 }
 
+function territoryKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Territórios do viewer que o candidato também ocupa, com o rótulo do mapa do
+ * viewer. Igualdade ou um contido no outro ("maternidade" ⊂ "maternidade real").
+ */
+export function sharedMapTerritories(viewerTerritories: string[], candidateTerritories: string[]): string[] {
+  const candidateKeys = candidateTerritories.map(territoryKey).filter((key) => key.length >= 4);
+  return viewerTerritories.filter((territory) => {
+    const key = territoryKey(territory);
+    if (key.length < 4) return false;
+    return candidateKeys.some((candidate) => candidate === key || candidate.includes(key) || key.includes(candidate));
+  });
+}
+
+function mentionsTheme(texts: Array<string | null | undefined>, themeKeyword: string): boolean {
+  const tokens = territoryKey(themeKeyword).split(" ").filter((token) => token.length >= 4);
+  if (!tokens.length) return false;
+  const haystack = territoryKey(texts.filter(Boolean).join(" "));
+  return tokens.some((token) => haystack.includes(token));
+}
+
 export async function getMcpCollabCreatorSuggestions(params: {
   userId: string;
   themeKeyword: string;
@@ -294,13 +356,32 @@ export async function getMcpCollabCreatorSuggestions(params: {
   periodDays: number;
   limit: number;
 }) {
-  const result = await buildCollabCreatorSuggestions({
-    viewerId: params.userId,
-    categories: params.context ? { context: [params.context] } : {},
-    themeKeyword: params.themeKeyword,
-    periodDays: params.periodDays,
-    limit: params.limit,
-  });
+  // As propostas preparadas são as da aba Collabs: já casadas por território, com
+  // ideia de gravação. O ranking por tema é o complemento quando elas faltam.
+  const [result, prepared, viewerMap] = await Promise.all([
+    buildCollabCreatorSuggestions({
+      viewerId: params.userId,
+      categories: params.context ? { context: [params.context] } : {},
+      themeKeyword: params.themeKeyword,
+      periodDays: params.periodDays,
+      limit: params.limit,
+    }),
+    suggestMcpCollabCreators({ userId: params.userId, limit: 5 }).catch(() => null),
+    loadMcpCreatorMap(params.userId).catch(() => null),
+  ]);
+  const viewerTerritories = viewerMap?.territories ?? [];
+  const candidateIds = result.items
+    .map((item) => String(item.id))
+    .filter((id) => mongoose.isValidObjectId(id));
+  const candidateMaps = candidateIds.length && viewerTerritories.length
+    ? await MapaSeedModel.find({ userId: { $in: candidateIds.map((id) => new Types.ObjectId(id)) } })
+        .select("userId mapa.territorios")
+        .lean<Array<{ userId: unknown; mapa?: { territorios?: unknown } }>>()
+        .catch(() => [])
+    : [];
+  const territoriesByCreator = new Map(
+    candidateMaps.map((doc) => [String(doc.userId), normalizeStringArray(doc.mapa?.territorios)]),
+  );
   const matchReason: Record<string, string> = {
     THEME_MATCH: "Produz conteúdo recente aderente ao tema informado.",
     HIGH_ENGAGEMENT: "Apresenta engajamento médio forte no conjunto comparado.",
@@ -308,6 +389,73 @@ export async function getMcpCollabCreatorSuggestions(params: {
     AUDIENCE_SCALE: "A escala ou eficiência da audiência se destaca no conjunto comparado.",
     CONSISTENT: "Combina desempenho com recorrência de publicação suficiente.",
   };
+
+  const creators = result.items.map((item) => {
+    const strongestScoreParts = Object.entries(item.scoreParts)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([signal, score]) => ({ signal, score }));
+    return {
+      id: `creator:${item.id}`,
+      rank: item.rank,
+      name: item.name,
+      username: item.username || null,
+      avatarUrl: item.avatarUrl || null,
+      followers: item.followers ?? null,
+      mediaKitUrl: item.mediaKitSlug ? appUrl(`/mediakit/${item.mediaKitSlug}`) : null,
+      sharedTerritories: sharedMapTerritories(viewerTerritories, territoriesByCreator.get(String(item.id)) ?? []),
+      match: {
+        score: item.collabScore,
+        type: item.matchType,
+        reason: matchReason[item.matchType] || "Compatibilidade calculada pela Data2Content.",
+        matchedTheme: Boolean(item.matchedTheme),
+        strongestSignals: strongestScoreParts,
+      },
+      // Alcance, salvamentos e compartilhamentos de outro creator são insights
+      // privados dele: entram no score, não na resposta (ver intelligenceContract).
+      evidence: {
+        source: item.source,
+        postCount: item.postCount ?? null,
+        latestPostDate: isoDateOrNull(item.latestPostDate),
+        privateMetricsExposed: false as const,
+      },
+    };
+  });
+  // Quem divide território vem primeiro; dentro de cada grupo, a ordem do ranking.
+  creators.sort((left, right) =>
+    Number(right.sharedTerritories.length > 0) - Number(left.sharedTerritories.length > 0) || left.rank - right.rank);
+
+  const preparedProposals = (prepared?.items ?? [])
+    .map((item) => ({
+      proposalId: item.proposalId ?? null,
+      territory: item.idea.territory || null,
+      idea: {
+        title: item.idea.title,
+        angle: item.idea.angle,
+        hook: item.idea.hook,
+      },
+      partner: {
+        name: item.publicProfile.name,
+        username: item.publicProfile.username || null,
+        mediaKitUrl: item.publicProfile.mediaKitUrl,
+      },
+      fitReason: item.fitReason || null,
+      sharedSignals: item.sharedSignals.filter((value): value is string => typeof value === "string"),
+      recordingDirection: item.recordingDirection || null,
+      mode: item.mode ?? null,
+      suggestedFormat: item.suggestedFormat || null,
+      matchesTheme: mentionsTheme([item.idea.title, item.idea.territory, item.idea.angle], params.themeKeyword),
+    }))
+    .sort((left, right) => Number(right.matchesTheme) - Number(left.matchesTheme));
+
+  const warnings = [
+    ...(result.items.length ? [] : ["no_creator_met_minimum_evidence"]),
+    ...(viewerTerritories.length ? [] : ["viewer_map_has_no_territories"]),
+    ...(creators.length && !creators.some((creator) => creator.sharedTerritories.length)
+      ? ["no_shared_territory_among_ranked_creators"]
+      : []),
+    ...(preparedProposals.length ? [] : ["no_prepared_collab_proposals"]),
+  ];
 
   return {
     schemaVersion: "collab_suggestions_v1" as const,
@@ -318,42 +466,20 @@ export async function getMcpCollabCreatorSuggestions(params: {
       periodDays: params.periodDays,
       limit: params.limit,
     },
-    creators: result.items.map((item) => {
-      const strongestScoreParts = Object.entries(item.scoreParts)
-        .sort((left, right) => right[1] - left[1])
-        .slice(0, 3)
-        .map(([signal, score]) => ({ signal, score }));
-      return {
-        id: `creator:${item.id}`,
-        rank: item.rank,
-        name: item.name,
-        username: item.username || null,
-        avatarUrl: item.avatarUrl || null,
-        followers: item.followers ?? null,
-        mediaKitUrl: item.mediaKitSlug ? appUrl(`/mediakit/${item.mediaKitSlug}`) : null,
-        match: {
-          score: item.collabScore,
-          type: item.matchType,
-          reason: matchReason[item.matchType] || "Compatibilidade calculada pela Data2Content.",
-          matchedTheme: Boolean(item.matchedTheme),
-          strongestSignals: strongestScoreParts,
-        },
-        evidence: {
-          source: item.source,
-          postCount: item.postCount ?? null,
-          avgInteractions: item.avgInteractions ?? null,
-          avgReach: item.avgReach ?? null,
-          avgShares: item.avgShares ?? null,
-          avgSaves: item.avgSaves ?? null,
-          latestPostDate: isoDateOrNull(item.latestPostDate),
-        },
-      };
-    }),
+    viewerTerritories,
+    preparedProposals,
+    creators,
     coverage: {
-      returnedCreators: result.items.length,
+      returnedCreators: creators.length,
+      preparedProposals: preparedProposals.length,
       onlyActiveConnectedCreators: true as const,
-      warnings: result.items.length ? [] : ["no_creator_met_minimum_evidence"],
+      warnings,
     },
+    usage: [
+      "preparedProposals são as collabs da aba Collabs: já trazem território, pauta e direção de gravação. Prefira apresentá-las primeiro.",
+      "Para creators, só diga que vocês dividem um território quando ele estiver em sharedTerritories. Vazio significa que não há território em comum registrado nos mapas.",
+      "Sem território em comum, apresente a ideia de gravação como hipótese sua, não como algo que a Data2Content encontrou.",
+    ],
     receipt: {
       generatedAt: new Date().toISOString(),
       source: "data2content_collab_scoring" as const,
@@ -370,6 +496,19 @@ function compactText(value: unknown, maxLength: number): string {
   const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
   if (text.length <= maxLength) return text;
   return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function hasPositive(value: unknown): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function millisecondsToSeconds(value: unknown): number | null {
+  const ms = finiteOrNull(value);
+  return ms === null ? null : Math.round(ms / 100) / 10;
 }
 
 function isoDateOrNull(value: unknown): string | null {
@@ -402,7 +541,7 @@ function parseKnowledgeId(id: string): { kind: McpKnowledgeKind; objectId: Types
 export async function searchMcpKnowledge(
   userId: string,
   query: string,
-  options: { includeInstagramPosts?: boolean } = {},
+  options: { includeInstagramPosts?: boolean; includeContentIdeas?: boolean } = {},
 ): Promise<McpSearchResult[]> {
   await connectToDatabase();
   const userObjectId = new Types.ObjectId(userId);
@@ -425,21 +564,23 @@ export async function searchMcpKnowledge(
           .limit(4)
           .select("_id description postLink type format postDate")
           .lean(),
-    CreatorContentIdeaModel.find({
-      userId: userObjectId,
-      status: { $in: ["active", "saved", "posted"] },
-      $or: [
-        { title: pattern },
-        { angle: pattern },
-        { hook: pattern },
-        { territory: pattern },
-        { suggestedFormat: pattern },
-      ],
-    })
-      .sort({ generatedAt: -1 })
-      .limit(4)
-      .select("_id title generatedAt")
-      .lean(),
+    options.includeContentIdeas === false
+      ? Promise.resolve([])
+      : CreatorContentIdeaModel.find({
+          userId: userObjectId,
+          status: { $in: ["active", "saved", "posted"] },
+          $or: [
+            { title: pattern },
+            { angle: pattern },
+            { hook: pattern },
+            { territory: pattern },
+            { suggestedFormat: pattern },
+          ],
+        })
+          .sort({ generatedAt: -1 })
+          .limit(4)
+          .select("_id title generatedAt")
+          .lean(),
     ScriptEntryModel.find({
       userId: userObjectId,
       $or: [{ title: pattern }, { content: pattern }],
@@ -553,16 +694,19 @@ export async function fetchMcpKnowledgeItem(
 export async function getMcpCreatorProfile(userId: string) {
   await connectToDatabase();
   const user = await UserModel.findById(userId)
-    .select("name username biography followers_count media_count isInstagramConnected onboardingAnswers.creatorPurpose")
+    .select("name username biography followers_count media_count isInstagramConnected instagramAccountId onboardingAnswers.creatorPurpose")
     .lean();
   if (!user) return null;
+  // Mesmo critério de conexão do estado da conta (entitlement.ts).
+  const instagramConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
   return {
     name: user.name || null,
     username: user.username || null,
     biography: user.biography || null,
     followersCount: typeof user.followers_count === "number" ? user.followers_count : null,
     mediaCount: typeof user.media_count === "number" ? user.media_count : null,
-    instagramConnected: Boolean(user.isInstagramConnected),
+    instagramConnected,
+    countsAreHistorical: !instagramConnected,
     creatorNorth: user.onboardingAnswers?.creatorPurpose?.trim() || null,
     profileUrl: appUrl("/dashboard/profile?source=chatgpt"),
   };
@@ -908,12 +1052,25 @@ export async function getMcpDeepContentAnalysis(params: {
       shares: stats.shares ?? null,
       profileVisits: stats.profile_visits ?? null,
       follows: stats.follows ?? null,
-      averageWatchTime: videoMetricsApplicable ? stats.ig_reels_avg_watch_time ?? null : null,
-      totalWatchTime: videoMetricsApplicable ? stats.ig_reels_video_view_total_time ?? null : null,
-      retentionRate: videoMetricsApplicable ? stats.retention_rate ?? null : null,
-      followerConversionRate: stats.follower_conversion_rate ?? null,
-      propagationIndex: stats.propagation_index ?? null,
-      engagementRateOnReach: stats.engagement_rate_on_reach ?? null,
+      // O Instagram entrega tempo em milissegundos; o contrato fala em segundos.
+      averageWatchTimeSeconds: videoMetricsApplicable ? millisecondsToSeconds(stats.ig_reels_avg_watch_time) : null,
+      totalWatchTimeSeconds: videoMetricsApplicable ? millisecondsToSeconds(stats.ig_reels_video_view_total_time) : null,
+      retentionRate: videoMetricsApplicable ? finiteOrNull(stats.retention_rate) : null,
+      // As taxas derivadas são gravadas como 0 quando falta o denominador. Sem
+      // ele, a taxa é desconhecida — não zero.
+      followerConversionRate: hasPositive(stats.profile_visits) ? finiteOrNull(stats.follower_conversion_rate) : null,
+      propagationIndex: hasPositive(stats.reach) ? finiteOrNull(stats.propagation_index) : null,
+      engagementRateOnReach: hasPositive(stats.reach) ? finiteOrNull(stats.engagement_rate_on_reach) : null,
+      units: {
+        averageWatchTimeSeconds: "segundos",
+        totalWatchTimeSeconds: "segundos",
+        retentionRate: "fração de 0 a 1 (0.35 = 35%)",
+        followerConversionRate: "fração de 0 a 1 (seguidores ganhos / visitas ao perfil)",
+        propagationIndex: "fração de 0 a 1 (compartilhamentos / alcance)",
+        engagementRateOnReach: "fração de 0 a 1 (interações / alcance)",
+        others: "contagem",
+      },
+      metricsAreCurrentTotals: true,
     },
     coverage: {
       hasCaption: Boolean(caption),
@@ -1103,28 +1260,41 @@ export async function listMcpCreatorContentIdeas(params: {
   const limit = Math.max(1, Math.min(10, Math.trunc(params.limit ?? 5)));
   const territory = params.territory?.trim() ?? "";
 
-  const query: Record<string, unknown> = {
-    userId: userObjectId,
-    status: { $in: ["active", "saved", "posted"] },
-  };
+  const query: Record<string, unknown> = { userId: userObjectId };
   if (territory) {
     query.territory = { $regex: escapeRegex(territory), $options: "i" };
   }
+  const fields =
+    "_id title angle hook territory assets suggestedFormat tone whyItFits " +
+    "scriptPoints scriptClosing status generatedAt";
 
-  const ideas = await CreatorContentIdeaModel.find(query)
-    .sort({ generatedAt: -1 })
-    .limit(limit)
-    .select(
-      "_id title angle hook territory assets suggestedFormat tone whyItFits " +
-        "scriptPoints scriptClosing status generatedAt",
-    )
-    .lean();
+  // Pautas ainda não publicadas primeiro. Ordenar só por data fazia um lote de
+  // pautas já postadas ocupar o limite inteiro.
+  const [unposted, total, unpostedAvailable] = await Promise.all([
+    CreatorContentIdeaModel.find({ ...query, status: { $in: ["active", "saved"] } })
+      .sort({ generatedAt: -1 })
+      .limit(limit)
+      .select(fields)
+      .lean(),
+    CreatorContentIdeaModel.countDocuments({ ...query, status: { $in: ["active", "saved", "posted"] } }),
+    CreatorContentIdeaModel.countDocuments({ ...query, status: { $in: ["active", "saved"] } }),
+  ]);
+  const posted = unposted.length < limit
+    ? await CreatorContentIdeaModel.find({ ...query, status: "posted" })
+        .sort({ generatedAt: -1 })
+        .limit(limit - unposted.length)
+        .select(fields)
+        .lean()
+    : [];
+  const ideas = [...unposted, ...posted];
 
   return {
     schemaVersion: "creator_content_ideas_v1",
     generatedAt: new Date().toISOString(),
     territoryFilter: territory || null,
-    total: ideas.length,
+    total,
+    returned: ideas.length,
+    unpostedAvailable,
     items: ideas.map((idea) => ({
       id: `idea:${idea._id}`,
       title: compactText(idea.title, 160),
@@ -1144,6 +1314,7 @@ export async function listMcpCreatorContentIdeas(params: {
     })),
     usage: [
       "Estas pautas já nascem ancoradas na narrativa e nos territórios do creator.",
+      "total conta todas as pautas da conta (com o filtro de território); returned é quantas vieram aqui. Pautas ainda não publicadas vêm primeiro.",
       "Prefira desenvolver uma delas a inventar assunto novo; se nenhuma servir, diga por quê antes de propor outra.",
       "status 'posted' significa que o creator já publicou — não sugira de novo como se fosse inédita.",
     ],

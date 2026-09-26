@@ -257,7 +257,10 @@ export function createD2CAdminMcpServer(context: D2CAdminMcpContext): McpServer 
         return { isError: true, content: jsonText({ error: safeCode,
           message: error instanceof PublicInstagramResearchError || error instanceof McpPeriodValidationError ? error.message
             : safeCode === "admin_analysis_unavailable" ? "Não foi possível concluir a análise. Tente um período menor ou um filtro mais específico; nenhum resultado parcial foi apresentado como completo."
-              : "Confira o período, as referências e os filtros; cursores só valem para os filtros que os originaram." }) };
+              : "Confira o período, as referências e os filtros; cursores só valem para os filtros que os originaram.",
+          ...(error instanceof PublicInstagramResearchError && error.technicalDetail
+            ? { technicalDetail: error.technicalDetail }
+            : {}) }) };
       }
 
       await completeMcpAdminAuditEvent(invocationId, {

@@ -17,6 +17,36 @@ export const MCP_PERIOD_METRIC_KEYS = [
 
 export type McpPeriodMetricKey = (typeof MCP_PERIOD_METRIC_KEYS)[number];
 
+/**
+ * Unidade de cada métrica, dita em voz alta. Sem isto o modelo lia 4500 ms de
+ * tempo médio como 4500 segundos e retenção 0,35 como 0,35%.
+ */
+export const MCP_PERIOD_METRIC_UNITS: Record<McpPeriodMetricKey, string> = {
+  reach: "contagem",
+  views: "contagem",
+  total_interactions: "contagem",
+  saved: "contagem",
+  shares: "contagem",
+  comments: "contagem",
+  likes: "contagem",
+  retention_rate: "fração de 0 a 1 (0.35 = 35%)",
+  ig_reels_avg_watch_time: "milissegundos (divida por 1000 para segundos)",
+};
+
+/** Métricas em que somar posts faz sentido. Taxa e tempo médio não se somam. */
+const SUMMABLE_PERIOD_METRICS = new Set<McpPeriodMetricKey>([
+  "reach",
+  "views",
+  "total_interactions",
+  "saved",
+  "shares",
+  "comments",
+  "likes",
+]);
+
+/** Post mais novo que isto ainda acumula alcance e interações. */
+const MATURE_POST_AGE_DAYS = 7;
+
 export type McpPeriodMetricDocument = {
   _id: unknown;
   instagramMediaId?: unknown;
@@ -278,6 +308,14 @@ function hasSceneAnalysis(document: McpPeriodMetricDocument): boolean {
   );
 }
 
+function medianOf(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const value = sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+  return Number(value.toFixed(4));
+}
+
 function coverageSignal(available: number, total: number, notApplicable = 0): CoverageSignal {
   return {
     available,
@@ -348,6 +386,33 @@ export function buildMcpPeriodAnalysis(params: {
     }),
   ) as Record<McpPeriodMetricKey, CoverageSignal>;
 
+  // Resumo sobre TODOS os posts do período, não só sobre a lista devolvida:
+  // comparar semana com trimestre pede mediana, e a lista pode vir truncada.
+  const summaryMetrics = Object.fromEntries(
+    MCP_PERIOD_METRIC_KEYS.map((key) => {
+      const values = sortedDocuments
+        .map((document) => readMetric(
+          document.stats && typeof document.stats === "object" ? (document.stats as Record<string, unknown>) : {},
+          key,
+        ))
+        .filter((value): value is number => value !== null);
+      return [key, {
+        availablePosts: values.length,
+        median: medianOf(values),
+        total: SUMMABLE_PERIOD_METRICS.has(key) && values.length
+          ? values.reduce((sum, value) => sum + value, 0)
+          : null,
+      }];
+    }),
+  ) as Record<McpPeriodMetricKey, { availablePosts: number; median: number | null; total: number | null }>;
+
+  const ageDays = sortedDocuments
+    .map((document) => toIsoDate(document.postDate))
+    .filter((value): value is string => Boolean(value))
+    .map((value) => Math.max(0, (generatedAt.getTime() - new Date(value).getTime()) / 86_400_000));
+  const postsYoungerThanMature = ageDays.filter((age) => age < MATURE_POST_AGE_DAYS).length;
+  const youngestPostAgeDays = ageDays.length ? Number(Math.min(...ageDays).toFixed(1)) : null;
+
   const captionsAvailable = sortedDocuments.filter((document) => hasText(document.description)).length;
   const classificationsAvailable = sortedDocuments.filter(hasClassification).length;
   const scenesAvailable = sortedDocuments.filter(
@@ -406,6 +471,7 @@ export function buildMcpPeriodAnalysis(params: {
   if (transcriptEligible.length > 0 && transcriptsAvailable < transcriptEligible.length) {
     warnings.push("transcript_coverage_partial");
   }
+  if (postsYoungerThanMature > 0) warnings.push("recent_posts_still_accumulating");
 
   return {
     schemaVersion: MCP_PERIOD_ANALYSIS_VERSION,
@@ -426,6 +492,19 @@ export function buildMcpPeriodAnalysis(params: {
       lastPostDate: postDates.length ? postDates[0]! : null,
       evidenceReturned: posts.length,
       evidenceTruncated: posts.length < total,
+    },
+    metricUnits: MCP_PERIOD_METRIC_UNITS,
+    summary: {
+      basis: "all_posts_in_period" as const,
+      metrics: summaryMetrics,
+    },
+    maturity: {
+      matureAfterDays: MATURE_POST_AGE_DAYS,
+      postsYoungerThanMatureAge: postsYoungerThanMature,
+      youngestPostAgeDays,
+      note:
+        "As métricas são o total acumulado hoje, não um retrato da data do post. Post com menos de " +
+        `${MATURE_POST_AGE_DAYS} dias ainda está acumulando: não o compare com posts antigos como se fosse queda.`,
     },
     coverage: {
       counting: {
@@ -454,6 +533,7 @@ export function buildMcpPeriodAnalysis(params: {
       lastDataUpdateAt: updatedDates.sort().at(-1) ?? null,
       mustNotEstimate: true,
       transcriptCoverageCountsOnlyVideos: true,
+      metricsAreCurrentTotals: true,
     },
   };
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateMcpRequest, buildMcpWwwAuthenticateHeader, McpAuthError } from "@/app/lib/mcp/auth";
 import { getMcpAccountState } from "@/app/lib/mcp/accountState";
+import { resolveMcpClientSurface } from "@/app/lib/mcp/clientSurface";
 import { createD2CMcpServer } from "@/app/lib/mcp/server";
 import { logger } from "@/app/lib/logger";
 import { checkRateLimit } from "@/utils/rateLimit";
@@ -52,7 +53,8 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createD2CMcpServer({ identity, accountState });
+    const clientSurface = await resolveMcpClientSurface(identity.clientId);
+    const server = createD2CMcpServer({ identity, accountState, clientSurface });
     await server.connect(transport);
     const response = await transport.handleRequest(request);
 
@@ -64,6 +66,7 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
       clientId: identity.clientId,
       accessLevel: accountState.accessLevel,
       instagramConnected: accountState.instagramConnected,
+      clientSurface,
     });
 
     response.headers.set("Cache-Control", "no-store");

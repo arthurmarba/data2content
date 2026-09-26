@@ -9,6 +9,8 @@ const USAGE_EVENT_CATEGORIES = [
   "chat",
   "mediakit",
   "collabs",
+  // Limites de plano batidos dentro do ChatGPT e do Claude.
+  "plugin",
 ] as const;
 
 export type UsageEventCategory = (typeof USAGE_EVENT_CATEGORIES)[number];
