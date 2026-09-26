@@ -579,11 +579,9 @@ describe("POST /api/billing/subscribe", () => {
       }),
     });
     mockStripeList.mockResolvedValue({ data: [] });
-    mockStripeCreate.mockResolvedValue({
-      id: "sub_affiliate",
-      status: "incomplete",
-      latest_invoice: { payment_intent: { client_secret: "cs_affiliate" } },
-      items: { data: [{ price: { id: "price_monthly_brl" } }] },
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_affiliate",
+      url: "https://checkout.stripe.com/affiliate",
     });
 
     const res = await POST(createRequest({ plan: "monthly", currency: "BRL", affiliateCode: "AFF123" }));
@@ -591,18 +589,16 @@ describe("POST /api/billing/subscribe", () => {
 
     expect(res.status).toBe(200);
     expect(body.affiliateApplied).toBe(true);
+    expect(body.checkoutUrl).toBe("https://checkout.stripe.com/affiliate");
     expect((buyer as any).affiliateUsed).toBe("AFF123");
     expect(save).toHaveBeenCalled();
-    expect(mockStripeCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          affiliateCode: "AFF123",
-          affiliate_user_id: "owner1",
-        }),
-      }),
-      expect.any(Object),
-    );
-    expect(mockStripeCreate.mock.calls[0][0]).not.toHaveProperty("discounts");
+    const params = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(params.metadata).toMatchObject({ affiliateCode: "AFF123", affiliate_user_id: "owner1" });
+    expect(params.subscription_data.metadata).toMatchObject({
+      affiliateCode: "AFF123",
+      affiliate_user_id: "owner1",
+    });
+    expect(params).not.toHaveProperty("discounts");
     expect(stripe.coupons.retrieve).not.toHaveBeenCalled();
   });
 
@@ -626,29 +622,57 @@ describe("POST /api/billing/subscribe", () => {
       (error: unknown, resource?: string) => error === missingCustomerError && resource === "customer"
     );
     mockStripeList.mockRejectedValueOnce(missingCustomerError).mockResolvedValueOnce({ data: [] });
-    mockStripeCreate.mockResolvedValue({
-      id: "sub_123",
-      status: "incomplete",
-      latest_invoice: {
-        payment_intent: {
-          client_secret: "cs_test_123",
-        },
-      },
-      items: { data: [{ price: { id: "price_monthly_brl", recurring: { interval: "month" } } }] },
-    });
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_new", url: "https://checkout.stripe.com/new" });
 
     const res = await POST(createRequest({ plan: "monthly", currency: "BRL" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.subscriptionId).toBe("sub_123");
+    expect(body.checkoutUrl).toBe("https://checkout.stripe.com/new");
     expect(mockPersistStaleStripeBillingPatch).toHaveBeenCalledTimes(1);
     expect(mockGetCustomerId).toHaveBeenCalledTimes(2);
     expect(mockStripeList).toHaveBeenCalledTimes(2);
-    expect(mockStripeCreate).toHaveBeenCalledWith(
+    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({ customer: "cus_new" }),
       expect.any(Object)
     );
+    expect(save).toHaveBeenCalled();
+  });
+
+  it("goes straight to the hosted checkout without leaving a canceled subscription behind", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u6", email: "u6@test.com" } });
+    const save = jest.fn();
+    const buyer: any = {
+      _id: "u6",
+      planStatus: "canceled",
+      stripeCustomerId: "cus_123",
+      stripeSubscriptionId: "sub_old_canceled",
+      save,
+    };
+    mockFindById.mockResolvedValue(buyer);
+    mockStripeList.mockResolvedValue({ data: [{ id: "sub_old_canceled", status: "canceled" }] });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_direct",
+      url: "https://checkout.stripe.com/direct",
+      expires_at: 1_800_000_000,
+    });
+
+    const res = await POST(createRequest({ plan: "annual", currency: "BRL" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ checkoutUrl: "https://checkout.stripe.com/direct", subscriptionId: null });
+    expect(mockStripeCreate).not.toHaveBeenCalled();
+    expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
+    expect(stripe.checkout.sessions.create.mock.calls[0][0]).toMatchObject({
+      mode: "subscription",
+      line_items: [{ price: "price_annual_brl", quantity: 1 }],
+      client_reference_id: "u6",
+    });
+    expect(buyer.planStatus).toBe("canceled");
+    expect(buyer.planInterval).toBe("year");
+    expect(buyer.stripeSubscriptionId).toBeNull();
+    expect(buyer.pendingCheckoutSessionId).toBe("cs_direct");
     expect(save).toHaveBeenCalled();
   });
 });

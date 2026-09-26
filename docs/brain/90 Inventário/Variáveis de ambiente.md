@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Variáveis de ambiente
 
-**435 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**436 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 29 |
+| `CRON_SECRET` | 31 |
 
 ## FACEBOOK
 
@@ -104,9 +104,9 @@ atualizado: 2026-09-26
 | `MCP_OAUTH_AUDIENCE` | 5 |
 | `MCP_OAUTH_ISSUER` | 5 |
 | `MCP_OAUTH_JWKS_URL` | 5 |
+| `MCP_USAGE_REPORT_TO` | 5 |
 | `MCP_DEV_AUTH_BYPASS` | 4 |
 | `MCP_SERVER_URL` | 4 |
-| `MCP_USAGE_REPORT_TO` | 4 |
 | `MCP_ADMIN_SERVER_URL` | 3 |
 | `MCP_DEV_USER_ID` | 3 |
 | `MCP_OAUTH_ALLOWED_ALGORITHMS` | 3 |
@@ -223,8 +223,8 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 39 |
-| `QSTASH_NEXT_SIGNING_KEY` | 39 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 40 |
+| `QSTASH_NEXT_SIGNING_KEY` | 40 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -257,6 +257,7 @@ atualizado: 2026-09-26
 | `STRIPE_PRODUCT_ID_MONTHLY` | 2 |
 | `STRIPE_CONNECT_REFRESH_URL` | 1 |
 | `STRIPE_CONNECT_RETURN_URL` | 1 |
+| `STRIPE_RECONCILE_REPORT_TO` | 1 |
 | `STRIPE_WEBHOOK_SECRET` | 1 |
 
 ## VIDEO_NARRATIVE

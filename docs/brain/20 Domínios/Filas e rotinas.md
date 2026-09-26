@@ -182,9 +182,33 @@ cru `${AFFILIATE_ATTRIBUTION_WINDOW_DAYS}` — roteiro colado e nunca terminado.
   admin não consegue rejeitá-lo. Aí sim vale uma rotina, escrita do zero.
 - **Atribuição:** nada a limpar. A janela é a validade do cookie `d2c_ref`
   (`AFFILIATE_ATTRIBUTION_WINDOW_DAYS`, 90 dias), que expira no navegador.
-- **Conciliação do Stripe:** faz falta. Virou o comando
-  `npm run audit:stripe-subscriptions`, ainda manual — ver
-  [[Assinatura gravada não é a que a pessoa paga]]. Agendar só depois de decidir
-  para quem o relatório vai.
+- **Conciliação do Stripe:** fazia falta. Virou a rotina diária
+  `/api/cron/stripe-reconcile` (id `billing-stripe-reconcile`, 09:00 BRT) e o
+  comando `npm run audit:stripe-subscriptions`. Ver abaixo.
 
 Ver também [[Rotina do QStash falha em silêncio]].
+
+## Conferência banco × Stripe (26/09/2026)
+
+`/api/cron/stripe-reconcile` roda todo dia às 09:00 BRT
+(`lib/billing/stripeReconciliationRun.ts`). Corrige sozinha só o que **não tira
+acesso de ninguém**:
+
+- quem paga uma assinatura viva que o banco não reconhece: o banco passa a
+  apontar para ela (regra da tela de assinatura), a menos que isso tire o Pro;
+- quem ficou com status sem acesso diferente do Stripe quando o Stripe diz que a
+  assinatura acabou (o `past_due` de quem já foi cancelado): grava o fim como o
+  aviso de cancelamento gravaria.
+
+O resto vai por e-mail para `STRIPE_RECONCILE_REPORT_TO` (sem ela, para
+`MCP_USAGE_REPORT_TO`): no dia em que houver correção, correção pulada, pagante
+sem Pro, cobrança dupla ou assinatura viva sem conta; e toda segunda com o resumo
+completo, incluindo o Pro sem assinatura (cortesias). Sem destinatário, só fica no
+log `[cron.stripeReconcile]`. Só ids — nunca nome ou e-mail de cliente.
+
+Publicar a rota não cadastra o horário: depois do deploy,
+`npm run schedule:crons -- billing-stripe-reconcile` e conferir a primeira
+entrega (ver [[Rotina do QStash falha em silêncio]]). Ver também
+[[Assinatura gravada não é a que a pessoa paga]] e
+[[Falha de pagamento chega depois do cancelamento]].
+

@@ -395,3 +395,192 @@ describe('handleStripeEvent zero-amount invoices', () => {
     expect((buyer as any).planStatus).toBe('trial');
   });
 });
+
+describe('handleStripeEvent — banco fora de sincronia com a assinatura', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (webhookHelpers.markEventIfNew as any).mockResolvedValue(true);
+    (stripe as any).invoicePayments.list.mockResolvedValue({ data: [], has_more: false });
+  });
+
+  function buildUser(overrides: Record<string, unknown>) {
+    return {
+      _id: 'user1',
+      email: null,
+      affiliateUsed: null,
+      commissionLog: [],
+      save: jest.fn(async function save() { return this; }),
+      ...overrides,
+    } as any;
+  }
+
+  function mockSubscriptions(subs: Record<string, any>) {
+    (stripe as any).subscriptions.retrieve.mockImplementation(async (id: string) => {
+      if (subs[id]) return subs[id];
+      throw Object.assign(new Error(`No such subscription: '${id}'`), {
+        code: 'resource_missing',
+        param: 'id',
+        type: 'StripeInvalidRequestError',
+      });
+    });
+  }
+
+  function paymentFailedEvent(subscription: string) {
+    return {
+      id: 'evt_failed_final',
+      type: 'invoice.payment_failed',
+      created: 1_780_000_001,
+      data: {
+        object: {
+          id: 'in_final',
+          object: 'invoice',
+          customer: 'cus_1',
+          status: 'open',
+          amount_due: 7990,
+          currency: 'brl',
+          parent: { subscription_details: { subscription } },
+          lines: { data: [] },
+        },
+      },
+    } as any;
+  }
+
+  function liveSubscription(id: string, created: number) {
+    return {
+      id,
+      customer: 'cus_1',
+      status: 'active',
+      created,
+      cancel_at_period_end: false,
+      latest_invoice: null,
+      items: {
+        data: [{
+          price: { id: 'price_monthly', currency: 'brl', recurring: { interval: 'month' } },
+          current_period_end: 1_790_000_000,
+        }],
+      },
+    };
+  }
+
+  test('a última falha de cobrança chegando depois do cancelamento não reabre "atrasado"', async () => {
+    const user = buildUser({ planStatus: 'canceled', stripeSubscriptionId: 'sub_1' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({ sub_1: { id: 'sub_1', status: 'canceled', created: 100 } });
+
+    await handleStripeEvent(paymentFailedEvent('sub_1'));
+
+    expect(user.planStatus).toBe('canceled');
+    expect(user.lastPaymentError).toMatchObject({ paymentId: 'in_final', status: 'failed' });
+    expect(user.save).toHaveBeenCalled();
+  });
+
+  test('falha numa renovação ainda em cobrança continua marcando "atrasado"', async () => {
+    const user = buildUser({ planStatus: 'active', stripeSubscriptionId: 'sub_1' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({ sub_1: { id: 'sub_1', status: 'past_due', created: 100 } });
+
+    await handleStripeEvent(paymentFailedEvent('sub_1'));
+
+    expect(user.planStatus).toBe('past_due');
+  });
+
+  test('sem conseguir ler a assinatura, mantém o comportamento antigo', async () => {
+    const user = buildUser({ planStatus: 'active', stripeSubscriptionId: 'sub_1' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    (stripe as any).subscriptions.retrieve.mockRejectedValue(new Error('stripe indisponível'));
+
+    await handleStripeEvent(paymentFailedEvent('sub_1'));
+
+    expect(user.planStatus).toBe('past_due');
+  });
+
+  test('cancelamento da assinatura verdadeira chega mesmo com o id da fantasma gravado', async () => {
+    const user = buildUser({ planStatus: 'past_due', stripeSubscriptionId: 'sub_fantasma', planInterval: 'month' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({ sub_fantasma: { id: 'sub_fantasma', status: 'incomplete_expired', created: 100 } });
+
+    await handleStripeEvent({
+      id: 'evt_deleted',
+      type: 'customer.subscription.deleted',
+      created: 1_780_000_003,
+      data: {
+        object: { id: 'sub_real', customer: 'cus_1', status: 'canceled', created: 118, ended_at: 1_780_000_000 },
+      },
+    } as any);
+
+    expect(user.planStatus).toBe('canceled');
+    expect(user.stripeSubscriptionId).toBe('sub_real');
+    expect(user.planExpiresAt).toEqual(new Date(1_780_000_000 * 1000));
+    expect(user.planInterval).toBeUndefined();
+  });
+
+  test('cancelamento de uma assinatura velha não derruba quem paga outra viva', async () => {
+    const user = buildUser({ planStatus: 'active', stripeSubscriptionId: 'sub_viva' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({ sub_viva: { id: 'sub_viva', status: 'active', created: 200 } });
+
+    await handleStripeEvent({
+      id: 'evt_deleted_old',
+      type: 'customer.subscription.deleted',
+      created: 1_780_000_003,
+      data: {
+        object: { id: 'sub_velha', customer: 'cus_1', status: 'incomplete_expired', created: 100, ended_at: 101 },
+      },
+    } as any);
+
+    expect(user.planStatus).toBe('active');
+    expect(user.stripeSubscriptionId).toBe('sub_viva');
+    expect(user.save).not.toHaveBeenCalled();
+  });
+
+  test('atualização da assinatura paga corrige o id da fantasma mesmo com o banco "ativo"', async () => {
+    const user = buildUser({ planStatus: 'active', stripeSubscriptionId: 'sub_fantasma' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({
+      sub_fantasma: { id: 'sub_fantasma', status: 'incomplete_expired', created: 100 },
+      sub_real: liveSubscription('sub_real', 118),
+    });
+
+    await handleStripeEvent({
+      id: 'evt_updated',
+      type: 'customer.subscription.updated',
+      created: 1_780_000_003,
+      data: { object: liveSubscription('sub_real', 118) },
+    } as any);
+
+    expect(user.stripeSubscriptionId).toBe('sub_real');
+    expect(user.planStatus).toBe('active');
+    expect(user.planExpiresAt).toEqual(new Date(1_790_000_000 * 1000));
+  });
+
+  test('renovação paga da assinatura verdadeira também corrige o id', async () => {
+    const user = buildUser({ planStatus: 'active', stripeSubscriptionId: 'sub_fantasma' });
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(user);
+    mockSubscriptions({
+      sub_fantasma: { id: 'sub_fantasma', status: 'incomplete_expired', created: 100 },
+      sub_real: liveSubscription('sub_real', 118),
+    });
+
+    await handleStripeEvent({
+      id: 'evt_paid',
+      type: 'invoice.payment_succeeded',
+      created: 1_780_000_003,
+      data: {
+        object: {
+          id: 'in_cycle',
+          object: 'invoice',
+          customer: 'cus_1',
+          amount_paid: 7990,
+          currency: 'brl',
+          billing_reason: 'subscription_cycle',
+          parent: { subscription_details: { subscription: 'sub_real' } },
+          lines: { data: [{ period: { start: 1_787_000_000, end: 1_790_000_000 } }] },
+          metadata: {},
+        },
+      },
+    } as any);
+
+    expect(user.stripeSubscriptionId).toBe('sub_real');
+    expect(user.planExpiresAt).toEqual(new Date(1_790_000_000 * 1000));
+  });
+});

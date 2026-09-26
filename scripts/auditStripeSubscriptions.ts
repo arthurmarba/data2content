@@ -8,31 +8,27 @@
  * Uso:
  *   Somente leitura (padrão):
  *     npm run audit:stripe-subscriptions
- *   Corrigir quem paga uma assinatura que o banco não reconhece (e só isso):
+ *   Aplicar as correções seguras (as mesmas da rotina diária /api/cron/stripe-reconcile):
  *     npm run audit:stripe-subscriptions -- --corrigir
  *
- * A correção aplica a mesma regra da tela de assinatura (`/api/billing/subscription`,
- * via `lib/billing/stripeSubscriptionSync`): é o que aconteceria se a pessoa abrisse
- * a página de assinatura. Os demais grupos são para olhar caso a caso.
+ * As correções nunca tiram acesso (ver `lib/billing/stripeReconciliationRun`):
+ *  - grupo 1: o banco passa a apontar para a assinatura viva que a pessoa paga
+ *    (mesma regra da tela de assinatura);
+ *  - grupo 5, quando o Stripe diz que a assinatura acabou: grava o fim como o
+ *    aviso de cancelamento gravaria (ex.: "atrasado" de quem já foi cancelado).
+ * Os demais grupos são para olhar caso a caso.
  *
  * Imprime ids de usuário e de assinatura, nunca nome ou e-mail. Fala com o banco e
  * com o Stripe de produção (chave em STRIPE_SECRET_KEY).
  */
 import mongoose from "mongoose";
-import type Stripe from "stripe";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { stripe } from "@/app/lib/stripe";
-import User from "@/app/models/User";
+import type { ResumoAssinatura } from "@/app/lib/billing/stripeReconciliation";
 import {
-  conferirAssinaturas,
-  STATUS_ASSINATURA_VIVA,
-  type ResumoAssinatura,
-  type UsuarioCobranca,
-} from "@/app/lib/billing/stripeReconciliation";
-import {
-  applyBillingStateToUser,
-  billingStateFromSubscription,
-} from "@/app/lib/billing/stripeSubscriptionSync";
+  executarConciliacao,
+  STATUS_STRIPE_ENCERRADO,
+  type Correcao,
+} from "@/app/lib/billing/stripeReconciliationRun";
 
 const CORRIGIR = process.argv.includes("--corrigir");
 
@@ -40,63 +36,19 @@ const dia = (d: Date | null | undefined) => (d ? new Date(d).toISOString().slice
 const assinatura = (a: ResumoAssinatura | null) =>
   a ? `${a.id} (${a.status}${a.cancelaNoFim ? ", cancela no fim do ciclo" : ""})` : "nenhuma";
 
-async function listarAssinaturas(): Promise<Stripe.Subscription[]> {
-  const todas: Stripe.Subscription[] = [];
-  for await (const sub of stripe.subscriptions.list({ status: "all", limit: 100 })) {
-    todas.push(sub);
-  }
-  return todas;
-}
-
-async function carregarUsuarios(): Promise<UsuarioCobranca[]> {
-  const docs = await User.find(
-    {},
-    "role planStatus cancelAtPeriodEnd planExpiresAt stripeCustomerId stripeSubscriptionId"
-  ).lean();
-  return docs.map((doc: any) => ({
-    id: String(doc._id),
-    role: doc.role ?? null,
-    planStatus: doc.planStatus ?? null,
-    cancelAtPeriodEnd: doc.cancelAtPeriodEnd ?? null,
-    planExpiresAt: doc.planExpiresAt ?? null,
-    stripeCustomerId: doc.stripeCustomerId || null,
-    stripeSubscriptionId: doc.stripeSubscriptionId || null,
-  }));
-}
-
 function secao(titulo: string, quantidade: number, nota: string) {
   console.log(`\n${titulo} — ${quantidade}`);
   if (quantidade > 0) console.log(`  ${nota}`);
 }
 
-async function corrigirAssinaturaGravada(userId: string, vivaId: string) {
-  const user: any = await User.findById(userId);
-  if (!user) return console.log(`  - usuário ${userId}: não encontrado, pulado`);
-
-  const sub = await stripe.subscriptions.retrieve(vivaId);
-  const cliente = typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null;
-  if (!STATUS_ASSINATURA_VIVA.has(String(sub.status))) {
-    return console.log(`  - usuário ${userId}: ${vivaId} não está mais viva (${sub.status}), pulado`);
-  }
-  if (user.stripeCustomerId && cliente !== user.stripeCustomerId) {
-    return console.log(`  - usuário ${userId}: ${vivaId} é de outro cliente, pulado`);
-  }
-
-  const antes = `${user.planStatus} · ${user.stripeSubscriptionId} · expira ${dia(user.planExpiresAt)}`;
-  const estado = billingStateFromSubscription(sub);
-  if (!applyBillingStateToUser(user, cliente, sub, estado)) {
-    return console.log(`  - usuário ${userId}: já estava em dia`);
-  }
-  await user.save();
-  console.log(
-    `  - usuário ${userId}: ${antes}  →  ${user.planStatus} · ${user.stripeSubscriptionId} · expira ${dia(user.planExpiresAt)}`
-  );
+function imprimirCorrecao(c: Correcao) {
+  if (c.resultado === "corrigido") console.log(`  - usuário ${c.userId}: ${c.antes}  →  ${c.depois}`);
+  else console.log(`  - usuário ${c.userId}: pulado (${c.motivo})`);
 }
 
 async function main() {
   await connectToDatabase();
-  const [usuarios, assinaturas] = await Promise.all([carregarUsuarios(), listarAssinaturas()]);
-  const r = conferirAssinaturas(usuarios, assinaturas);
+  const { conferencia: r, correcoes } = await executarConciliacao({ corrigir: CORRIGIR });
 
   console.log(`Conferência de assinaturas — banco × Stripe${CORRIGIR ? " (com correção)" : " (somente leitura)"}`);
   console.log(
@@ -138,7 +90,7 @@ async function main() {
   secao(
     "5. Mesmo acesso, status diferente",
     r.statusDiferente.length,
-    "Não muda quem tem Pro, mas mostra aviso do Stripe que não chegou ao banco."
+    "Não muda quem tem Pro, mas mostra aviso do Stripe que não chegou ao banco. Quando o Stripe diz que acabou, corrigível com --corrigir."
   );
   for (const s of r.statusDiferente) {
     console.log(`  - usuário ${s.userId}: banco ${s.planStatus}, Stripe pede ${s.esperado} — ${assinatura(s.assinatura)}`);
@@ -154,11 +106,14 @@ async function main() {
   );
   for (const v of r.vivaSemUsuario) console.log(`  - ${assinatura(v)}, criada ${dia(v.criadaEm)}`);
 
-  if (CORRIGIR && r.pagaOutraAssinatura.length > 0) {
-    console.log("\nCorrigindo o grupo 1:");
-    for (const p of r.pagaOutraAssinatura) await corrigirAssinaturaGravada(p.userId, p.viva.id);
-  } else if (!CORRIGIR && r.pagaOutraAssinatura.length > 0) {
-    console.log("\nNada foi gravado. Para corrigir o grupo 1: npm run audit:stripe-subscriptions -- --corrigir");
+  const corrigiveis =
+    r.pagaOutraAssinatura.length +
+    r.statusDiferente.filter((x) => STATUS_STRIPE_ENCERRADO.has(x.esperado)).length;
+  if (CORRIGIR) {
+    console.log(`\nCorreções seguras (grupos 1 e 5): ${correcoes.length}`);
+    correcoes.forEach(imprimirCorrecao);
+  } else if (corrigiveis > 0) {
+    console.log(`\nNada foi gravado. ${corrigiveis} caso(s) corrigível(is): npm run audit:stripe-subscriptions -- --corrigir`);
   }
 
   await mongoose.connection.close();

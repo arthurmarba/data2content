@@ -206,3 +206,25 @@ export function applyBillingStateToUser(
 
   return shouldSave;
 }
+
+/**
+ * Como o banco fica quando a assinatura acaba: os mesmos campos que o aviso de
+ * cancelamento do Stripe grava (`customer.subscription.deleted`). O fim é o
+ * `ended_at` — não o fim do ciclo, que pode estar no futuro para quem foi
+ * cancelado por falta de pagamento.
+ */
+export function applyEndedSubscriptionToUser(
+  user: Record<string, any>,
+  sub: Stripe.Subscription,
+  now: Date = new Date()
+): void {
+  const endedAtSec = toNumberOrNull((sub as any).ended_at);
+  const endedAt = endedAtSec ? new Date(endedAtSec * 1000) : now;
+  user.planStatus = "canceled";
+  user.cancelAtPeriodEnd = false;
+  user.stripeSubscriptionId = sub.id;
+  user.stripePriceId = null;
+  user.planInterval = undefined; // não usar null aqui
+  user.planExpiresAt = endedAt;
+  user.currentPeriodEnd = endedAt;
+}

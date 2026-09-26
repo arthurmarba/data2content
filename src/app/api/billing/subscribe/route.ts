@@ -237,42 +237,6 @@ async function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string)
   return { code: undefined, source: undefined };
 }
 
-type InvoiceMaybePI = Stripe.Invoice & {
-  payment_intent?: Stripe.PaymentIntent | string | null;
-};
-
-function asInvoice(resp: unknown): InvoiceMaybePI {
-  const anyResp = resp as any;
-  if (anyResp && typeof anyResp === "object" && "data" in anyResp) {
-    return anyResp.data as InvoiceMaybePI;
-  }
-  return anyResp as InvoiceMaybePI;
-}
-
-async function extractClientSecretFromSubscription(sub: Stripe.Subscription): Promise<string | undefined> {
-  try {
-    if (sub.latest_invoice && typeof sub.latest_invoice !== "string") {
-      const latestInv = sub.latest_invoice as InvoiceMaybePI;
-      const pi = latestInv.payment_intent;
-      if (pi && typeof pi !== "string" && pi.client_secret) return pi.client_secret;
-    }
-
-    const invoiceId =
-      typeof sub.latest_invoice === "string"
-        ? sub.latest_invoice
-        : sub.latest_invoice?.id;
-
-    if (invoiceId) {
-      const invResp = await stripe.invoices.retrieve(invoiceId, { expand: ["payment_intent"] });
-      const invoice = asInvoice(invResp);
-      const pi = invoice.payment_intent;
-      if (pi && typeof pi !== "string" && pi.client_secret) return pi.client_secret;
-    }
-  } catch { /* noop */ }
-
-  return undefined;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const authOptions = await loadAuthOptions();
@@ -948,16 +912,44 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const sub = await stripe.subscriptions.create({
+    // Vai direto ao Checkout hospedado. A tela de pagamento embutida dependia de
+    // `invoice.payment_intent`, que não existe na API basil: a assinatura era
+    // criada, cancelada dois segundos depois e a pessoa ia para o Checkout do
+    // mesmo jeito. Cada tentativa deixava uma assinatura "fantasma" no Stripe, e
+    // os avisos dela gravavam o id errado no banco.
+    const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
+    const successUrl = resolveHostedCheckoutSuccessUrl(body.successUrl, { appBaseUrl });
+    const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
+      appBaseUrl,
+      fallbackPath: "/dashboard/billing",
+    });
+
+    const sessionCheckout = await stripe.checkout.sessions.create({
+      mode: "subscription",
       customer: customerId!,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      expand: ["latest_invoice.payment_intent"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      ...(discounts && discounts.length > 0
+        ? { discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[] }
+        : {}
+      ),
+      ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
       metadata,
-      ...(discounts ? { discounts } : {}),
+      subscription_data: {
+        metadata: {
+          ...metadata,
+          ...(affiliateOwner && affiliateCode
+            ? { affiliateCode, affiliate_user_id: String(affiliateOwner._id) }
+            : {}),
+          ...(affiliateSource ? { attribution_source: String(affiliateSource) } : {}),
+          ...(promotionCode ? { promotionCode } : {}),
+        },
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      client_reference_id: String(user._id),
     }, {
       idempotencyKey: buildIdempotencyKey({
-        scope: "sub_create",
+        scope: "checkout_session",
         userId: String(user._id),
         priceId,
         plan,
@@ -968,142 +960,32 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    let clientSecret = await extractClientSecretFromSubscription(sub);
-    let refreshed: Stripe.Subscription | null = null;
-    if (!clientSecret) {
-      try {
-        refreshed = await stripe.subscriptions.retrieve(sub.id, {
-          expand: ["latest_invoice.payment_intent"],
-        });
-        clientSecret = await extractClientSecretFromSubscription(refreshed);
-      } catch { /* noop */ }
-    }
-
-    let checkoutUrl: string | null = null;
-    let checkoutRequestId: string | null = null;
-    let checkoutSessionId: string | null = null;
-    let checkoutExpiresAt: Date | null = null;
-
-    if (!clientSecret) {
-      if (sub.status !== "incomplete") {
-        logger.warn("billing_subscribe_missing_client_secret", {
-          endpoint: "POST /api/billing/subscribe",
-          userId,
-          customerId,
-          subscriptionId: sub.id,
-          statusDb: (user as any).planStatus ?? null,
-          statusStripe: sub.status,
-          errorCode: "SUBSCRIBE_NO_PAYMENT_INTENT",
-          stripeRequestId: getStripeRequestId(refreshed ?? sub),
-        });
-        return NextResponse.json(
-          {
-            code: "SUBSCRIBE_NO_PAYMENT_INTENT",
-            message: "Não foi possível iniciar o pagamento. Tente novamente.",
-          },
-          { status: 500 }
-        );
-      }
-
-      try {
-        await stripe.subscriptions.cancel(sub.id);
-      } catch { /* noop */ }
-
-      const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
-      const successUrl = resolveHostedCheckoutSuccessUrl(body.successUrl, { appBaseUrl });
-      const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
-        appBaseUrl,
-        fallbackPath: "/dashboard/billing",
-      });
-
-      const sessionCheckout = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        customer: customerId!,
-        line_items: [{ price: priceId, quantity: 1 }],
-        ...(discounts && discounts.length > 0
-          ? { discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[] }
-          : {}
-        ),
-        ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
-        metadata,
-        subscription_data: {
-          metadata: {
-            ...metadata,
-            ...(affiliateOwner && affiliateCode
-              ? { affiliateCode, affiliate_user_id: String(affiliateOwner._id) }
-              : {}),
-            ...(affiliateSource ? { attribution_source: String(affiliateSource) } : {}),
-            ...(promotionCode ? { promotionCode } : {}),
-          },
+    const checkoutUrl = sessionCheckout.url ?? null;
+    if (!checkoutUrl) {
+      return NextResponse.json(
+        {
+          code: "SUBSCRIBE_CHECKOUT_FAILED",
+          message: "Não foi possível iniciar o checkout. Tente novamente.",
         },
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        client_reference_id: String(user._id),
-      }, {
-        idempotencyKey: buildIdempotencyKey({
-          scope: "checkout_session",
-          userId: String(user._id),
-          priceId,
-          plan,
-          currency,
-          affiliateCode,
-          promotionCode,
-          journeyKey: checkoutJourneyKey,
-        }),
-      });
-
-      checkoutUrl = sessionCheckout.url ?? null;
-      checkoutRequestId = getStripeRequestId(sessionCheckout);
-      checkoutSessionId = sessionCheckout.id ?? null;
-      checkoutExpiresAt =
-        typeof sessionCheckout.expires_at === "number"
-          ? new Date(sessionCheckout.expires_at * 1000)
-          : null;
-
-      if (!checkoutUrl) {
-        return NextResponse.json(
-          {
-            code: "SUBSCRIBE_CHECKOUT_FAILED",
-            message: "Não foi possível iniciar o checkout. Tente novamente.",
-          },
-          { status: 500 }
-        );
-      }
+        { status: 500 }
+      );
     }
 
-    const planInterval = plan === "annual" ? "year" : "month";
-    const trialEndSec =
-      typeof (sub as any).trial_end === "number" ? (sub as any).trial_end : null;
-    const currentPeriodEndSec =
-      typeof (sub as any).current_period_end === "number"
-        ? (sub as any).current_period_end
-        : null;
-    const resolvedExpiresAt =
-      sub.status === "incomplete"
-        ? null
-        : trialEndSec
-        ? new Date(trialEndSec * 1000)
-        : currentPeriodEndSec
-        ? new Date(currentPeriodEndSec * 1000)
-        : null;
-
-    // Sem clientSecret a assinatura foi cancelada e o pagamento virou checkout
-    // hospedado: não há nada para "retomar", então o status não vira pending.
-    const statusForDb = clientSecret
-      ? (sub.status === "incomplete" ? "pending" : (sub.status as any))
-      : ((user as any).planStatus ?? "inactive");
-
-    user.planStatus = statusForDb as any;
+    // O status só muda quando o webhook confirmar o pagamento: não há nada para
+    // "retomar" antes disso, então o status não vira pending.
+    user.planStatus = ((user as any).planStatus ?? "inactive") as any;
     user.planType = plan;
-    user.planInterval = planInterval;
+    user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
     user.cancelAtPeriodEnd = false;
-    user.planExpiresAt = resolvedExpiresAt;
+    user.planExpiresAt = null;
     (user as any).lastPaymentError = null;
-    (user as any).pendingCheckoutSessionId = clientSecret ? null : checkoutSessionId;
-    (user as any).pendingCheckoutExpiresAt = clientSecret ? null : checkoutExpiresAt;
-
-    user.stripeSubscriptionId = clientSecret ? sub.id : null;
+    (user as any).pendingCheckoutSessionId = sessionCheckout.id ?? null;
+    (user as any).pendingCheckoutExpiresAt =
+      typeof sessionCheckout.expires_at === "number"
+        ? new Date(sessionCheckout.expires_at * 1000)
+        : null;
+    user.stripeSubscriptionId = null;
 
     await user.save();
 
@@ -1111,21 +993,12 @@ export async function POST(req: NextRequest) {
       endpoint: "POST /api/billing/subscribe",
       userId,
       customerId,
-      subscriptionId: clientSecret ? sub.id : null,
-      statusDb: statusForDb ?? (user as any).planStatus ?? null,
-      statusStripe: sub.status ?? null,
+      subscriptionId: null,
+      statusDb: (user as any).planStatus ?? null,
+      statusStripe: null,
       errorCode: null,
-      stripeRequestId: clientSecret ? getStripeRequestId(refreshed ?? sub) : checkoutRequestId,
+      stripeRequestId: getStripeRequestId(sessionCheckout),
     });
-
-    if (clientSecret) {
-      return NextResponse.json({
-        clientSecret,
-        subscriptionId: sub.id,
-        affiliateApplied,
-        usedCouponType,
-      });
-    }
 
     return NextResponse.json({
       checkoutUrl,
