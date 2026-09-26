@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-19
+atualizado: 2026-09-26
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-19
 
 # Variáveis de ambiente
 
-**431 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**430 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -94,9 +94,9 @@ atualizado: 2026-09-19
 | Variável | Usos no código |
 | --- | --- |
 | `MCP_CAMPAIGN_RADAR_ENABLED` | 21 |
-| `MCP_SUPPORTED_SCOPES` | 13 |
+| `MCP_SUPPORTED_SCOPES` | 15 |
 | `MCP_ADMIN_SUPPORTED_SCOPES` | 12 |
-| `MCP_CONNECTION_SCOPES` | 9 |
+| `MCP_CONNECTION_SCOPES` | 11 |
 | `MCP_ADMIN_CONNECTION_SCOPES` | 8 |
 | `MCP_ADMIN_ENABLED` | 8 |
 | `MCP_OAUTH_PRIVATE_JWK` | 7 |
@@ -123,8 +123,8 @@ atualizado: 2026-09-19
 
 | Variável | Usos no código |
 | --- | --- |
-| `MONGODB_URI` | 15 |
-| `MONGODB_DB_NAME` | 7 |
+| `MONGODB_URI` | 21 |
+| `MONGODB_DB_NAME` | 10 |
 | `MONGODB_MAX_POOL_SIZE` | 1 |
 | `MONGODB_SERVER_SELECTION_TIMEOUT_MS` | 1 |
 | `MONGODB_SOCKET_TIMEOUT_MS` | 1 |
@@ -319,8 +319,8 @@ atualizado: 2026-09-19
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
+| `DB_NAME` | 10 |
 | `LLM_PROVIDER_MAPA` | 9 |
-| `DB_NAME` | 7 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
@@ -475,7 +475,6 @@ atualizado: 2026-09-19
 | `PLANNER_ALGO_VERSION` | 1 |
 | `PLANNER_BATCH_MEMORY_CACHE_MAX_ENTRIES` | 1 |
 | `PLANNER_BATCH_MEMORY_CACHE_TTL_MS` | 1 |
-| `PLANNER_FREEZE_TTL_DAYS` | 1 |
 | `PLANNER_THEMES_CACHE_MAX_ENTRIES` | 1 |
 | `PLANNER_THEMES_CACHE_TTL_MS` | 1 |
 | `PLANNER_THEMES_CACHE_VERSION` | 1 |

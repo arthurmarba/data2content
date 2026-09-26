@@ -43,11 +43,11 @@ async function topReelsFor(userId: string): Promise<Array<{ mediaId: string; thu
   const posts = await Metric.find({ user: userId, type: "REEL" })
     .sort({ "stats.total_interactions": -1 })
     .limit(6)
-    .select("instagramMediaId thumbnailUrl")
+    .select("instagramMediaId thumbnailUrl coverUrl")
     .lean();
   return (posts as any[])
     .filter((p) => p.instagramMediaId)
-    .map((p) => ({ mediaId: p.instagramMediaId as string, thumbnailUrl: p.thumbnailUrl ?? null }));
+    .map((p) => ({ mediaId: p.instagramMediaId as string, thumbnailUrl: p.thumbnailUrl || p.coverUrl || null }));
 }
 
 async function profilePicFor(userId: string): Promise<string | null> {
@@ -62,9 +62,9 @@ async function topPostThumbnailsFor(userId: string): Promise<Array<{ thumbnailUr
   const posts = await Metric.find({ user: userId })
     .sort({ "stats.total_interactions": -1 })
     .limit(6)
-    .select("thumbnailUrl")
+    .select("thumbnailUrl coverUrl")
     .lean();
-  return (posts as any[]).map((p) => ({ thumbnailUrl: p.thumbnailUrl ?? null }));
+  return (posts as any[]).map((p) => ({ thumbnailUrl: p.thumbnailUrl || p.coverUrl || null }));
 }
 
 // ─── Injeção de imagens e vídeo ─────────────────────────────────────────────

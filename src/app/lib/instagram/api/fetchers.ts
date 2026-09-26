@@ -139,6 +139,13 @@ function withoutMetrics(metrics: string, remove: string[]): string {
     .join(',');
 }
 
+function unsupportedOptionalMetric(message: string, requestedMetrics: string): string | null {
+  if (!/\(#100\)/.test(message)) return null;
+  const rejected = /does not support the ([a-z_]+) metric/i.exec(message)?.[1]?.toLowerCase();
+  if (!rejected) return null;
+  return optionalMetricsIn(requestedMetrics).includes(rejected) ? rejected : null;
+}
+
 export function resetMediaInsightMetricRejectionsForTests(): void {
   rejectedOptionalMetrics.clear();
 }
@@ -232,8 +239,18 @@ export async function fetchMediaInsights(
     }
     return { success: true, data: insights as IMetricStats, requestedMetrics: effectiveMetrics };
   } catch (error: any) {
-    logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}):`, error);
     const message = error.message || String(error);
+    const rejectedMetric = retryWithoutOptional
+      ? unsupportedOptionalMetric(message, effectiveMetrics)
+      : null;
+    if (rejectedMetric) {
+      const known = rejectedOptionalMetrics.get(metricsToFetch) ?? new Set<string>();
+      known.add(rejectedMetric);
+      rejectedOptionalMetrics.set(metricsToFetch, known);
+      logger.info(`[${logContext}] API recusou ${rejectedMetric} para Mídia ${mediaId}. Repetindo sem essa métrica.`);
+      return fetchMediaInsights(mediaId, accessToken, metricsToFetch, false);
+    }
+    logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}):`, error);
     return {
       success: false,
       error: `Erro interno ao buscar insights de mídia: ${message}`,

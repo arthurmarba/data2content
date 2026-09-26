@@ -61,7 +61,6 @@ const METRIC_OPTIONS: { value: TopMoverMetric; label: string }[] = [
     { value: 'cumulativeComments', label: 'Comentários (acumulado até a data)' },
     { value: 'cumulativeSaved', label: 'Salvamentos (acumulado até a data)' },
     { value: 'cumulativeReach', label: 'Alcance (acumulado até a data)' },
-    { value: 'cumulativeImpressions', label: 'Impressões (acumulado até a data)' },
     { value: 'cumulativeTotalInteractions', label: 'Interações Totais (acumulado até a data)' },
 ];
 

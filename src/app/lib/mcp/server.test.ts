@@ -787,6 +787,10 @@ describe("Data2Content MCP server", () => {
         "list_top_content",
         "compare_content_formats",
       ]);
+      // O diretório de conectores do Claude exige o nome legível em annotations.title.
+      expect(
+        tools.filter((tool) => !tool.annotations?.title || tool.annotations.title !== tool.title).map((tool) => tool.name),
+      ).toEqual([]);
       expect(tools.find((tool) => tool.name === "generate_script_draft")?.annotations).toMatchObject({
         readOnlyHint: false,
         idempotentHint: false,

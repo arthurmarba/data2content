@@ -7,6 +7,40 @@ import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod } from '@/
 import { IUser } from '@/app/models/User';
 
 /**
+ * Foto, bio e site só são lidos no registro mais recente que tem foto (mídia kit, avatar,
+ * landing, IA). Copiá-los em cada registro somava ~21 MB, com 98% das fotos já vencidas no CDN.
+ * Seguidores e contagens ficam: são a série histórica.
+ */
+export const SUPERSEDED_PROFILE_FIELDS = [
+  'accountDetails.profile_picture_url',
+  'accountDetails.biography',
+  'accountDetails.website',
+] as const;
+
+async function stripSupersededProfileCopies(
+  userId: Types.ObjectId,
+  accountId: string,
+  keepId: Types.ObjectId,
+  recordedAt: Date
+): Promise<void> {
+  try {
+    await AccountInsightModel.updateMany(
+      {
+        user: userId,
+        instagramAccountId: accountId,
+        _id: { $ne: keepId },
+        recordedAt: { $lt: recordedAt },
+        $or: SUPERSEDED_PROFILE_FIELDS.map(field => ({ [field]: { $exists: true } })),
+      },
+      { $unset: Object.fromEntries(SUPERSEDED_PROFILE_FIELDS.map(field => [field, ''])) },
+      { timestamps: false }
+    );
+  } catch (error) {
+    logger.warn('[saveAccountInsightData] Falha não fatal ao retirar cópias antigas de foto/bio.', error);
+  }
+}
+
+/**
  * Salva um snapshot dos dados de insights da conta e detalhes básicos do perfil.
  * REMOVIDO: A lógica para salvar dados demográficos foi removida para evitar duplicação.
  * A demografia agora é salva em sua própria coleção através de um processo separado.
@@ -61,7 +95,10 @@ export async function saveAccountInsightData(
 
     if (hasDataToSave) {
       await connectToDatabase();
-      await AccountInsightModel.create(snapshot);
+      const created = await AccountInsightModel.create(snapshot);
+      if (snapshot.accountDetails?.profile_picture_url) {
+        await stripSupersededProfileCopies(userId, accountId, created._id, created.recordedAt);
+      }
       logger.info(`${TAG} Snapshot de dados da conta salvo com sucesso para User ${userId}. Insights: ${!!snapshot.accountInsightsPeriod}, Details: ${!!snapshot.accountDetails}`);
     } else {
       logger.warn(`${TAG} Nenhum dado novo para salvar no snapshot de AccountInsight para User ${userId}.`);

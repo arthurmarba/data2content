@@ -15,6 +15,8 @@
     "brain": "node scripts/brain/gerar-inventario.mjs",
     "maintenance:mongo-storage": "node --env-file=.env.local scripts/maintainMongoStorage.mjs",
     "test:mongo-storage": "node --test scripts/maintainMongoStorage.test.mjs",
+    "maintenance:mongo-fields": "node --env-file=.env.local scripts/trimUnusedMongoFields.mjs",
+    "test:mongo-fields": "node --test scripts/trimUnusedMongoFields.test.mjs",
     "typecheck": "npm run smoke:types",
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "jest --watchAll=false",

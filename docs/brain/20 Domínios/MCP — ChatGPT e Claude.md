@@ -294,3 +294,87 @@ usa porta local variável no callback OAuth, mas `createMcpConsentRequest` exigi
 correspondência exata com a URI registrada. A correção permite variar somente
 a porta de um callback HTTP loopback com mesmo host, caminho e query, mantendo
 comparação exata para qualquer outro endereço.
+
+## Pesquisa de inspirações por assunto — 25/09/2026
+
+`research_inspiration_content` não pode selecionar os posts mais recentes e só
+depois filtrar o tema em memória. Com 300 candidatos recentes, a busca por
+“marketing” devolvia vazio apesar de haver posts elegíveis dentro dos 180 dias
+pedidos. No modo `by_topic`, aplique a pré-seleção por palavras normalizadas nos
+campos pesquisáveis antes de `$sort` e `$limit`; aceite as variantes com e sem
+acento. O ranking continua sendo feito em memória sobre os candidatos encontrados.
+
+Falhas de ferramenta podem voltar ao cliente como resposta MCP mesmo quando a
+requisição HTTP termina com 200. Na investigação, confira `[mcp][tool_call_failed]`;
+registre código e nome do erro do Mongo, sem mensagem nem consulta com dados do
+creator. Não use apenas o status HTTP para concluir que todas as ferramentas
+funcionaram.
+
+## Imagens dentro da resposta — 25/09/2026
+
+`get_creator_images` (MCP administrativo, `creatorImages.ts`) devolve a foto de perfil
+e as capas dos posts **como bloco de imagem**, não como link. O Claude trabalha com lista
+fechada de domínios e `fbcdn.net` não está nela: link de capa ali é link morto. O servidor
+da D2C baixa (só de hosts do Instagram), reduz para 480px e manda os bytes.
+
+- A capa **existe no banco**: `Metric.coverUrl` (e `thumbnailUrl` quando diferente). O
+  contrato textual do MCP é que não a expõe — não confundir com "a base não guarda".
+- URL do Instagram vence. Se a guardada falhar e a conta estiver conectada, pede uma nova
+  à Meta (`fetchSingleInstagramMedia` / `profile_picture_url`) **sem gravar** — o MCP
+  administrativo é somente leitura. Conta desconectada: devolve
+  `url_expired_and_account_disconnected`, nunca inventa imagem.
+- Teto de 12 imagens por chamada; os bytes não entram no JSON auditado.
+
+## Plugin do Claude — 25/09/2026
+
+Além de colar o endereço do MCP como conector, o criador pode instalar o plugin
+`data2content`. Foi montado em `claude-plugin/` (só no computador do Arthur, fora
+do repositório), já no formato de marketplace:
+`.claude-plugin/marketplace.json` na raiz da pasta e o plugin em
+`plugins/data2content/` (conector em `.mcp.json` apontando para
+`https://data2content.ai/api/mcp`, mais seis skills). A skill `data2content` é o
+guia — vocabulário, `get_account_state` primeiro, mapa como dicionário, nunca
+vender. As outras cinco são os mesmos atalhos registrados como prompts no
+`server.ts` (`o-que-postar`, `vale-postar`, `minha-semana`, `achar-collab`,
+`roteiro`). **Mudou um prompt no servidor, muda a skill** — não há teste que
+amarre os dois.
+
+O plugin não tem login próprio: usa o mesmo OAuth com DCR do conector. Conferir
+com `claude plugin validate claude-plugin` e
+`claude --plugin-dir claude-plugin/plugins/data2content mcp list` (deve mostrar
+"Needs authentication" antes do login).
+
+Distribuir exige um repositório público com o `marketplace.json` na raiz — este
+repositório tem o arquivo numa subpasta. O plugin é extra opcional e não foi
+publicado.
+
+**O que o Arthur queria era o conector no diretório do Claude**, não o plugin:
+a Data2Content aparecendo em Configurações → Conectores para o criador conectar
+com um clique. O envio é pelo portal `claude.ai/directory/manage` (qualquer plano
+pago pode enviar) e pede página pública de ajuda com exemplos — criada em
+`/conector-claude` — e política de privacidade que cite Claude e Anthropic, não
+só ChatGPT e OpenAI. Textos do formulário e checklist em
+`docs/claude-conector-diretorio.md`. A conta de revisão da OpenAI
+(`openai-review-pro@`) serve para o revisor da Anthropic.
+
+**Rasteira vista no teste:** `authenticateMcpRequest` exigia *todos* os scopes de
+`getMcpConnectionScopes()` em cada requisição. Conexão feita antes de um scope
+novo entrar (ex.: `campaigns:read`) passava a receber 403 em tudo, não só na
+ferramenta nova — o conector do próprio Arthur no Claude estava assim em 25/09.
+
+Corrigido em 25/09 com o aval do Arthur: a conexão agora exige só o scope básico
+(`getMcpRequiredScope()`, `profile:read`), igual ao MCP admin, e cada ferramenta
+cobra o seu via `scopeRequiredResult` — que já existia em todas. Conexão antiga
+continua funcionando; só a ferramenta nova pede reconexão. Isso não afrouxa o que
+cada ferramenta exige. O anúncio (`WWW-Authenticate` e metadata) continua pedindo
+o conjunto completo, então conexão nova nasce com tudo. Testes em
+`adminAuthIsolation.test.ts`. Ao criar ferramenta nova, **sempre** ponha o
+`hasScope` dela: a entrada não protege mais por você.
+
+## Reenvio à OpenAI — 26/09/2026
+
+A 1.0.0 foi recusada por "login não concluído". A causa está em
+[[Login do plugin conclui e a conexão morre]]. A versão reenviada leva 28 ferramentas
+(as duas consultas públicas por @ ganharam justificativa), nota ao revisor sobre a
+correção e o override de scopes removido de novo. O Claude recebeu a Data2Content
+no diretório de conectores em 26/09, com status "Em revisão".

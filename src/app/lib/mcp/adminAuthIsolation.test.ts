@@ -139,6 +139,34 @@ describe("MCP subscriber/admin token isolation", () => {
     });
   });
 
+  it("accepts the exact scope set the ChatGPT reviewer received on 2026-09-22", async () => {
+    // O ChatGPT pede os scopes declarados pelas ferramentas; strategy:read e
+    // audience:read nunca vieram. Exigir o conjunto inteiro na entrada fez a
+    // revisão da OpenAI recusar o plugin por "login não concluído".
+    const reviewerScopes = [
+      "collabs:read", "profile:read", "intelligence:read", "metrics:read", "profile:write",
+      "scripts:generate", "campaigns:read", "content:read", "scripts:write",
+    ];
+    process.env.MCP_CONNECTION_SCOPES =
+      "profile:read,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write,campaigns:read";
+    process.env.MCP_SUPPORTED_SCOPES =
+      "profile:read,profile:write,metrics:read,strategy:read,content:read,intelligence:read,audience:read,collabs:read,scripts:generate,scripts:write,campaigns:read";
+    try {
+      mockJwtVerify.mockResolvedValue({
+        payload: { sub: userId, d2c_user_id: userId, scope: reviewerScopes.join(" ") },
+        protectedHeader: { alg: "ES256" },
+      } as never);
+      const request = new Request("https://data2content.ai/api/mcp", {
+        headers: { authorization: "Bearer chatgpt-reviewer-token" },
+      });
+
+      await expect(authenticateMcpRequest(request)).resolves.toMatchObject({ userId });
+    } finally {
+      process.env.MCP_CONNECTION_SCOPES = "profile:read,metrics:read";
+      process.env.MCP_SUPPORTED_SCOPES = "profile:read,metrics:read";
+    }
+  });
+
   it("rejects subscriber tokens without the baseline scope", async () => {
     mockJwtVerify.mockResolvedValue({
       payload: { sub: userId, d2c_user_id: userId, scope: "admin:creators:search" },

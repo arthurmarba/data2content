@@ -94,12 +94,16 @@ export interface InstagramMetricsSummary {
   deltas: InstagramMetricDeltas;
   /** Number of posts sampled in the current window. */
   postsAnalyzed: number;
+  /** Number of published posts in the current window, including posts without insights. */
+  postsPublishedInWindow: number;
   /** Current sample window in days. */
   sampleWindowDays: number;
   /** Previous comparison window in days. */
   comparisonWindowDays: number;
-  /** Newest post date in the current sample window. */
+  /** Newest published post date in the current window, even when insights are missing. */
   newestPostDate: string | null;
+  /** Newest post date with reach-compatible insights in the current window. */
+  newestAnalyzedPostDate: string | null;
   /**
    * Weekly average reach for the last 6 weeks (oldest first -> newest last).
    * Used by the Diagnóstico tile sparkline. 0 for weeks without posts.
@@ -505,12 +509,14 @@ export function summarizeInstagramMetrics(
   const currentStart = shiftDays(now, -SAMPLE_WINDOW_DAYS);
   const previousStart = shiftDays(currentStart, -COMPARISON_WINDOW_DAYS);
 
-  const currentMetrics = metrics
+  const currentPosts = metrics
     .filter((metric) => {
       const date = toDate(metric.postDate);
-      return Boolean(date && date >= currentStart && date <= now && isAnalyzableMetric(metric));
+      return Boolean(date && date >= currentStart && date <= now);
     })
     .sort((a, b) => (toDate(b.postDate)?.getTime() ?? 0) - (toDate(a.postDate)?.getTime() ?? 0));
+
+  const currentMetrics = currentPosts.filter(isAnalyzableMetric);
 
   if (currentMetrics.length === 0) return null;
 
@@ -562,7 +568,8 @@ export function summarizeInstagramMetrics(
 
   const formatPerformance = buildFormatPerformance(currentMetrics);
   const topFormats = formatPerformance.slice(0, 3).map((item) => item.format);
-  const newestPostDate = toDate(currentMetrics[0]?.postDate);
+  const newestPostDate = toDate(currentPosts[0]?.postDate);
+  const newestAnalyzedPostDate = toDate(currentMetrics[0]?.postDate);
 
   return {
     ...currentAverages,
@@ -586,9 +593,11 @@ export function summarizeInstagramMetrics(
       avgIntentActionsPerPost: deltaRatio(currentAverages.avgIntentActionsPerPost, previousAverages.avgIntentActionsPerPost),
     },
     postsAnalyzed: currentMetrics.length,
+    postsPublishedInWindow: currentPosts.length,
     sampleWindowDays: SAMPLE_WINDOW_DAYS,
     comparisonWindowDays: COMPARISON_WINDOW_DAYS,
     newestPostDate: newestPostDate ? newestPostDate.toISOString() : null,
+    newestAnalyzedPostDate: newestAnalyzedPostDate ? newestAnalyzedPostDate.toISOString() : null,
     reachOverTime: bucketReachByWeek(currentMetrics, REACH_OVER_TIME_WEEKS, now),
     bestDayOfWeek: buildBestDayOfWeek(currentMetrics),
   };
@@ -611,11 +620,6 @@ export async function buildInstagramMetricsSummary(
     const metrics = await MetricModel.find({
       user: new Types.ObjectId(userId),
       postDate: { $gte: queryStart },
-      $or: [
-        { "stats.reach": { $gt: 0 } },
-        { "stats.views": { $gt: 0 } },
-        { "stats.impressions": { $gt: 0 } },
-      ],
     })
       .sort({ postDate: -1 })
       .select("postDate format type context stats")

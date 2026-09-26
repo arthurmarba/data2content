@@ -64,6 +64,12 @@ it("resposta cortada fica recuperável sem repetir a chamada", async () => {
   expect((await run()).candidates?.[0]?.finishReason).toBe("MAX_TOKENS");
   expect(generateContent).toHaveBeenCalledTimes(1);
 });
+it("recibo compactado depois da leitura concluída não autoriza pagar de novo", async () => {
+  await run();
+  await Operation.updateOne({}, { $set: { outcome: "complete", response: { usageMetadata: { promptTokenCount: 100 }, compactedAt: new Date() } } });
+  await expect(run()).rejects.toThrow("gemini_result_unknown");
+  expect(generateContent).toHaveBeenCalledTimes(1);
+});
 it("mudança de contexto não reinterpreta códigos do mapa nem autoriza nova leitura", async () => {
   await run();
   await expect(run("post", "criador", "outro mapa")).rejects.toThrow("gemini_request_changed");

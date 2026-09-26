@@ -168,7 +168,8 @@ function buildToolDescriptor(name: string, config: D2CToolConfig) {
           }),
         }
       : {}),
-    annotations: config.annotations,
+    // O diretório de conectores do Claude lê o nome legível em annotations.title.
+    annotations: { title: config.title, ...config.annotations },
     securitySchemes: config.securitySchemes,
     _meta: {
       ...config._meta,
@@ -950,12 +951,21 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         });
         return appendFreeClosingReminder(name, result, context);
       } catch (error) {
+        const dbError = error && typeof error === "object"
+          ? error as { code?: unknown; codeName?: unknown }
+          : null;
         logger.error("[mcp][tool_call_failed]", {
           tool: name,
           accountRef,
           clientId: context.identity.clientId || "unknown",
           durationMs: Date.now() - startedAt,
           errorCode: error instanceof Error ? error.name : "unknown_error",
+          // Códigos do Mongo ajudam a identificar a falha sem registrar consultas,
+          // mensagens ou dados privados do creator.
+          dbErrorCode: typeof dbError?.code === "number" ? dbError.code : undefined,
+          dbErrorCodeName: typeof dbError?.codeName === "string" && /^[A-Za-z0-9_]{1,60}$/.test(dbError.codeName)
+            ? dbError.codeName
+            : undefined,
         });
         throw error;
       }
@@ -1940,7 +1950,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Resumir performance do Instagram",
       description:
-        "Use this when the user asks for a strategic summary of their Instagram performance in the current 60-day analysis window.",
+        "Use this when the user asks for a strategic summary of their Instagram performance in the current 60-day analysis window. newestPostDate is the latest published post; newestAnalyzedPostDate is the latest post with reach-compatible insights. If they differ, explain the metrics gap, not a posting gap. For posting frequency or content count, use analyze_creator_period.",
       annotations: READ_ONLY_ANNOTATIONS,
       securitySchemes: oauthSecuritySchemes("metrics:read"),
     },
