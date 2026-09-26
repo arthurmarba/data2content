@@ -5,6 +5,8 @@ import { User } from "@/server/db/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
 import { getErrorMessage, withMongoTransientRetry } from "@/app/lib/mongoTransient";
+import { isStripeResourceMissingError } from "@/utils/stripeHelpers";
+import { applyEndedSubscriptionToUser } from "@/app/lib/billing/stripeSubscriptionSync";
 import {
   findUserByCustomerId,
   markEventIfNew,
@@ -160,6 +162,114 @@ function isSubscriptionMismatch(
   }
 
   return true;
+}
+
+/** Assinatura que acabou e não volta a cobrar. */
+const ENDED_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
+/** Assinatura que cobra ou ainda pode voltar a cobrar. */
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"]);
+
+/**
+ * O id gravado pode apontar para uma assinatura morta enquanto a pessoa paga
+ * outra do mesmo cliente: a tela de assinar criava uma assinatura e a cancelava
+ * dois segundos depois, e os avisos dessa "fantasma" gravavam o id dela. Se os
+ * avisos da assinatura verdadeira forem descartados como "de outra assinatura",
+ * cancelamento e falha de pagamento nunca chegam ao banco.
+ *
+ * Adota a assinatura do aviso quando a gravada já acabou e a do aviso está viva
+ * ou é mais nova. Só consulta o Stripe quando os ids divergem.
+ */
+async function shouldAdoptEventSubscription(
+  user: any,
+  eventSubscription: Stripe.Subscription | string,
+  event: Stripe.Event
+): Promise<boolean> {
+  const currentId: string | null = user.stripeSubscriptionId ?? null;
+  const eventSubscriptionId =
+    typeof eventSubscription === "string" ? eventSubscription : eventSubscription.id;
+  if (!currentId || !eventSubscriptionId || currentId === eventSubscriptionId) return false;
+
+  const meta = buildEventMeta(user, event, {
+    eventSubscriptionId,
+    currentSubscriptionId: currentId,
+  });
+
+  try {
+    let stored: Stripe.Subscription | null = null;
+    try {
+      stored = await stripe.subscriptions.retrieve(currentId);
+    } catch (error) {
+      // Id de outro ambiente ou apagado: não protege nada.
+      if (!isStripeResourceMissingError(error, "subscription")) throw error;
+    }
+    if (stored && !ENDED_SUBSCRIPTION_STATUSES.has(String(stored.status))) return false;
+
+    const incoming =
+      typeof eventSubscription === "string"
+        ? await stripe.subscriptions.retrieve(eventSubscriptionId)
+        : eventSubscription;
+    const incomingIsLive = LIVE_SUBSCRIPTION_STATUSES.has(String(incoming.status));
+    const incomingIsNewer = !stored || (incoming.created ?? 0) >= (stored.created ?? 0);
+    if (!incomingIsLive && !incomingIsNewer) return false;
+
+    logger.info("stripe_stale_subscription_adopted", {
+      ...meta,
+      storedStatus: stored ? stored.status : "missing",
+      incomingStatus: incoming.status,
+    });
+    return true;
+  } catch (error) {
+    logger.warn("stripe_stale_subscription_check_failed", {
+      ...meta,
+      error: getErrorMessage(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * O aviso "pagamento falhou" não diz como a assinatura ficou. A última tentativa
+ * da cobrança e o cancelamento saem com dois segundos de diferença e podem
+ * chegar em qualquer ordem; gravar "atrasado" às cegas deixava quem já foi
+ * cancelado preso nesse status. Devolve o status a gravar, ou `null` para não
+ * mexer no status.
+ */
+async function resolvePaymentFailedStatus(
+  user: any,
+  subscriptionId: string | null,
+  invoiceStatus: string | undefined,
+  event: Stripe.Event
+): Promise<Normalized["planStatus"] | null> {
+  const fallback: Normalized["planStatus"] = invoiceStatus === "uncollectible" ? "unpaid" : "past_due";
+  if (!subscriptionId) return fallback;
+
+  let liveStatus: string;
+  try {
+    const sub = await withRetries(() => stripe.subscriptions.retrieve(subscriptionId), {
+      context: buildEventMeta(user, event, {
+        action: "retrieve_subscription",
+        subscriptionId,
+      }),
+    });
+    liveStatus = String(sub.status);
+  } catch (error) {
+    logger.warn("stripe_payment_failed_subscription_unavailable", {
+      ...buildEventMeta(user, event, { subscriptionId }),
+      error: getErrorMessage(error),
+    });
+    return fallback;
+  }
+
+  // Já cancelada: quem grava o fim é o aviso de cancelamento.
+  // Ainda ativa: outra tentativa passou ou é troca de plano pendente.
+  if (ENDED_SUBSCRIPTION_STATUSES.has(liveStatus) || liveStatus === "active" || liveStatus === "trialing") {
+    logger.info("stripe_payment_failed_status_kept", {
+      ...buildEventMeta(user, event, { subscriptionId, subscriptionStatus: liveStatus }),
+    });
+    return null;
+  }
+  if (liveStatus === "unpaid" || liveStatus === "incomplete") return liveStatus;
+  return fallback;
 }
 
 /* ---------------------- Helpers de extração ---------------------- */
@@ -662,7 +772,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
       // 1) Atualiza billing pela assinatura
       const subId = getSubscriptionIdFromInvoice(invoice);
-      if (subId && isSubscriptionMismatch(user, subId, event)) return;
+      if (
+        subId &&
+        isSubscriptionMismatch(user, subId, event) &&
+        !(await shouldAdoptEventSubscription(user, subId, event))
+      ) {
+        return;
+      }
 
       const eventDate = eventCreatedDate(event) ?? new Date();
       const userEmail = typeof user.email === "string" ? user.email : null;
@@ -874,7 +990,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
       if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       const subId = getSubscriptionIdFromInvoice(invoice);
-      if (subId && isSubscriptionMismatch(user, subId, event)) return;
+      if (
+        subId &&
+        isSubscriptionMismatch(user, subId, event) &&
+        !(await shouldAdoptEventSubscription(user, subId, event))
+      ) {
+        return;
+      }
 
       const userEmail = typeof user.email === "string" ? user.email : null;
       const userName = typeof user.name === "string" ? user.name : null;
@@ -899,14 +1021,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
       };
 
       const invoiceStatus = typeof invoice.status === "string" ? invoice.status : undefined;
-      let desiredStatus: Normalized["planStatus"] | undefined = "past_due";
-      if (invoiceStatus === "uncollectible") desiredStatus = "unpaid";
+      const desiredStatus = await resolvePaymentFailedStatus(user, subId, invoiceStatus, event);
 
       if (desiredStatus) {
         (user as any).planStatus = toDbPlanStatus(desiredStatus);
       }
 
       if (subId) {
+        // A que falhou passa a ser a gravada: já era, não havia nenhuma, ou foi
+        // adotada porque a gravada estava morta.
+        (user as any).stripeSubscriptionId = subId;
         (user as any).lastSubscriptionEventId = event.id;
       }
 
@@ -1050,7 +1174,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
         }
       }
 
-      if (subId && isSubscriptionMismatch(user, subId, event)) return;
+      if (
+        subId &&
+        isSubscriptionMismatch(user, subId, event) &&
+        !(await shouldAdoptEventSubscription(user, subId, event))
+      ) {
+        return;
+      }
 
       let updated = false;
       const eventDate = eventCreatedDate(event) ?? new Date();
@@ -1172,7 +1302,9 @@ export async function handleStripeEvent(event: Stripe.Event) {
             newStatus: newStatus,
           });
           // Prossegue para atualizar o usuário com a nova assinatura
-        } else {
+        } else if (!(await shouldAdoptEventSubscription(user, subEventObj, event))) {
+          // A gravada segue viva: o aviso é de outra assinatura e não vale.
+          // Se ela já morreu, a do aviso passa a valer mesmo com o banco "ativo".
           return;
         }
       }
@@ -1257,21 +1389,17 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const userEmail = typeof user.email === "string" ? user.email : null;
       const userName = typeof user.name === "string" ? user.name : null;
 
-      if (isSubscriptionMismatch(user, sub.id, event, { requireMatch: true })) return;
+      if (
+        isSubscriptionMismatch(user, sub.id, event, { requireMatch: true }) &&
+        !(await shouldAdoptEventSubscription(user, sub, event))
+      ) {
+        return;
+      }
 
       if (shouldIgnoreOutOfOrderEvent(user, event)) return;
 
       // Marca como cancelada; zera flags que confundem o UI
-      (user as any).planStatus = "canceled";
-      (user as any).cancelAtPeriodEnd = false;
-      (user as any).stripeSubscriptionId = sub.id;
-      (user as any).stripePriceId = null;
-      (user as any).planInterval = undefined; // não usar null aqui
-      (user as any).planExpiresAt =
-        typeof (sub as any)?.ended_at === "number"
-          ? new Date((sub as any).ended_at * 1000)
-          : new Date();
-      (user as any).currentPeriodEnd = (user as any).planExpiresAt;
+      applyEndedSubscriptionToUser(user as any, sub);
       (user as any).lastSubscriptionEventId = event.id;
       (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
 

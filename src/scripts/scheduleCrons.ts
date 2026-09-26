@@ -55,6 +55,15 @@ const CRONS = [
     method: 'POST',
     body: '[BILLING_EXPIRE_TRIALS] Marcar trials expirados como inativos',
   },
+  {
+    // Confere banco × Stripe, corrige o que não tira acesso e manda relatório
+    // quando algo pede atenção (e toda segunda, completo).
+    id: 'billing-stripe-reconcile',
+    destination: 'https://data2content.ai/api/cron/stripe-reconcile',
+    cron: '0 12 * * *', // 09:00 BRT
+    method: 'POST',
+    body: '[BILLING_STRIPE_RECONCILE] Conferência diária banco × Stripe',
+  },
   // [DESATIVADO] whatsapp-tips-4x-week: dicas baseadas em métricas de performance.
   // Removido por conflito com a filosofia do produto — 1 mensagem/semana via mapa-whatsapp-weekly.
   {

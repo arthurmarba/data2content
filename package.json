@@ -64,6 +64,7 @@
     "repair:affiliate-ledger": "tsx --env-file=.env.local ./scripts/repairAffiliateLedger.ts",
     "migrate:affiliate-financial-safety": "tsx --env-file=.env.local ./scripts/migrateAffiliateFinancialSafety.ts",
     "audit:affiliate-financial-integrity": "tsx --env-file=.env.local ./scripts/auditAffiliateFinancialIntegrity.ts",
+    "audit:stripe-subscriptions": "tsx --env-file=.env.local ./scripts/auditStripeSubscriptions.ts",
     "repair:affiliate-attributions": "tsx --env-file=.env.local ./scripts/repairInvalidAffiliateAttributions.ts",
     "update:cpm-seed": "tsx --env-file=.env.local ./src/scripts/updateCpmSeed.ts",
     "schedule:crons": "tsx src/scripts/scheduleCrons.ts",

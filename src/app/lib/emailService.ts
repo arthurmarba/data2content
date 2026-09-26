@@ -9,6 +9,8 @@ import { vipInviteEmail } from '@/emails/vipInvite';
 import { freeMonthEndingEmail } from '@/emails/freeMonthEnding';
 import { pluginWeeklyEmail, type PluginWeeklyEmailParams } from '@/emails/pluginWeekly';
 import { mcpUsageWeeklyEmail } from '@/emails/mcpUsageWeekly';
+import { stripeReconcileReportEmail } from '@/emails/stripeReconcileReport';
+import type { PendenciasHumanas, ResultadoConciliacao } from '@/app/lib/billing/stripeReconciliationRun';
 import type { McpUsageReport } from '@/app/lib/mcp/usageReport';
 import { proposalReplyEmail, ProposalReplyEmailParams } from '@/emails/proposalReply';
 import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/proposalReceivedEmail';
@@ -262,6 +264,16 @@ export async function sendPluginWeeklyEmail(to: string, params: PluginWeeklyEmai
 /** Resumo semanal interno do uso do conector. Lança em caso de falha. */
 export async function sendMcpUsageWeeklyEmail(to: string, report: McpUsageReport, adminUrl: string) {
   const template = mcpUsageWeeklyEmail(report, adminUrl);
+  await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
+}
+
+/** Relatório interno da conferência banco × Stripe. Lança em caso de falha. */
+export async function sendStripeReconcileReportEmail(
+  to: string,
+  resultado: ResultadoConciliacao,
+  pendencias: PendenciasHumanas,
+) {
+  const template = stripeReconcileReportEmail(resultado, pendencias);
   await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
 }
 

@@ -11,17 +11,16 @@ import {
   isStripeResourceMissingError,
   persistStaleStripeBillingPatch,
 } from "@/utils/stripeHelpers";
+import {
+  applyBillingStateToUser,
+  billingStateFromSubscription,
+  pickBestSubscription,
+} from "@/app/lib/billing/stripeSubscriptionSync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const cacheHeader = { "Cache-Control": "no-store, max-age=0" } as const;
-
-// utilito: garante número (seguro p/ campos do Stripe que podem vir como string)
-function toNumberOrNull(v: unknown): number | null {
-  const n = typeof v === "string" ? Number(v) : (v as number);
-  return Number.isFinite(n) ? (n as number) : null;
-}
 
 const subscriptionExpand: string[] = [
   "items.data.price",
@@ -36,48 +35,6 @@ const subscriptionListExpand: string[] = [
   "data.latest_invoice.payment_intent",
   "data.latest_invoice.payment_intent.payment_method",
 ];
-
-function pickLatest(subs: Stripe.Subscription[]): Stripe.Subscription | null {
-  if (!subs.length) return null;
-  return subs.sort((a, b) => (b.created ?? 0) - (a.created ?? 0))[0] ?? null;
-}
-
-function pickBestSubscription(subs: Stripe.Subscription[]): Stripe.Subscription | null {
-  const pickByStatus = (statuses: string[]) =>
-    pickLatest(subs.filter((s) => statuses.includes(String(s.status))));
-  return (
-    pickByStatus(["active", "trialing"]) ||
-    pickByStatus(["past_due", "unpaid"]) ||
-    pickByStatus(["incomplete"]) ||
-    pickByStatus(["canceled"]) ||
-    null
-  );
-}
-
-function getPlanInterval(sub: Stripe.Subscription): "month" | "year" | null {
-  const raw =
-    sub.items?.data?.[0]?.price?.recurring?.interval ??
-    (sub.items?.data?.[0] as any)?.plan?.interval;
-  return raw === "month" || raw === "year" ? raw : null;
-}
-
-function planTypeFromInterval(interval: "month" | "year" | null): "monthly" | "annual" | null {
-  if (interval === "month") return "monthly";
-  if (interval === "year") return "annual";
-  return null;
-}
-
-function datesEqual(a: unknown, b: Date | null): boolean {
-  const aTime =
-    a instanceof Date
-      ? a.getTime()
-      : typeof a === "string" || typeof a === "number"
-      ? new Date(a).getTime()
-      : null;
-  const bTime = b ? b.getTime() : null;
-  if (aTime == null || Number.isNaN(aTime)) return bTime == null;
-  return aTime === bTime;
-}
 
 export async function GET(_req: NextRequest) {
   try {
@@ -193,24 +150,11 @@ export async function GET(_req: NextRequest) {
       .toString()
       .toUpperCase();
 
-    // ---------- Datas de ciclo ----------
-    // cancel_at, se definido (em segundos)
-    const cancelAtSec = toNumberOrNull((sub as any).cancel_at);
-
-    // current_period_end (preferir do root; se não, min por item como fallback)
-    const subCpeSec = toNumberOrNull((sub as any).current_period_end);
-    const itemsCpeSecs =
-      sub.items?.data
-        ?.map((it: any) => toNumberOrNull(it?.current_period_end))
-        ?.filter((n: number | null): n is number => typeof n === "number") ?? [];
-    const minItemEndSec = itemsCpeSecs.length ? Math.min(...itemsCpeSecs) : null;
-
-    const endSec = cancelAtSec ?? subCpeSec ?? minItemEndSec;
-    const periodEndIso = endSec ? new Date(endSec * 1000).toISOString() : null;
-
-    let cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
-    const planInterval = getPlanInterval(sub);
-    const planType = planTypeFromInterval(planInterval);
+    // ---------- Status, ciclo e plano (mesma regra da conferência do Stripe) ----------
+    const state = billingStateFromSubscription(sub);
+    const { cancelAtPeriodEnd, effectiveStatus, isTrialing } = state;
+    const periodEndIso = state.endSec ? new Date(state.endSec * 1000).toISOString() : null;
+    const trialEndIso = state.trialEndSec ? new Date(state.trialEndSec * 1000).toISOString() : null;
 
     // ---------- Payment method ----------
     const pmExplicit =
@@ -230,92 +174,8 @@ export async function GET(_req: NextRequest) {
 
     const pm = pmExplicit ?? pmFromPI ?? null;
 
-    // ---------- Trial ----------
-    const trialEndSec = toNumberOrNull((sub as any).trial_end);
-    const trialEndIso = trialEndSec ? new Date(trialEndSec * 1000).toISOString() : null;
-
-    // ---------- Status efetivo ----------
-    const rawStatus = sub.status as string;
-    const inTrialNow = typeof trialEndSec === "number" && trialEndSec * 1000 > Date.now();
-    let statusForDb = rawStatus === "incomplete" ? "pending" : rawStatus;
-
-    // (1) Força 'trialing' se há trial em andamento, mesmo se Stripe trouxer 'active'
-    let effectiveStatus: "active" | "trialing" | "non_renewing" | "pending" | typeof rawStatus =
-      inTrialNow ? "trialing" : rawStatus;
-
-    const nonRenewingEnded =
-      cancelAtPeriodEnd &&
-      typeof endSec === "number" &&
-      endSec * 1000 <= Date.now() &&
-      (rawStatus === "active" || rawStatus === "trialing");
-
-    if (nonRenewingEnded) {
-      effectiveStatus = "canceled";
-      statusForDb = "canceled";
-      cancelAtPeriodEnd = false;
-    }
-
-    // (2) Se houve agendamento de cancelamento e a sub está ativa/trial → 'non_renewing'
-    if (cancelAtPeriodEnd && (effectiveStatus === "active" || effectiveStatus === "trialing")) {
-      effectiveStatus = "non_renewing";
-    }
-
-    if (effectiveStatus === "incomplete") {
-      effectiveStatus = "pending";
-    }
-
-    const isTrialing = effectiveStatus === "trialing";
-
     // ---------- Sync DB com Stripe (sem cancelar pendências) ----------
-    const planExpiresAt =
-      statusForDb === "pending"
-        ? null
-        : isTrialing && trialEndSec
-        ? new Date(trialEndSec * 1000)
-        : endSec
-        ? new Date(endSec * 1000)
-        : null;
-    const priceId = firstItem?.price?.id ?? null;
-    let shouldSave = false;
-
-    if ((user as any).stripeCustomerId !== customerId && customerId) {
-      (user as any).stripeCustomerId = customerId;
-      shouldSave = true;
-    }
-    if ((user as any).stripeSubscriptionId !== sub.id) {
-      (user as any).stripeSubscriptionId = sub.id;
-      shouldSave = true;
-    }
-    if ((user as any).stripePriceId !== priceId) {
-      (user as any).stripePriceId = priceId;
-      shouldSave = true;
-    }
-    if ((user as any).planStatus !== statusForDb) {
-      (user as any).planStatus = statusForDb as any;
-      shouldSave = true;
-    }
-    if (planInterval && (user as any).planInterval !== planInterval) {
-      (user as any).planInterval = planInterval;
-      shouldSave = true;
-    }
-    if (planType && (user as any).planType !== planType) {
-      (user as any).planType = planType;
-      shouldSave = true;
-    }
-    if ((user as any).cancelAtPeriodEnd !== cancelAtPeriodEnd) {
-      (user as any).cancelAtPeriodEnd = cancelAtPeriodEnd;
-      shouldSave = true;
-    }
-    if (!datesEqual((user as any).planExpiresAt, planExpiresAt)) {
-      (user as any).planExpiresAt = planExpiresAt;
-      shouldSave = true;
-    }
-    if (!datesEqual((user as any).currentPeriodEnd, planExpiresAt)) {
-      (user as any).currentPeriodEnd = planExpiresAt;
-      shouldSave = true;
-    }
-
-    if (shouldSave) {
+    if (applyBillingStateToUser(user as any, customerId, sub, state)) {
       await user.save();
     }
 

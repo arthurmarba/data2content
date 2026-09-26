@@ -161,3 +161,54 @@ chamadas, tentativas, tokens, leituras completas/parciais/inúteis e custo por l
 útil quando há tarifas configuradas. Não imprime transcrições nem IDs de criadores.
 Não confundir ausência de tarifa/uso com custo zero. Sem execução após o deploy,
 ainda não há medição de economia real. A auditoria não envia alertas automaticamente.
+
+## Rotinas órfãs de afiliados e Stripe (apagadas em 26/09/2026)
+
+Três rotinas foram cadastradas à mão no QStash em 14/08/2025, no dia do pacote de
+pagamentos e afiliados do Codex, para rotas que **nunca existiram** em nenhuma
+branch. Deram 404 em 100% das tentativas por 13 meses; só a de saques gerava ~580
+chamadas falhas por dia. Nenhuma levava senha, e a de atribuição mandava o texto
+cru `${AFFILIATE_ATTRIBUTION_WINDOW_DAYS}` — roteiro colado e nunca terminado.
+
+| Id apagado | Horário | Destino | Corpo |
+| --- | --- | --- | --- |
+| `scd_88LM8uKeefFcW7EMYAZp6GpbcvYT` | `*/10 * * * *` | `/api/cron/affiliate/sweep-stuck-redemptions` | `{ "maxAgeMinutes": 10 }` |
+| `scd_6dR6szzA78a7L5xugQiDSF9vDQB1` | `30 2 * * *` | `/api/cron/affiliate/cleanup-attribution` | `{ "windowDays": … }` |
+| `scd_7R7k1KyWxibarysh3ksBqhdhS3W3` | `0 3 * * *` | `/api/cron/stripe/reconcile` | `{ "limit": 500 }` |
+
+- **Saques travados:** nunca houve um pedido de saque (`redemptions` vazia). Se o
+  saque passar a ser usado, lembre que um pedido que falha de forma ambígua no
+  Stripe fica `requested` com saldo reservado até a pessoa tentar de novo, e o
+  admin não consegue rejeitá-lo. Aí sim vale uma rotina, escrita do zero.
+- **Atribuição:** nada a limpar. A janela é a validade do cookie `d2c_ref`
+  (`AFFILIATE_ATTRIBUTION_WINDOW_DAYS`, 90 dias), que expira no navegador.
+- **Conciliação do Stripe:** fazia falta. Virou a rotina diária
+  `/api/cron/stripe-reconcile` (id `billing-stripe-reconcile`, 09:00 BRT) e o
+  comando `npm run audit:stripe-subscriptions`. Ver abaixo.
+
+Ver também [[Rotina do QStash falha em silêncio]].
+
+## Conferência banco × Stripe (26/09/2026)
+
+`/api/cron/stripe-reconcile` roda todo dia às 09:00 BRT
+(`lib/billing/stripeReconciliationRun.ts`). Corrige sozinha só o que **não tira
+acesso de ninguém**:
+
+- quem paga uma assinatura viva que o banco não reconhece: o banco passa a
+  apontar para ela (regra da tela de assinatura), a menos que isso tire o Pro;
+- quem ficou com status sem acesso diferente do Stripe quando o Stripe diz que a
+  assinatura acabou (o `past_due` de quem já foi cancelado): grava o fim como o
+  aviso de cancelamento gravaria.
+
+O resto vai por e-mail para `STRIPE_RECONCILE_REPORT_TO` (sem ela, para
+`MCP_USAGE_REPORT_TO`): no dia em que houver correção, correção pulada, pagante
+sem Pro, cobrança dupla ou assinatura viva sem conta; e toda segunda com o resumo
+completo, incluindo o Pro sem assinatura (cortesias). Sem destinatário, só fica no
+log `[cron.stripeReconcile]`. Só ids — nunca nome ou e-mail de cliente.
+
+Publicar a rota não cadastra o horário: depois do deploy,
+`npm run schedule:crons -- billing-stripe-reconcile` e conferir a primeira
+entrega (ver [[Rotina do QStash falha em silêncio]]). Ver também
+[[Assinatura gravada não é a que a pessoa paga]] e
+[[Falha de pagamento chega depois do cancelamento]].
+

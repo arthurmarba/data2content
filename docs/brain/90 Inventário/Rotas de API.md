@@ -10,7 +10,7 @@ atualizado: 2026-09-26
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**441 rotas** em **58 grupos**.
+**442 rotas** em **58 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
-- [cron](#cron) — 23 rotas
+- [cron](#cron) — 24 rotas
 - [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -388,6 +388,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/cron/refresh-instagram-data` | POST | `src/app/api/cron/refresh-instagram-data/route.ts` |
 | `/api/cron/regenerate-content-ideas` | GET, POST | `src/app/api/cron/regenerate-content-ideas/route.ts` |
 | `/api/cron/send-daily-tips` | POST | `src/app/api/cron/send-daily-tips/route.ts` |
+| `/api/cron/stripe-reconcile` | POST | `src/app/api/cron/stripe-reconcile/route.ts` |
 | `/api/cron/weekly-map-summary` | GET, POST | `src/app/api/cron/weekly-map-summary/route.ts` |
 | `/api/cron/weekly-mapa-whatsapp` | GET, POST | `src/app/api/cron/weekly-mapa-whatsapp/route.ts` |
 | `/api/cron/weekly-report-close` | GET, POST | `src/app/api/cron/weekly-report-close/route.ts` |
