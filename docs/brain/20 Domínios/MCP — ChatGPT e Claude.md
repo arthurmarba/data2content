@@ -357,3 +357,11 @@ cada ferramenta exige. O anúncio (`WWW-Authenticate` e metadata) continua pedin
 o conjunto completo, então conexão nova nasce com tudo. Testes em
 `adminAuthIsolation.test.ts`. Ao criar ferramenta nova, **sempre** ponha o
 `hasScope` dela: a entrada não protege mais por você.
+
+## Reenvio à OpenAI — 26/09/2026
+
+A 1.0.0 foi recusada por "login não concluído". A causa está em
+[[Login do plugin conclui e a conexão morre]]. A versão reenviada leva 28 ferramentas
+(as duas consultas públicas por @ ganharam justificativa), nota ao revisor sobre a
+correção e o override de scopes removido de novo. O Claude recebeu a Data2Content
+no diretório de conectores em 26/09, com status "Em revisão".
