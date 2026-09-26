@@ -758,6 +758,9 @@ dialog:focus-visible {
   background: #171717;
   border-color: #171717;
   color: #fff;
+  /* O design system antigo dá ao primário uma sombra rosa. A Jornada não tem
+     sombra: o botão preto já é o contraste mais forte da tela. */
+  box-shadow: none;
 }
 .j-workspace :is(.j-prompt button, .j-creator button, .j-search button, .j-prompts details > button) {
   background: #171717;

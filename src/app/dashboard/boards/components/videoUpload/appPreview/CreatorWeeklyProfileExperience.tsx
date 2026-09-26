@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
+import { CREATOR_WEEKLY_DIAGNOSIS_DEMO } from "@/app/lib/creatorWeeklyReport/demoDiagnosis";
 import {
   buildPatternHighlights,
   formatPatternIndex,
@@ -23,6 +24,7 @@ import { ProfileNarrativeView } from "./ProfileNarrativeView";
 import { ProfileProSheet } from "./ProfileProSheet";
 import { ProfilePatternSections } from "./ProfilePatternSections";
 import { ProfilePatternDetailSheet } from "./ProfilePatternDetailSheet";
+import { ProfileWeeklyDiagnosis } from "./ProfileWeeklyDiagnosis";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
 import { ProfileTerritoryTrends, type TerritoryTrendPost } from "./ProfileTerritoryTrends";
 import { ProfileMeetingsCard } from "./ProfileMeetingsCard";
@@ -243,6 +245,17 @@ export function CreatorWeeklyProfileExperience({
   const [mapa, setMapa] = useState<IMapaData | null>((data.mapaSeed as IMapaData | null) ?? null);
   const reportIsDemo = !hasReportAccess;
   const report = reportIsDemo ? CREATOR_WEEKLY_REPORT_DEMO : liveReport;
+  // Com o diagnóstico ligado, o texto da semana substitui os cartões de padrão.
+  const diagnosisEnabled = data.weeklyDiagnosisEnabled === true;
+  // Sem relatório ainda (primeiro acesso), o diagnóstico espera a segunda — a
+  // mesma promessa que a tela de "primeira leitura" fazia.
+  const diagnosisView = reportIsDemo
+    ? CREATOR_WEEKLY_DIAGNOSIS_DEMO
+    : liveReport?.diagnosis
+      ?? (liveReport
+        ? { state: "writing" as const, shown: null, upcomingRangeLabel: liveReport.period.rangeLabel, dueAt: null }
+        : { state: "waiting" as const, shown: null, upcomingRangeLabel: null, dueAt: null });
+  const claudeConnected = data.claudeConnected === true;
   const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : "/dashboard/boards/mobile-strategic-profile";
 
   useEffect(() => {
@@ -277,7 +290,11 @@ export function CreatorWeeklyProfileExperience({
         const payload = await response.json().catch(() => null);
         if (!controller.signal.aborted && response.ok && payload?.report) {
           setLiveReport(payload.report);
-          const processing = payload.report.evolution?.status === 'processing' || (payload.report.coverage?.posts90d ?? 0) === 0;
+          // O diagnóstico sendo escrito também conta como espera: ele chega em
+          // segundos pela fila e a tela o busca sem a pessoa recarregar.
+          const processing = payload.report.evolution?.status === 'processing'
+            || (payload.report.coverage?.posts90d ?? 0) === 0
+            || payload.report.diagnosis?.state === 'writing';
           if (processing && attempts < 10) timer = setTimeout(refresh, 6000);
         }
       } catch {
@@ -329,6 +346,18 @@ export function CreatorWeeklyProfileExperience({
       isPro,
       instagramConnected: data.instagramConnected,
       actionType: highlight.id,
+    });
+  };
+
+  const trackDiagnosisEvent = (
+    eventName: "mobile_weekly_diagnosis_claude_opened" | "mobile_weekly_diagnosis_connector_copied",
+  ) => {
+    trackMobileNarrativeEvent(eventName, {
+      route: profileRoute,
+      accessState: data.accessState,
+      isPro,
+      instagramConnected: data.instagramConnected,
+      actionType: claudeConnected ? "claude_connected" : "claude_not_connected",
     });
   };
 
@@ -496,7 +525,7 @@ export function CreatorWeeklyProfileExperience({
             onOpenFullMap={handleOpenNarrative}
             onDefineNarrative={onOpenNorte}
             starterMapJustCreated={starterMapJustCreated}
-            statusLine={!journey && activationState === "connected" ? (
+            statusLine={!journey && !diagnosisEnabled && activationState === "connected" ? (
               <ProfileNextStepField
                 state="connected"
                 lastReadAt={liveReport?.evolution?.lastAnalyzedAt ?? null}
@@ -528,10 +557,16 @@ export function CreatorWeeklyProfileExperience({
             identidade, e dois botões para a mesma ação na mesma tela leem como
             duas ações diferentes. Suprimido ele, o campo mostra a pendência
             SEGUINTE — que é o que a pessoa encontraria depois de responder. */}
-        {activationState === "connected" || activationState === "none" ? null : (
+        {/* Com o diagnóstico ligado, a ordem é: quem a pessoa é (identidade e
+            narrativa), a situação da conta, e só então o que a leitura achou.
+            O campo aparece sempre — pendência vira pedido, conta em dia vira a
+            confirmação "Instagram conectado · lido hoje" —, porque é ele que
+            diz se o diagnóstico logo abaixo está sendo alimentado. */}
+        {activationState === "none" || (activationState === "connected" && !diagnosisEnabled) ? null : (
           <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--activation" : ""}>
             <ProfileNextStepField
               state={activationState}
+              lastReadAt={activationState === "connected" ? liveReport?.evolution?.lastAnalyzedAt ?? null : undefined}
               onUpgrade={onUpgrade}
               onConnectInstagram={onConnectInstagram}
               onDefineNorth={onOpenNorte}
@@ -540,7 +575,18 @@ export function CreatorWeeklyProfileExperience({
         )}
 
         <div className={surface === "responsive" ? "ds-profile-area ds-profile-area--report" : ""}>
-          {report ? (
+          {diagnosisEnabled ? (
+            <div className="mt-6">
+              <ProfileWeeklyDiagnosis
+                view={diagnosisView}
+                isDemo={reportIsDemo}
+                tag={reportTag}
+                claudeConnected={claudeConnected}
+                onOpenClaude={() => trackDiagnosisEvent("mobile_weekly_diagnosis_claude_opened")}
+                onCopyConnector={() => trackDiagnosisEvent("mobile_weekly_diagnosis_connector_copied")}
+              />
+            </div>
+          ) : report ? (
             <ReportOverview compact={journey}
               report={report}
               isDemo={reportIsDemo}

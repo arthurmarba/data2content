@@ -46,6 +46,8 @@ const SCOPE_DEFAULT_PROVIDER: Record<string, LlmProviderName> = {
   SCRIPTS: "gemini",
   COMMUNITY: "gemini",
   CLASSIFICATION: "gemini",
+  // Diagnóstico semanal do Perfil: escrito só pelo Gemini, sem cair no OpenAI.
+  DIAGNOSIS: "gemini",
 };
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -57,7 +59,7 @@ function isFallbackEnabled(scope?: string): boolean {
   const scoped = scope ? process.env[`LLM_FALLBACK_${scope}`] : undefined;
   // Roteiros são Gemini-first por decisão de custo. OpenAI só entra quando o
   // operador habilitar explicitamente LLM_FALLBACK_SCRIPTS=true.
-  const fallbackDefault = scope === "SCRIPTS" || scope === "COMMUNITY" ? false : true;
+  const fallbackDefault = scope === "SCRIPTS" || scope === "COMMUNITY" || scope === "DIAGNOSIS" ? false : true;
   return parseBoolean(scoped ?? process.env.LLM_FALLBACK_ENABLED, fallbackDefault);
 }
 

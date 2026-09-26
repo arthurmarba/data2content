@@ -10,7 +10,7 @@ atualizado: 2026-09-26
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**441 rotas** em **58 grupos**.
+**442 rotas** em **58 grupos**.
 
 ## Índice
 
@@ -71,7 +71,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [videos](#videos) — 1 rota
 - [webhooks](#webhooks) — 2 rotas
 - [whatsapp](#whatsapp) — 7 rotas
-- [worker](#worker) — 11 rotas
+- [worker](#worker) — 12 rotas
 
 ## account
 
@@ -799,6 +799,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/worker/collabs` | POST | `src/app/api/worker/collabs/route.ts` |
 | `/api/worker/enrich-mapa-instagram` | POST | `src/app/api/worker/enrich-mapa-instagram/route.ts` |
 | `/api/worker/enrich-mapa-video` | POST | `src/app/api/worker/enrich-mapa-video/route.ts` |
+| `/api/worker/generate-creator-weekly-diagnosis` | POST | `src/app/api/worker/generate-creator-weekly-diagnosis/route.ts` |
 | `/api/worker/generate-creator-weekly-report` | POST | `src/app/api/worker/generate-creator-weekly-report/route.ts` |
 | `/api/worker/process-story-webhook` | POST | `src/app/api/worker/process-story-webhook/route.ts` |
 | `/api/worker/refresh-instagram-user` | POST | `src/app/api/worker/refresh-instagram-user/route.ts` |
