@@ -23,6 +23,7 @@ const ALLOWED_CONTEXTS = new Set<PaywallContext>([
   "recorded_meetings",
   "onboarding",
   "chatgpt_intelligence",
+  "claude_intelligence",
 ]);
 
 export type CheckoutJourney = {

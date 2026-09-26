@@ -213,13 +213,14 @@ export function getMcpAdminAuditRetentionDays(): number {
 }
 
 /**
- * Página de perfil para quem vem do chat. `intent` diz o que a pessoa pediu
- * quando bateu no limite, para o site abrir direto na parte certa.
+ * Página de chegada para quem vem do chat (`/dashboard/plugin`): mostra a
+ * narrativa e as pautas da pessoa e descreve o plano. `intent` diz o que ela
+ * pediu quando bateu no limite. Conta Pro segue para o perfil de sempre.
  */
 export function getMcpProfileUrl(client: PluginClient = "chatgpt", intent?: PluginIntent | null): string {
   const params = new URLSearchParams({ source: client });
   if (intent) params.set("intent", intent);
-  return `${getMcpAppBaseUrl()}/dashboard/profile?${params.toString()}`;
+  return `${getMcpAppBaseUrl()}/dashboard/plugin?${params.toString()}`;
 }
 
 export function getInstagramConnectUrl(client: PluginClient = "chatgpt"): string {

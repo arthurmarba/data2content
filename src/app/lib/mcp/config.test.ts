@@ -54,7 +54,7 @@ describe("MCP configuration", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://data2content.ai";
 
     expect(getMcpProfileUrl()).toBe(
-      "https://data2content.ai/dashboard/profile?source=chatgpt",
+      "https://data2content.ai/dashboard/plugin?source=chatgpt",
     );
   });
 
@@ -62,7 +62,7 @@ describe("MCP configuration", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://data2content.ai";
 
     expect(getMcpProfileUrl("claude", "pautas")).toBe(
-      "https://data2content.ai/dashboard/profile?source=claude&intent=pautas",
+      "https://data2content.ai/dashboard/plugin?source=claude&intent=pautas",
     );
   });
 

@@ -9,6 +9,8 @@ import McpOAuthConsentRequestModel, {
 } from "@/app/models/McpOAuthConsentRequest";
 import { getMcpAccountState } from "../accountState";
 import { getMcpAdminAuthorization } from "../adminAuthorization";
+import { surfaceFromClientRegistration } from "../clientSurface";
+import { recordPluginConnection } from "@/app/lib/plugin/pluginOrigin";
 import {
   getMcpOAuthAuthorizationCodeTtlSeconds,
   getMcpOAuthRefreshTokenTtlDays,
@@ -236,6 +238,13 @@ export async function approveMcpConsent(token: string, sessionUserId: string): P
     codeChallenge: consumed.codeChallenge,
     expiresAt,
   });
+  if (!isMcpAdminResource(consumed.resource)) {
+    // Sem await: gravar a origem do funil nunca pode atrasar nem derrubar o login.
+    void recordPluginConnection(
+      sessionUserId,
+      surfaceFromClientRegistration({ clientName: consumed.clientName, redirectUris: [consumed.redirectUri] }),
+    );
+  }
   return authorizationRedirect(consumed, { code });
 }
 
