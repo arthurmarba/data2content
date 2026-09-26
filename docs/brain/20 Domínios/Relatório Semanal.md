@@ -44,6 +44,8 @@ Território, narrativa, asset e tom vêm do card "Seu Mapa" — **não da legend
 
 O fechamento da semana grava um retrato do momento. **Esse retrato é irrecuperável**: se fechar errado, não dá pra reconstruir depois com os dados de hoje. Use `--dry-run` antes.
 
+Post com classificação pendente **fica fora do retrato** (`loadWindow` só lê `completed`). Se a IA ficou sem saldo durante a semana, drene a fila antes de segunda 01h BRT com `npm run requeue:classification-retryable -- --week=<semana> --write --enqueue`. Refechar depois com `?week=` inclui os posts, mas regrava a semana inteira com os números do dia, não os da segunda. Ver [[Crédito do Gemini paralisa a leitura publicada]].
+
 ## Assets de cena
 
 A leitura de cena e tom sai da mídia publicada: vídeos, fotos e carrosséis são
