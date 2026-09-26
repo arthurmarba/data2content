@@ -411,3 +411,12 @@ O MCP sabe se a conversa vem do Claude ou do ChatGPT (`clientSurface.ts`, pelo r
 
 Cada limite de plano diz o que ficou de fora ("… não está incluída no plano atual desta conta"), sem falar em assinatura, preço ou upgrade: é o que a regra da OpenAI permite. O link leva `intent` (`analise`, `pautas`, `inspiracoes`, `collabs`, `roteiro`) para o site abrir na parte certa. Cada limite batido vira um `UsageEvent` `mcp_plan_gate` (categoria `plugin`) com ferramenta, pedido e origem. É a medida de intenção do funil.
 
+## Funil de assinatura pelo plugin — 26/09/2026
+
+A decisão e as regras de cada loja estão em [[Funil do plugin]]. No código:
+
+- Os links de limite levam a `/dashboard/plugin` (`src/app/lib/plugin/arrival.ts`), a página de chegada com narrativa, pautas e o que o Pro faz. Conta Pro vai direto ao perfil.
+- `set_creator_north` pede as três primeiras pautas (`src/app/lib/plugin/firstIdeas.ts`, chave `plugin-first-ideas`, mesma fila e cota do app). A resposta diz isso em `firstIdeas`, sem mudar a lista de ferramentas.
+- A oferta na conexão do Claude (`oauth/connectOffer.ts`, página `/mcp/conectado`) só existe com `MCP_CLAUDE_CONNECT_OFFER_ENABLED=1`. O código OAuth só é emitido no clique em "Continuar", e o pedido de consentimento fica aberto 30 minutos. Antes de ligar, testar numa conexão real do Claude.
+- O login (`?assistant=`) e a tela de autorização mostram o nome do chat certo; antes diziam "ChatGPT" para quem conectava o Claude, inclusive para o revisor da Anthropic.
+

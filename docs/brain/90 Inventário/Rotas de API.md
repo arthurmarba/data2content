@@ -10,7 +10,7 @@ atualizado: 2026-09-26
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**438 rotas** em **57 grupos**.
+**440 rotas** em **58 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
-- [cron](#cron) — 21 rotas
+- [cron](#cron) — 22 rotas
 - [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -51,6 +51,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [onboarding](#onboarding) — 7 rotas
 - [plan](#plan) — 6 rotas
 - [planner](#planner) — 10 rotas
+- [plugin](#plugin) — 1 rota
 - [post-creation](#post-creation) — 6 rotas
 - [proposals](#proposals) — 7 rotas
 - [proxy](#proxy) — 2 rotas
@@ -379,6 +380,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/cron/mature-affiliate-commissions` | POST | `src/app/api/cron/mature-affiliate-commissions/route.ts` |
 | `/api/cron/notify-free-month-ending` | POST | `src/app/api/cron/notify-free-month-ending/route.ts` |
 | `/api/cron/persist-usage-counters` | POST | `src/app/api/cron/persist-usage-counters/route.ts` |
+| `/api/cron/plugin-weekly-email` | POST | `src/app/api/cron/plugin-weekly-email/route.ts` |
 | `/api/cron/populate-community-inspirations` | POST | `src/app/api/cron/populate-community-inspirations/route.ts` |
 | `/api/cron/recover-content-intelligence` | GET, POST | `src/app/api/cron/recover-content-intelligence/route.ts` |
 | `/api/cron/recover-video-analyses` | POST | `src/app/api/cron/recover-video-analyses/route.ts` |
@@ -596,6 +598,12 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/planner/public` | GET | `src/app/api/planner/public/route.ts` |
 | `/api/planner/recommendations` | GET | `src/app/api/planner/recommendations/route.ts` |
 | `/api/planner/themes` | POST | `src/app/api/planner/themes/route.ts` |
+
+## plugin
+
+| Endereço | Métodos | Arquivo |
+| --- | --- | --- |
+| `/api/plugin/weekly-email/unsubscribe` | GET | `src/app/api/plugin/weekly-email/unsubscribe/route.ts` |
 
 ## post-creation
 

@@ -10,6 +10,8 @@ export type MobileNarrativeTelemetryEventName =
   | "mobile_north_skipped"
   | "mobile_starter_map_created"
   | "mobile_starter_map_viewed"
+  | "mobile_onboarding_narrative_revealed"
+  | "mobile_onboarding_offer_viewed"
   | "mobile_starter_map_upgrade_clicked"
   | "mobile_pro_activation_viewed"
   | "mobile_whatsapp_group_link_opened"

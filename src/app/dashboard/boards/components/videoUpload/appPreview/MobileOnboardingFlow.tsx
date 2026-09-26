@@ -34,6 +34,8 @@ export type MobileOnboardingCompletePayload = {
   answers: OnboardingAnswers;
   seedSignal: OnboardingSeedSignal | null;
   skipped: boolean;
+  /** O servidor reservou a oferta do Pro para depois da narrativa (uma vez na vida). */
+  offerEligible?: boolean;
 };
 
 interface Props {
@@ -42,7 +44,7 @@ interface Props {
   onComplete: (result: MobileOnboardingCompletePayload) => void;
 }
 
-type FlowState = "north" | "building";
+type FlowState = "north" | "building" | "reveal";
 
 function MapSketch() {
   return (
@@ -97,6 +99,8 @@ export function MobileOnboardingFlow({ open, telemetryRoute = MOBILE_PROFILE_ROU
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSkipConfirmation, setShowSkipConfirmation] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+  // A narrativa já é calculada aqui; antes a tela fechava sem mostrá-la.
+  const [revealPayload, setRevealPayload] = useState<MobileOnboardingCompletePayload | null>(null);
   const viewedRef = useRef(false);
   const typingTrackedRef = useRef(false);
 
@@ -126,6 +130,7 @@ export function MobileOnboardingFlow({ open, telemetryRoute = MOBILE_PROFILE_ROU
         ok?: boolean;
         skipped?: boolean;
         seedSignal?: OnboardingSeedSignal | null;
+        offer?: { eligible?: boolean } | null;
         message?: string;
       } | null;
 
@@ -146,11 +151,22 @@ export function MobileOnboardingFlow({ open, telemetryRoute = MOBILE_PROFILE_ROU
         });
       }
 
-      onComplete({
+      const payload: MobileOnboardingCompletePayload = {
         answers: body.creatorPurpose ? { creatorPurpose: body.creatorPurpose } : {},
         seedSignal: result.seedSignal ?? null,
         skipped,
-      });
+        offerEligible: result.offer?.eligible === true,
+      };
+      if (!skipped && payload.seedSignal?.label) {
+        setRevealPayload(payload);
+        setFlowState("reveal");
+        trackMobileNarrativeEvent("mobile_onboarding_narrative_revealed", {
+          route: telemetryRoute,
+          actionType: payload.offerEligible ? "offer_next" : "map_next",
+        });
+        return;
+      }
+      onComplete(payload);
     } catch {
       setIsSkipping(false);
       setFlowState("north");
@@ -326,6 +342,48 @@ export function MobileOnboardingFlow({ open, telemetryRoute = MOBILE_PROFILE_ROU
                   </motion.div>
                 ) : null}
               </AnimatePresence>
+            </motion.main>
+          ) : flowState === "reveal" && revealPayload?.seedSignal ? (
+            <motion.main
+              key="reveal"
+              className="flex flex-1 flex-col justify-center py-10 sm:py-14"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.24 }}
+              aria-live="polite"
+            >
+              <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--ds-color-text-muted)]">
+                Primeira leitura
+              </p>
+              <p className="mt-3 text-[15px] font-semibold text-[var(--ds-color-text-secondary)]">Sua narrativa inicial</p>
+              <h1
+                id="north-onboarding-title"
+                className="mt-2 max-w-[600px] text-[clamp(1.9rem,7vw,3.2rem)] font-bold leading-[1.04] tracking-[-0.045em]"
+              >
+                {revealPayload.seedSignal.label}
+              </h1>
+              {revealPayload.seedSignal.territorios.length ? (
+                <ul className="mt-6 flex flex-wrap gap-2" aria-label="Territórios">
+                  {revealPayload.seedSignal.territorios.slice(0, 3).map((territory) => (
+                    <li key={territory} className="rounded-full border border-[#3d3d3d] px-3 py-1 text-[13px] font-semibold">
+                      {territory}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="mt-6 max-w-[480px] text-[14px] leading-[1.55] text-[var(--ds-color-text-secondary)]">
+                É uma hipótese: ela se afina conforme você usa a D2C e ela lê seus conteúdos.
+              </p>
+              <div className="mt-8">
+                <button
+                  type="button"
+                  onClick={() => onComplete(revealPayload)}
+                  className="ds-button ds-button--primary min-h-[54px] w-full px-7 sm:w-auto"
+                >
+                  Continuar
+                </button>
+              </div>
             </motion.main>
           ) : (
             <motion.main

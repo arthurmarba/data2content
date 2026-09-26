@@ -13,7 +13,8 @@ export type PaywallContext =
   | "community"
   | "recorded_meetings"
   | "onboarding"
-  | "chatgpt_intelligence";
+  | "chatgpt_intelligence"
+  | "claude_intelligence";
 
 export type PostCheckoutIntent =
   | "connect_instagram"

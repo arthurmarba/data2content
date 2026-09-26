@@ -254,6 +254,7 @@ export const analyticsEventCatalog = {
         | 'instagram_report'
         | 'recorded_meetings'
         | 'chatgpt_intelligence'
+        | 'claude_intelligence'
         | 'other'
         | null
         | undefined

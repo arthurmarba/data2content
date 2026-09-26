@@ -17,6 +17,8 @@ const report: Record<string, unknown> = { transport: "in_memory", oauthValidated
 const checks = report.checks as Array<Record<string, unknown>>;
 async function main() {
   mongoose.set("autoIndex", false);
+  // Só leitura: os limites de plano batidos aqui não entram na medição do funil.
+  process.env.USAGE_EVENTS_DISABLED = "1";
   process.env.MCP_CAMPAIGN_RADAR_ENABLED = "1";
   await connectToDatabase();
   for (const tier of ["pro", "free"]) {

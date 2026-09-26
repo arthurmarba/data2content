@@ -112,7 +112,7 @@ export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): PostC
 /** De qual chat veio a assinatura, quando veio de um plugin. */
 export function pluginCheckoutClient(returnTo: string | null, source: string | null): PluginClient | null {
   if (source === "chatgpt_profile_upgrade") return "chatgpt";
-  if (source === "claude_profile_upgrade") return "claude";
+  if (source === "claude_profile_upgrade" || source === "claude_connect_offer") return "claude";
   if (!returnTo) return null;
   try {
     const url = new URL(returnTo, "https://d2c.local");

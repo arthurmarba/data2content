@@ -5,6 +5,7 @@ import {
   denyMcpConsent,
 } from "@/app/lib/mcp/oauth/service";
 import { getMcpAppBaseUrl } from "@/app/lib/mcp/config";
+import { prepareClaudeConnectOffer } from "@/app/lib/mcp/oauth/connectOffer";
 import { McpOAuthError } from "@/app/lib/mcp/oauth/validation";
 import { readMcpOAuthSessionUserId } from "@/app/lib/mcp/oauth/session";
 import { oauthErrorResponse } from "../http";
@@ -61,6 +62,10 @@ export async function POST(request: NextRequest) {
     const decision = form.get("decision");
     if (typeof token !== "string" || (decision !== "approve" && decision !== "deny")) {
       throw new McpOAuthError("invalid_request", 400, "Resposta de consentimento inválida.");
+    }
+    if (decision === "approve" && form.get("offer") !== "done") {
+      const offer = await prepareClaudeConnectOffer(token, userId);
+      if (offer.show) return NextResponse.redirect(new URL(offer.path, getMcpAppBaseUrl()), 303);
     }
     const destination = decision === "approve"
       ? await approveMcpConsent(token, userId)

@@ -2351,7 +2351,7 @@ export function DiagnosticoRealShellClient({
       <MobileOnboardingFlow
         open
         telemetryRoute={profileRoute}
-        onComplete={({ answers, seedSignal, skipped }) => {
+        onComplete={({ answers, seedSignal, skipped, offerEligible }) => {
           setOnboardingOpen(false);
           if (answers?.creatorPurpose !== undefined) {
             setLocalPurpose(answers.creatorPurpose || null);
@@ -2384,6 +2384,21 @@ export function DiagnosticoRealShellClient({
               });
             }, 180);
             window.setTimeout(() => setStarterMapJustCreated(false), 5200);
+          }
+          if (offerEligible) {
+            // A oferta vem na tela seguinte à narrativa, nunca junto dela. A saída
+            // "Explorar grátis primeiro" é da própria janela, no contexto onboarding.
+            window.setTimeout(() => {
+              trackMobileNarrativeEvent("mobile_onboarding_offer_viewed", {
+                route: profileRoute,
+                actionType: "after_narrative",
+              });
+              openPaywallModal({
+                context: "onboarding",
+                source: "onboarding_after_narrative",
+                returnTo: profileRoute,
+              });
+            }, 700);
           }
           startTransition(() => router.refresh());
         }}

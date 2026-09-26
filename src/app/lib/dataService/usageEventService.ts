@@ -18,6 +18,8 @@ export function logUsageEvent(
   // Evita writes fire-and-forget pendentes sobrevivendo ao teardown de testes
   // (mongoose bufferiza a operação até timeout quando a conexão real é mockada).
   if (process.env.NODE_ENV === "test") return;
+  // Testes de ponta a ponta com contas fictícias no banco real não gravam uso.
+  if (process.env.USAGE_EVENTS_DISABLED === "1") return;
 
   void (async () => {
     try {

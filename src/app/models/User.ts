@@ -490,6 +490,18 @@ export interface IUser extends Document {
   weeklyWhatsAppSentAt?: Date | null;
   /** When the mapa-based weekly WhatsApp was last sent to this creator (Phase 6). */
   weeklyMapaWhatsAppSentAt?: Date | null;
+  /** Primeiro chat (ChatGPT ou Claude) pelo qual a pessoa conectou a Data2Content. */
+  pluginOrigin?: { client: "chatgpt" | "claude"; firstConnectedAt: Date } | null;
+  /** Última vez que o e-mail semanal do plugin avaliou esta conta (enviou ou pulou). */
+  pluginWeeklyEmailCheckedAt?: Date | null;
+  /** A pessoa pediu para não receber o e-mail semanal do plugin. */
+  pluginWeeklyEmailOptOutAt?: Date | null;
+  /** Pautas já mostradas no e-mail semanal do plugin (as mais recentes), para não repetir. */
+  pluginWeeklyEmailIdeaIds?: string[];
+  /** Quando a oferta da conexão do Claude foi mostrada (uma vez por pessoa). */
+  pluginConnectOfferSeenAt?: Date | null;
+  /** Quando a oferta depois da narrativa, no primeiro acesso, foi mostrada (uma vez por pessoa). */
+  onboardingOfferSeenAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
   userPreferences?: IUserPreferences;
   userLongTermGoals?: IUserLongTermGoal[];
@@ -852,6 +864,21 @@ const userSchema = new Schema<IUser>(
     weeklyWhatsAppSentAt: { type: Date, default: null },
     /** When the mapa-based weekly WhatsApp was last sent (Phase 6). */
     weeklyMapaWhatsAppSentAt: { type: Date, default: null },
+    pluginOrigin: {
+      type: new Schema(
+        {
+          client: { type: String, enum: ["chatgpt", "claude"], required: true },
+          firstConnectedAt: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    pluginWeeklyEmailCheckedAt: { type: Date, default: undefined },
+    pluginWeeklyEmailOptOutAt: { type: Date, default: undefined },
+    pluginWeeklyEmailIdeaIds: { type: [String], default: undefined },
+    pluginConnectOfferSeenAt: { type: Date, default: undefined },
+    onboardingOfferSeenAt: { type: Date, default: undefined },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
     userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },

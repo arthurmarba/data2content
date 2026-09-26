@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import UserModel from "@/app/models/User";
+import { requestFirstContentIdeas } from "@/app/lib/plugin/firstIdeas";
 
 export class McpCreatorNorthValidationError extends Error {
   constructor(message: string) {
@@ -61,15 +62,22 @@ export async function saveMcpCreatorNorth(userId: string, value: unknown) {
     });
   }
 
+  // Com o mapa semeado, a fila já prepara as primeiras pautas (amostra do plugin).
+  const firstIdeas = seedSignal ? await requestFirstContentIdeas(userId) : ({ state: "map_not_ready" } as const);
+
   return {
     schemaVersion: "creator_north_v1" as const,
     creatorNorth,
     updatedAt: updatedAt.toISOString(),
     seedSignal,
+    firstIdeas,
     next: {
       tool: "build_creator_radar" as const,
       instruction:
-        "Relacione o Norte com padrões agregados e anonimizados da comunidade para produzir a primeira resposta contextualizada.",
+        "Relacione o Norte com padrões agregados e anonimizados da comunidade para produzir a primeira resposta contextualizada." +
+        (firstIdeas.state === "queued"
+          ? " As primeiras pautas do creator estão sendo preparadas a partir do mapa; em cerca de um minuto, list_content_ideas as mostra."
+          : ""),
     },
   };
 }

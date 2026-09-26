@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { X, Check, ArrowRight, Copy, Loader2 } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext, PostCheckoutIntent } from "@/types/paywall";
+import { PLUGIN_CLIENT_LABEL, pluginFunnelEventName, type PluginClient } from "@/app/lib/plugin/pluginClient";
 import { track } from "@/lib/track";
 import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
@@ -156,6 +157,17 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Reuniões novas adicionadas toda semana",
     ],
   },
+  claude_intelligence: {
+    title: "Leve o contexto dos seus conteúdos para o Claude.",
+    subtitle:
+      "A Data2Content assiste ao que você publica e cruza assunto, gancho, roteiro, cenário, voz, duração e momento da postagem com a resposta da sua audiência.",
+    ctaLabel: "Ativar a inteligência PRO",
+    benefits: [
+      "Estratégias, pautas e roteiros com o contexto dos seus conteúdos",
+      "Consultoria ao vivo e direção toda semana",
+      "Comunidade, networking e oportunidades de collab",
+    ],
+  },
   chatgpt_intelligence: {
     title: "Leve o contexto dos seus conteúdos para o ChatGPT.",
     subtitle:
@@ -216,6 +228,11 @@ export default function BillingSubscribeModal({
   const billingNormalizedStatus = billingStatus.normalizedStatus ?? null;
   const refetchBillingStatus = billingStatus.refetch;
   const effectiveContext = context ?? "default";
+  const pluginClient: PluginClient | null = effectiveContext === "chatgpt_intelligence"
+    ? "chatgpt"
+    : effectiveContext === "claude_intelligence"
+      ? "claude"
+      : null;
   
   // O modal responde ao motivo que o abriu; o stack completo não compete com a decisão.
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
@@ -614,15 +631,17 @@ export default function BillingSubscribeModal({
       setCouponCode(D2C_VIP_DISPLAY_CODE);
       setCouponCopied(true);
     }
-    track("chatgpt_funnel_event", {
-      creator_id: null,
-      step: "coupon_copied",
-      source: source || "chatgpt_paywall",
-      context: "chatgpt_intelligence",
-      status: null,
-      event_id: null,
-    });
-  }, [source]);
+    if (pluginClient === "chatgpt") {
+      track("chatgpt_funnel_event", {
+        creator_id: null,
+        step: "coupon_copied",
+        source: source || "chatgpt_paywall",
+        context: "chatgpt_intelligence",
+        status: null,
+        event_id: null,
+      });
+    }
+  }, [pluginClient, source]);
 
   const handlePeriodChange = useCallback((nextPeriod: "monthly" | "annual") => {
     setPeriod(nextPeriod);
@@ -643,11 +662,11 @@ export default function BillingSubscribeModal({
       surface: "upsell_block",
       context: effectiveContext === "default" ? "paywall" : effectiveContext,
     });
-    if (effectiveContext === "chatgpt_intelligence") {
-      track("chatgpt_funnel_event", {
+    if (pluginClient) {
+      track(pluginFunnelEventName(pluginClient), {
         creator_id: null,
         step: "checkout_started",
-        source: source || "chatgpt_paywall",
+        source: source || `${pluginClient}_paywall`,
         context: effectiveContext,
         status: couponIsEffective ? "coupon_applied" : "no_coupon",
         event_id: null,
@@ -946,11 +965,11 @@ export default function BillingSubscribeModal({
                 ))}
               </ul>
 
-              {effectiveContext === "chatgpt_intelligence" ? (
+              {pluginClient ? (
                 <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-950">
                   <p className="font-bold">Instagram é opcional.</p>
                   <p className="mt-1 text-violet-900/75">
-                    Para analisar seus próprios conteúdos no ChatGPT, você poderá conectar depois um
+                    Para analisar seus próprios conteúdos no {PLUGIN_CLIENT_LABEL[pluginClient]}, você poderá conectar depois um
                     Instagram profissional ou de criador vinculado a uma Página do Facebook. A conexão
                     é somente de leitura; comunidade, consultorias e os demais benefícios continuam
                     disponíveis sem ela.
@@ -1015,7 +1034,7 @@ export default function BillingSubscribeModal({
               </section>
 
               <div className="mt-4">
-                {effectiveContext === "chatgpt_intelligence" ? (
+                {pluginClient ? (
                   <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-950">
                     <p className="text-xs leading-5">
                       <span className="font-bold">Primeiro mês grátis no plano mensal.</span>{" "}

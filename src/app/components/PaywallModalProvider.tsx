@@ -40,6 +40,7 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
   "recorded_meetings",
   "onboarding",
   "chatgpt_intelligence",
+  "claude_intelligence",
 ];
 
 export default function PaywallModalProvider() {
