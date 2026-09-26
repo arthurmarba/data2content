@@ -321,7 +321,6 @@ export type TopMoverMetric =
   | 'cumulativeComments'
   | 'cumulativeSaved'
   | 'cumulativeReach'
-  | 'cumulativeImpressions'
   | 'cumulativeTotalInteractions';
 
 export type TopMoverSortBy =

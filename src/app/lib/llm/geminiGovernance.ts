@@ -38,6 +38,10 @@ export function estimatedMicros(inputTokens: number, outputTokens: number, rates
 
 function replay(operation: any, fingerprint: string): GenerateContentResponse {
   if (operation.fingerprint !== fingerprint) throw new GeminiGovernanceError("gemini_request_changed", "Conteúdo já solicitado com outro contexto; exige revisão explícita.");
+  if (operation.state === "received" && operation.response?.compactedAt) {
+    // Leitura concluída e já gravada no resultado; o texto bruto saiu para liberar espaço.
+    throw new GeminiGovernanceError("gemini_result_unknown", "Resposta já consumida e compactada; reler exige revisão explícita.");
+  }
   if (operation.state === "received") return operation.response as GenerateContentResponse;
   if (operation.reason === "saldo") throw new GeminiGovernanceError("gemini_provider_balance", "Provedor sem saldo; aguardar recuperação.");
   throw new GeminiGovernanceError(operation.state === "rejected" ? "gemini_provider_rejected" : "gemini_result_unknown", "Solicitação registrada sem resposta recuperável; não reenviar automaticamente.");

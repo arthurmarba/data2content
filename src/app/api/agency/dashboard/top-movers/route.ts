@@ -47,7 +47,7 @@ const creatorFiltersSchema = z.object({
 
 const topMoverMetricLiterals: [TopMoverMetric, ...TopMoverMetric[]] = [
   'cumulativeViews', 'cumulativeLikes', 'cumulativeShares', 'cumulativeComments',
-  'cumulativeSaved', 'cumulativeReach', 'cumulativeImpressions', 'cumulativeTotalInteractions'
+  'cumulativeSaved', 'cumulativeReach', 'cumulativeTotalInteractions'
 ];
 const topMoverMetricEnum = z.enum(topMoverMetricLiterals);
 

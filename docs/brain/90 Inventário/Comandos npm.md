@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-15
+atualizado: 2026-09-26
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-15
 
 # Comandos npm
 
-**98 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**100 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -147,6 +147,7 @@ atualizado: 2026-09-15
 
 | Comando | O que roda |
 | --- | --- |
+| `npm run maintenance:mongo-fields` | `node --env-file=.env.local scripts/trimUnusedMongoFields.mjs` |
 | `npm run maintenance:mongo-storage` | `node --env-file=.env.local scripts/maintainMongoStorage.mjs` |
 
 ## mcp
@@ -268,6 +269,7 @@ atualizado: 2026-09-15
 | `npm run test:demographics` | `tsx --env-file=.env.local ./scripts/testDemographics.ts` |
 | `npm run test:e2e` | `playwright test` |
 | `npm run test:mcp` | `jest --watchAll=false --runInBand src/app/lib/mcp` |
+| `npm run test:mongo-fields` | `node --test scripts/trimUnusedMongoFields.test.mjs` |
 | `npm run test:mongo-storage` | `node --test scripts/maintainMongoStorage.test.mjs` |
 
 ## typecheck
