@@ -386,6 +386,13 @@ A 1.0.0 foi recusada por "login não concluído". A causa está em
 correção e o override de scopes removido de novo. O Claude recebeu a Data2Content
 no diretório de conectores em 26/09, com status "Em revisão".
 
+Depois da revisão das respostas (abaixo), a revisão foi cancelada e o mesmo rascunho
+reenviado ainda em 26/09: override apagado pela terceira vez, `Scan Tools` com as 28
+ferramentas e justificativas, notas novas e as seis declarações marcadas. O portal
+mostra a 1.0.0 em **Review**. No consentimento do scan, o portal pediu 10 permissões,
+sem `profile:write`: se a conta do revisor não tiver essa permissão, `set_creator_north`
+pede reconexão em vez de gravar (ver [[Login do plugin conclui e a conexão morre]]).
+
 ## Revisão das respostas — 26/09/2026
 
 Uma revisão de código achou respostas que podiam sair erradas no Claude e no ChatGPT. Foi tudo corrigido de uma vez, antes de reenviar às duas lojas:
@@ -429,5 +436,5 @@ Antes, o único registro de uso era o log da Vercel, que guarda cerca de um dia 
 
 A finalidade e os prazos estão na política de privacidade (26/09). Os dois registros saem junto com a conta em `deleteUserAccountAndAssociatedData`. A conta de sessão usa `$getField` e pipeline com upsert; o teste `usageTracking.integration.test.ts` roda num MongoDB em memória, porque mock não comprova isso.
 
-Para ler: a ferramenta `get_connector_usage` no MCP administrativo (pergunte ao Claude "o que os creators mais pediram esta semana?"), `scripts/mcpUsageReport.ts` e o e-mail de toda segunda para quem estiver em `MCP_USAGE_REPORT_TO`. A rotina `/api/cron/mcp-usage-weekly` precisa ser criada no QStash. Contas internas (admin, e-mails da Data2Content, contas de revisão) ficam de fora por padrão. Depois do deploy, confirmar a expiração no banco real com `scripts/mcpUsageReport.ts --check-ttl` (ver [[Expiração declarada não garante limpeza no MongoDB]]).
+Para ler: a ferramenta `get_connector_usage` no MCP administrativo (pergunte ao Claude "o que os creators mais pediram esta semana?"), `scripts/mcpUsageReport.ts` e o e-mail de toda segunda para quem estiver em `MCP_USAGE_REPORT_TO`. As rotinas estão no QStash desde 26/09, em UTC: `mcp-usage-weekly` segunda 11:00 (`scd_7vk473ZfTSGHX2tVp4FB5YfxUSdj`) e `plugin-weekly-email` segunda 13:00 (`scd_4ojnCN7ZKcKNqpW6bDSGg9acMPc6`). `MCP_USAGE_REPORT_TO` é arthur@data2content.ai. As 31 contas já conectadas em 26/09 receberam `pluginOrigin` por `scripts/backfillPluginOrigin.ts --apply`; o e-mail semanal do creator começou sem destinatário, porque quase todas são Pro. Contas internas (admin, e-mails da Data2Content, contas de revisão) ficam de fora por padrão. Depois do deploy, confirmar a expiração no banco real com `scripts/mcpUsageReport.ts --check-ttl` (ver [[Expiração declarada não garante limpeza no MongoDB]]).
 
