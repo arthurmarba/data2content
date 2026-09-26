@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
-import { generateCreatorWeeklyReport } from "@/app/lib/creatorWeeklyReport/service";
-import { scheduleWeeklyDiagnosis } from "@/app/lib/creatorWeeklyReport/diagnosisService";
-import { isCreatorWeeklyProfileExperienceEnabled } from "@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag";
+import { ensureWeeklyDiagnosis } from "@/app/lib/creatorWeeklyReport/diagnosisService";
+import { isCreatorWeeklyDiagnosisEnabled } from "@/app/lib/creatorWeeklyReport/diagnosisFlag";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +24,7 @@ async function authorized(request: NextRequest): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isCreatorWeeklyProfileExperienceEnabled()) {
+  if (!isCreatorWeeklyDiagnosisEnabled()) {
     return NextResponse.json({ message: "Recurso não habilitado." }, { status: 404 });
   }
   if (!(await authorized(request))) {
@@ -34,27 +33,18 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const userId = typeof body?.userId === "string" ? body.userId : null;
-  if (!userId) {
-    return NextResponse.json({ message: "userId obrigatório." }, { status: 400 });
+  const weekKey = typeof body?.weekKey === "string" ? body.weekKey : null;
+  if (!userId || !weekKey) {
+    return NextResponse.json({ message: "userId e weekKey obrigatórios." }, { status: 400 });
   }
 
   try {
-    const snapshot = await generateCreatorWeeklyReport({ userId, force: true });
-    // O diagnóstico da semana vai para a fila, guardado até segunda à tarde.
-    await scheduleWeeklyDiagnosis(userId, snapshot.report).catch((error) => {
-      console.error("[generate-creator-weekly-report] Falha ao agendar diagnóstico:", error);
-      return false;
-    });
-    return NextResponse.json({
-      ok: true,
-      weekKey: snapshot.report.weekKey,
-      status: snapshot.report.status,
-    });
+    const result = await ensureWeeklyDiagnosis({ userId, weekKey });
+    // Falha de escrita não volta como erro: a própria trava agenda a nova
+    // tentativa, e a retentativa da fila só repetiria a mesma chamada paga.
+    return NextResponse.json({ ok: true, result });
   } catch (error) {
-    console.error("[generate-creator-weekly-report] Falha ao gerar relatório:", error);
-    return NextResponse.json(
-      { ok: false, safeErrorCode: "weekly_report_generation_failed" },
-      { status: 500 },
-    );
+    console.error("[generate-creator-weekly-diagnosis] Falha ao escrever diagnóstico:", error);
+    return NextResponse.json({ ok: false, safeErrorCode: "weekly_diagnosis_failed" }, { status: 500 });
   }
 }

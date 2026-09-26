@@ -5,6 +5,7 @@ import {
   generateCreatorWeeklyReport,
   getOrGenerateCreatorWeeklyReport,
 } from "@/app/lib/creatorWeeklyReport/service";
+import { attachWeeklyDiagnosis } from "@/app/lib/creatorWeeklyReport/diagnosisService";
 import { isCreatorWeeklyProfileExperienceEnabled } from "@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag";
 
 export const runtime = "nodejs";
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       userId,
       force: body?.force === true,
     });
-    return NextResponse.json({ ok: true, report: snapshot.report });
+    return NextResponse.json({ ok: true, report: await attachWeeklyDiagnosis(userId, snapshot.report) });
   } catch (error) {
     console.error("[weekly-report] Falha ao gerar relatório:", error);
     return NextResponse.json(

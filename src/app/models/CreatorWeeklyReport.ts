@@ -1,8 +1,29 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 import type {
+  CreatorWeeklyDiagnosisContent,
   CreatorWeeklyReportPayload,
   CreatorWeeklyReportStatus,
 } from "@/app/lib/creatorWeeklyReport/types";
+
+/**
+ * O diagnóstico escrito da semana. Vive no mesmo documento do relatório, mas não
+ * acompanha a regeneração dele: o relatório se refaz quando os números mudam, o
+ * diagnóstico é escrito uma vez e congela até a semana seguinte.
+ */
+export interface ICreatorWeeklyDiagnosis {
+  status: "writing" | "ready" | "failed";
+  attempts: number;
+  attemptedAt: Date;
+  writtenAt: Date | null;
+  safeErrorCode: string | null;
+  content: CreatorWeeklyDiagnosisContent | null;
+  sampleLine: string | null;
+  /** Os fatos que o modelo recebeu: a evidência por trás do texto. */
+  facts: unknown;
+  promptVersion: string;
+  provider: string | null;
+  model: string | null;
+}
 
 export interface ICreatorWeeklyReport extends Document {
   userId: Types.ObjectId;
@@ -17,6 +38,7 @@ export interface ICreatorWeeklyReport extends Document {
   previousPayload?: CreatorWeeklyReportPayload;
   coverage: CreatorWeeklyReportPayload["coverage"];
   payload: CreatorWeeklyReportPayload;
+  diagnosis?: ICreatorWeeklyDiagnosis | null;
   safeErrorCode: string | null;
   attempts: number;
   createdAt: Date;
@@ -47,6 +69,7 @@ const creatorWeeklyReportSchema = new Schema<ICreatorWeeklyReport>(
     previousPayload: { type: Schema.Types.Mixed, default: null },
     coverage: { type: Schema.Types.Mixed, required: true },
     payload: { type: Schema.Types.Mixed, required: true },
+    diagnosis: { type: Schema.Types.Mixed, default: null },
     safeErrorCode: { type: String, default: null },
     attempts: { type: Number, default: 0 },
   },

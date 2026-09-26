@@ -56,7 +56,9 @@ export type MobileNarrativeTelemetryEventName =
   | "mobile_weekly_report_demo_opened"
   | "mobile_weekly_report_demo_closed"
   | "mobile_weekly_report_detail_opened"
-  | "mobile_weekly_report_refresh_succeeded";
+  | "mobile_weekly_report_refresh_succeeded"
+  | "mobile_weekly_diagnosis_claude_opened"
+  | "mobile_weekly_diagnosis_connector_copied";
 
 export type MobileNarrativeAnalysisMode = "mock" | "real_gated";
 export type MobileNarrativeGateResult = "allowed" | "blocked";

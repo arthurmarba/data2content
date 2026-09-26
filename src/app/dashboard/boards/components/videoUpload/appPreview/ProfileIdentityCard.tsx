@@ -71,27 +71,30 @@ export function ProfileIdentityCard({
           <h1 className="ds-profile-title truncate text-[24px] font-bold leading-[1.06] tracking-[-0.035em] text-[var(--ds-color-ink)]">
             {userName || "Seu perfil"}
           </h1>
-          <p className="mt-[5px] truncate text-[12px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</p>
+          <div className="mt-[5px] truncate text-[12px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</div>
         </div>
       </div>
 
       <div className="ds-profile-narrative mt-[26px] border-t border-dashed border-[var(--ds-color-line-strong)] pt-6">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
+        {/* `div`, não `p`: na Jornada, `.j-workspace p` impõe 14px, cinza e
+            margem, e passaria por cima dos tamanhos daqui — o rótulo saía maior
+            que os outros rótulos da tela e o pedido de narrativa saía cinza. */}
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-muted)]">
           Sua narrativa
-        </p>
+        </div>
 
         {narrativeIsPlaceholder ? (
           <>
-            <p
+            <div
               id="creator-map-title"
               className="mt-2.5 text-[19px] font-semibold leading-[1.3] tracking-[-0.025em] text-[var(--ds-color-ink)]"
             >
               Defina sua narrativa para o D2C começar a ler seus posts.
-            </p>
-            <p className="mt-2.5 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
+            </div>
+            <div className="mt-2.5 text-[12.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
               Conte para quem você cria e o que quer provocar nessas pessoas. É dessa resposta que sai o fio que a
               leitura usa para comparar.
-            </p>
+            </div>
             <button
               type="button"
               onClick={onDefineNarrative}
@@ -122,18 +125,15 @@ export function ProfileIdentityCard({
               </div>
             ) : null}
 
-            <div className="mt-[22px] flex justify-end">
-              <button
-                type="button"
-                onClick={onOpenFullMap}
-                className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--ds-color-ink)]"
-              >
-                Ver narrativa completa
-                <span aria-hidden="true" className="text-[13px] text-[var(--ds-color-text-muted)]">
-                  ›
-                </span>
-              </button>
-            </div>
+            {/* Botão preto, como as outras ações do Perfil: o mesmo lugar e o
+                mesmo peso do "Definir minha narrativa" quando ela ainda falta. */}
+            <button
+              type="button"
+              onClick={onOpenFullMap}
+              className="ds-button ds-button--primary ds-button--block mt-[22px]"
+            >
+              Ver narrativa completa
+            </button>
           </>
         )}
 

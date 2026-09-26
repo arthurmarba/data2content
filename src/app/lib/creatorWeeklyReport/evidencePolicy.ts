@@ -4,9 +4,12 @@ import { isVideo, hasScene } from './evolution';
 
 export type ComparisonMetric = 'shares' | 'saved' | 'views';
 export const CONSISTENT_MIN_POSTS = 6;
-// A promoção pública aguarda os dois fechamentos do piloto. A decisão candidata
-// fica no relatório para avaliação, sem transformar uma hipótese em certeza.
-export const CONSISTENT_POLICY_VALIDATED = false;
+// Promoção pública liberada em 26/09/2026, depois dos dois fechamentos do piloto
+// (W36→W37 e W37→W38): dos 25 candidatos, nenhum ficou abaixo do normal do
+// próprio criador na semana seguinte; pouco mais da metade seguiu candidata — a
+// regra erra para o lado cauteloso. Critérios e limites em
+// docs/brain/40 Decisões/Padrão consistente liberado depois do piloto.md.
+export const CONSISTENT_POLICY_VALIDATED = true;
 export const formatCohort = (metric: CreatorWeeklyReportMetricInput) => metric.type || 'unknown';
 
 export function median(values: (number | null)[]): number | null {
