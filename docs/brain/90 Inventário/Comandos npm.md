@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Comandos npm
 
-**100 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**101 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -52,6 +52,7 @@ atualizado: 2026-09-26
 | `npm run audit:profile-evolution` | `tsx --env-file=.env.local ./scripts/auditProfileEvolution.ts` |
 | `npm run audit:script-adjustment` | `tsx --env-file=.env.local ./scripts/auditScriptAdjustmentExperiment.ts` |
 | `npm run audit:script-evidence` | `tsx --env-file=.env.local ./scripts/auditCreatorScriptEvidence.ts` |
+| `npm run audit:stripe-subscriptions` | `tsx --env-file=.env.local ./scripts/auditStripeSubscriptions.ts` |
 | `npm run audit:video-postdates` | `node ./scripts/auditVideoPostDates.mjs` |
 
 ## backfill
