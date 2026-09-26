@@ -14,6 +14,7 @@ import {
   getMcpAdminServerUrl,
   getMcpOAuthAudience,
   getMcpConnectionScopes,
+  getMcpRequiredScope,
   getMcpOAuthIssuer,
   getMcpOAuthJwksUrl,
   getMcpResourceMetadataUrl,
@@ -212,10 +213,14 @@ async function authenticateMcpRequestForPolicy(
   }
 }
 
+// A conexão exige só o scope básico. Cada ferramenta confere o seu (scopeRequiredResult
+// em server.ts). Exigir o conjunto inteiro aqui derrubava com 403 toda conexão feita
+// antes de um scope novo entrar — não só a ferramenta nova.
 export async function authenticateMcpRequest(request: Request): Promise<McpAuthenticatedIdentity> {
   return authenticateMcpRequestForPolicy(request, {
     audience: getMcpOAuthAudience(),
-    requiredScopes: getMcpConnectionScopes(),
+    requiredScopes: [getMcpRequiredScope()],
+    developmentScopes: getMcpConnectionScopes(),
   });
 }
 
