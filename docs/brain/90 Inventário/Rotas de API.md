@@ -10,7 +10,7 @@ atualizado: 2026-09-26
 
 O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um endereço da API.
 
-**440 rotas** em **58 grupos**.
+**441 rotas** em **58 grupos**.
 
 ## Índice
 
@@ -32,7 +32,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 - [community](#community) — 1 rota
 - [creator](#creator) — 1 rota
 - [creator-research](#creator-research) — 1 rota
-- [cron](#cron) — 22 rotas
+- [cron](#cron) — 23 rotas
 - [dashboard](#dashboard) — 48 rotas
 - [deals](#deals) — 1 rota
 - [demographics](#demographics) — 1 rota
@@ -378,6 +378,7 @@ O back-end vive dentro do próprio Next.js: cada pasta com um `route.ts` vira um
 | `/api/cron/creator-weekly-reports` | GET, POST | `src/app/api/cron/creator-weekly-reports/route.ts` |
 | `/api/cron/expire-trials` | POST | `src/app/api/cron/expire-trials/route.ts` |
 | `/api/cron/mature-affiliate-commissions` | POST | `src/app/api/cron/mature-affiliate-commissions/route.ts` |
+| `/api/cron/mcp-usage-weekly` | POST | `src/app/api/cron/mcp-usage-weekly/route.ts` |
 | `/api/cron/notify-free-month-ending` | POST | `src/app/api/cron/notify-free-month-ending/route.ts` |
 | `/api/cron/persist-usage-counters` | POST | `src/app/api/cron/persist-usage-counters/route.ts` |
 | `/api/cron/plugin-weekly-email` | POST | `src/app/api/cron/plugin-weekly-email/route.ts` |

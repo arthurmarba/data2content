@@ -19,7 +19,7 @@ O objetivo do ChatGPT e do Claude é gerar assinantes, dentro do que cada loja p
 2. **Valor na conversa:** Norte → narrativa → radar. Ao declarar o Norte, a fila gera as três primeiras pautas (decisão do Arthur: gerar pauta de amostra vale o custo).
 3. **O limite vira convite.** Cada limite diz o que ficou de fora, sem vender, e leva o pedido (`intent`) para o site.
 4. **Chegada no site** (`/dashboard/plugin`): narrativa, pautas e o que o Pro faz, na ordem do que a pessoa pediu. "Ver planos" abre a janela de assinatura; depois dela, a pessoa volta ao chat de origem.
-5. **Fora do chat:** um e-mail por semana com uma pauta ainda não mostrada, até as de amostra acabarem.
+5. **Fora do chat:** um e-mail por semana com uma pauta ainda não mostrada, até as de amostra acabarem. É comunicação do serviço, sem plano nem preço: a política exige consentimento para marketing, e quem conecta pelo chat não deu esse consentimento. A oferta fica na página de chegada, para onde o e-mail leva.
 6. **Só no Claude, e desligado até a aprovação:** a oferta na própria conexão (`MCP_CLAUDE_CONNECT_OFFER_ENABLED`), depois da narrativa e nunca antes dela.
 
 ## O que não se faz
@@ -29,6 +29,9 @@ O objetivo do ChatGPT e do Claude é gerar assinantes, dentro do que cada loja p
 - Preço, plano ou desconto dentro da conversa, nos dois chats. É a mesma regra do `conversationPolicy.ts`.
 
 ## Como medir
+
+O uso diário de cada pessoa e os pedidos que chegam às ferramentas estão na seção "Medição de uso do conector" de [[MCP — ChatGPT e Claude]].
+
 
 `npx tsx --env-file=.env.local scripts/pluginFunnelReport.ts`, só leitura. Contas conectadas antes de 26/09 só aparecem depois de `scripts/backfillPluginOrigin.ts --apply`, que também as coloca na fila do e-mail semanal.
 

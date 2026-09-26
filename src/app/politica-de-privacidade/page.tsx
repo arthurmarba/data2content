@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-4 text-sm text-[var(--ds-color-text-muted)]">
-              <strong>Última Atualização:</strong> 25 de setembro de 2026
+              <strong>Última Atualização:</strong> 26 de setembro de 2026
             </p>
           </header>
 
@@ -82,6 +82,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc list-inside mt-4 space-y-2">
               <li><strong>Não solicitamos a conversa completa:</strong> o plugin e o conector não pedem, reconstroem nem armazenam o histórico integral do seu chat.</li>
+              <li><strong>Medição de uso:</strong> registramos quais ferramentas e atalhos você usa, quando, e os campos que o assistente enviou a cada ferramenta, para medir o uso e melhorar o serviço. Esses registros com texto são apagados em 90 dias; o resumo diário, só com contagens, em 12 meses. Ambos são excluídos junto com a sua conta.</li>
               <li><strong>Não solicitamos credenciais:</strong> senhas, códigos de autenticação, chaves de API e dados de cartão não fazem parte das entradas das ferramentas.</li>
               <li><strong>Respostas conforme a conta:</strong> podemos retornar o Norte declarado, roteiros salvos, padrões agregados da comunidade e, quando disponível e solicitado, análises dos seus próprios conteúdos do Instagram.</li>
               <li><strong>Dados da comunidade:</strong> radares gratuitos usam sinais agregados sem identificar creators; ferramentas de inspiração podem mostrar atribuição pública apenas de creators que autorizaram a participação, sem expor transcrições completas ou métricas privadas.</li>
@@ -121,6 +122,11 @@ export default function PrivacyPolicyPage() {
                     <td className="border border-gray-300 px-4 py-3">Operar o plugin Data2Content para ChatGPT e o conector e o plugin Data2Content para Claude</td>
                     <td className="border border-gray-300 px-4 py-3">Identificador da conta, permissões OAuth e campos específicos enviados para a ferramenta solicitada</td>
                     <td className="border border-gray-300 px-4 py-3">Execução de contrato (inciso V) + Consentimento, quando aplicável (inciso I)</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">Medir o uso do plugin e do conector e entender o que os creators pedem, para melhorar o serviço</td>
+                    <td className="border border-gray-300 px-4 py-3">Por conta: ferramentas e atalhos usados, data e hora, erros e os campos enviados à ferramenta (por exemplo tema, pedido de roteiro, ideia avaliada e período); resumo diário de uso sem texto</td>
+                    <td className="border border-gray-300 px-4 py-3">Legítimo interesse (inciso IX)</td>
                   </tr>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Processar pagamento de assinatura</td>
@@ -283,8 +289,12 @@ export default function PrivacyPolicyPage() {
                     <td className="border border-gray-300 px-4 py-3">Pelo período da assinatura ativa; excluídos em 30 dias após cancelamento</td>
                   </tr>
                   <tr className="even:bg-gray-50">
-                    <td className="border border-gray-300 px-4 py-3">Logs técnicos de interações com IA, ChatGPT, Claude ou WhatsApp (sem histórico integral do chat)</td>
+                    <td className="border border-gray-300 px-4 py-3">Logs técnicos de interações com IA, ChatGPT, Claude ou WhatsApp (sem histórico integral do chat), incluindo o registro de uso do plugin e do conector com os campos enviados às ferramentas</td>
                     <td className="border border-gray-300 px-4 py-3">90 dias após cada interação</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">Resumo diário de uso do plugin e do conector (contagens, sem texto)</td>
+                    <td className="border border-gray-300 px-4 py-3">12 meses</td>
                   </tr>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Sessões privadas de evidências e rascunhos para preparação de roteiros</td>

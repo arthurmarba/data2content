@@ -420,3 +420,14 @@ A decisão e as regras de cada loja estão em [[Funil do plugin]]. No código:
 - A oferta na conexão do Claude (`oauth/connectOffer.ts`, página `/mcp/conectado`) só existe com `MCP_CLAUDE_CONNECT_OFFER_ENABLED=1`. O código OAuth só é emitido no clique em "Continuar", e o pedido de consentimento fica aberto 30 minutos. Antes de ligar, testar numa conexão real do Claude.
 - O login (`?assistant=`) e a tela de autorização mostram o nome do chat certo; antes diziam "ChatGPT" para quem conectava o Claude, inclusive para o revisor da Anthropic.
 
+## Medição de uso do conector — 26/09/2026
+
+Antes, o único registro de uso era o log da Vercel, que guarda cerca de um dia (em 26/09: 15 chamadas em 24 horas). Agora cada chamada de ferramenta ou atalho, no ChatGPT e no Claude, grava duas coisas sem atrasar a resposta (`usageTracking.ts`):
+
+- **`mcp_usage_daily`**: um documento por pessoa, dia de São Paulo e chat, só com contagens: chamadas, erros, limites batidos, ferramentas, conversas e tempo estimado. Conversa nova é uma chamada depois de mais de 30 minutos de pausa. O tempo é a soma dos intervalos dentro da conversa, então subestima o real e serve para comparar semanas. Apagado em 12 meses.
+- **`mcp_tool_call_logs`**: cada chamada com os campos que a ferramenta recebeu (tema, pedido de roteiro, ideia avaliada, período), cortados em 500 caracteres. Apagado em 90 dias. É o mais perto que chegamos da pergunta: a conversa fica no chat, aqui só chega o que o assistente mandou para a ferramenta.
+
+A finalidade e os prazos estão na política de privacidade (26/09). Os dois registros saem junto com a conta em `deleteUserAccountAndAssociatedData`. A conta de sessão usa `$getField` e pipeline com upsert; o teste `usageTracking.integration.test.ts` roda num MongoDB em memória, porque mock não comprova isso.
+
+Para ler: a ferramenta `get_connector_usage` no MCP administrativo (pergunte ao Claude "o que os creators mais pediram esta semana?"), `scripts/mcpUsageReport.ts` e o e-mail de toda segunda para quem estiver em `MCP_USAGE_REPORT_TO`. A rotina `/api/cron/mcp-usage-weekly` precisa ser criada no QStash. Contas internas (admin, e-mails da Data2Content, contas de revisão) ficam de fora por padrão. Depois do deploy, confirmar a expiração no banco real com `scripts/mcpUsageReport.ts --check-ttl` (ver [[Expiração declarada não garante limpeza no MongoDB]]).
+

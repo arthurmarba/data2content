@@ -1,9 +1,11 @@
 /**
  * E-mail semanal de quem conectou a Data2Content por um chat e não assinou.
  *
- * Uma pauta do mapa da pessoa por semana, com o gancho — valor antes de oferta.
- * O Pro aparece numa linha só. Este e-mail é canal da própria D2C, não do
- * plugin: a regra da OpenAI sobre planos vale dentro do ChatGPT, não aqui.
+ * Uma pauta do mapa da pessoa por semana, com o gancho. É comunicação do
+ * serviço, não marketing: a política de privacidade exige consentimento para
+ * e-mail de marketing, e quem conecta pelo chat não deu esse consentimento. Por
+ * isso nada de plano ou preço aqui. A oferta fica na página de chegada, para
+ * onde o botão leva.
  */
 
 function escapeHtml(value: string): string {
@@ -41,8 +43,6 @@ export function pluginWeeklyEmail(params: PluginWeeklyEmailParams) {
     `Ver no seu perfil: ${params.profileUrl}`,
     `Você também pode pedir no ${params.clientLabel}: é só perguntar o que postar.`,
     "",
-    "No Pro, chegam pautas novas toda semana, e a Data2Content lê os seus posts para dizer o que funciona para você.",
-    "",
     `Você recebe este e-mail porque conectou a Data2Content ao ${params.clientLabel}.`,
     `Para não receber mais: ${params.unsubscribeUrl}`,
   ].join("\n");
@@ -60,11 +60,8 @@ export function pluginWeeklyEmail(params: PluginWeeklyEmailParams) {
       <p style="margin:0 0 12px;">
         <a href="${escapeHtml(params.profileUrl)}" style="display:inline-block;background:#171717;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;border-radius:999px;padding:12px 22px;">Ver no meu perfil</a>
       </p>
-      <p style="font-size:13px;line-height:1.6;color:#52525b;margin:0 0 24px;">
-        Você também pode pedir no ${escapeHtml(params.clientLabel)}: é só perguntar o que postar.
-      </p>
       <p style="font-size:13px;line-height:1.6;color:#52525b;margin:0 0 28px;">
-        No Pro, chegam pautas novas toda semana, e a Data2Content lê os seus posts para dizer o que funciona para você.
+        Você também pode pedir no ${escapeHtml(params.clientLabel)}: é só perguntar o que postar.
       </p>
       <p style="font-size:12px;line-height:1.6;color:#a1a1aa;margin:0;">
         Você recebe este e-mail porque conectou a Data2Content ao ${escapeHtml(params.clientLabel)}.

@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **97 modelos.**
+Todo dado persistido é um modelo Mongoose. **99 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -77,6 +77,8 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **McpOAuthClient** | `mcp_oauth_clients` | `src/app/models/McpOAuthClient.ts` |
 | **McpOAuthConsentRequest** | `mcp_oauth_consent_requests` | `src/app/models/McpOAuthConsentRequest.ts` |
 | **McpOAuthRefreshToken** | `mcp_oauth_refresh_tokens` | `src/app/models/McpOAuthRefreshToken.ts` |
+| **McpToolCallLog** | `mcp_tool_call_logs` | `src/app/models/McpToolCallLog.ts` |
+| **McpUsageDaily** | `mcp_usage_daily` | `src/app/models/McpUsageDaily.ts` |
 | **MediaKitAccessLog** | `—` | `src/app/models/MediaKitAccessLog.ts` |
 | **MediaKitPackage** | `—` | `src/app/models/MediaKitPackage.ts` |
 | **MediaKitPdfCache** | `—` | `src/app/models/MediaKitPdfCache.ts` |

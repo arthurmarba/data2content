@@ -8,6 +8,8 @@ import { paymentReceiptEmail } from '@/emails/paymentReceipt';
 import { vipInviteEmail } from '@/emails/vipInvite';
 import { freeMonthEndingEmail } from '@/emails/freeMonthEnding';
 import { pluginWeeklyEmail, type PluginWeeklyEmailParams } from '@/emails/pluginWeekly';
+import { mcpUsageWeeklyEmail } from '@/emails/mcpUsageWeekly';
+import type { McpUsageReport } from '@/app/lib/mcp/usageReport';
 import { proposalReplyEmail, ProposalReplyEmailParams } from '@/emails/proposalReply';
 import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/proposalReceivedEmail';
 import { campaignBriefConfirmation, CampaignBriefConfirmationParams } from '@/emails/campaignBriefConfirmation';
@@ -254,6 +256,12 @@ export async function sendProposalUpgradePromptEmail(
 /** E-mail semanal do plugin. Lança em caso de falha: quem chama só marca como enviado o que saiu. */
 export async function sendPluginWeeklyEmail(to: string, params: PluginWeeklyEmailParams) {
   const template = pluginWeeklyEmail(params);
+  await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
+}
+
+/** Resumo semanal interno do uso do conector. Lança em caso de falha. */
+export async function sendMcpUsageWeeklyEmail(to: string, report: McpUsageReport, adminUrl: string) {
+  const template = mcpUsageWeeklyEmail(report, adminUrl);
   await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
 }
 

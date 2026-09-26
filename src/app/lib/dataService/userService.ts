@@ -22,6 +22,8 @@ import CommunityInspirationModel from '@/app/models/CommunityInspiration';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import AdDeal from '@/app/models/AdDeal';
 import StoryMetricModel from '@/app/models/StoryMetric'; // Modelo para métricas de stories
+import McpToolCallLogModel from '@/app/models/McpToolCallLog';
+import McpUsageDailyModel from '@/app/models/McpUsageDaily';
 import Alert from '@/app/models/Alert';
 
 // Conexão com o banco de dados
@@ -515,6 +517,11 @@ export async function deleteUserAccountAndAssociatedData(userId: string): Promis
     // 6. Excluir Métricas de Stories
     const storyMetricsDeletionResult = await StoryMetricModel.deleteMany({ user: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${storyMetricsDeletionResult.deletedCount} métricas de stories excluídas para o utilizador ${userId}.`);
+
+    // 6b. Excluir a medição de uso do conector (ChatGPT/Claude), inclusive os pedidos guardados
+    const mcpCallLogsDeletionResult = await McpToolCallLogModel.deleteMany({ userId: userObjectId }).session(mongoSession);
+    const mcpUsageDailyDeletionResult = await McpUsageDailyModel.deleteMany({ userId: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${mcpCallLogsDeletionResult.deletedCount} chamadas e ${mcpUsageDailyDeletionResult.deletedCount} resumos diários do conector excluídos para o utilizador ${userId}.`);
 
     // 7. Excluir o próprio utilizador
     const userDeletionResult = await User.findByIdAndDelete(userObjectId).session(mongoSession);

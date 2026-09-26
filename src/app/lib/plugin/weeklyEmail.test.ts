@@ -83,7 +83,7 @@ describe("e-mail semanal do plugin", () => {
     expect(UserModel.updateOne).not.toHaveBeenCalled();
   });
 
-  it("o e-mail entrega a pauta, fala do Pro numa linha só e tem saída", () => {
+  it("o e-mail entrega a pauta, não vende e tem saída", () => {
     const email = pluginWeeklyEmail({
       name: "Ana Souza",
       clientLabel: "ChatGPT",
@@ -96,6 +96,7 @@ describe("e-mail semanal do plugin", () => {
     expect(email.html).toContain("Pauta &lt;teste&gt;");
     expect(email.html).toContain("Não quero mais receber");
     expect(email.text).toContain("Oi, Ana!");
-    expect(email.text.match(/Pro/g)).toHaveLength(1);
+    // Comunicação do serviço: sem plano, preço ou assinatura (a política exige consentimento para marketing).
+    expect(email.text).not.toMatch(/\bPro\b|plano|assin|R\$/i);
   });
 });
