@@ -168,7 +168,8 @@ function buildToolDescriptor(name: string, config: D2CToolConfig) {
           }),
         }
       : {}),
-    annotations: config.annotations,
+    // O diretório de conectores do Claude lê o nome legível em annotations.title.
+    annotations: { title: config.title, ...config.annotations },
     securitySchemes: config.securitySchemes,
     _meta: {
       ...config._meta,
