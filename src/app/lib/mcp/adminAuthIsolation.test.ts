@@ -124,6 +124,36 @@ describe("MCP subscriber/admin token isolation", () => {
     );
   });
 
+  it("keeps older subscriber connections working when a newer scope is missing", async () => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: userId, d2c_user_id: userId, scope: "profile:read" },
+      protectedHeader: { alg: "ES256" },
+    } as never);
+    const request = new Request("https://data2content.ai/api/mcp", {
+      headers: { authorization: "Bearer older-subscriber-token" },
+    });
+
+    await expect(authenticateMcpRequest(request)).resolves.toMatchObject({
+      userId,
+      scopes: ["profile:read"],
+    });
+  });
+
+  it("rejects subscriber tokens without the baseline scope", async () => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: userId, d2c_user_id: userId, scope: "admin:creators:search" },
+      protectedHeader: { alg: "ES256" },
+    } as never);
+    const request = new Request("https://data2content.ai/api/mcp", {
+      headers: { authorization: "Bearer admin-token-at-subscriber" },
+    });
+
+    await expect(authenticateMcpRequest(request)).rejects.toMatchObject({
+      code: "insufficient_scope",
+      status: 403,
+    } satisfies Partial<McpAuthError>);
+  });
+
   it("rejects subscriber scopes at the admin endpoint", async () => {
     mockJwtVerify.mockResolvedValue({
       payload: { sub: userId, d2c_user_id: userId, scope: "profile:read metrics:read" },
