@@ -131,6 +131,20 @@ são por etapa. Comparação shadow não roda neste contexto automático. Outros
 `GeminiBudgetPolicy`, documento `automatic`, ausente ou `enabled: false`: apenas
 acompanha. **Arthur definiu R$ 8/dia como referência, preferindo eficiência por análise
 a bloqueio de crescimento. Nenhum teto foi ativado nem valor gravado em produção.**
+
+Na auditoria de espaço de 25/09/2026, `GeminiOperation.response` ocupava **9,85 MB**.
+Uma simulação em memória de BSON + gzip reduziu esse conteúdo para **1,93 MB**,
+sem alterar o banco. O comprovante não pode simplesmente expirar: ele impede
+reenviar e pagar outra vez. `ContentReadingState.result` ocupava **8,83 MB**;
+**8,63 MB** pertenciam a 1.317 leituras concluídas com evidência publicada
+correspondente. Limpar esse checkpoint só após conferir a persistência final e
+preservar a retomada de falhas. Esses números são oportunidades, não autorização
+de exclusão.
+
+Em `PublishedContentEvidence`, `transcript` + `scenes` ocupavam **11,72 MB**;
+BSON + gzip simulado reduziu os dois campos a **3,99 MB**. Uma migração precisaria
+preservar o contrato de leitura e a recuperação dos dados originais.
+
 O limite opcional usa `globalDailyMicros` e, se desejado, `creatorDailyMicros`, em
 milionésimos de USD, por dia UTC. `rates[modelo]` exige `inputUsdPerMillion` e
 `outputUsdPerMillion` revisados: usar a maior tarifa aplicável por modalidade/faixa,

@@ -18,7 +18,7 @@ Arthur aprovou as correções. Aplicado com `npm run maintenance:mongo-fields` (
 
 Total medido: **442,56 → 393,80 MB** (dados + índices dos dois bancos). Cópias recuperáveis em `output/mongodb-maintenance/campos-2026-09-26T03-48-02-950Z/` (perfil) e `campos-2026-09-26T03-57-40-817Z/` (cache do planejamento), com SHA-256 em `resultado.json`. Os zeros não têm cópia: o filtro só retirou valores 0/vazios. As consultas de último snapshot, histórico do post, dia do post e avatar foram conferidas com `explain` depois da remoção: todas usam índice, 1 chave examinada nas buscas pontuais.
 
-Código alterado junto (ainda não publicado):
+Código alterado junto (publicado no PR #902, merge `2288472b`):
 
 - `accountInsightActions.ts`: ao gravar registro com foto, retira foto/bio/site dos anteriores do mesmo usuário e conta.
 - `metricActions.ts` e `DailyMetricSnapshot.ts`: param de gravar impressions e `__v`; `idx_metric_history` sai do modelo. Top movers do admin perdeu a opção "Impressões" (sempre zero).
@@ -27,8 +27,8 @@ Código alterado junto (ainda não publicado):
 
 **Pendente depois da publicação:**
 
-1. `npm run maintenance:mongo-fields -- --apply --expected-db=data2content --drop-after-deploy` (≈ −18 MB): `idx_metric_history` e `idx_metric_dayNumber` dos snapshots (este só servia a `calculateCumulativeEngagementPercentage`, sem chamadores) e 10 índices de `metrics` com zero uso em 18 dias no primário (`tone`, `references`, `narrativeForm`, `contentSignals`, `stance`, `proofStyle`, `commercialMode`, `source`, `classificationLastQueuedAt`, `isPubli`). `stats.total_interactions_-1` fica: a Descobrir ordena por ele e, sem índice, a ordenação pode estourar a memória do plano gratuito. Antes da publicação o Mongoose da produção recriaria esses índices.
-2. A partir de 14/10, compactar recibos do Gemini de leituras concluídas há 30 dias com `--compact-gemini-receipts` (~0,8 MB/dia de crescimento contido). Idealmente entra na rotina diária de retenção.
+1. ~~Remover os índices declarados~~ **Feito em 26/09/2026**, logo após o deploy do PR #902 (`--drop-after-deploy`): `idx_metric_history`, `idx_metric_dayNumber` e 10 índices de `metrics` (`tone`, `references`, `narrativeForm`, `contentSignals`, `stance`, `proofStyle`, `commercialMode`, `source`, `classificationLastQueuedAt`, `isPubli`). Índices: 83,6 → 63,5 MB. `stats.total_interactions_-1` ficou: a Descobrir ordena por ele. **Banco total: 377,3 MB.**
+2. A partir de 14/10, compactar recibos do Gemini (não afeta Claude/ChatGPT: o MCP lê `published_content_evidence` e `content_reading_states`, nunca `gemini_operations`; o recibo só serve para não pagar a mesma leitura duas vezes) de leituras concluídas há 30 dias com `--compact-gemini-receipts` (~0,8 MB/dia de crescimento contido). Idealmente entra na rotina diária de retenção.
 3. B1 e B2 esperam o trabalho da camada de leitura de capa/miniatura que está sem commit no repositório (mesmos arquivos: `postsService.ts`, `postReviewsService.ts`).
 
 **Decidido não mexer:** C2. O sino do chat ainda migra `users.alertHistory` para `alerts` na primeira abertura; apagar mudaria o que esses usuários veem. A consolidação resultado × evidência de C1 também fica de fora: os dois são lidos por MCP, relatório semanal e roteiros.

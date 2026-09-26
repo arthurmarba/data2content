@@ -133,3 +133,4 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 Documento de planejamento mora em `docs/`, **nunca junto do código**. A única exceção são os doze contratos em `boards/videoUpload/` que os testes leem — esses são contrato executável, não planejamento.
 
 Ao criar documento novo, acrescente uma linha aqui. Um sótão só continua sendo arquivo enquanto alguém escreve no índice.
+- [Justificativas e roteiro do reenvio à Meta](meta-review/JUSTIFICATIVAS_REENVIO.md) — textos em inglês e roteiro dos dois screencasts depois da rejeição de 21/09/2026

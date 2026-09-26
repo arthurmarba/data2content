@@ -65,6 +65,13 @@ timeline visual, mas omite tanto o texto integral quanto os trechos falados. A c
 de `analyze_creator_period` também é calculada por `PublishedContentEvidence` — nunca
 por `Metric.text_content`, campo legado que não é preenchido pela integração atual.
 
+**Cuidado ao compactar o banco:** `get_content_deep_analysis` lê diretamente
+`transcript` e `scenes`; `analyze_creator_portfolio` calcula cobertura de fala e
+cenas dentro de uma agregação MongoDB. Comprimir ou mover esses campos sem um
+adaptador para as leituras e sem manter metadados consultáveis pode fazer o Claude
+informar ausência de evidência existente ou reduzir incorretamente a cobertura.
+Qualquer migração precisa comparar as respostas MCP antes/depois nos mesmos posts.
+
 ## Roteiro com evidência própria — implementação de 07/09/2026
 
 Há dois caminhos sobre o mesmo seletor: `get_script_evidence_pack` entrega poucas
