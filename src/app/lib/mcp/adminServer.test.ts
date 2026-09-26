@@ -203,6 +203,7 @@ describe("Data2Content admin MCP server", () => {
       expect(tools.map((tool) => tool.name)).toEqual([
         "search_external_creators",
         "get_public_instagram_creator", "compare_public_instagram_creators",
+        "get_connector_usage",
         "list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map",
         "get_creator_follower_growth", "get_creator_script_evidence",
         "search",

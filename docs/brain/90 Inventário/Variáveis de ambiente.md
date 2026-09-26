@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Variáveis de ambiente
 
-**434 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**435 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -106,6 +106,7 @@ atualizado: 2026-09-26
 | `MCP_OAUTH_JWKS_URL` | 5 |
 | `MCP_DEV_AUTH_BYPASS` | 4 |
 | `MCP_SERVER_URL` | 4 |
+| `MCP_USAGE_REPORT_TO` | 4 |
 | `MCP_ADMIN_SERVER_URL` | 3 |
 | `MCP_DEV_USER_ID` | 3 |
 | `MCP_OAUTH_ALLOWED_ALGORITHMS` | 3 |
@@ -222,8 +223,8 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 38 |
-| `QSTASH_NEXT_SIGNING_KEY` | 38 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 39 |
+| `QSTASH_NEXT_SIGNING_KEY` | 39 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -317,7 +318,7 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 124 |
+| `NODE_ENV` | 125 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
@@ -348,6 +349,7 @@ atualizado: 2026-09-26
 | `PROPOSAL_ANALYSIS_V2_ENABLED` | 3 |
 | `UPSTASH_REDIS_REST_TOKEN` | 3 |
 | `UPSTASH_REDIS_REST_URL` | 3 |
+| `USAGE_EVENTS_DISABLED` | 3 |
 | `USER` | 3 |
 | `ACK_SKIP_THRESHOLD_MINUTES` | 2 |
 | `ANSWER_ENGINE_ENABLED` | 2 |
@@ -369,7 +371,6 @@ atualizado: 2026-09-26
 | `SMTP_PASS` | 2 |
 | `SMTP_USER` | 2 |
 | `STREAM_READ_TIMEOUT_MS` | 2 |
-| `USAGE_EVENTS_DISABLED` | 2 |
 | `VERCEL` | 2 |
 | `ADMIN_AI_CACHE_ENABLED` | 1 |
 | `ADMIN_MONITORING_SUMMARY_CACHE_TTL_MS` | 1 |

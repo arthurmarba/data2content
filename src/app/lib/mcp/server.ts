@@ -46,6 +46,7 @@ import { McpCreatorNorthValidationError, saveMcpCreatorNorth } from "./creatorNo
 import type { McpClientSurface } from "./clientSurface";
 import type { PluginIntent } from "@/app/lib/plugin/pluginClient";
 import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
+import { recordMcpToolUsage } from "./usageTracking";
 import { buildMcpCreatorRadar } from "./creatorRadar";
 import { McpPeriodValidationError } from "./periodAnalysis";
 import { getMcpFollowerGrowth } from "./followerGrowth";
@@ -951,6 +952,18 @@ function privateCreatorContextRequiredResult(
   return null;
 }
 
+/** Código de erro que a ferramenta devolveu, para medir onde a conversa emperra. */
+function errorCodeOf(result: CallToolResult): string | null {
+  const first = (result.content ?? [])[0];
+  if (!first || first.type !== "text") return null;
+  try {
+    const body = JSON.parse(first.text) as { error?: unknown };
+    return typeof body.error === "string" ? body.error.slice(0, 80) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Lê o código de limite de um resultado de erro, quando for um. */
 function planGateOf(result: CallToolResult): { error: string; feature: string | null } | null {
   if (result.isError !== true) return null;
@@ -1124,6 +1137,18 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
             accessLevel: context.accountState.accessLevel,
           });
         }
+        recordMcpToolUsage({
+          userId: context.identity.userId,
+          client: context.clientSurface ?? "chatgpt",
+          kind: "tool",
+          name,
+          isError: result.isError === true,
+          errorCode: result.isError === true ? errorCodeOf(result) : null,
+          planGate: gate?.feature ?? null,
+          durationMs: Date.now() - startedAt,
+          accessLevel: context.accountState.accessLevel,
+          args,
+        });
         // O SDK valida a saída depois deste ponto e, se falhar, o creator recebe
         // erro enquanto o log acima diz sucesso. Registramos só os caminhos do
         // problema — nunca os valores.
@@ -1155,6 +1180,17 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
           dbErrorCodeName: typeof dbError?.codeName === "string" && /^[A-Za-z0-9_]{1,60}$/.test(dbError.codeName)
             ? dbError.codeName
             : undefined,
+        });
+        recordMcpToolUsage({
+          userId: context.identity.userId,
+          client: context.clientSurface ?? "chatgpt",
+          kind: "tool",
+          name,
+          isError: true,
+          errorCode: error instanceof Error ? error.name : "unknown_error",
+          durationMs: Date.now() - startedAt,
+          accessLevel: context.accountState.accessLevel,
+          args,
         });
         throw error;
       }
@@ -2327,8 +2363,23 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
   const userMessage = (text: string) => ({
     messages: [{ role: "user" as const, content: { type: "text" as const, text } }],
   });
+  // Atalho escolhido também é sinal de dor: registra qual e o que a pessoa escreveu nele.
+  const registerPrompt: typeof rawRegisterPrompt = (name, config, cb) =>
+    rawRegisterPrompt(name, config, ((...args: never[]) => {
+      recordMcpToolUsage({
+        userId: context.identity.userId,
+        client: context.clientSurface ?? "chatgpt",
+        kind: "prompt",
+        name,
+        isError: false,
+        durationMs: 0,
+        accessLevel: context.accountState.accessLevel,
+        args: args[0],
+      });
+      return cb(...args);
+    }) as typeof cb);
 
-  rawRegisterPrompt(
+  registerPrompt(
     "what_to_post",
     {
       title: "O que eu posto agora",
@@ -2345,7 +2396,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       ),
   );
 
-  rawRegisterPrompt(
+  registerPrompt(
     "is_it_worth_posting",
     {
       title: "Vale postar isso?",
@@ -2368,7 +2419,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       ),
   );
 
-  rawRegisterPrompt(
+  registerPrompt(
     "weekly_review",
     {
       title: "Analisar minha semana",
@@ -2387,7 +2438,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       ),
   );
 
-  rawRegisterPrompt(
+  registerPrompt(
     "find_collab",
     {
       title: "Achar uma collab pra mim",
@@ -2404,7 +2455,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
       ),
   );
 
-  rawRegisterPrompt(
+  registerPrompt(
     "script_from_idea",
     {
       title: "Roteiro a partir de uma pauta",
