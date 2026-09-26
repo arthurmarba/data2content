@@ -49,10 +49,12 @@ async function main() {
   const gateSet = has(gates);
   const arrivalSet = has(arrivals);
 
-  const funnel: Record<string, Record<string, number>> = {};
+  type FunnelRow = { conectou: number; declarouNorte: number; temPauta: number; bateuLimite: number; abriuChegada: number; assinante: number };
+  const funnel: Record<string, FunnelRow> = {};
   for (const user of users) {
     const client = user.pluginOrigin?.client ?? "desconhecido";
-    const row = (funnel[client] ??= { conectou: 0, declarouNorte: 0, temPauta: 0, bateuLimite: 0, abriuChegada: 0, assinante: 0 });
+    const row: FunnelRow = funnel[client] ?? { conectou: 0, declarouNorte: 0, temPauta: 0, bateuLimite: 0, abriuChegada: 0, assinante: 0 };
+    funnel[client] = row;
     const id = String(user._id);
     row.conectou += 1;
     if (user.onboardingAnswers?.creatorPurpose?.trim()) row.declarouNorte += 1;
