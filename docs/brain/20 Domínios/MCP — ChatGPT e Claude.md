@@ -16,7 +16,7 @@ Uma porta que deixa o ChatGPT e o Claude conversarem com a inteligência da Data
 | Catálogo de ferramentas | `catalog.ts` |
 | Estado da conta | `accountState.ts` |
 | Política de conversa | `conversationPolicy.ts` |
-| Inteligências | `creatorIntelligence.ts`, `contentIntelligence.ts`, `scriptIntelligence.ts`, `collabIntelligence.ts`, `campaignRadar.ts` |
+| Inteligências | `creatorIntelligence.ts`, `scriptIntelligence.ts`, `collabIntelligence.ts`, `campaignRadar.ts` (`contentIntelligence.ts` e `toolAuthorization.ts` não estão ligados a nenhuma ferramenta) |
 | Norte do criador | `creatorNorth.ts` |
 | Login (OAuth) | `src/app/lib/mcp/oauth/`, `auth.ts` |
 | Permissões | `entitlement.ts`, `toolAuthorization.ts` |
@@ -385,3 +385,23 @@ A 1.0.0 foi recusada por "login não concluído". A causa está em
 (as duas consultas públicas por @ ganharam justificativa), nota ao revisor sobre a
 correção e o override de scopes removido de novo. O Claude recebeu a Data2Content
 no diretório de conectores em 26/09, com status "Em revisão".
+
+## Revisão das respostas — 26/09/2026
+
+Uma revisão de código achou respostas que podiam sair erradas no Claude e no ChatGPT. Foi tudo corrigido de uma vez, antes de reenviar às duas lojas:
+
+- **O mapa respeita o card.** `get_creator_map` lê `CreatorMapConfirmations`, como o relatório semanal já fazia. Asset, narrativa, território ou tom recusados saem do dicionário e vão para `rejectedByCreator`. Narrativa confirmada vira firme (`narrativeConfirmedByCreator`), mesmo sem duas leituras. A confirmação vale para a frase que o creator viu: se uma leitura nova trocou a frase, a dimensão volta a pendente.
+- **Collab com território de verdade.** `recommend_collab_creators` devolve primeiro as propostas da aba Collabs (`preparedProposals`, via `collabIntelligence.ts`) e marca `sharedTerritories` comparando os dois mapas. Antes, o atalho `find_collab` pedia o território em comum e a ferramenta não trazia nenhum, então o modelo inventava. A resposta também deixou de trazer alcance, salvamentos e compartilhamentos médios de outros creators: são insights privados deles e o contrato já prometia não expor.
+- **O radar gratuito olha o assunto.** `build_creator_radar` pré-seleciona posts pelos territórios do mapa (ou pelo Norte). Quando acha menos de três, cai para o panorama geral e diz isso em `panoramaScope`. Antes eram os posts que mais performaram de qualquer tema.
+- **"Viral" medido contra a base certa.** A pesquisa de inspirações compara cada post com o histórico de 180 dias do próprio autor, a mesma base de `analyze_inspiration_content`. Antes eram só os posts dele que caíam na amostra, e o mesmo post podia ser "fora da curva" numa ferramenta e "normal" na outra. A pesquisa também não faz mais `$lookup` do usuário inteiro para cada post da comunidade.
+- **Unidade e ausência.** O tempo de Reels sai em segundos (`averageWatchTimeSeconds`). A análise de período diz a unidade de cada métrica (`metricUnits`; ali o tempo segue em milissegundos). Taxa sem denominador sai `null`, não 0 (`formulas.ts` grava 0 quando falta alcance ou visita ao perfil).
+- **Semana contra trimestre.** `analyze_creator_period` traz `summary` com mediana e total sobre todos os posts do período (a lista de posts continua limitada) e `maturity`: post com menos de 7 dias ainda acumula, e o aviso `recent_posts_still_accumulating` impede de chamar isso de queda.
+- **Padrões visuais por mediana.** A diferença contra a base só aparece com pelo menos 3 posts; antes, um viral fazia qualquer objeto dele parecer 3x.
+- **Roteiro.** Salvar de novo com o mesmo `clientRequestId` e texto editado atualiza o roteiro (`saveResult`). A crítica com pacote vencido (7 dias) segue com evidência atual e avisa, em vez de falhar. Erros do motor viram mensagem legível, e o rascunho diz qual motor escreveu (`receipt.engine`).
+- **Pautas.** As não publicadas vêm primeiro; `total` é o total real. Conta gratuita não recebe pautas por `search`/`fetch`, a mesma regra de `list_content_ideas`. O app mostra pautas a qualquer conta; se a regra mudar, muda nos três lugares.
+- **Acabamento.** O lembrete da conta gratuita não duplica mais: a checagem serializava o array e as aspas do JSON interno vinham escapadas, então nunca casava. Ele também não entra em `search`/`fetch`, que devem ter um bloco só. O aviso de publis dizia "no ChatGPT" também no Claude. A recusa da Meta na pesquisa por @ fala com o creator; o detalhe técnico vai à parte. Saída fora do formato declarado agora aparece no log como `[mcp][tool_output_invalid]`, porque o SDK valida depois do log de sucesso.
+
+Pendente, decisão de produto: o ranking antigo de collab considera qualquer creator ativo e conectado, sem pedir opt-in de collab. As propostas da aba Collabs pedem.
+
+`scripts/smokePluginReview.ts` agora compara a lista de ferramentas do servidor com `chatgpt-app-submission.json` (28) e registra mapa, radar, collabs e resumo do período das contas de revisão.
+

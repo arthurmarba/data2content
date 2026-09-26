@@ -36,7 +36,11 @@ A Data2Content ajuda criadores a planejar conteúdos e escrever roteiros com o c
 
 ### Notas da atualização
 
-Atualização da submissão existente 1.0.0: catálogo ampliado de 18 para 26 ferramentas, incluindo mapa, pautas, DNA, evidências, crítica, preferências, seguidores e oportunidades. As anotações distinguem consultas, sessões temporárias e gravações confirmadas. Corrigidos o contrato de cobertura da análise de período e o primeiro registro de preferências em roteiros novos.
+Texto para o reenvio de 26/09/2026 (revisão das respostas):
+
+> Atualização da submissão 1.0.0 com 28 ferramentas. O mapa passa a respeitar o que o creator confirmou ou recusou; as sugestões de collab trazem o território em comum e deixam de expor métricas privadas de outros creators; a análise de período informa unidades, medianas de todos os posts e quando um post é recente demais para comparar; taxas sem dado saem vazias, não zero. Salvar um roteiro editado atualiza a versão salva, e a revisão de roteiro continua funcionando após a expiração do pacote de referências. Os casos de teste não mudaram.
+
+Texto da versão anterior, para histórico: catálogo ampliado de 18 para 26 ferramentas, incluindo mapa, pautas, DNA, evidências, crítica, preferências, seguidores e oportunidades; anotações distinguindo consultas, sessões temporárias e gravações confirmadas; correção do contrato de cobertura da análise de período e do primeiro registro de preferências.
 
 ## Prompts iniciais
 
@@ -121,7 +125,7 @@ No portal, fornecer a senha fora do repositório e estas instruções:
 
 ## Anotações das ferramentas
 
-As 26 ferramentas operam sobre a conta autenticada e o catálogo delimitado da Data2Content; `openWorldHint: false` não significa que são todas somente leitura.
+As 28 ferramentas operam sobre a conta autenticada e o catálogo delimitado da Data2Content; `openWorldHint: false` não significa que são todas somente leitura.
 
 | Ferramenta | Consulta somente? | Substitui dados? | Efeito |
 |---|---|---|---|
@@ -130,6 +134,7 @@ As 26 ferramentas operam sobre a conta autenticada e o catálogo delimitado da D
 | `save_script` | Não | Não | Adiciona roteiro após confirmação; repetição da mesma chave é segura |
 | `record_script_feedback` | Não | Sim | Atualiza os campos de preferência solicitados e preserva os omitidos |
 | `find_campaign_opportunities` | Não | Não | Pode criar a seleção gratuita da semana, com validade de 21 dias |
+| `get_public_instagram_creator`, `compare_public_instagram_creators` | Sim | Não | Consultam dados públicos na Meta com a autorização de quem pergunta (`openWorldHint: true`) |
 | Demais ferramentas | Sim | Não | Consultas sem gravação de dados do produto |
 
 Seis ferramentas legadas respondem texto JSON sem `outputSchema`: `search`, `fetch`, `get_creator_profile`, `get_performance_summary`, `list_top_content`, `compare_content_formats`. O SDK aceita esse modo; conferir avisos no Scan Tools, sem afirmar que todas possuem saída estruturada declarada.
@@ -201,3 +206,16 @@ Referência oficial: https://developers.openai.com/plugins/deploy/app-review
 - O vídeo mostra mapa declaratório e pauta sugerida, contagem de 1 a 7 de agosto com dois Reels e um carrossel e a lacuna de seguidores, referências planejadas com a ressalva de ausência de transcrição, roteiro e revisão técnica, registro de preferência, e os casos negativos de agenda e de imagem. A barra do Chrome sobre depuração aparece porque a sessão foi conduzida por automação de navegador.
 - Reenvio concluído em 09/09/2026 00:5x (horário de Brasília): `Demo Recording URL` atualizado para o vídeo v2, o assistente percorreu Info → MCP → Skills → Prompts → Testing → Global → Submit, o rascunho salvou em cada passo e `Submit for Review` devolveu "Data2Content submitted for review". A lista do portal mostra a versão 1.0.0 em **Review**. Domain verification aparece como verificada e o catálogo tem as 26 ferramentas com justificativa.
 - Fica pendente para Arthur: regularizar os créditos do Gemini (o motor interno responde por `local_fallback`, previsto no caso de teste 3, mas é um esqueleto genérico) e devolver o Chrome à conta habitual, que ficou na conta fictícia PRO desde o ensaio de 08/09.
+
+### Reenvio com a revisão das respostas — 26/09/2026
+
+O servidor mudou nomes de campo, descrições e formatos de resposta de várias ferramentas. A lista de nomes é a mesma. O retrato guardado no portal fica desatualizado, então é preciso:
+
+1. `Cancel Review` na versão 1.0.0 e editar o mesmo rascunho. Não criar plugin novo.
+2. Conferir `Advanced settings → Default scope override`: já voltou duas vezes.
+3. `Scan Tools` e confirmar as 28 ferramentas, com as justificativas. O arquivo `chatgpt-app-submission.json` agora traz as 28, inclusive as duas consultas públicas por @.
+4. Colar as notas da atualização acima. Os oito casos de teste não mudaram.
+5. Reenviar.
+
+Antes do reenvio, `npx tsx --env-file=.env.local scripts/smokePluginReview.ts` (só leitura, contas de revisão) passou com o código novo. Ele também confirmou que o mapa da conta de revisão continua "apenas declarativo", como espera o caso 1.
+

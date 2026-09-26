@@ -1,7 +1,6 @@
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { getMetricCategoryValuesForAnalytics } from "@/app/lib/classificationV2Bridge";
-import { createBasePipeline } from "@/app/lib/dataService/marketAnalysis/helpers";
 import {
   classifyCreatorHookPattern,
   CREATOR_HOOK_PATTERN_LABELS,
@@ -43,7 +42,16 @@ export type McpInspirationResearchParams = {
   filters: McpInspirationResearchFilters;
   periodDays: number;
   limit: number;
+  /**
+   * Pré-seleção por assunto antes do corte de candidatos, em qualquer modo. O
+   * radar usa isto para que "padrões da comunidade" sejam do assunto do creator,
+   * e não os posts que mais performaram de qualquer tema.
+   */
+  topicPrefilter?: string | null;
 };
+
+/** Janela da "base recente" de cada creator, a mesma na pesquisa e no aprofundamento. */
+const CREATOR_BASELINE_DAYS = 180;
 
 type ResearchMetric = Record<string, any> & {
   _id: Types.ObjectId | string;
@@ -153,6 +161,14 @@ function queryTokens(value: string): string[] {
   const stopwords = new Set([
     "com", "sem", "para", "por", "que", "uma", "uns", "das", "dos", "nos", "nas",
     "conteudo", "conteudos", "video", "videos", "reel", "reels", "viral", "virais",
+    // Palavras de declaração ("quero ajudar pessoas a...") que casam com quase
+    // qualquer legenda e apagariam o assunto na pré-seleção.
+    "quero", "sobre", "pessoas", "gente", "minha", "minhas", "meu", "meus", "seu", "sua",
+    "seus", "suas", "nosso", "nossa", "mais", "como", "ajudar", "ajudo", "criador",
+    "criadora", "creator", "creators", "isso", "esse", "essa", "este", "esta", "entre",
+    "tambem", "muito", "muita", "muitos", "muitas", "onde", "quem", "todo", "toda", "todos",
+    "todas", "ser", "ter", "fazer", "falar", "mostrar", "acompanha", "acompanham",
+    "publico", "seguidores", "transformar", "transformacao",
   ]);
   return [...new Set(normalized(value).split(" ").filter((token) => token.length >= 3 && !stopwords.has(token)))].slice(0, 16);
 }
@@ -207,6 +223,15 @@ function sceneOf(metric: ResearchMetric) {
     openingLine: cleanText(scene.openingLine, 180),
     screenTitle: cleanText(scene.screenTitle, 180),
   };
+}
+
+/** `sceneElements: {}` existe em posts nunca lidos; só conta quando há leitura de fato. */
+function hasSceneEvidence(metric: ResearchMetric): boolean {
+  const scene = sceneOf(metric);
+  return Boolean(
+    scene.placeId || scene.openingLine || scene.screenTitle ||
+      scene.subjects.length || scene.objects.length || scene.framing.length,
+  );
 }
 
 function hookPatternOf(metric: ResearchMetric): CreatorHookPattern {
@@ -381,9 +406,15 @@ export function rankInspirationCandidates(params: {
   filters: McpInspirationResearchFilters;
   viewerFingerprint?: ViewerFingerprint | null;
   velocities?: Map<string, VelocityEvidence>;
+  /**
+   * Histórico recente de cada creator. Sem ele, a base seria só a amostra de
+   * candidatos — e o mesmo post poderia sair "fora da curva" aqui e "dentro da
+   * base" em analyze_inspiration_content.
+   */
+  baselineMetrics?: ResearchMetric[];
 }): RankedInspirationCandidate[] {
   const tokens = queryTokens(params.query);
-  const baselines = buildBaselines(params.metrics);
+  const baselines = buildBaselines(params.baselineMetrics ?? params.metrics);
   const fingerprint = params.viewerFingerprint ?? emptyFingerprint();
   const velocities = params.velocities ?? new Map<string, VelocityEvidence>();
 
@@ -658,8 +689,19 @@ export async function researchMcpInspirationContent(params: McpInspirationResear
   const viewerId = new Types.ObjectId(params.userId);
   const since = new Date(Date.now() - params.periodDays * 86_400_000);
   const candidateLimit = Math.max(180, Math.min(600, params.limit * 60));
+  // Quem autorizou vem primeiro, numa consulta pequena. Antes, cada post da
+  // comunidade no período carregava o documento inteiro do autor via $lookup
+  // só para ser descartado depois.
+  const optedInCreators = await UserModel.find({
+    _id: { $ne: viewerId },
+    communityInspirationOptIn: true,
+    isInstagramConnected: true,
+  })
+    .select("_id name username")
+    .lean<Array<{ _id: Types.ObjectId; name?: string | null; username?: string | null }>>();
+  const creatorById = new Map(optedInCreators.map((creator) => [String(creator._id), creator]));
   const baseMatch: Record<string, any> = {
-    user: { $ne: viewerId },
+    user: { $in: optedInCreators.map((creator) => creator._id) },
     postDate: { $gte: since },
     $or: [
       { "stats.views": { $gt: 0 } },
@@ -672,47 +714,42 @@ export async function researchMcpInspirationContent(params: McpInspirationResear
   if (params.filters.maxDurationSeconds != null) durationQuery.$lte = params.filters.maxDurationSeconds;
   if (Object.keys(durationQuery).length) baseMatch["stats.video_duration_seconds"] = durationQuery;
 
-  const topicMatch = params.mode === "by_topic" ? buildInspirationTopicMatch(params.query) : null;
+  const topicQuery = params.mode === "by_topic" ? params.query : params.topicPrefilter ?? null;
+  const topicMatch = topicQuery ? buildInspirationTopicMatch(topicQuery) : null;
 
-  const metrics = await MetricModel.aggregate<ResearchMetric>([
-    { $match: baseMatch },
-    ...(topicMatch ? [{ $match: topicMatch }] : []),
-    ...createBasePipeline(),
-    {
-      $match: {
-        "creatorInfo.communityInspirationOptIn": true,
-        "creatorInfo.isInstagramConnected": true,
-      },
-    },
-    { $sort: { postDate: -1, "stats.total_interactions": -1 } },
-    { $limit: candidateLimit },
-    {
-      $project: {
-        _id: 1,
-        user: 1,
-        description: 1,
-        postDate: 1,
-        postLink: 1,
-        type: 1,
-        format: 1,
-        context: 1,
-        proposal: 1,
-        tone: 1,
-        references: 1,
-        contentIntent: 1,
-        narrativeForm: 1,
-        contentSignals: 1,
-        stance: 1,
-        proofStyle: 1,
-        commercialMode: 1,
-        sceneElements: 1,
-        stats: 1,
-        "creatorInfo.name": 1,
-        "creatorInfo.username": 1,
-      },
-    },
-  ]).exec();
+  const metrics = optedInCreators.length
+    ? (await MetricModel.aggregate<ResearchMetric>([
+        { $match: baseMatch },
+        ...(topicMatch ? [{ $match: topicMatch }] : []),
+        { $sort: { postDate: -1, "stats.total_interactions": -1 } },
+        { $limit: candidateLimit },
+        {
+          $project: {
+            _id: 1,
+            user: 1,
+            description: 1,
+            postDate: 1,
+            postLink: 1,
+            type: 1,
+            format: 1,
+            context: 1,
+            proposal: 1,
+            tone: 1,
+            references: 1,
+            contentIntent: 1,
+            narrativeForm: 1,
+            contentSignals: 1,
+            stance: 1,
+            proofStyle: 1,
+            commercialMode: 1,
+            sceneElements: 1,
+            stats: 1,
+          },
+        },
+      ]).exec()).map((metric) => ({ ...metric, creatorInfo: creatorById.get(String(metric.user)) ?? null }))
+    : [];
 
+  const baselineMetrics = await loadCreatorBaselineMetrics(metrics);
   const needsVelocity = params.mode === "trending";
   const [viewerFingerprint, velocities] = await Promise.all([
     params.mode === "similar_to_me" ? loadViewerFingerprint(params.userId, params.periodDays) : Promise.resolve(null),
@@ -727,12 +764,13 @@ export async function researchMcpInspirationContent(params: McpInspirationResear
     filters: params.filters,
     viewerFingerprint,
     velocities,
+    baselineMetrics,
   });
   const picked = diversityPick(ranked, params.limit);
   const velocityCovered = needsVelocity
     ? metrics.filter((metric) => velocities.get(String(metric._id))?.acceleration72h !== null && velocities.has(String(metric._id))).length
     : 0;
-  const eligibleCreators = new Set(metrics.map((metric) => String(metric.user))).size;
+  const creatorsInCandidatePool = new Set(metrics.map((metric) => String(metric.user))).size;
   const warnings = [
     !metrics.length ? "no_opted_in_content_in_period" : null,
     params.mode === "similar_to_me" && viewerFingerprint && !viewerFingerprint.contexts.size && !viewerFingerprint.intents.size
@@ -760,9 +798,10 @@ export async function researchMcpInspirationContent(params: McpInspirationResear
     items: picked.map((item, index) => safeItem(item, index + 1)),
     coverage: {
       candidatePosts: metrics.length,
-      eligibleOptInCreators: eligibleCreators,
+      eligibleOptInCreators: optedInCreators.length,
+      creatorsInCandidatePool,
       returnedPosts: picked.length,
-      sceneAnalysisAvailable: metrics.filter((metric) => Boolean(metric.sceneElements)).length,
+      sceneAnalysisAvailable: metrics.filter(hasSceneEvidence).length,
       velocityAvailable: velocityCovered,
       warnings,
     },
@@ -814,40 +853,55 @@ async function loadEligibleMetricsByIds(userId: string, ids: string[]): Promise<
     .map((metric) => ({ ...metric, creatorInfo: creatorById.get(String(metric.user)) ?? null }));
 }
 
-async function loadCreatorBaselineMetrics(metrics: ResearchMetric[], periodDays = 180): Promise<ResearchMetric[]> {
-  const creatorIds = [...new Set(metrics.map((metric) => String(metric.user)))].map((id) => new Types.ObjectId(id));
+async function loadCreatorBaselineMetrics(metrics: ResearchMetric[]): Promise<ResearchMetric[]> {
+  const creatorIds = [...new Set(metrics.map((metric) => String(metric.user)))]
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
   if (!creatorIds.length) return [];
+  // Só os campos da base; o teto protege contra um período anômalo, não corta
+  // creator nenhum na base real (dezenas de creators, poucos posts por dia).
   return MetricModel.find({
     user: { $in: creatorIds },
-    postDate: { $gte: new Date(Date.now() - periodDays * 86_400_000) },
-  }).sort({ postDate: -1 }).limit(Math.min(600, creatorIds.length * 80)).select("_id user stats").lean() as unknown as Promise<ResearchMetric[]>;
+    postDate: { $gte: new Date(Date.now() - CREATOR_BASELINE_DAYS * 86_400_000) },
+  })
+    .select(
+      "_id user stats.total_interactions stats.views stats.video_views stats.reach " +
+        "stats.shares stats.saved stats.saves",
+    )
+    .limit(20_000)
+    .lean() as unknown as Promise<ResearchMetric[]>;
 }
 
 export async function analyzeMcpInspirationContent(params: { userId: string; inspirationId: string }) {
   const [metric] = await loadEligibleMetricsByIds(params.userId, [params.inspirationId]);
   if (!metric) return null;
-  const [baselineMetrics, velocities] = await Promise.all([
+  const [loadedBaseline, velocities] = await Promise.all([
     loadCreatorBaselineMetrics([metric]),
     loadVelocityEvidence([new Types.ObjectId(String(metric._id))]),
   ]);
+  // Mesma base da pesquisa: o histórico recente do creator, com o próprio post.
+  const baselineMetrics = loadedBaseline.some((row) => String(row._id) === String(metric._id))
+    ? loadedBaseline
+    : [...loadedBaseline, metric];
+  const emptyFilters = {
+    formats: [], tones: [], hookPatterns: [], sceneKeywords: [], objects: [], framing: [], aesthetics: [],
+  };
   const candidate = rankInspirationCandidates({
-    metrics: [...baselineMetrics.filter((row) => String(row._id) !== String(metric._id)), metric],
+    metrics: [metric],
     mode: "winning_patterns",
     query: "",
-    filters: {
-      formats: [], tones: [], hookPatterns: [], sceneKeywords: [], objects: [], framing: [], aesthetics: [],
-    },
+    filters: emptyFilters,
     velocities,
-  }).find((item) => String(item.metric._id) === String(metric._id));
+    baselineMetrics,
+  })[0];
   const fallback = rankInspirationCandidates({
-    metrics: [...baselineMetrics.filter((row) => String(row._id) !== String(metric._id)), metric],
+    metrics: [metric],
     mode: "by_topic",
     query: "",
-    filters: {
-      formats: [], tones: [], hookPatterns: [], sceneKeywords: [], objects: [], framing: [], aesthetics: [],
-    },
+    filters: emptyFilters,
     velocities,
-  }).find((item) => String(item.metric._id) === String(metric._id));
+    baselineMetrics,
+  })[0];
   const selected = candidate ?? fallback;
   if (!selected) return null;
   const item = safeItem(selected, 1);
@@ -871,11 +925,11 @@ export async function analyzeMcpInspirationContent(params: { userId: string; ins
       safeAdaptation: item.adaptationGuidance,
     },
     coverage: {
-      sceneAnalysisAvailable: Boolean(metric.sceneElements),
-      performanceBaselineSampleSize: baselineMetrics.length,
+      sceneAnalysisAvailable: hasSceneEvidence(metric),
+      performanceBaselineSampleSize: baselineMetrics.filter((row) => String(row.user) === String(metric.user)).length,
       velocityAvailable: velocities.get(String(metric._id))?.acceleration72h !== null,
       warnings: [
-        !metric.sceneElements ? "scene_analysis_unavailable" : null,
+        !hasSceneEvidence(metric) ? "scene_analysis_unavailable" : null,
         selected.performanceConfidence === "low" ? "performance_confidence_low" : null,
       ].filter((value): value is string => Boolean(value)),
     },
@@ -949,7 +1003,7 @@ export async function compareMcpInspirationContents(params: { userId: string; in
     coverage: {
       requested: uniqueIds.length,
       compared: ordered.length,
-      sceneAnalysisAvailable: ordered.filter((metric) => Boolean(metric.sceneElements)).length,
+      sceneAnalysisAvailable: ordered.filter(hasSceneEvidence).length,
       warnings: ordered.length < uniqueIds.length ? ["some_items_unavailable_or_not_opted_in"] : [],
     },
     receipt: {

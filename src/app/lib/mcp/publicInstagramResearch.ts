@@ -29,7 +29,7 @@ export const publicInstagramComparisonSchema = z.object({
 });
 
 export class PublicInstagramResearchError extends Error {
-  constructor(public readonly code: string, message: string) {
+  constructor(public readonly code: string, message: string, public readonly technicalDetail?: string) {
     super(message);
     this.name = "PublicInstagramResearchError";
   }
@@ -71,7 +71,8 @@ export async function getPublicInstagramCreator(actorUserId: string, input: z.in
   if (!response.ok || code !== undefined || (envelope.success && envelope.data.error)) {
     if (code === 190) throw new PublicInstagramResearchError("instagram_reauthorization_required", "A autorização do Instagram expirou ou foi revogada. Reconecte a conta que faz a consulta.");
     if (code === 10 || code === 200 || response.status === 403) throw new PublicInstagramResearchError("instagram_public_permission_required",
-      "A Meta recusou o acesso. Confira instagram_basic, instagram_manage_insights e pages_read_engagement; em alguns vínculos via Business Manager, ads_read ou ads_management também é exigida. A aprovação do app pode ser necessária. Para revisar o consentimento da pesquisa por @, acesse https://data2content.ai/creator-research.");
+      "A Meta não liberou a consulta de perfis públicos pela sua conexão do Instagram. Isso depende de permissões da Meta que nem toda conexão tem; não é um problema com o @ pesquisado. Para revisar a autorização, acesse https://data2content.ai/creator-research.",
+      "Permissões esperadas: instagram_basic, instagram_manage_insights e pages_read_engagement; em vínculos via Business Manager, também ads_read ou ads_management. Pode exigir aprovação do app na Meta.");
     if ([4, 17, 32, 613, 80002].includes(code ?? -1) || response.status === 429) throw new PublicInstagramResearchError("instagram_public_rate_limited", "O limite de consultas da Meta foi atingido. Tente novamente mais tarde.");
     throw new PublicInstagramResearchError("instagram_public_query_rejected", "A Meta recusou a consulta. Isso não confirma que o perfil não existe: confira o @, a elegibilidade da conta e as permissões.");
   }
@@ -123,7 +124,7 @@ export async function comparePublicInstagramCreators(actorUserId: string, input:
     try { return { username, data: await getPublicInstagramCreator(actorUserId, { username, postLimit }) }; }
     catch (error) {
       if (!(error instanceof PublicInstagramResearchError)) throw error;
-      return { username, error: { code: error.code, message: error.message } };
+      return { username, error: { code: error.code, message: error.message, ...(error.technicalDetail ? { technicalDetail: error.technicalDetail } : {}) } };
     }
   }));
   return {

@@ -94,6 +94,17 @@ jest.mock("./catalog", () => ({
       evidenceReturned: 2,
       evidenceTruncated: false,
     },
+    metricUnits: { reach: "contagem", ig_reels_avg_watch_time: "milissegundos (divida por 1000 para segundos)" },
+    summary: {
+      basis: "all_posts_in_period",
+      metrics: { reach: { availablePosts: 2, median: 1100, total: 2200 } },
+    },
+    maturity: {
+      matureAfterDays: 7,
+      postsYoungerThanMatureAge: 0,
+      youngestPostAgeDays: 2,
+      note: "Métricas acumuladas.",
+    },
     coverage: {
       counting: { complete: true, method: "all_metric_documents_in_exact_utc_window" },
       captions: { available: 2, total: 2, ratio: 1 },
@@ -134,6 +145,7 @@ jest.mock("./catalog", () => ({
       lastDataUpdateAt: "2026-08-07T12:00:00.000Z",
       publishedEvidenceRecords: 1,
       mustNotEstimate: true,
+      metricsAreCurrentTotals: true,
     },
   })),
   searchMcpKnowledge: jest.fn(async () => [
@@ -174,10 +186,13 @@ jest.mock("./catalog", () => ({
     receipt: {
       usedCreatorIntelligence: true,
       usedCommunityInspiration: Boolean(params.inspirationContentIds?.length),
+      engine: "creator_evidence_v3",
+      evidenceEngineFallbackUsed: false,
     },
   })),
   saveMcpScript: jest.fn(async () => ({
     schemaVersion: "script_save_v1",
+    saveResult: "created",
     savedScript: {
       id: "script:507f1f77bcf86cd799439012",
       title: "Roteiro personalizado",
@@ -202,6 +217,21 @@ jest.mock("./catalog", () => ({
       periodDays: 180,
       limit: 3,
     },
+    viewerTerritories: ["IA para creators"],
+    preparedProposals: [
+      {
+        proposalId: "507f1f77bcf86cd799439099",
+        territory: "IA para creators",
+        idea: { title: "Dois jeitos de usar IA", angle: "Contraste", hook: "Você usa IA errado?" },
+        partner: { name: "Creator parceiro", username: "creatorparceiro", mediaKitUrl: null },
+        fitReason: "Os dois falam de IA na rotina.",
+        sharedSignals: ["IA para creators"],
+        recordingDirection: "Cada um grava a sua versão e o vídeo alterna.",
+        mode: "remoto",
+        suggestedFormat: "Reels",
+        matchesTheme: true,
+      },
+    ],
     creators: [
       {
         id: "creator:507f1f77bcf86cd799439014",
@@ -211,6 +241,7 @@ jest.mock("./catalog", () => ({
         avatarUrl: null,
         followers: 12000,
         mediaKitUrl: "https://data2content.ai/mediakit/creator-parceiro",
+        sharedTerritories: ["IA para creators"],
         match: {
           score: 86.2,
           type: "THEME_MATCH",
@@ -221,15 +252,13 @@ jest.mock("./catalog", () => ({
         evidence: {
           source: "avg_interactions",
           postCount: 6,
-          avgInteractions: 420,
-          avgReach: 8000,
-          avgShares: 25,
-          avgSaves: 40,
+          privateMetricsExposed: false,
           latestPostDate: "2026-08-01T12:00:00.000Z",
         },
       },
     ],
-    coverage: { returnedCreators: 1, onlyActiveConnectedCreators: true, warnings: [] },
+    coverage: { returnedCreators: 1, preparedProposals: 1, onlyActiveConnectedCreators: true, warnings: [] },
+    usage: ["Prefira as propostas preparadas."],
     receipt: {
       generatedAt: "2026-08-08T12:00:00.000Z",
       source: "data2content_collab_scoring",
@@ -246,7 +275,7 @@ jest.mock("./catalog", () => ({
     performanceLearning: null,
     visualPlaybook: {
       coverage: { totalPosts: 2, analyzedPosts: 1, ratio: 0.5, interactionsAvailable: 1 },
-      baseline: { avgInteractions: 100 },
+      baseline: { medianInteractions: 100, liftRequiresMinPosts: 3 },
       patterns: { objects: [] },
       analysisProviderVersions: [{ providerVersion: "gemini:v1", postCount: 1 }],
     },
@@ -359,6 +388,7 @@ jest.mock("./catalog", () => ({
     coverage: {
       candidatePosts: 12,
       eligibleOptInCreators: 4,
+      creatorsInCandidatePool: 3,
       returnedPosts: 1,
       sceneAnalysisAvailable: 8,
       velocityAvailable: 0,
@@ -587,6 +617,53 @@ describe("Data2Content MCP server", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     return { client, server };
   }
+
+  it("conta gratuita: lembrete uma vez só, nunca em search, e busca sem pautas", async () => {
+    const catalog = jest.requireMock("./catalog");
+    catalog.getMcpCreatorProfile.mockResolvedValueOnce({
+      name: "Creator de teste",
+      profileUrl: "https://data2content.ai/dashboard/profile?source=chatgpt",
+    });
+    const { client, server } = await connect(false, undefined, "free");
+    try {
+      const profile = await client.callTool({ name: "get_creator_profile", arguments: {} });
+      expect(JSON.stringify(profile.content)).not.toContain("free_closing_reminder_v1");
+
+      const search = await client.callTool({ name: "search", arguments: { query: "roteiro" } });
+      expect((search.content as unknown[]).length).toBe(1);
+      expect(catalog.searchMcpKnowledge).toHaveBeenLastCalledWith(
+        "507f1f77bcf86cd799439011",
+        "roteiro",
+        expect.objectContaining({ includeContentIdeas: false }),
+      );
+
+      const idea = await client.callTool({ name: "fetch", arguments: { id: "idea:507f1f77bcf86cd799439012" } });
+      expect(idea.isError).toBe(true);
+      expect(JSON.stringify(idea.content)).toContain("private_creator_intelligence_unavailable");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("traduz erro do motor de roteiro em mensagem legível", async () => {
+    const scripts = jest.requireMock("./scriptIntelligence");
+    scripts.recordMcpScriptFeedback.mockRejectedValueOnce(new Error("script_unavailable_for_account"));
+    const { client, server } = await connect(true);
+    try {
+      const result = await client.callTool({
+        name: "record_script_feedback",
+        arguments: { scriptId: "507f1f77bcf86cd799439012", voiceMatch: true },
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse((result.content as Array<{ text: string }>)[0]!.text);
+      expect(body).toMatchObject({ error: "script_unavailable_for_account" });
+      expect(body.message).toContain("save_script");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 
   it("pesquisa pública usa apenas o usuário autenticado, inclusive na conta gratuita", async () => {
     const service = jest.requireMock("./publicInstagramResearch");
@@ -1311,7 +1388,8 @@ describe("Data2Content MCP server", () => {
           {
             name: "Creator parceiro",
             match: { type: "THEME_MATCH", matchedTheme: true },
-            evidence: { postCount: 6, avgInteractions: 420 },
+            evidence: { postCount: 6, privateMetricsExposed: false },
+            sharedTerritories: ["IA para creators"],
           },
         ],
         coverage: { onlyActiveConnectedCreators: true },

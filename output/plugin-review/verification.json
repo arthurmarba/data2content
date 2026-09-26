@@ -1,8 +1,8 @@
 {
   "transport": "in_memory",
   "oauthValidated": false,
-  "writeDemo": true,
-  "liveGeneration": true,
+  "writeDemo": false,
+  "liveGeneration": false,
   "checks": [
     {
       "tier": "pro",
@@ -16,63 +16,63 @@
       "tool": "get_creator_map",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 141
     },
     {
       "tier": "pro",
       "tool": "build_creator_radar",
       "isError": false,
       "expectedError": false,
-      "durationMs": 1988
+      "durationMs": 2021
     },
     {
       "tier": "pro",
       "tool": "list_content_ideas",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 283
     },
     {
       "tier": "pro",
       "tool": "get_creator_profile",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 140
     },
     {
       "tier": "pro",
       "tool": "get_creator_content_dna",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 144
     },
     {
       "tier": "pro",
       "tool": "get_creator_intelligence_snapshot",
       "isError": false,
       "expectedError": false,
-      "durationMs": 1021
+      "durationMs": 1003
     },
     {
       "tier": "pro",
       "tool": "search",
       "isError": false,
       "expectedError": false,
-      "durationMs": 139
+      "durationMs": 136
     },
     {
       "tier": "pro",
       "tool": "fetch",
       "isError": false,
       "expectedError": false,
-      "durationMs": 141
+      "durationMs": 137
     },
     {
       "tier": "pro",
       "tool": "analyze_creator_period",
       "isError": false,
       "expectedError": false,
-      "durationMs": 295
+      "durationMs": 290
     },
     {
       "tier": "pro",
@@ -86,105 +86,70 @@
       "tool": "get_performance_summary",
       "isError": false,
       "expectedError": false,
-      "durationMs": 140
+      "durationMs": 141
     },
     {
       "tier": "pro",
       "tool": "compare_content_formats",
       "isError": false,
       "expectedError": false,
-      "durationMs": 138
+      "durationMs": 140
     },
     {
       "tier": "pro",
       "tool": "list_top_content",
       "isError": false,
       "expectedError": false,
-      "durationMs": 136
+      "durationMs": 140
     },
     {
       "tier": "pro",
       "tool": "get_content_deep_analysis",
       "isError": false,
       "expectedError": false,
-      "durationMs": 273
+      "durationMs": 286
     },
     {
       "tier": "pro",
       "tool": "research_inspiration_content",
       "isError": false,
       "expectedError": false,
-      "durationMs": 1743
+      "durationMs": 961
+    },
+    {
+      "tier": "pro",
+      "tool": "analyze_inspiration_content",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 579
+    },
+    {
+      "tier": "pro",
+      "tool": "compare_inspiration_contents",
+      "isError": false,
+      "expectedError": false,
+      "durationMs": 297
     },
     {
       "tier": "pro",
       "tool": "recommend_collab_creators",
       "isError": false,
       "expectedError": false,
-      "durationMs": 513
+      "durationMs": 615
     },
     {
       "tier": "pro",
       "tool": "find_campaign_opportunities",
       "isError": false,
       "expectedError": false,
-      "durationMs": 478
-    },
-    {
-      "tier": "pro",
-      "tool": "get_script_evidence_pack",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 702
-    },
-    {
-      "tier": "pro",
-      "tool": "critique_script_against_creator_dna",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 198
-    },
-    {
-      "tier": "pro",
-      "tool": "save_script",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 300
-    },
-    {
-      "tier": "pro",
-      "tool": "save_script",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 278
-    },
-    {
-      "tier": "pro",
-      "tool": "record_script_feedback",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 140
-    },
-    {
-      "tier": "pro",
-      "tool": "record_script_feedback",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 140
-    },
-    {
-      "tier": "pro",
-      "tool": "generate_script_draft",
-      "isError": false,
-      "expectedError": false,
-      "durationMs": 2399
+      "durationMs": 460
     },
     {
       "tier": "free",
       "tool": "get_account_state",
       "isError": false,
       "expectedError": false,
-      "durationMs": 2
+      "durationMs": 1
     },
     {
       "tier": "free",
@@ -198,7 +163,7 @@
       "tool": "build_creator_radar",
       "isError": false,
       "expectedError": false,
-      "durationMs": 2239
+      "durationMs": 1990
     },
     {
       "tier": "free",
@@ -230,6 +195,19 @@
     "list_top_content",
     "compare_content_formats"
   ],
+  "proMap": {
+    "narrativeConfirmedByCreator": false,
+    "narrativeIsFirm": false,
+    "warnings": [
+      "map_not_enriched_by_readings",
+      "narrative_not_firm_yet"
+    ]
+  },
+  "proRadar": {
+    "panoramaScope": "related_to_creator_topics",
+    "sampleSize": 10,
+    "warnings": []
+  },
   "periodInventory": {
     "totalPosts": 3,
     "byFormat": {
@@ -243,6 +221,68 @@
     "evidenceReturned": 3,
     "evidenceTruncated": false
   },
+  "periodSummary": {
+    "summary": {
+      "basis": "all_posts_in_period",
+      "metrics": {
+        "reach": {
+          "availablePosts": 3,
+          "median": 8200,
+          "total": 45200
+        },
+        "views": {
+          "availablePosts": 3,
+          "median": 10400,
+          "total": 54700
+        },
+        "total_interactions": {
+          "availablePosts": 3,
+          "median": 910,
+          "total": 5724
+        },
+        "saved": {
+          "availablePosts": 3,
+          "median": 151,
+          "total": 1201
+        },
+        "shares": {
+          "availablePosts": 3,
+          "median": 70,
+          "total": 609
+        },
+        "comments": {
+          "availablePosts": 3,
+          "median": 72,
+          "total": 284
+        },
+        "likes": {
+          "availablePosts": 3,
+          "median": 650,
+          "total": 3630
+        },
+        "retention_rate": {
+          "availablePosts": 0,
+          "median": null,
+          "total": null
+        },
+        "ig_reels_avg_watch_time": {
+          "availablePosts": 1,
+          "median": 18600,
+          "total": null
+        }
+      }
+    },
+    "maturity": {
+      "matureAfterDays": 7,
+      "postsYoungerThanMatureAge": 0,
+      "youngestPostAgeDays": 51.1,
+      "note": "As métricas são o total acumulado hoje, não um retrato da data do post. Post com menos de 7 dias ainda está acumulando: não o compare com posts antigos como se fosse queda."
+    },
+    "warnings": [
+      "scene_analysis_coverage_partial",
+      "transcript_coverage_partial"
+    ]
+  },
   "followerCoverage": {
     "calendarDays": 7,
     "daysWithReading": 0,
@@ -255,65 +295,27 @@
       "no_follower_readings_in_period"
     ]
   },
-  "evidenceReceipt": {
-    "profileVersion": "creator_script_dna_v3",
-    "evidenceRecordsConsidered": 3,
-    "fullExemplarsUsed": 3,
-    "linkedPlannedScriptsUsed": 3,
-    "observedTranscriptsUsed": 0,
-    "demographicsUsed": false,
-    "status": "partial",
+  "collabs": {
+    "preparedProposals": 0,
+    "creators": 2,
+    "withSharedTerritory": 0,
     "warnings": [
-      "Parte dos exemplos é roteiro planejado, não fala observada.",
-      "Há textos cuja integralidade não foi verificada; não os anuncie como transcrição completa.",
-      "7 dos 7 líderes não têm transcrição observada utilizável."
-    ],
-    "packId": "1bbe7dba6d47962db546cf3fcc6c537eccbe16c59a4af396239b548955a1390a",
-    "rankingVersion": "script_ranking_v2",
-    "selectedContentIds": [
-      "6a90af3d8f2b037fc490db91",
-      "6a90af3c8f2b037fc490db8e",
-      "6a90af3c8f2b037fc490db90"
-    ],
-    "coverage": {
-      "published": 7,
-      "metricsEligible": 7,
-      "observedAvailable": 0,
-      "observedAndMetrics": 0,
-      "leaders": 7,
-      "leadersWithObservedTranscript": 0,
-      "missingLeaderIds": [
-        "6a90af3c8f2b037fc490db8f",
-        "6a90af3c8f2b037fc490db8e",
-        "6a90ae5a8f2b037fc490db13",
-        "6a90af3d8f2b037fc490db91",
-        "6a90af3d8f2b037fc490db93",
-        "6a90af3c8f2b037fc490db90",
-        "6a90ae5a8f2b037fc490db14"
-      ],
-      "requestedWithoutTranscript": []
-    },
-    "selectionStage": "delivered_to_client",
-    "selectedExamples": 3,
-    "sentExamples": 3,
-    "corpusLimited": false,
-    "periodStart": "2026-08-01T03:00:00.000Z",
-    "periodEnd": "2026-09-01T02:59:59.000Z"
+      "no_shared_territory_among_ranked_creators",
+      "no_prepared_collab_proposals"
+    ]
   },
-  "generation": {
-    "provider": "local_fallback",
-    "hasDraft": true,
-    "validation": {
-      "passed": true,
-      "durationWithinTolerance": true,
-      "verbatimOverlapDetected": false,
-      "technicalScore": 0.893,
-      "warnings": [
-        "Parte dos exemplos é roteiro planejado, não fala observada.",
-        "Há textos cuja integralidade não foi verificada; não os anuncie como transcrição completa.",
-        "7 dos 7 líderes não têm transcrição observada utilizável."
-      ]
-    }
+  "freeMap": {
+    "narrativeConfirmedByCreator": false,
+    "narrativeIsFirm": false,
+    "warnings": [
+      "map_not_enriched_by_readings",
+      "narrative_not_firm_yet"
+    ]
+  },
+  "freeRadar": {
+    "panoramaScope": "related_to_creator_topics",
+    "sampleSize": 10,
+    "warnings": []
   },
   "passed": true
 }

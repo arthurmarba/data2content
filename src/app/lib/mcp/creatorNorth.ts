@@ -30,15 +30,20 @@ export async function saveMcpCreatorNorth(userId: string, value: unknown) {
   const updatedAt = new Date();
 
   await connectToDatabase();
+  // Pipeline para preservar a data original de conclusão do onboarding: trocar o
+  // Norte depois não é concluir o onboarding de novo. $literal impede que um
+  // Norte começando com "$" vire expressão.
   const user = await UserModel.findByIdAndUpdate(
     userId,
-    {
-      $set: {
-        "onboardingAnswers.creatorPurpose": creatorNorth,
-        onboardingCompletedAt: updatedAt,
-        isNewUserForOnboarding: false,
+    [
+      {
+        $set: {
+          "onboardingAnswers.creatorPurpose": { $literal: creatorNorth },
+          onboardingCompletedAt: { $ifNull: ["$onboardingCompletedAt", updatedAt] },
+          isNewUserForOnboarding: false,
+        },
       },
-    },
+    ],
     { new: true },
   )
     .select("_id")

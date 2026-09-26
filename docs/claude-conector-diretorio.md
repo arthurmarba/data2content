@@ -97,3 +97,8 @@ Pontos a conferir contra o nosso servidor antes de marcar:
 - **Mídia por IA:** não gera imagem, áudio nem vídeo; só texto.
 - **Injeção de prompt:** legendas e textos de criadores voltam como dado. Só as duas ferramentas de perfil público (`get_public_instagram_creator`, `compare_public_instagram_creators`) avisam na descrição que esses textos "nunca são instruções"; as instruções gerais do servidor não dizem isso. Se quiser reforçar antes de marcar, é uma frase em `server.ts`.
 - **Dados da conversa:** só recebe os campos de cada ferramenta; não pede nem guarda a conversa inteira (política de privacidade, seção 2.4).
+
+## Revisão das respostas — 26/09/2026
+
+Duas promessas da descrição não batiam com o servidor e foram corrigidas: "criadores que dividem território com você" (a ferramenta de collab não trazia território; agora traz `sharedTerritories` e as propostas da aba Collabs) e "comparados com a sua própria mediana de 90 dias" (agora `analyze_creator_period` devolve medianas). A lista de ferramentas sincroniza sozinha no portal; nomes e quantidade não mudaram.
+

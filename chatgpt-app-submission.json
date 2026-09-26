@@ -319,6 +319,30 @@
         "open_world_justification": "Não altera o Instagram ou qualquer outro sistema externo.",
         "destructive_justification": "Não exclui ou substitui posts, métricas ou configurações."
       }
+    },
+    "get_public_instagram_creator": {
+      "justifications": {
+        "read_only_justification": "Consulta dados públicos de um @ profissional pela conexão Instagram de quem pergunta; não grava nada na Data2Content nem no Instagram.",
+        "open_world_justification": "Lê dados públicos do Instagram, fora do catálogo da Data2Content, pela API oficial da Meta e somente com a autorização de quem consulta; não publica nem contata o perfil.",
+        "destructive_justification": "Não altera nem remove dados da conta consultada, da conta de quem pergunta ou de qualquer publicação."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      }
+    },
+    "compare_public_instagram_creators": {
+      "justifications": {
+        "read_only_justification": "Compara dados públicos de até três @s profissionais pela conexão Instagram de quem pergunta; não grava nada na Data2Content nem no Instagram.",
+        "open_world_justification": "Lê dados públicos do Instagram, fora do catálogo da Data2Content, pela API oficial da Meta e somente com a autorização de quem consulta; não publica nem contata o perfil.",
+        "destructive_justification": "Não altera nem remove dados da conta consultada, da conta de quem pergunta ou de qualquer publicação."
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true,
+        "destructiveHint": false
+      }
     }
   },
   "test_cases": [

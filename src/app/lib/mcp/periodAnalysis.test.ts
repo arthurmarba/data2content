@@ -179,4 +179,33 @@ describe("MCP exact period analysis", () => {
     expect(result.coverage.transcripts).toEqual({ available: 0, total: 1, ratio: 0 });
     expect(result.posts[0]?.evidence.hasTranscript).toBe(false);
   });
+
+  it("resume todos os posts do período com mediana, unidade e aviso de post recente", () => {
+    const generatedAt = new Date("2026-08-08T12:00:00.000Z");
+    const result = buildMcpPeriodAnalysis({
+      startDate: "2026-08-01",
+      endDate: "2026-08-07",
+      timeZone: "America/Sao_Paulo",
+      startInclusive: new Date("2026-08-01T03:00:00.000Z"),
+      endExclusive: new Date("2026-08-08T03:00:00.000Z"),
+      format: "all",
+      evidenceLimit: 1,
+      generatedAt,
+      documents: [
+        { _id: "a", type: "REEL", postDate: "2026-08-07T12:00:00.000Z", stats: { reach: 100, ig_reels_avg_watch_time: 4000 } },
+        { _id: "b", type: "REEL", postDate: "2026-08-03T12:00:00.000Z", stats: { reach: 300, ig_reels_avg_watch_time: 6000 } },
+        { _id: "c", type: "IMAGE", postDate: "2026-08-01T12:00:00.000Z", stats: { reach: 200 } },
+      ],
+    });
+
+    // A lista de evidência vem cortada em 1, mas o resumo cobre os três posts.
+    expect(result.posts).toHaveLength(1);
+    expect(result.summary.metrics.reach).toEqual({ availablePosts: 3, median: 200, total: 600 });
+    expect(result.summary.metrics.ig_reels_avg_watch_time).toEqual({ availablePosts: 2, median: 5000, total: null });
+    expect(result.metricUnits.ig_reels_avg_watch_time).toContain("milissegundos");
+    expect(result.maturity.postsYoungerThanMatureAge).toBe(2);
+    expect(result.coverage.warnings).toContain("recent_posts_still_accumulating");
+    expect(result.receipt.metricsAreCurrentTotals).toBe(true);
+  });
 });
+
