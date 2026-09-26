@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-15
+atualizado: 2026-09-26
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-15
 
 # Variáveis de ambiente
 
-**429 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**430 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 27 |
+| `CRON_SECRET` | 29 |
 
 ## FACEBOOK
 
@@ -49,17 +49,19 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `GEMINI_API_KEY` | 30 |
+| `GEMINI_API_KEY` | 34 |
+| `GEMINI_BATCH_READINGS` | 6 |
 | `GEMINI_MODEL_SCRIPT` | 4 |
 | `GEMINI_MODEL_SCRIPT_JUDGE` | 4 |
 | `GEMINI_THINKING_LEVEL_SCRIPTS` | 4 |
+| `GEMINI_CENA_MODEL` | 3 |
 | `GEMINI_SCRIPT_MODEL` | 3 |
 | `GEMINI_MAPA_MODEL` | 2 |
 | `GEMINI_MODEL` | 2 |
 | `GEMINI_THINKING_BUDGET` | 2 |
 | `GEMINI_THINKING_LEVEL` | 2 |
 | `GEMINI_ADJACENT_MODEL` | 1 |
-| `GEMINI_CENA_MODEL` | 1 |
+| `GEMINI_BATCH_MAX_ITENS` | 1 |
 | `GEMINI_CLASSIFICATION_MODEL` | 1 |
 | `GEMINI_COLLAB_MODEL` | 1 |
 | `GEMINI_INSTAGRAM_MODEL` | 1 |
@@ -73,7 +75,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `GOOGLE_GENAI_API_KEY` | 9 |
+| `GOOGLE_GENAI_API_KEY` | 13 |
 | `GOOGLE_GEMINI_API_KEY` | 7 |
 | `GOOGLE_CLIENT_ID` | 1 |
 | `GOOGLE_CLIENT_SECRET` | 1 |
@@ -92,9 +94,9 @@ atualizado: 2026-09-15
 | Variável | Usos no código |
 | --- | --- |
 | `MCP_CAMPAIGN_RADAR_ENABLED` | 21 |
-| `MCP_SUPPORTED_SCOPES` | 13 |
+| `MCP_SUPPORTED_SCOPES` | 15 |
 | `MCP_ADMIN_SUPPORTED_SCOPES` | 12 |
-| `MCP_CONNECTION_SCOPES` | 9 |
+| `MCP_CONNECTION_SCOPES` | 11 |
 | `MCP_ADMIN_CONNECTION_SCOPES` | 8 |
 | `MCP_ADMIN_ENABLED` | 8 |
 | `MCP_OAUTH_PRIVATE_JWK` | 7 |
@@ -121,8 +123,8 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `MONGODB_URI` | 15 |
-| `MONGODB_DB_NAME` | 7 |
+| `MONGODB_URI` | 21 |
+| `MONGODB_DB_NAME` | 10 |
 | `MONGODB_MAX_POOL_SIZE` | 1 |
 | `MONGODB_SERVER_SELECTION_TIMEOUT_MS` | 1 |
 | `MONGODB_SOCKET_TIMEOUT_MS` | 1 |
@@ -139,7 +141,7 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 66 |
+| `NEXT_PUBLIC_APP_URL` | 67 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -218,8 +220,8 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 35 |
-| `QSTASH_NEXT_SIGNING_KEY` | 35 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 37 |
+| `QSTASH_NEXT_SIGNING_KEY` | 37 |
 | `QSTASH_TOKEN` | 30 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -313,12 +315,12 @@ atualizado: 2026-09-15
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 123 |
+| `NODE_ENV` | 124 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
+| `DB_NAME` | 10 |
 | `LLM_PROVIDER_MAPA` | 9 |
-| `DB_NAME` | 7 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
@@ -473,7 +475,6 @@ atualizado: 2026-09-15
 | `PLANNER_ALGO_VERSION` | 1 |
 | `PLANNER_BATCH_MEMORY_CACHE_MAX_ENTRIES` | 1 |
 | `PLANNER_BATCH_MEMORY_CACHE_TTL_MS` | 1 |
-| `PLANNER_FREEZE_TTL_DAYS` | 1 |
 | `PLANNER_THEMES_CACHE_MAX_ENTRIES` | 1 |
 | `PLANNER_THEMES_CACHE_TTL_MS` | 1 |
 | `PLANNER_THEMES_CACHE_VERSION` | 1 |

@@ -37,14 +37,13 @@ const PlannerRecCacheSchema = new Schema<IPlannerRecCache>(
 // snapshot único por (userId, platform, weekStart)
 PlannerRecCacheSchema.index({ userId: 1, platform: 1, weekStart: 1 }, { unique: true });
 
-// TTL opcional: defina PLANNER_FREEZE_TTL_DAYS (em dias) para expirar snapshots antigos
-const ttlDays = Number(process.env.PLANNER_FREEZE_TTL_DAYS || '');
-if (Number.isFinite(ttlDays) && ttlDays > 0) {
-  PlannerRecCacheSchema.index(
-    { frozenAt: 1 },
-    { expireAfterSeconds: Math.floor(ttlDays * 24 * 60 * 60) }
-  );
-}
+// Expira 30 dias depois do último congelamento. Era opcional por variável que nunca foi
+// definida, e o banco acumulava semanas de 2025 (auditoria de 26/09/2026). O índice real
+// foi criado com o mesmo nome e prazo; mudar o prazo aqui exige collMod no banco.
+PlannerRecCacheSchema.index(
+  { frozenAt: 1 },
+  { name: 'frozenAt_ttl', expireAfterSeconds: 30 * 24 * 60 * 60 }
+);
 
 export default (mongoose.models.PlannerRecCache as mongoose.Model<IPlannerRecCache>) ||
   mongoose.model<IPlannerRecCache>('PlannerRecCache', PlannerRecCacheSchema);

@@ -57,14 +57,15 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     dailyFollows: { type: Number, default: 0 },
     dailyProfileVisits: { type: Number, default: 0 },
     dailyReelsVideoViewTotalTime: { type: Number, default: 0 },
-    dailyImpressions: { type: Number, default: 0 },
+    // Sem default: a Meta aposentou impressions e o campo ficava sempre zero. Só registros antigos o têm.
+    dailyImpressions: { type: Number },
     cumulativeViews: { type: Number, default: 0 },
     cumulativeLikes: { type: Number, default: 0 },
     cumulativeComments: { type: Number, default: 0 },
     cumulativeShares: { type: Number, default: 0 },
     cumulativeSaved: { type: Number, default: 0 },
     cumulativeReach: { type: Number, default: 0 },
-    cumulativeImpressions: { type: Number, default: 0 },
+    cumulativeImpressions: { type: Number },
     cumulativeFollows: { type: Number, default: 0 },
     cumulativeProfileVisits: { type: Number, default: 0 },
     cumulativeTotalInteractions: { type: Number, default: 0 },
@@ -73,6 +74,8 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
   },
   {
     timestamps: true,
+    // Snapshot não tem arrays; __v era sempre 0 e custava ~12 bytes em cada um dos 190 mil registros.
+    versionKey: false,
     collection: "daily_metric_snapshots",
   }
 );
@@ -82,14 +85,10 @@ dailyMetricSnapshotSchema.index(
   { metric: 1, date: 1 },
   { unique: true, name: "idx_metric_date_unique" }
 );
-dailyMetricSnapshotSchema.index(
-  { metric: 1, date: -1 },
-  { name: "idx_metric_history" }
-);
-dailyMetricSnapshotSchema.index(
-    { metric: 1, dayNumber: 1 },
-    { name: "idx_metric_dayNumber" }
-);
+// {metric:1, date:-1} saiu em 26/09/2026: o índice único acima percorre as datas ao contrário
+// sem ordenação extra (conferido com explain). Ver docs/auditoria-mongodb-campos-sem-uso-2026-09-26.md.
+// {metric:1, dayNumber:1} também saiu: só servia a calculateCumulativeEngagementPercentage, que
+// ninguém chama. Por post são poucas dezenas de registros; o índice único cobre o filtro por metric.
 
 const DailyMetricSnapshotModel =
   (mongoose.models.DailyMetricSnapshot as Model<IDailyMetricSnapshot>) ||
