@@ -311,3 +311,49 @@ da D2C baixa (só de hosts do Instagram), reduz para 480px e manda os bytes.
   administrativo é somente leitura. Conta desconectada: devolve
   `url_expired_and_account_disconnected`, nunca inventa imagem.
 - Teto de 12 imagens por chamada; os bytes não entram no JSON auditado.
+
+## Plugin do Claude — 25/09/2026
+
+Além de colar o endereço do MCP como conector, o criador pode instalar o plugin
+`data2content`. Foi montado em `claude-plugin/` (só no computador do Arthur, fora
+do repositório), já no formato de marketplace:
+`.claude-plugin/marketplace.json` na raiz da pasta e o plugin em
+`plugins/data2content/` (conector em `.mcp.json` apontando para
+`https://data2content.ai/api/mcp`, mais seis skills). A skill `data2content` é o
+guia — vocabulário, `get_account_state` primeiro, mapa como dicionário, nunca
+vender. As outras cinco são os mesmos atalhos registrados como prompts no
+`server.ts` (`o-que-postar`, `vale-postar`, `minha-semana`, `achar-collab`,
+`roteiro`). **Mudou um prompt no servidor, muda a skill** — não há teste que
+amarre os dois.
+
+O plugin não tem login próprio: usa o mesmo OAuth com DCR do conector. Conferir
+com `claude plugin validate claude-plugin` e
+`claude --plugin-dir claude-plugin/plugins/data2content mcp list` (deve mostrar
+"Needs authentication" antes do login).
+
+Distribuir exige um repositório público com o `marketplace.json` na raiz — este
+repositório tem o arquivo numa subpasta. O plugin é extra opcional e não foi
+publicado.
+
+**O que o Arthur queria era o conector no diretório do Claude**, não o plugin:
+a Data2Content aparecendo em Configurações → Conectores para o criador conectar
+com um clique. O envio é pelo portal `claude.ai/directory/manage` (qualquer plano
+pago pode enviar) e pede página pública de ajuda com exemplos — criada em
+`/conector-claude` — e política de privacidade que cite Claude e Anthropic, não
+só ChatGPT e OpenAI. Textos do formulário e checklist em
+`docs/claude-conector-diretorio.md`. A conta de revisão da OpenAI
+(`openai-review-pro@`) serve para o revisor da Anthropic.
+
+**Rasteira vista no teste:** `authenticateMcpRequest` exigia *todos* os scopes de
+`getMcpConnectionScopes()` em cada requisição. Conexão feita antes de um scope
+novo entrar (ex.: `campaigns:read`) passava a receber 403 em tudo, não só na
+ferramenta nova — o conector do próprio Arthur no Claude estava assim em 25/09.
+
+Corrigido em 25/09 com o aval do Arthur: a conexão agora exige só o scope básico
+(`getMcpRequiredScope()`, `profile:read`), igual ao MCP admin, e cada ferramenta
+cobra o seu via `scopeRequiredResult` — que já existia em todas. Conexão antiga
+continua funcionando; só a ferramenta nova pede reconexão. Isso não afrouxa o que
+cada ferramenta exige. O anúncio (`WWW-Authenticate` e metadata) continua pedindo
+o conjunto completo, então conexão nova nasce com tudo. Testes em
+`adminAuthIsolation.test.ts`. Ao criar ferramenta nova, **sempre** ponha o
+`hasScope` dela: a entrada não protege mais por você.

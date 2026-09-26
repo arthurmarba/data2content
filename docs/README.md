@@ -45,6 +45,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 | `plano-ajuste-inteligente-roteiro-video.md` | 09/2026 | Ajuste de roteiro a partir do vídeo |
 | `mcp-data2content.md` | 09/2026 | O MCP — a referência principal |
 | `chatgpt-plugin-v1.md` · `-submission.md` · `-funnel-release-checklist.md` | 09/2026 | O plugin do ChatGPT e a submissão |
+| `claude-conector-diretorio.md` | 09/2026 | Envio ao diretório de conectores do Claude: textos do formulário, conta de teste e checklist |
 | `campaign-radar-report-mvp.md` · `-source-compliance-audit.md` | 09/2026 | Radar de campanhas e a conformidade das fontes |
 | `mcp-admin-delivery-scope.md` | 08/2026 | O MCP administrativo, só leitura |
 | `script-intelligence-v3.md` | 09/2026 | Evidência compartilhada, escrita no cliente/interna e operação; publicação deve ser confirmada |
@@ -68,7 +69,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 `pricing-migration-2026.md` (07/26) · `stripe-multimoeda-release.md` (07/26) · `billing-checklist.md` (12/25) · `qa-payments-affiliates.md` (07/26) · `affiliates.md` (07/26) · `affiliates-observability-runbook.md` (08/25) · `cpm-lifecycle.md` (11/25)
 
 ### MCP, ChatGPT e Claude
-`mcp-data2content.md` (09/26) · `mcp-admin-delivery-scope.md` (08/26) · `chatgpt-plugin-v1.md` · `chatgpt-plugin-submission.md` · `chatgpt-plugin-funnel-release-checklist.md` (09/26)
+`mcp-data2content.md` (09/26) · `mcp-admin-delivery-scope.md` (08/26) · `chatgpt-plugin-v1.md` · `chatgpt-plugin-submission.md` · `chatgpt-plugin-funnel-release-checklist.md` · `claude-conector-diretorio.md` (09/26)
 
 > Análise administrativa de toda a base de criadores: `brain/20 Domínios/MCP — ChatGPT e Claude.md`. Saldo de seguidores por dia e por conteúdo: `brain/20 Domínios/Seguidores.md`. Script `tsx` que morre antes de rodar: `brain/30 Armadilhas/Script com tsx não enxerga import nomeado do mongoose.md`. Cobertura que cobra dado impossível: `brain/30 Armadilhas/Cobertura que cobra o impossível.md`.
 
