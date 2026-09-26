@@ -219,3 +219,5 @@ O servidor mudou nomes de campo, descrições e formatos de resposta de várias 
 
 Antes do reenvio, `npx tsx --env-file=.env.local scripts/smokePluginReview.ts` (só leitura, contas de revisão) passou com o código novo. Ele também confirmou que o mapa da conta de revisão continua "apenas declarativo", como espera o caso 1.
 
+Reenvio concluído em 26/09/2026, pelo Chrome do Arthur: revisão cancelada, override apagado (estava preenchido de novo), `Scan Tools` devolveu "Tools scanned successfully" com as 28 ferramentas e as marcações certas, notas coladas, seis declarações marcadas e `Submit for Review` devolveu "Data2Content submitted for review". A lista do portal mostra a 1.0.0 em **Review**. O consentimento do scan pediu 10 permissões, sem `profile:write`.
+
