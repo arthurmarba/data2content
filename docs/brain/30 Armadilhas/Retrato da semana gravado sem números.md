@@ -32,6 +32,22 @@ atuais é ganho. Desde 27/09, o congelamento (`WeeklyStatsFreeze`) só guarda po
 tem alcance ou visualização; post vazio espera o próximo fechamento em vez de ser
 congelado vazio. Semanas fechadas antes disso refazem com `--aceitar-numeros-de-hoje`.
 
+## O que foi feito — 27/09/2026
+
+W37 e W38 foram refeitas com `--aceitar-numeros-de-hoje`, com ok do Arthur. Antes,
+os retratos e previsões de W36 a W38 foram exportados para
+`output/backup-retratos-2026-09-27/` (EJSON, na pasta principal, fora do git).
+
+| Semana | Antes | Depois |
+| --- | --- | --- |
+| W37 | 322 posts, engajamento em 4 de 14 territórios | 382 posts, 15 de 15, 287 com número |
+| W38 | 285 posts, engajamento em 2 de 14 territórios | 385 posts, 15 de 15, 337 com número |
+
+Os números congelados dessas duas semanas são os de 27/09, não os de segunda
+(`coverage.statsFrozenAt` diz isso). Ficaram 98 posts da W37 e 49 da W38 sem número:
+Reels que a sincronização não voltou a buscar, parte de criadores desconectados. Se
+um dia ganharem número, refechar a semana os congela sem mexer nos demais.
+
 ## Como conferir
 
 ```
