@@ -3,7 +3,7 @@ import Connection from '@/app/models/InstagramMarketplaceConnection';
 import User from '@/app/models/User';
 import { getCreatorResearchAccess } from './creatorResearchAccess';
 import { checkRateLimitStrict } from '@/utils/rateLimit';
-import { finishMarketplaceConnection, MARKETPLACE_SCOPES, marketplaceSearchSchema, openMarketplaceToken, searchMarketplaceCreators, sealMarketplaceToken } from './marketplace';
+import { finishMarketplaceConnection, getMarketplaceCreatorDetails, MARKETPLACE_SCOPES, marketplaceSearchSchema, openMarketplaceToken, searchMarketplaceCreators, sealMarketplaceToken } from './marketplace';
 
 jest.mock('@/app/models/InstagramMarketplaceConnection', () => ({ __esModule: true, default: { findOne: jest.fn(), findOneAndUpdate: jest.fn(), updateOne: jest.fn() } }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
@@ -25,6 +25,9 @@ test('recusa cidade, campos desconhecidos e intervalo invertido', () => {
   expect(marketplaceSearchSchema.safeParse({ query: 'receitas', similar_to_creators: ['teste'] }).success).toBe(false);
   expect(marketplaceSearchSchema.safeParse({ minFollowers: 50000, maxFollowers: 10000 }).success).toBe(false);
   expect(marketplaceSearchSchema.safeParse({ minFollowers: 12000 }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ minEngagedAccounts: 50000, maxEngagedAccounts: 2000 }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ audienceAgeBuckets: ['30_to_40'] }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ audienceGender: 'other' }).success).toBe(false);
 });
 test('criptografia vincula a credencial ao dono e detecta adulteração', () => {
   const sealed = sealMarketplaceToken('credencial-secreta', owner);
@@ -56,13 +59,47 @@ function connected() {
 }
 test('retorna apenas campos permitidos, marca teste e não expõe paginação credenciada', async () => {
   connected();
-  (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '789', username: 'teste', biography: 'texto', email: 'privado', access_token: 'token-pagina' }], paging: { next: 'https://graph.facebook.com?access_token=token-pagina' } }) });
+  (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '789', username: 'teste', biography: 'This is mocked creator data. To access real creator data, proceed through app review.', email: 'privado', access_token: 'token-pagina' }], paging: { next: 'https://graph.facebook.com?access_token=token-pagina' } }) });
   const result = await searchMarketplaceCreators(owner, { query: 'receitas', interests: ['FOOD_AND_DRINK'] });
   expect(result.dataMode).toBe('test'); expect(result.coverage.hasMore).toBe(true);
   expect(JSON.stringify(result)).not.toMatch(/token-pagina|privado|access_token/);
   const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
   expect(url).not.toContain('token-pagina'); expect(options.headers.Authorization).toBe('Bearer token-pagina');
   expect(Connection.findOne).toHaveBeenCalledWith({ owner });
+});
+test('envia nicho, alcance e audiência no formato da Meta e lê as métricas do criador', async () => {
+  connected();
+  (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '1', username: 'real', biography: 'Receitas de casa', country: 'BR',
+    insights: { data: [
+      { name: 'total_followers', time_range: 'lifetime', total_value: { value: 20000 } },
+      { name: 'creator_reach', time_range: 'this_month', total_value: { value: 5000 } },
+      { name: 'creator_engaged_accounts', time_range: 'this_month', total_value: { value: 1200 } },
+      { name: 'reels_interaction_rate', time_range: 'last_90_days', total_value: { value: 4.5 } },
+    ] } }] }) });
+  const result = await searchMarketplaceCreators(owner, { interests: ['FOOD_AND_DRINK'], minFollowers: 10000, maxFollowers: 100000, minEngagedAccounts: 2000,
+    audienceCountries: ['BR'], audienceAgeBuckets: ['25_to_34'], audienceGender: 'female' });
+  const url = new URL((global.fetch as jest.Mock).mock.calls[0][0]);
+  expect(url.searchParams.get('creator_interests')).toBe('["FOOD_AND_DRINK"]');
+  expect(url.searchParams.get('creator_min_engaged_accounts')).toBe('2000');
+  expect(url.searchParams.get('major_audience_countries')).toBe('["BR"]');
+  expect(url.searchParams.get('major_audience_age_bucket')).toBe('["25_to_34"]');
+  expect(url.searchParams.get('major_audience_gender')).toBe('["female"]');
+  expect(url.searchParams.get('fields')).toContain('insights');
+  expect(result.dataMode).toBe('live');
+  expect(result.creators[0].metrics).toMatchObject({ followers: 20000, reachThisMonth: 5000, engagedAccountsThisMonth: 1200, reelsInteractionRate90d: 4.5, reachPerFollowerPercent: 25 });
+});
+test('detalhe consulta um único @ e devolve posts recentes sem link inseguro', async () => {
+  connected();
+  (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '1', username: 'real', has_brand_partnership_experience: true, past_brand_partnership_partners: ['Marca'],
+    recent_media: { data: [{ id: 'm1', media_type: 'VIDEO', product_type: 'REELS', permalink: 'https://www.instagram.com/reel/x/', creation_time: '2026-09-20T10:00:00+0000', caption: 'Bolo' },
+      { id: 'm2', permalink: 'javascript:alert(1)' }] } }] }) });
+  const result = await getMarketplaceCreatorDetails(owner, '@real');
+  const url = new URL((global.fetch as jest.Mock).mock.calls[0][0]);
+  expect(url.searchParams.get('username')).toBe('real');
+  expect(url.searchParams.get('creator_countries')).toBeNull();
+  expect(result.creator).toMatchObject({ brandPartnershipExperience: true, pastBrandPartners: ['Marca'] });
+  expect(result.recentMedia.map(m => m.url)).toEqual(['https://www.instagram.com/reel/x/', null]);
+  await expect(getMarketplaceCreatorDetails(owner, 'nome com espaço')).rejects.toBeDefined();
 });
 test('erro do provedor não vaza credencial nem mensagem bruta', async () => {
   connected();
@@ -78,6 +115,7 @@ test('callback grava somente a credencial criptografada da Página vinculada ao 
     (User.findById as jest.Mock).mockReturnValue({ select: () => ({ lean: async () => ({ instagramAccountId: '123' }) }) });
     const responses = [
       { access_token: 'token-usuario', expires_in: 3600 },
+      { access_token: 'token-usuario-longo', expires_in: 5183944 },
       { data: MARKETPLACE_SCOPES.map(permission => ({ permission, status: 'granted' })) },
       { data: [ { name: 'Outra página', access_token: 'token-outro', instagram_business_account: { id: '456' } },
         { name: 'Página própria', access_token: 'token-proprio', instagram_business_account: { id: '123' } } ] },
@@ -88,6 +126,9 @@ test('callback grava somente a credencial criptografada da Página vinculada ao 
     expect(filter).toEqual({ owner }); expect(update.$set.accountId).toBe('123');
     expect(JSON.stringify(update)).not.toMatch(/token-proprio|token-usuario|token-outro/);
     expect(openMarketplaceToken(update.$set.sealedToken, owner)).toBe('token-proprio');
+    // A Página é lida com a credencial de longa duração, e a conexão deixa de expirar em uma hora.
+    expect((global.fetch as jest.Mock).mock.calls[3][1].headers.Authorization).toBe('Bearer token-usuario-longo');
+    expect(update.$set.expiresAt.getTime() - Date.now()).toBeGreaterThan(50 * 86400000);
   } finally {
     if (previousId === undefined) delete process.env.FACEBOOK_CLIENT_ID; else process.env.FACEBOOK_CLIENT_ID = previousId;
     if (previousSecret === undefined) delete process.env.FACEBOOK_CLIENT_SECRET; else process.env.FACEBOOK_CLIENT_SECRET = previousSecret;
