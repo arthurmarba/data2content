@@ -1,7 +1,7 @@
 ---
 tipo: armadilha
 custo: horas
-resolvido: não
+resolvido: contornado
 ---
 
 # Screencast da análise da Meta não anexa pela automação
@@ -19,7 +19,7 @@ Não é o arquivo: tamanho, tipo e cabeçalhos iguais aos de um envio normal, co
 ## O que fazer
 
 - Não confie no "100%" nem no `read_network_requests` (ele só mostrou o OPTIONS). Para ver a resposta real, envolva `XMLHttpRequest.prototype.send` na página e leia o `responseText` do POST em `rupload`.
-- Peça ao Arthur para arrastar o arquivo no formulário. Se falhar também com ele, testar em outra janela sem extensões ou em outro navegador.
+- Peça ao Arthur para anexar à mão. Em 27/09 a primeira tentativa dele também não pegou; funcionou depois de refazer (a orientação era janela anônima). Confira sempre reabrindo o formulário: tem de aparecer "Visualizar screencast carregado", e a duração do vídeo aberto confirma se é o arquivo certo.
 - Os vídeos prontos e os brutos ficam em `output/meta-review/`; os textos do pedido, em `docs/meta-review/JUSTIFICATIVAS_REENVIO.md`.
 
 ## Gravação e edição que funcionaram
@@ -27,3 +27,9 @@ Não é o arquivo: tamanho, tipo e cabeçalhos iguais aos de um envio normal, co
 - Gravar com `ffmpeg -f avfoundation -capture_cursor 0 -i "4:none"` e deixar a aba certa na frente com AppleScript (`set active tab index`), porque a aba controlada pela extensão fica escondida no grupo.
 - O Chrome desenha um contorno laranja de ~14 px ("Claude ativo") em volta da página; corte a borda.
 - No Login do Facebook aparecem Páginas, empresas e contas do Instagram de clientes do Arthur: desfoque a lista inteira menos a linha marcada (fundo azul). O script está em `output/meta-review/montar.py`.
+
+## Rasteira vizinha: a conta de revisão precisa de liberação
+
+`/creator-research` mostra a descoberta de criadores só para administrador ou para quem tem registro em
+`creator_research_review_grants`. A conta citada nas instruções para o analista não tinha — o analista
+entrava e não via a seção. Ao trocar ou reaproveitar conta de revisão, confira o registro.
