@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, classifyReadingFailure, fairReadingBatch, findPendingReadingBatch } from "./contentReadingState";
+import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, geminiUnavailable, classifyReadingFailure, fairReadingBatch, findPendingReadingBatch } from "./contentReadingState";
 import Metric from "@/app/models/Metric";
 import State from "@/app/models/ContentReadingState";
 
@@ -11,6 +11,8 @@ jest.mock("@/app/models/ContentReadingState", () => ({ __esModule: true, default
 describe("recuperação da leitura", () => {
   it.each([
     ["Your prepayment credits are depleted", "provider_balance", false],
+    ["gemini_provider_balance: Provedor sem saldo; aguardar recuperação.", "provider_balance", false],
+    ["Provedor temporariamente pausado por saldo; leitura adiada.", "provider_paused", false],
     ["Instagram HTTP 401", "instagram_auth", false],
     ["Instagram HTTP 404", "media_deleted", true],
     ["Vídeo acima do teto", "unsupported_media", true],
@@ -59,6 +61,41 @@ describe("contrato de exclusão mútua e retomada", () => {
     const update = (State.updateOne as jest.Mock).mock.calls[0][1].$set;
     expect(update).toMatchObject({ state: "deferred", leaseToken: null });
     expect(update).not.toHaveProperty("result");
+  });
+  it("sonda que falha por saldo volta a pausar com nova espera de seis horas", async () => {
+    // Estado visto em produção em 26/09/2026: sonda presa, prazo já vencido.
+    await finishReading("post", "token", "gemini_provider_balance: Provedor sem saldo; aguardar recuperação.");
+    const [post, , provider] = (State.updateOne as jest.Mock).mock.calls;
+    expect(post[1].$set).toMatchObject({ state: "deferred", reason: "provider_balance" });
+    expect(provider[0]).toEqual({ _id: "provider:gemini" });
+    expect(provider[1].$set).toMatchObject({ state: "paused", reason: "provider_balance", leaseUntil: new Date(0),
+      nextAttemptAt: new Date(Date.now() + 6 * 3600000) });
+  });
+  it("resultado incerto não pausa o provedor", async () => {
+    await finishReading("post", "token", "gemini_result_unknown: timeout");
+    expect(State.updateOne).toHaveBeenCalledTimes(1);
+  });
+  // A tabela nasce antes do relógio falso (07/09/2026 00h): datas fixas em volta dele.
+  const antes = new Date("2026-09-06T23:00:00Z");
+  const depois = new Date("2026-09-07T01:00:00Z");
+  it.each([
+    ["pausa com prazo futuro", { state: "paused", nextAttemptAt: depois, leaseUntil: new Date(0) }, true],
+    ["sonda com posse ativa", { state: "probing", nextAttemptAt: antes, leaseUntil: depois }, true],
+    ["sonda com posse vencida", { state: "probing", nextAttemptAt: antes, leaseUntil: antes }, false],
+    ["provedor saudável", { state: "healthy", nextAttemptAt: new Date(0), leaseUntil: depois }, false],
+    ["sem registro", null, false],
+  ])("indisponibilidade só lê o estado: %s", async (_rotulo, provider, bloqueado) => {
+    (State.findById as jest.Mock).mockReturnValue({ select: () => ({ lean: async () => provider }) });
+    expect(await geminiUnavailable()).toBe(bloqueado);
+    expect(State.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+  it("sonda só reabre provedor não saudável; se outro job já confirmou, segue liberado", async () => {
+    (State.findById as jest.Mock)
+      .mockReturnValueOnce({ lean: async () => ({ state: "probing", nextAttemptAt: new Date(0), leaseUntil: new Date(0) }) })
+      .mockReturnValueOnce({ select: () => ({ lean: async () => ({ state: "healthy" }) }) });
+    (State.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: async () => null });
+    expect(await claimGeminiAvailability()).toBe(true);
+    expect((State.findOneAndUpdate as jest.Mock).mock.calls[0][0]).toMatchObject({ state: { $ne: "healthy" } });
   });
   it("não tenta Gemini durante a pausa de saldo", async () => {
     (State.findById as jest.Mock).mockReturnValue({ lean: async () => ({ state: "paused", nextAttemptAt: new Date(Date.now() + 1000) }) });

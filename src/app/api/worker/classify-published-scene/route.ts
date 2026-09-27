@@ -36,7 +36,7 @@ import {
 import { upsertPublishedContentEvidence } from "@/app/lib/scripts/publishedContentEvidence";
 import { persistPublishedReading } from "@/app/lib/relatorio/persistPublishedReading";
 import PublishedContentEvidence from "@/app/models/PublishedContentEvidence";
-import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, markGeminiHealthy } from "@/app/lib/relatorio/contentReadingState";
+import { acquireReading, checkpointReading, finishReading, claimGeminiAvailability, geminiUnavailable, markGeminiHealthy } from "@/app/lib/relatorio/contentReadingState";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -103,23 +103,12 @@ async function processReading(metricId: string, lease: { token: string; result: 
     return NextResponse.json({ message: "Criador sem token do Instagram." });
   }
 
-  if (!(await claimGeminiAvailability())) return NextResponse.json({ message: "Provedor temporariamente pausado por saldo; leitura adiada." });
+  const paused = () => NextResponse.json({ message: "Provedor temporariamente pausado por saldo; leitura adiada." });
+  if (await geminiUnavailable()) return paused();
   const media = await freshPublishedMedia(metric.instagramMediaId, token);
-  const outcome = media.mediaType === "VIDEO" && media.mediaUrl
-    ? await evaluateSceneAgainstMap({
-        metricId,
-        mediaUrl: media.mediaUrl,
-        durationSeconds:
-          typeof metric.stats?.video_duration_seconds === "number"
-            ? metric.stats.video_duration_seconds
-            : null,
-        profile,
-      })
-    : ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.items.length
-      ? await evaluateImagesAgainstMap({ metricId, mediaUrls: media.imageUrls, mediaItems: media.items, profile })
-      : null;
-
-  if (!outcome) {
+  const videoUrl = media.mediaType === "VIDEO" ? media.mediaUrl : null;
+  const visual = ["IMAGE", "CAROUSEL_ALBUM"].includes(media.mediaType || "") && media.items.length > 0;
+  if (!videoUrl && !visual) {
     logger.warn(`${TAG} ${metricId}: post sem mídia compatível para leitura visual.`, {
       mediaType: media.mediaType,
       hasMediaUrl: Boolean(media.mediaUrl),
@@ -127,6 +116,20 @@ async function processReading(metricId: string, lease: { token: string; result: 
     });
     return NextResponse.json({ message: "Post sem mídia compatível para leitura visual." });
   }
+  // A sonda só vai para quem vai perguntar ao Gemini: um post sem mídia que ficasse com
+  // ela seis minutos não testaria o saldo e adiaria todos os outros.
+  if (!(await claimGeminiAvailability())) return paused();
+  const outcome = videoUrl
+    ? await evaluateSceneAgainstMap({
+        metricId,
+        mediaUrl: videoUrl,
+        durationSeconds:
+          typeof metric.stats?.video_duration_seconds === "number"
+            ? metric.stats.video_duration_seconds
+            : null,
+        profile,
+      })
+    : await evaluateImagesAgainstMap({ metricId, mediaUrls: media.imageUrls, mediaItems: media.items, profile });
 
   if (!outcome.ok) {
     logger.warn(`${TAG} ${metricId}: ${outcome.reason}`);

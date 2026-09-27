@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import Evidence from '@/app/models/PublishedContentEvidence';
-import { VISUAL_READING_REVISION } from '@/app/lib/relatorio/readingRevision';
+import { VIDEO_READING_REVISION, VISUAL_READING_REVISION } from '@/app/lib/relatorio/readingRevision';
 import { enqueuePublishedReading, enqueueProfileRefresh, enqueueOnboardingReadings } from './queue';
 jest.mock('@/app/models/PublishedContentEvidence', () => ({ __esModule: true, default: { exists: jest.fn() } }));
 const mockPublish = jest.fn();
@@ -16,7 +16,11 @@ jest.mock('@/app/models/Metric', () => ({ __esModule: true, default: {
   find: () => ({ sort: () => ({ limit: (n: number) => ({ select: () => ({ lean: () => mockRecentes(n) }) }) }) }),
 } }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: () => mockUser() }) }) } }));
-jest.mock('@/app/models/ContentReadingState', () => ({ __esModule: true, default: { findById: () => ({ select: () => ({ lean: () => mockProvider() }) }) } }));
+const mockBlocked = jest.fn();
+jest.mock('@/app/models/ContentReadingState', () => ({ __esModule: true, default: {
+  findById: () => ({ select: () => ({ lean: () => mockProvider() }) }),
+  find: (filtro: unknown) => ({ select: () => ({ lean: () => mockBlocked(filtro) }) }),
+} }));
 const id = '69e8f96564be9f1592a5ca6e';
 const previousEnv = { token: process.env.QSTASH_TOKEN, base: process.env.APP_BASE_URL };
 beforeEach(() => {
@@ -24,7 +28,7 @@ beforeEach(() => {
   process.env.QSTASH_TOKEN = 'teste'; process.env.APP_BASE_URL = 'https://example.test';
   mockMetric.mockResolvedValue({ user: id, instagramMediaId: 'post', type: 'REEL', postDate: new Date() });
   mockUser.mockResolvedValue({ isInstagramConnected: true, planStatus: 'active' });
-  mockProvider.mockResolvedValue(null); mockPublish.mockResolvedValue({});
+  mockProvider.mockResolvedValue(null); mockPublish.mockResolvedValue({}); mockBlocked.mockResolvedValue([]);
 });
 afterEach(() => { jest.useRealTimers(); if (previousEnv.token === undefined) delete process.env.QSTASH_TOKEN; else process.env.QSTASH_TOKEN = previousEnv.token; if (previousEnv.base === undefined) delete process.env.APP_BASE_URL; else process.env.APP_BASE_URL = previousEnv.base; });
 
@@ -68,4 +72,26 @@ it('sincronização não reenfileira leitura completa, mas recupera evidência a
   expect(mockPublish).not.toHaveBeenCalled();
   (Evidence.exists as jest.Mock).mockResolvedValue(null);
   expect(await enqueuePublishedReading(id)).toBe(true);
+});
+
+it('não republica post encerrado na revisão atual a cada sincronização', async () => {
+  // 26/09/2026: 405 dos 439 posts na DLQ estavam encerrados como mídia não suportada.
+  mockBlocked.mockResolvedValue([{ _id: id }]);
+  expect(await enqueuePublishedReading(id)).toBe(false);
+  expect(mockPublish).not.toHaveBeenCalled();
+  const filtro = mockBlocked.mock.calls[0][0];
+  expect(filtro).toMatchObject({ _id: { $in: [id] }, revision: VIDEO_READING_REVISION });
+  expect(filtro.$or).toEqual(expect.arrayContaining([{ state: 'unsupported' }]));
+});
+it('confere o encerramento pela revisão do formato do post', async () => {
+  mockMetric.mockResolvedValue({ user: id, instagramMediaId: 'post', type: 'CAROUSEL_ALBUM', postDate: new Date() });
+  expect(await enqueuePublishedReading(id)).toBe(true);
+  expect(mockBlocked.mock.calls[0][0]).toMatchObject({ revision: VISUAL_READING_REVISION });
+});
+it('sonda em andamento segura a fila; sonda vencida deixa um job testar o provedor', async () => {
+  mockProvider.mockResolvedValue({ state: 'probing', nextAttemptAt: new Date(Date.now() - 86400000), leaseUntil: new Date(Date.now() + 360000) });
+  expect(await enqueuePublishedReading(id)).toBe(false);
+  mockProvider.mockResolvedValue({ state: 'probing', nextAttemptAt: new Date(Date.now() - 86400000), leaseUntil: new Date(Date.now() - 1000) });
+  expect(await enqueuePublishedReading(id)).toBe(true);
+  expect(mockPublish).toHaveBeenCalledTimes(1);
 });

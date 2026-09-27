@@ -75,4 +75,4 @@ semana não filtra assinante, então também alcança o post de quem não assina
 
 ## Ligações
 
-[[Filas e rotinas]] · [[Variável só no .env.local]] · [[Pautas e Roteiros]]
+[[Filas e rotinas]] · [[Variável só no .env.local]] · [[Pautas e Roteiros]] · [[Sonda do Gemini presa sem voltar à pausa]]

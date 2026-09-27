@@ -40,7 +40,11 @@ Mudança em qualquer uma dessas quatro últimas famílias é visível pra pessoa
 `classify-published-scene` usa `ContentReadingState`: posse temporária por post,
 checkpoint da extração, tentativas, motivo e próxima tentativa. A extração paga
 é reaproveitada se apenas a persistência falhar. Falta de saldo pausa Gemini por
-seis horas; depois um job testa recuperação. A fila não confunde token inválido,
+seis horas; depois um job testa recuperação. A sonda é tomada logo antes da chamada
+ao Gemini (não antes de buscar a mídia) e, se encontrar o saldo ainda zerado (HTTP 402),
+volta a pausar. `enqueuePublishedReading` não publica post encerrado, adiado ou com
+posse ativa na revisão do formato, nem enquanto houver pausa ou sonda em andamento —
+ver [[Sonda do Gemini presa sem voltar à pausa]]. A fila não confunde token inválido,
 URL expirada, mídia excluída e formato incompatível. Resposta cortada tem teto e
 aproveitamento parcial sem segunda chamada; ilegível e carrossel incompleto encerram
 a leitura. A fala recuperada não conta como transcrição completa — ver
