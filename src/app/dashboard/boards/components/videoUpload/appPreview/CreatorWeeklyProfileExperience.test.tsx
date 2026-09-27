@@ -132,6 +132,76 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(screen.queryByRole("heading", { name: "Conecte seu Instagram." })).not.toBeInTheDocument();
   });
 
+  describe("com o diagnóstico ligado", () => {
+    const withDiagnosis = {
+      ...CREATOR_WEEKLY_REPORT_DEMO,
+      diagnosis: {
+        state: "ready" as const,
+        upcomingRangeLabel: null,
+        dueAt: null,
+        shown: {
+          weekKey: CREATOR_WEEKLY_REPORT_DEMO.weekKey,
+          rangeLabel: CREATOR_WEEKLY_REPORT_DEMO.period.rangeLabel,
+          headline: "Suas manhãs viraram regra.",
+          paragraphs: ["Posts entre 4h e 8h renderam 3,2× o seu normal, em 7 posts dos últimos 90 dias."],
+          nextTest: "Poste de manhã de novo.",
+          question: "É o horário ou o assunto?",
+          sampleLine: "71 de 84 posts lidos · comparado com os seus últimos 90 dias",
+          writtenAt: "2026-08-11T15:00:00.000Z",
+        },
+      },
+    };
+
+    it("ordem: identidade e narrativa, situação da conta, e só então o diagnóstico — sem os cartões", () => {
+      const data = buildDiagnosticoPageDataFixture({
+        accessState: "pro_instagram_connected",
+        instagramConnected: true,
+        instagramConnectionState: "connected",
+        creatorWeeklyReport: withDiagnosis,
+        weeklyDiagnosisEnabled: true,
+        claudeConnected: true,
+        userInfo: { name: "Ana Criadora", handle: "anacriadora", imageUrl: null, plan: "Pro" },
+      });
+
+      render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} journey />);
+
+      const name = screen.getByText("Ana Criadora");
+      // Na Jornada a confirmação da conta também aparece: é ela que diz se o
+      // diagnóstico está sendo alimentado.
+      const account = screen.getByText(/Instagram conectado/);
+      const headline = screen.getByRole("heading", { name: "Suas manhãs viraram regra." });
+      const follows = (a: Element, b: Element) =>
+        Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(follows(name, account)).toBe(true);
+      expect(follows(account, headline)).toBe(true);
+
+      expect(screen.getByRole("link", { name: /Continuar no Claude/ })).toBeInTheDocument();
+      expect(screen.queryByText("O que vale testar")).not.toBeInTheDocument();
+    });
+
+    it("pendência da conta fica entre a identidade e o diagnóstico", () => {
+      const data = buildDiagnosticoPageDataFixture({
+        accessState: "free_preview_used",
+        instagramConnected: false,
+        weeklyDiagnosisEnabled: true,
+        userInfo: { name: "Ana Criadora", handle: null, imageUrl: null, plan: "Free" },
+      });
+
+      render(<CreatorWeeklyProfileExperience data={data} weeklyMeeting={null} {...callbacks} journey />);
+
+      const name = screen.getByText("Ana Criadora");
+      const pending = screen.getByRole("heading", { name: /Ative o Pro/ });
+      const diagnosis = screen.getByText("Diagnóstico da semana");
+      const follows = (a: Element, b: Element) =>
+        Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(follows(name, pending)).toBe(true);
+      expect(follows(pending, diagnosis)).toBe(true);
+      // Sem leitura própria, o exemplo — e o passo a passo do Claude, que vale para qualquer conta.
+      expect(screen.getByText(/diagnóstico de exemplo/)).toBeInTheDocument();
+      expect(screen.getByRole("list", { name: "Como conectar a Data2Content ao Claude" })).toBeInTheDocument();
+    });
+  });
+
   it("pede o plano sem falar de Instagram para quem ainda não assina", () => {
     const data = buildDiagnosticoPageDataFixture({
       accessState: "free_unused",

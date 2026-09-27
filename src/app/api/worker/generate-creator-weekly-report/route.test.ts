@@ -3,9 +3,13 @@ import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { generateCreatorWeeklyReport } from "@/app/lib/creatorWeeklyReport/service";
 import { isCreatorWeeklyProfileExperienceEnabled } from "@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag";
+import { scheduleWeeklyDiagnosis } from "@/app/lib/creatorWeeklyReport/diagnosisService";
 
 jest.mock("@/app/lib/creatorWeeklyReport/service", () => ({
   generateCreatorWeeklyReport: jest.fn(),
+}));
+jest.mock("@/app/lib/creatorWeeklyReport/diagnosisService", () => ({
+  scheduleWeeklyDiagnosis: jest.fn().mockResolvedValue(true),
 }));
 jest.mock("@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag", () => ({
   isCreatorWeeklyProfileExperienceEnabled: jest.fn(),
@@ -59,5 +63,6 @@ describe("generate creator weekly report worker", () => {
     expect(response.status).toBe(200);
     expect(mockGenerate).toHaveBeenCalledWith({ userId: USER_ID, force: true });
     expect(body).toEqual({ ok: true, weekKey: "2026-W32", status: "ready" });
+    expect(scheduleWeeklyDiagnosis).toHaveBeenCalledWith(USER_ID, { weekKey: "2026-W32", status: "ready" });
   });
 });

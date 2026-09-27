@@ -26,6 +26,19 @@ export async function enqueueProfileRefresh(userId: string) {
   return publish('generate-creator-weekly-report', { userId }, `perfil-${userId}-${Math.floor(Date.now() / 60000)}`);
 }
 
+/**
+ * O diagnóstico da semana entra na própria fila: a chamada ao modelo não pesa no
+ * trabalho do relatório e tem retentativa separada. `delaySeconds` segura o pedido
+ * até a hora certa (segunda à tarde); o identificador por hora evita repetir o
+ * mesmo pedido enquanto a pessoa recarrega o Perfil.
+ */
+export async function enqueueWeeklyDiagnosis(userId: string, weekKey: string, delaySeconds = 20) {
+  if (!Types.ObjectId.isValid(userId)) return false;
+  const delay = Math.max(20, Math.round(delaySeconds));
+  const bucket = Math.floor((Date.now() + delay * 1000) / 3600000);
+  return publish('generate-creator-weekly-diagnosis', { userId, weekKey }, `diagnostico-${userId}-${weekKey}-${bucket}`, delay);
+}
+
 export async function enqueueInstagramMapEnrichment(userId: string) {
   if (!Types.ObjectId.isValid(userId)) return false;
   return publish('enrich-mapa-instagram', { userId }, `mapa-instagram-${userId}-${Math.floor(Date.now() / 300000)}`, 30);

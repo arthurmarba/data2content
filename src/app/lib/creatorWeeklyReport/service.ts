@@ -11,6 +11,7 @@ import { resolveMetricThumbnailUrl } from "@/app/lib/instagram/metricThumbnail";
 import CreatorWeeklyReport from "@/app/models/CreatorWeeklyReport";
 import { lastClosedWeek, type WeekWindow } from "@/app/lib/relatorio/weekWindow";
 import { buildCreatorWeeklyReport, type CreatorWeeklyReportMetricInput } from "./engine";
+import { attachWeeklyDiagnosis } from "./diagnosisService";
 import {
   CREATOR_WEEKLY_REPORT_SCHEMA_VERSION,
   type CreatorWeeklyReportDocumentSnapshot,
@@ -139,8 +140,10 @@ export async function generateCreatorWeeklyReport(params: {
   return withEvolution(winner);
 }
 
+/** O caminho do Perfil: o relatório da semana com o diagnóstico anexado. */
 export async function getOrGenerateCreatorWeeklyReport(
   userId: string,
 ): Promise<CreatorWeeklyReportDocumentSnapshot> {
-  return generateCreatorWeeklyReport({ userId });
+  const snapshot = await generateCreatorWeeklyReport({ userId });
+  return { ...snapshot, report: await attachWeeklyDiagnosis(userId, snapshot.report) };
 }

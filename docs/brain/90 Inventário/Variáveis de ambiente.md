@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Variáveis de ambiente
 
-**435 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**436 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -36,7 +36,7 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 29 |
+| `CRON_SECRET` | 31 |
 
 ## FACEBOOK
 
@@ -223,8 +223,8 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 39 |
-| `QSTASH_NEXT_SIGNING_KEY` | 39 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 41 |
+| `QSTASH_NEXT_SIGNING_KEY` | 41 |
 | `QSTASH_TOKEN` | 31 |
 | `QSTASH_WORKER_URL` | 1 |
 
@@ -318,7 +318,7 @@ atualizado: 2026-09-26
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 125 |
+| `NODE_ENV` | 126 |
 | `APP_BASE_URL` | 22 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
@@ -401,6 +401,7 @@ atualizado: 2026-09-26
 | `CONTEXT_EXTRACTION_MAX_TOKENS` | 1 |
 | `CONTEXT_EXTRACTION_MODEL` | 1 |
 | `CONTEXT_EXTRACTION_TEMP` | 1 |
+| `CREATOR_WEEKLY_DIAGNOSIS_ENABLED` | 1 |
 | `DASHBOARD_BADGES_CACHE_MAX_ENTRIES` | 1 |
 | `DASHBOARD_BADGES_CACHE_TTL_MS` | 1 |
 | `DASHBOARD_HOME_COMMUNITY_TTL_MS` | 1 |
