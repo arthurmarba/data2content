@@ -7,8 +7,12 @@
 //   npx tsx --env-file=.env.local scripts/relatorio-semanal/closeWeek.ts --week=2026-W30
 //   npx tsx --env-file=.env.local scripts/relatorio-semanal/closeWeek.ts        (última semana fechada)
 //
-// --dry-run calcula, escreve o JSON e NÃO grava o snapshot nem resolve a previsão.
-// É o modo de inspecionar antes de congelar.
+// --dry-run calcula, escreve o JSON e NÃO grava o snapshot, nem congela números, nem
+// resolve a previsão. É o modo de inspecionar antes de congelar.
+//
+// Refechar semana já fechada usa os números congelados dela e só completa a leitura.
+// Semana fechada antes de existir o congelamento (até 2026-W38) recusa, a menos que:
+//   --aceitar-numeros-de-hoje   (grava os números do dia como os da semana)
 //
 // Saída: output/relatorio-semanal/<weekKey>/report.json
 
@@ -51,6 +55,7 @@ function pct(value: number | null): string {
 
 async function main() {
   const dryRun = has("dry-run");
+  const acceptTodayStats = has("aceitar-numeros-de-hoje");
   const weekKey = arg("week");
   const week = weekKey ? weekFromKey(weekKey) : lastClosedWeek();
 
@@ -58,8 +63,9 @@ async function main() {
     `\n▸ Semana ${week.weekKey} · ${week.rangeLabel}${dryRun ? " · DRY RUN (não grava)" : ""}`,
   );
 
-  const result = await closeWeek({ week, dryRun });
+  const result = await closeWeek({ week, dryRun, acceptTodayStats });
   const report = result.report;
+  const { freeze, coverage } = result;
 
   const outDir = path.resolve("output/relatorio-semanal", week.weekKey);
   await fs.mkdir(outDir, { recursive: true });
@@ -67,6 +73,17 @@ async function main() {
   await fs.writeFile(outFile, JSON.stringify(report, null, 2));
 
   // ── Resumo legível, para conferir sem abrir o JSON ──
+  console.error(
+    `\n  NÚMEROS  ${freeze.total} posts na semana · ${freeze.alreadyFrozen} já congelados · ` +
+      `${freeze.frozenNow} ${dryRun ? "seriam congelados" : "congelados agora"} · ` +
+      `${freeze.withoutStats} sem número ainda` +
+      (freeze.weekEnded ? "" : " · SEMANA EM CURSO, nada congelado"),
+  );
+  console.error(
+    `  COBERTURA  ${coverage.posts} posts com território · ${coverage.withStats} com número · ` +
+      `${coverage.frozen} congelados · ${coverage.classified} classificados · ` +
+      `${coverage.sceneRead} com leitura de cena`,
+  );
   console.error(
     `\n  CAPA  ${report.cover.videos} vídeos · ${report.cover.creators} criadores · ` +
       `${report.cover.territories} territórios · engajamento ${pct(report.cover.engagementDeltaPct)}`,

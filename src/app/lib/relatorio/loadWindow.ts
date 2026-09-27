@@ -23,6 +23,7 @@ import { durationBucketFor, extractAbsoluteMetrics,
   extractRawMetrics, rawRetention, type ReportPost } from "./postMetrics";
 import { currentAssetRoleId } from "./mapRegistry";
 import { loadMapProfiles, territoryEvidence, type MapProfile, type TerritoryEvidence } from "./mapProfiles";
+import { loadFrozenStats } from "./statsFreezeStore";
 import { resolveTerritoryForContexts } from "./territories";
 import type { WeekWindow } from "./weekWindow";
 
@@ -57,6 +58,12 @@ export interface WindowData {
    * sinalizar que o card precisa ser revisitado.
    */
   evidence: TerritoryEvidence[];
+  /** Posts com a legenda classificada. Só para a cobertura: não filtra nada. */
+  classifiedPostIds: Set<string>;
+  /** Posts da semana que entraram com os números congelados, não os do dia. */
+  frozenPostIds: Set<string>;
+  /** Quando a semana ganhou os primeiros números congelados. null = nunca. */
+  statsFrozenAt: Date | null;
 }
 
 interface RawMetric {
@@ -64,6 +71,7 @@ interface RawMetric {
   user: Types.ObjectId;
   postDate: Date;
   type?: string;
+  classificationStatus?: string;
   context?: unknown;
   proposal?: unknown;
   tone?: unknown;
@@ -229,27 +237,47 @@ const PROJECTION = {
   coverUrl: 1,
   stats: 1,
   type: 1,
+  classificationStatus: 1,
 } as const;
 
 /**
- * Carrega a janela. Só posts classificados entram: um post com
- * `classificationStatus` pendente não tem assunto nem tom, e contá-lo no
- * denominador do território empurraria todas as médias para baixo.
+ * Carrega a janela. TODO post entra, classificado ou não.
+ *
+ * Até 26/09/2026 só entrava post com `classificationStatus: "completed"`, com a
+ * justificativa de que o pendente "não tem assunto nem tom". Deixou de ser verdade
+ * quando assunto, tom e asset passaram a vir da leitura de cena: um post classificado
+ * e não lido também não tem nenhum dos três, e sempre entrou. A classificação da
+ * legenda só alimenta `formatos` e `observedTerritoryId`; números, horário, duração e
+ * território (do mapa) não dependem de IA. O filtro custava caro: com a IA sem saldo,
+ * a W38 fechou sem 108 de 397 posts e 291 posts de junho a setembro ficaram fora da
+ * janela para sempre.
+ *
+ * Os posts da semana usam os números congelados quando existem (ver
+ * `WeeklyStatsFreeze`): refechar dias depois completa a leitura sem trocar os números.
  */
 export async function loadWindow(week: WeekWindow): Promise<WindowData> {
   await connectToDatabase();
 
-  const metrics = (await MetricModel.find(
-    {
-      postDate: { $gte: week.windowStartsAt, $lte: week.endsAt },
-      classificationStatus: "completed",
-    },
-    PROJECTION,
-  )
-    .lean()
-    .exec()) as unknown as RawMetric[];
+  const [metrics, frozen] = await Promise.all([
+    MetricModel.find(
+      { postDate: { $gte: week.windowStartsAt, $lte: week.endsAt } },
+      PROJECTION,
+    )
+      .lean()
+      .exec() as unknown as Promise<RawMetric[]>,
+    loadFrozenStats(week.weekKey),
+  ]);
 
-  const rawPosts = metrics.map(toReportPost);
+  const classifiedPostIds = new Set<string>();
+  const frozenPostIds = new Set<string>();
+  const rawPosts = metrics.map((metric) => {
+    const id = String(metric._id);
+    if (metric.classificationStatus === "completed") classifiedPostIds.add(id);
+    const frozenStats = frozen.stats.get(id);
+    if (!frozenStats) return toReportPost(metric);
+    frozenPostIds.add(id);
+    return toReportPost({ ...metric, stats: frozenStats });
+  });
   const creatorIds = unique(rawPosts.map((post) => post.creatorId));
 
   // O MAPA define o território. Carregado antes de qualquer cálculo, porque é dele que
@@ -318,7 +346,8 @@ export async function loadWindow(week: WeekWindow): Promise<WindowData> {
 
   const semTerritorio = weekPosts_.filter((post) => post.territoryId === null).length;
   logger.info(
-    `${TAG} semana ${week.weekKey}: ${weekPosts.length} posts na semana, ` +
+    `${TAG} semana ${week.weekKey}: ${weekPosts.length} posts na semana ` +
+      `(${frozenPostIds.size} com números congelados), ` +
       `${posts_.length} na janela de 90 dias, ${creators.size} criadores, ` +
       `${mapProfiles.size} com mapa. ${semTerritorio} posts da semana sem território ` +
       `(criador sem mapa ou com mapa que não resolve).`,
@@ -332,6 +361,9 @@ export async function loadWindow(week: WeekWindow): Promise<WindowData> {
     connectedCreatorIds,
     mapProfiles,
     evidence,
+    classifiedPostIds,
+    frozenPostIds,
+    statsFrozenAt: frozen.firstFrozenAt,
   };
 }
 

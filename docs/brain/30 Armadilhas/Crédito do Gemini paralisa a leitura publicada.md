@@ -57,9 +57,12 @@ passa pela governança e não deixa recibo.
 **O que não fazer.** Não reenviar a DLQ: o estado verdadeiro está no Mongo e o post
 adiado continua `pending`. As mensagens são cópias e expiram em cerca de sete dias.
 
-**O custo escondido: o fechamento da semana.** `loadWindow` só conta posts com
-`classificationStatus: "completed"`. A semana 2026-W38 fechou em 21/09 sem 108 de 397
-posts. Com a IA parada, antes de segunda 01h BRT rode, depois da recarga:
+**O custo escondido: o fechamento da semana.** Até 26/09 `loadWindow` só contava posts
+com `classificationStatus: "completed"`, e a semana 2026-W38 fechou em 21/09 sem 108 de
+397 posts. Desde 27/09 todo post entra pelos números e o retrato registra a cobertura;
+o que a IA parada ainda tira do retrato é a leitura de cena (assunto, tom, asset), que só
+roda depois da classificação. Refechar quando a leitura voltar completa isso sem trocar
+os números da segunda. Para chegar na segunda com a leitura em dia, depois da recarga:
 
 ```
 npm run requeue:classification-retryable -- --week=2026-W39            # simula
