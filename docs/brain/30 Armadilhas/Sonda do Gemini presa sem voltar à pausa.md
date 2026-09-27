@@ -85,6 +85,20 @@ encerrado, adiado ou com posse ativa. O encerramento vale só para aquela revis�
 - Os itens encerrados antes da correção não voltam sozinhos: seguem precisando de revisão
   (não apagar operações para liberar fila — ver [[Filas e rotinas]]).
 
+## Como os itens em revisão foram liberados (27/09/2026)
+
+Critério: só volta para a fila o item cuja chamada **nunca foi cobrada** — nenhuma linha
+em `geminiusagelogs` com o `operationId` (id = sha256 de `[criador, contentKey, tag]`;
+post usa `published:<metricId>` e `cena`; mapa usa `mapa:instagram:<sourceRevision>` e
+`mapa_instagram`). A operação `started` sem cobrança vira `rejected` com `retryAt` zero
+(o mesmo que `reconcileStuckOperations` faz para `cena`, e que ninguém faz para o mapa);
+o estado vira `deferred · revisao_liberada` com próxima tentativa imediata.
+
+Liberados: 40 (30 mapas, 10 posts). Ficaram em revisão 8 posts: 2 cobrados sem
+comprovante (reler seria pagar de novo), 5 com contexto do mapa mudado
+(`gemini_request_changed`) e 1 no teto de três tentativas. Esses três casos só saem
+com decisão explícita.
+
 ## Ligações
 
 [[Crédito do Gemini paralisa a leitura publicada]] · [[Limite de taxa virou falta de saldo e parou a fila]] · [[Filas e rotinas]] · [[Leitura de cena em loop relida a cada repescagem]]
