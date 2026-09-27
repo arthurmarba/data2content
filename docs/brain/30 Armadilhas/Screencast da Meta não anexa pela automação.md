@@ -20,7 +20,7 @@ Não é o arquivo: tamanho, tipo e cabeçalhos iguais aos de um envio normal, co
 
 - Não confie no "100%" nem no `read_network_requests` (ele só mostrou o OPTIONS). Para ver a resposta real, envolva `XMLHttpRequest.prototype.send` na página e leia o `responseText` do POST em `rupload`.
 - Peça ao Arthur para anexar à mão. Em 27/09 a primeira tentativa dele também não pegou; funcionou depois de refazer (a orientação era janela anônima). Confira sempre reabrindo o formulário: tem de aparecer "Visualizar screencast carregado", e a duração do vídeo aberto confirma se é o arquivo certo.
-- Os vídeos prontos e os brutos ficam em `output/meta-review/`; os textos do pedido, em `docs/meta-review/JUSTIFICATIVAS_REENVIO.md`.
+- Os vídeos prontos e os brutos ficam em `output/meta-review/`; o diagnóstico e o estado do pedido, em `docs/meta-review/REENVIO_2026-09-27.md`.
 
 ## Gravação e edição que funcionaram
 
