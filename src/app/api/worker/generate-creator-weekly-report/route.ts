@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { generateCreatorWeeklyReport } from "@/app/lib/creatorWeeklyReport/service";
+import { scheduleWeeklyDiagnosis } from "@/app/lib/creatorWeeklyReport/diagnosisService";
 import { isCreatorWeeklyProfileExperienceEnabled } from "@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag";
 
 export const runtime = "nodejs";
@@ -39,6 +40,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const snapshot = await generateCreatorWeeklyReport({ userId, force: true });
+    // O diagnóstico da semana vai para a fila, guardado até segunda à tarde.
+    await scheduleWeeklyDiagnosis(userId, snapshot.report).catch((error) => {
+      console.error("[generate-creator-weekly-report] Falha ao agendar diagnóstico:", error);
+      return false;
+    });
     return NextResponse.json({
       ok: true,
       weekKey: snapshot.report.weekKey,

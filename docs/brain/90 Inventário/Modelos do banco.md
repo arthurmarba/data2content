@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-26
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **99 modelos.**
+Todo dado persistido é um modelo Mongoose. **100 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -112,4 +112,5 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **VideoAnalysisJob** | `—` | `src/app/models/VideoAnalysisJob.ts` |
 | **VideoAsset** | `videoassets` | `src/app/models/VideoAsset.ts` |
 | **WeeklyReportPrediction** | `weekly_report_predictions` | `src/app/models/WeeklyReportPrediction.ts` |
+| **WeeklyStatsFreeze** | `weekly_stats_freezes` | `src/app/models/WeeklyStatsFreeze.ts` |
 | **WeeklyTerritoryReport** | `weekly_territory_reports` | `src/app/models/WeeklyTerritoryReport.ts` |

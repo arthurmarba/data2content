@@ -214,4 +214,8 @@ export interface DiagnosticoPageData {
   creatorWeeklyReport?: CreatorWeeklyReportPayload | null;
   /** Permite rollback instantâneo para o Perfil anterior sem mudar a rota. */
   creatorWeeklyProfileExperienceEnabled?: boolean;
+  /** Liga o diagnóstico escrito no lugar dos cartões de padrão. */
+  weeklyDiagnosisEnabled?: boolean;
+  /** A pessoa já tem a Data2Content conectada no Claude (autorização ativa). */
+  claudeConnected?: boolean;
 }

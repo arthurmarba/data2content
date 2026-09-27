@@ -105,7 +105,7 @@ export function ProfileProSheet({
         </h2>
         <p className="mt-2.5 text-[13px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
           No Pro, a D2C analisa os seus posts, mostra o que já funciona e monta a recomendação da semana com base no
-          que você publicou. Esse aprendizado também ajuda a criar conteúdos com mais contexto no ChatGPT
+          que você publicou. Esse aprendizado também ajuda a criar conteúdos com mais contexto no Claude
           {campaignRadarAvailable ? " e a encontrar publicidades relacionadas ao seu perfil" : ""}.
         </p>
         <button type="button" onClick={onUpgrade} className="ds-button ds-button--primary ds-button--block mt-[18px]">

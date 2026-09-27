@@ -9,6 +9,9 @@ import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const campaignRadarAvailable = process.env.NEXT_PUBLIC_CAMPAIGN_RADAR_ENABLED === "1";
 
+/** Página "Seu plano": portal do Stripe, retomada de checkout, reativação. */
+const BILLING_ROUTE = "/dashboard/billing";
+
 /**
  * O campo de próximo passo — um onboarding que roda dentro do produto.
  *
@@ -146,12 +149,13 @@ export function ProfileNextStepField({
   if (state === "connected") {
     const lastRead = formatLastRead(lastReadAt);
     // Sem peso de card: o que era pedido virou confirmação, e confirmação não
-    // disputa atenção com a narrativa logo acima.
+    // disputa atenção com a narrativa logo acima. `div`, não `p`: na Jornada,
+    // `.j-workspace p` imporia 14px e margem e a linha deixaria de ser discreta.
     return (
-      <p className="flex items-center gap-2 px-1 pb-1 pt-3 text-[11.5px] text-[var(--ds-color-text-muted)]">
+      <div className="flex items-center gap-2 px-1 pb-1 pt-3 text-[11.5px] text-[var(--ds-color-text-muted)]">
         <CheckIcon />
         <span>Instagram conectado{lastRead ? ` · ${lastRead}` : ""}</span>
-      </p>
+      </div>
     );
   }
 
@@ -166,9 +170,13 @@ export function ProfileNextStepField({
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
             Sua narrativa continua aqui. O que para enquanto isso é a leitura da semana.
           </p>
-          <button type="button" className="ds-button ds-button--secondary ds-button--block mt-4" onClick={() => onUpgrade("narrative_map")}>
+          {/* Vai para "Seu plano", não para a janela de assinatura: lá o botão de
+              assinar fica travado para quem tem pagamento pendente, e a pessoa
+              caía num beco sem saída. A página de plano abre o portal do Stripe
+              (pagamento atrasado) ou retoma o checkout (pagamento pendente). */}
+          <a href={BILLING_ROUTE} className="ds-button ds-button--secondary ds-button--block mt-4 justify-center no-underline">
             Atualizar pagamento
-          </button>
+          </a>
         </FieldCard>
       </section>
     );
@@ -184,7 +192,7 @@ export function ProfileNextStepField({
           </h2>
           <p className="mt-2.5 text-[13.5px] leading-[1.45] text-[var(--ds-color-text-secondary)]">
             Toda semana, a D2C analisa o que você publicou, mostra o que funciona melhor e recomenda o próximo passo.
-            Esse aprendizado também ajuda a criar conteúdos com mais contexto no ChatGPT
+            Esse aprendizado também ajuda a criar conteúdos com mais contexto no Claude
             {campaignRadarAvailable ? " e a encontrar publicidades relacionadas ao seu perfil" : ""}. Por enquanto,
             o que aparece aqui embaixo é um exemplo.
           </p>

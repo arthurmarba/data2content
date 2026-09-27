@@ -71,6 +71,13 @@ de eventos por criador. Falha de publicação na fila não invalida a evidência
 cron `recover-content-intelligence` é a retaguarda. O lote reserva espaço para
 pendências antigas e alterna criadores dentro de cada faixa de idade.
 
+Com o diagnóstico ligado (`CREATOR_WEEKLY_DIAGNOSIS_ENABLED=1`), o trabalho do
+relatório agenda `generate-creator-weekly-diagnosis` para segunda ao meio-dia
+(atraso da própria QStash). O trabalho é idempotente: texto pronto nunca é
+reescrito, uma trava no banco garante uma escrita por vez e falha de escrita não
+volta como erro — a retentativa da fila só repetiria a chamada paga. Ver
+[[O Perfil mostra diagnóstico, não cartões]].
+
 O enriquecimento do Instagram usa posse temporária, checkpoint e revisão de
 conteúdo. Mudança apenas de métricas não provoca outra geração do mapa. A
 sincronização não espera pela IA de enriquecimento.

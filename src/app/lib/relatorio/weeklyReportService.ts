@@ -7,6 +7,10 @@
  *
  * O passo 1 tem que rodar mesmo que o 2 falhe — o snapshot é irrecuperável, o
  * relatório é reprodutível.
+ *
+ * Antes dos dois, os NÚMEROS de cada post da semana são congelados (statsFreeze.ts).
+ * Assim refechar dias depois — quando a leitura de cena alcança a semana — completa
+ * assunto, tom e asset sem trocar os números da segunda pelos do dia.
  */
 
 import { Types } from "mongoose";
@@ -15,6 +19,7 @@ import MetricModel from "@/app/models/Metric";
 import MapaSeedModel from "@/app/models/MapaSeed";
 import WeeklyTerritoryReportModel from "@/app/models/WeeklyTerritoryReport";
 import WeeklyReportPredictionModel from "@/app/models/WeeklyReportPrediction";
+import WeeklyStatsFreezeModel from "@/app/models/WeeklyStatsFreeze";
 import { logger } from "@/app/lib/logger";
 import { buildWeeklyReport, type SnapshotForMovement } from "./buildReport";
 import { loadWindow } from "./loadWindow";
@@ -25,6 +30,16 @@ import {
   rawRetention,
   type ReportPost,
 } from "./postMetrics";
+import {
+  ReclosingWithoutFrozenStatsError,
+  WeekNotEndedError,
+  coverageOf,
+  planPredictionWrite,
+  reclosingNeedsConsent,
+  weekHasEnded,
+  type WeekCoverage,
+} from "./statsFreeze";
+import { freezeWeekStats, loadFrozenStats, type FreezeWeekResult } from "./statsFreezeStore";
 import { resolveTerritoryForContexts } from "./territories";
 import { MOVEMENT_WEEKS_BACK, WINDOW_DAYS, shiftWeeks, type WeekWindow } from "./weekWindow";
 import type { CollectedTerritory } from "./collectTerritory";
@@ -93,23 +108,37 @@ async function loadPreviousWinners(week: WeekWindow): Promise<Set<string>> {
 
 // ─── Posts de uma semana arbitrária (para a variação de engajamento) ─────────
 
+/**
+ * Posts de uma semana já fechada, com os números congelados dela quando existem.
+ *
+ * Com o congelamento, a variação de engajamento compara cada semana com os números da
+ * PRÓPRIA segunda (posts de 1 a 7 dias contra posts de 1 a 7 dias). Antes comparava a
+ * semana nova com a anterior já mais velha (8 a 14 dias) — e refechar mudava a conta.
+ * Semana sem congelamento cai nos números do dia, como sempre foi.
+ */
 async function loadWeekPosts(week: WeekWindow): Promise<ReportPost[]> {
-  const metrics = (await MetricModel.find(
-    {
-      postDate: { $gte: week.startsAt, $lte: week.endsAt },
-      classificationStatus: "completed",
-    },
-    { user: 1, postDate: 1, context: 1, stats: 1, type: 1 },
-  )
-    .lean()
-    .exec()) as unknown as Array<{
-    _id: Types.ObjectId;
-    user: Types.ObjectId;
-    postDate: Date;
-    type?: string;
-    context?: unknown;
-    stats?: Record<string, unknown>;
-  }>;
+  const [rawMetrics, frozen] = await Promise.all([
+    MetricModel.find(
+      { postDate: { $gte: week.startsAt, $lte: week.endsAt } },
+      { user: 1, postDate: 1, context: 1, stats: 1, type: 1 },
+    )
+      .lean()
+      .exec() as unknown as Promise<
+      Array<{
+        _id: Types.ObjectId;
+        user: Types.ObjectId;
+        postDate: Date;
+        type?: string;
+        context?: unknown;
+        stats?: Record<string, unknown>;
+      }>
+    >,
+    loadFrozenStats(week.weekKey),
+  ]);
+  const metrics = rawMetrics.map((metric) => {
+    const frozenStats = frozen.stats.get(String(metric._id));
+    return frozenStats ? { ...metric, stats: frozenStats as Record<string, unknown> } : metric;
+  });
 
   return metrics.map((metric) => {
     const duration =
@@ -163,9 +192,11 @@ export async function resolvePreviousPrediction(
   weekPosts: readonly ReportPost[],
 ): Promise<PredictionOutcome | null> {
   const previousKey = shiftWeeks(week, 1).weekKey;
+  // Refechar esta semana mede de novo a aposta que ELA MESMA resolveu — agora com a
+  // semana completa. Aposta resolvida por outra semana não se toca.
   const prediction = await WeeklyReportPredictionModel.findOne({
     weekKey: previousKey,
-    resolvedAt: null,
+    $or: [{ resolvedAt: null }, { resolvedWeekKey: week.weekKey }],
   }).exec();
   if (!prediction) return null;
 
@@ -220,6 +251,10 @@ export interface CloseWeekResult {
   report: WeeklyReportData;
   /** true quando gravou; false em dry run. */
   persisted: boolean;
+  /** O que o congelamento fez com os números desta semana. */
+  freeze: FreezeWeekResult;
+  /** Quanto da semana (posts com território) o retrato conseguiu ler. */
+  coverage: WeekCoverage;
 }
 
 function snapshotElementsOf(collected: CollectedTerritory) {
@@ -260,12 +295,36 @@ export interface CloseWeekOptions {
   week: WeekWindow;
   /** true = calcula e devolve sem gravar. Para inspecionar antes de publicar. */
   dryRun?: boolean;
+  /**
+   * Refechar semana fechada ANTES de existir o congelamento grava os números de hoje.
+   * Sem isto, `closeWeek` recusa. A rotina de segunda nunca precisa: semana nova não
+   * tem retrato.
+   */
+  acceptTodayStats?: boolean;
 }
 
 export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekResult> {
-  const { week, dryRun = false } = options;
+  const { week, dryRun = false, acceptTodayStats = false } = options;
+  if (!dryRun && !weekHasEnded(week)) throw new WeekNotEndedError(week.weekKey);
   await connectToDatabase();
 
+  const [hasReport, hasFreeze] = await Promise.all([
+    WeeklyTerritoryReportModel.exists({ weekKey: week.weekKey }),
+    WeeklyStatsFreezeModel.exists({ weekKey: week.weekKey }),
+  ]);
+  if (
+    reclosingNeedsConsent({
+      hasReport: Boolean(hasReport),
+      hasFreeze: Boolean(hasFreeze),
+      dryRun,
+      acceptTodayStats,
+    })
+  ) {
+    throw new ReclosingWithoutFrozenStatsError(week.weekKey);
+  }
+
+  // Congela ANTES de calcular: o cálculo lê os números congelados (loadWindow).
+  const freeze = await freezeWeekStats(week, { dryRun });
   const window = await loadWindow(week);
 
   const [movementSnapshots, previousWinners, rawPreviousWeekPosts] = await Promise.all([
@@ -296,12 +355,26 @@ export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekRes
     pinnedTerritories: pinnedTerritories(),
   });
 
+  const coverageByTerritory = new Map(
+    built.collected.map(({ territoryId, collected }) => [
+      territoryId,
+      coverageOf(collected.weekPosts, window.classifiedPostIds, window.frozenPostIds),
+    ]),
+  );
+  const coverage = coverageOf(
+    window.weekPosts.filter((post) => post.territoryId !== null),
+    window.classifiedPostIds,
+    window.frozenPostIds,
+  );
+
   if (dryRun) {
     return {
       weekKey: week.weekKey,
       territories: built.collected.map((item) => item.territoryId),
       report: built.data,
       persisted: false,
+      freeze,
+      coverage,
     };
   }
 
@@ -340,6 +413,10 @@ export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekRes
           elements: snapshotElementsOf(collected),
           overviewRank: built.overviewRanks.get(territoryId) ?? null,
           highlightWinners: highlightWinnersByTerritory.get(territoryId) ?? [],
+          coverage: {
+            ...(coverageByTerritory.get(territoryId) ?? coverageOf([], new Set(), new Set())),
+            statsFrozenAt: window.statsFrozenAt,
+          },
           generatedAt: new Date(),
           schemaVersion: "weekly_territory_report_v1",
         },
@@ -348,11 +425,46 @@ export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekRes
     );
   }
 
+  // Território que tinha retrato e sumiu ao refechar (mapa mudou): o documento velho
+  // fica, mas avisa — apagar retrato é decisão de gente.
+  const writtenTerritories = built.collected.map((item) => item.territoryId);
+  const stale = (await WeeklyTerritoryReportModel.find({
+    weekKey: week.weekKey,
+    territoryId: { $nin: writtenTerritories },
+  })
+    .select("territoryId")
+    .lean()
+    .exec()) as unknown as Array<{ territoryId: string }>;
+  if (stale.length > 0) {
+    logger.warn(
+      `${TAG} ${week.weekKey}: retrato antigo sem correspondente neste fechamento — ` +
+        `${stale.map((doc) => doc.territoryId).join(", ")}. Mantido.`,
+    );
+  }
+
   // Grava a previsão desta semana. Sem isto a tela 02 da próxima segunda nunca terá
   // "resultado da previsão" — e a previsão perde o que a torna diferente de horóscopo.
-  // Idempotente por (weekKey, territoryId): refazer a semana reescreve a mesma aposta.
+  //
+  // Refechar não pode deixar duas apostas na mesma semana (o upsert é por território, e
+  // a aposta nova pode ser de outro) nem reescrever aposta que a semana seguinte já
+  // mediu. Ver `planPredictionWrite`.
   const prediction = built.data.prediction;
-  if (prediction) {
+  const existingPredictions = (await WeeklyReportPredictionModel.find({ weekKey: week.weekKey })
+    .select("territoryId resolvedAt")
+    .lean()
+    .exec()) as unknown as Array<{ territoryId: string | null; resolvedAt: Date | null }>;
+  const plan = planPredictionWrite(existingPredictions, Boolean(prediction));
+  if (plan.action === "keep-resolved") {
+    logger.info(`${TAG} previsão de ${week.weekKey} já foi medida pela semana seguinte — mantida.`);
+  } else if (plan.action === "clear-unresolved") {
+    await WeeklyReportPredictionModel.deleteMany({ weekKey: week.weekKey, resolvedAt: null });
+    logger.info(`${TAG} nenhum elemento virou previsão ao refechar; a aposta antiga saiu.`);
+  } else if (prediction) {
+    await WeeklyReportPredictionModel.deleteMany({
+      weekKey: week.weekKey,
+      territoryId: { $ne: prediction.territoryId },
+      resolvedAt: null,
+    });
     await WeeklyReportPredictionModel.updateOne(
       { weekKey: week.weekKey, territoryId: prediction.territoryId },
       {
@@ -373,13 +485,18 @@ export async function closeWeek(options: CloseWeekOptions): Promise<CloseWeekRes
   }
 
   logger.info(
-    `${TAG} semana ${week.weekKey} fechada: ${built.collected.length} territórios gravados.`,
+    `${TAG} semana ${week.weekKey} fechada: ${built.collected.length} territórios gravados · ` +
+      `cobertura ${coverage.posts} posts, ${coverage.withStats} com número, ` +
+      `${coverage.frozen} congelados, ${coverage.classified} classificados, ` +
+      `${coverage.sceneRead} lidos.`,
   );
 
   return {
     weekKey: week.weekKey,
-    territories: built.collected.map((item) => item.territoryId),
+    territories: writtenTerritories,
     report: built.data,
     persisted: true,
+    freeze,
+    coverage,
   };
 }

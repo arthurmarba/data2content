@@ -33,6 +33,7 @@ import {
   isD2cVipPromotionEffective,
 } from "@/app/lib/billing/d2cVipPromotion";
 import { buildFreeMonthNotice } from "@/app/lib/billing/firstCharge";
+import { resolvePaymentBlock } from "@/app/lib/billing/paymentBlock";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -241,6 +242,13 @@ export default function BillingSubscribeModal({
   const primaryCtaLabel = contextCopy.ctaLabel || "Assinar e continuar";
   const shouldBlockSubscribe =
     !billingStatusError && (hasPremiumAccess || needsPaymentAction);
+  // Pagamento pendente: em vez de um "Assinar" apagado, o motivo e a saída.
+  const paymentBlock = resolvePaymentBlock({
+    loading: billingStatusLoading,
+    error: billingStatusError,
+    needsPaymentUpdate,
+    needsCheckout,
+  });
   const didRefetchRef = useRef(false);
   const [resumeFallbackVisible, setResumeFallbackVisible] = useState(false);
   const modalVisible = open || resumeFallbackVisible;
@@ -940,11 +948,15 @@ export default function BillingSubscribeModal({
 
           <div className="dashboard-scrollbar flex-1 overflow-y-auto">
             <div className="px-5 py-4 sm:px-6 sm:py-5">
-              {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
+              {paymentBlock ? (
+                <div role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-5 text-amber-900">
+                  {paymentBlock.message}
+                </div>
+              ) : hasPremiumAccess && !billingStatusLoading && !billingStatusError ? (
                 <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
                   Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
                 </div>
-              )}
+              ) : null}
               {!!error && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
                   <p>{error}</p>
@@ -1099,32 +1111,47 @@ export default function BillingSubscribeModal({
           {/* Rodapé sticky */}
           <div className="sticky bottom-0 z-10 bg-[var(--ds-color-surface)]">
             <div className="px-5 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4">
-              <button
-                type="button"
-                onClick={() => handleSubscribe()}
-                disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
-                className="ds-button ds-button--primary ds-button--block group/btn"
-                data-analytics-name="activate_subscription"
-                data-analytics-section="billing_subscribe_modal"
-              >
-                {loadingRedirect ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    {sessionStatus === "authenticated" ? "Estabelecendo Conexão..." : "Abrindo Google..."}
-                  </>
-                ) : (
-                  <>
-                    {resolvedPrimaryCtaLabel}
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </>
-                )}
-              </button>
+              {paymentBlock ? (
+                <Link
+                  href={paymentBlock.href}
+                  onClick={closeModal}
+                  className="ds-button ds-button--primary ds-button--block justify-center no-underline"
+                  data-analytics-name="billing_fix_payment"
+                  data-analytics-section="billing_subscribe_modal"
+                >
+                  {paymentBlock.actionLabel}
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSubscribe()}
+                  disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
+                  className="ds-button ds-button--primary ds-button--block group/btn"
+                  data-analytics-name="activate_subscription"
+                  data-analytics-section="billing_subscribe_modal"
+                >
+                  {loadingRedirect ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {sessionStatus === "authenticated" ? "Estabelecendo Conexão..." : "Abrindo Google..."}
+                    </>
+                  ) : (
+                    <>
+                      {resolvedPrimaryCtaLabel}
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              )}
 
-              <p className="mt-3 text-center text-[11px] text-zinc-400">
-                {couponIsEffective
-                  ? freeMonthNotice
-                  : "Pagamento seguro. Cancele quando quiser."}
-              </p>
+              {paymentBlock ? null : (
+                <p className="mt-3 text-center text-[11px] text-zinc-400">
+                  {couponIsEffective
+                    ? freeMonthNotice
+                    : "Pagamento seguro. Cancele quando quiser."}
+                </p>
+              )}
 
               {/* CTA secundário: apenas no contexto onboarding.
                   Nomeado pelo benefício ("Explorar grátis primeiro"),

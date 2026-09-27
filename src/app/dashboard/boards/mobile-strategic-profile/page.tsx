@@ -40,6 +40,8 @@ import { getWeeklyMeetingExperience } from "@/app/lib/community/weeklyMeetingSer
 import type { WeeklyMeetingProfileData } from "../components/videoUpload/appPreview/WeeklyMeetingProfileCard";
 import { isCreatorWeeklyProfileExperienceEnabled } from "../videoUpload/creatorWeeklyProfileFeatureFlag";
 import { getOrGenerateCreatorWeeklyReport } from "@/app/lib/creatorWeeklyReport/service";
+import { isCreatorWeeklyDiagnosisEnabled } from "@/app/lib/creatorWeeklyReport/diagnosisFlag";
+import { getClaudeConnectionStatus } from "@/app/lib/mcp/claudeConnection";
 
 export const dynamic = "force-dynamic";
 
@@ -331,6 +333,14 @@ export async function renderCreatorProfilePage({
           },
         );
 
+        // O gancho do diagnóstico muda com a conexão: quem já tem o conector no
+        // Claude vê "Continuar no Claude"; quem não tem vê o passo a passo.
+        const claudeConnectedPromise = isCreatorWeeklyDiagnosisEnabled()
+          ? getClaudeConnectionStatus(userId)
+              .then((status) => status.connected)
+              .catch(() => false)
+          : Promise.resolve(false);
+
         const [
           selectorResult,
           instagramMetrics,
@@ -449,6 +459,8 @@ export async function renderCreatorProfilePage({
           mapaSeed: fullMapaSeedDoc,
           creatorWeeklyReport,
           creatorWeeklyProfileExperienceEnabled: CREATOR_WEEKLY_PROFILE_ENABLED,
+          weeklyDiagnosisEnabled: isCreatorWeeklyDiagnosisEnabled(),
+          claudeConnected: await claudeConnectedPromise,
           userInfo: (() => {
             const profile = (effectiveUserForAccess as any).creatorProfileExtended ?? {};
             const hasNiches = Array.isArray(profile.niches) && profile.niches.length > 0;
