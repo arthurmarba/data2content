@@ -87,6 +87,8 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 `plano-taxonomia-categorias-v2.md` · `plano-taxonomia-categorias-v2-5.md` · `plano-implementacao-taxonomia-v2-5.md` (03/26) · `classification-canonical-rollout.md` · `classification-canonical-pr-deploy-checklist.md` (03/26)
 
 > As três versões da taxonomia convivem no código. Ver `brain/20 Domínios/Classificação de conteúdo.md`.
+>
+> DLQ cheia de "Classificação adiada" quando a IA fica sem saldo: `brain/30 Armadilhas/Sincronização reenviava post adiado e enchia a DLQ.md`.
 
 ### Campanhas, publis e propostas
 `campaign-radar-report-mvp.md` · `campaign-radar-source-compliance-audit.md` (09/26) · `campaign-briefing.md` (11/25) · `proposals-playbook.md` (07/26) · `ranking-expansion.md` (07/25) · `qa-ranking-table.md` (08/25)

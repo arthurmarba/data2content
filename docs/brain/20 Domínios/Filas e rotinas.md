@@ -67,6 +67,11 @@ de eventos por criador. Falha de publicação na fila não invalida a evidência
 cron `recover-content-intelligence` é a retaguarda. O lote reserva espaço para
 pendências antigas e alterna criadores dentro de cada faixa de idade.
 
+A classificação de texto tem duas portas: a sincronização envia o post novo e o
+cron recupera o adiado por saldo ou limite. A sincronização não reenvia post adiado
+nem post enviado dentro da janela de `INTELLIGENCE_RECOVERY_REQUEUE_HOURS` — ver
+[[Sincronização reenviava post adiado e enchia a DLQ]].
+
 Com o diagnóstico ligado (`CREATOR_WEEKLY_DIAGNOSIS_ENABLED=1`), o trabalho do
 relatório agenda `generate-creator-weekly-diagnosis` para segunda ao meio-dia
 (atraso da própria QStash). O trabalho é idempotente: texto pronto nunca é

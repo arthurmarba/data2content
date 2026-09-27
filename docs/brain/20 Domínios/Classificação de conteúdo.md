@@ -28,6 +28,7 @@ post chega  →  entra na fila (QStash)  →  /api/worker/classify-content
 | Execução | `classificationRuntime.ts` |
 | Provedor de IA | `classificationAiProvider.ts` |
 | Erros e reprocesso | `classificationAiErrors.ts` |
+| Quem reenvia e quando | `classificationRequeue.ts` |
 | Cache | `classificationCache.ts` |
 | Quarentena | `classificationQuarantineResolution.ts` |
 | Trabalhador | `/api/worker/classify-content` |
@@ -37,6 +38,14 @@ post chega  →  entra na fila (QStash)  →  /api/worker/classify-content
 A taxonomia mudou duas vezes e as versões convivem: `classificationLegacy`, `V2`, `V2_5`, com uma ponte entre elas. Dado antigo continua no formato antigo até um backfill passar. **Ao ler uma classificação, confira em qual versão ela foi feita** antes de concluir que está errada.
 
 Os planos escritos estão em `docs/plano-taxonomia-categorias-v2.md` e `docs/plano-taxonomia-categorias-v2-5.md`.
+
+## Duas portas para a fila
+
+A sincronização do Instagram manda o post novo na hora. Post "Classificação adiada"
+(sem saldo ou em limite de taxa) é do cron `recover-content-intelligence`, e ninguém
+reenvia o mesmo post antes de `INTELLIGENCE_RECOVERY_REQUEUE_HOURS`. As duas portas
+leem a regra de `classificationRequeue.ts`. Ver
+[[Sincronização reenviava post adiado e enchia a DLQ]].
 
 ## Ferramentas de linha de comando
 

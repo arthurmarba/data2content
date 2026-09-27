@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-26
+atualizado: 2026-09-27
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -225,7 +225,7 @@ atualizado: 2026-09-26
 | --- | --- |
 | `QSTASH_CURRENT_SIGNING_KEY` | 41 |
 | `QSTASH_NEXT_SIGNING_KEY` | 41 |
-| `QSTASH_TOKEN` | 30 |
+| `QSTASH_TOKEN` | 31 |
 | `QSTASH_WORKER_URL` | 1 |
 
 ## REDIS
@@ -325,6 +325,7 @@ atualizado: 2026-09-26
 | `DB_NAME` | 10 |
 | `LLM_PROVIDER_MAPA` | 9 |
 | `AI_FUNCTION_SUBSET_BY_INTENT` | 6 |
+| `CLASSIFICATION_WORKER_URL` | 6 |
 | `D2C_VIP_MAX_REDEMPTIONS` | 6 |
 | `LLM_FALLBACK_SCRIPTS` | 6 |
 | `MOBILE_STRATEGIC_PROFILE_SERVER_ENABLED` | 6 |
@@ -332,7 +333,6 @@ atualizado: 2026-09-26
 | `PLANNER_FREEZE_ENABLED` | 6 |
 | `PLAYWRIGHT_BROWSERS_PATH` | 6 |
 | `SCRIPTS_OPENAI_FALLBACK_ENABLED` | 6 |
-| `CLASSIFICATION_WORKER_URL` | 5 |
 | `D2C_VIP_EXPIRES_AT` | 5 |
 | `WEEKLY_MEETING_JOIN_URL` | 5 |
 | `CHROME_BIN` | 4 |
