@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { ZodError } from 'zod';
 import { PublicInstagramResearchError } from '@/app/lib/mcp/publicInstagramResearch';
-import { beginMarketplaceConnection, disconnectMarketplace, finishMarketplaceConnection, marketplaceOrigin, marketplaceStatus, searchMarketplaceCreators } from './marketplace';
+import { beginMarketplaceConnection, disconnectMarketplace, finishMarketplaceConnection, getMarketplaceCreatorDetails, marketplaceOrigin, marketplaceStatus, searchMarketplaceCreators } from './marketplace';
 
 const COOKIE = 'd2c-marketplace-state';
 async function owner() {
@@ -35,6 +35,7 @@ export async function handleMarketplacePost(request: NextRequest) {
       return response;
     }
     if (body.action === 'disconnect') return NextResponse.json(await disconnectMarketplace(actor));
+    if (body.action === 'details') return NextResponse.json(await getMarketplaceCreatorDetails(actor, body.username), { headers: { 'Cache-Control': 'no-store' } });
     if (body.action !== 'search') throw new Error('Ação inválida.');
     return NextResponse.json(await searchMarketplaceCreators(actor, body.filters), { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) { return errorResponse(error); }
