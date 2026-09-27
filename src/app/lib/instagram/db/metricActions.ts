@@ -11,6 +11,7 @@ import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
 import { differenceInDays, startOfDay } from 'date-fns';
 import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
+import { metricThumbnailWriteFields } from './metricThumbnailWrite';
 
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
@@ -174,6 +175,8 @@ export async function saveMetricData(
       }
     }
 
+    const thumbnailFields = metricThumbnailWriteFields(coverUrl, thumbnailUrl);
+
     const hasDescription = Boolean(media.caption?.trim());
     const finalUpdateOperation: any = {
       $set: {
@@ -187,9 +190,8 @@ export async function saveMetricData(
         format: format,
         updatedAt: new Date(),
         ...(Object.keys(statsUpdate).length > 0 ? statsUpdate : {}),
-        ...(coverUrl ? { coverUrl } : {}),
+        ...thumbnailFields.set,
         ...(mediaUrl ? { mediaUrl } : {}),
-        ...(thumbnailUrl ? { thumbnailUrl } : {}),
       },
       $setOnInsert: {
         createdAt: new Date(),
@@ -198,6 +200,9 @@ export async function saveMetricData(
         ...(!hasDescription ? createEmptyMetricClassificationUpdate() : {}),
       }
     };
+    if (thumbnailFields.unsetThumbnail) {
+      finalUpdateOperation.$unset = { thumbnailUrl: '' };
+    }
     if (Object.keys(statsUpdate).length === 0 && finalUpdateOperation.$set.stats) {
       delete finalUpdateOperation.$set.stats;
     }

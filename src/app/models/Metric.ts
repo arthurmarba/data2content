@@ -538,7 +538,7 @@ const metricSchema = new Schema<IMetric>(
     collabCreator: { type: String, trim: true, default: null },
     coverUrl: { type: String, trim: true, default: null },
     mediaUrl: { type: String, trim: true, default: null },
-    thumbnailUrl: { type: String, trim: true, default: null },
+    thumbnailUrl: { type: String, trim: true },
     instagramMediaId: { type: String, index: true, sparse: true, default: null },
     source: { type: String, enum: ['manual', 'api', 'document_ai'], required: true, default: 'manual' },
     classificationStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending', index: true },
