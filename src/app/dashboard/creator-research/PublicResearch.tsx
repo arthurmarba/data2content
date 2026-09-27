@@ -17,7 +17,7 @@ const COPY = {
     auth2: 'A autorização inclui leitura da Página vinculada (pages_read_engagement), que a Meta exige para a consulta Business Discovery, além das permissões de identificação do Instagram, métricas, lista de Páginas e ativos da empresa. A D2C usa esses acessos para consultar; esta função não publica nem altera conteúdo.',
     consent: 'Quero revisar na Meta as permissões necessárias à pesquisa por @.', review: 'Revisar autorização na Meta', manage: 'Gerenciar ou desconectar Instagram',
     startFailed: 'Não foi possível iniciar a autorização. Tente novamente.',
-    handles: 'Perfis profissionais (até três @s)', perProfile: 'Posts por perfil',
+    handles: 'Perfis profissionais (até três @s)', handlesPh: '@perfil1, @perfil2', perProfile: 'Posts por perfil',
     note: 'Até 50 posts por perfil. As amostras podem cobrir períodos diferentes. Alcance privado, demografia, salvamentos e compartilhamentos externos não estão disponíveis.',
     search: 'Pesquisar perfis públicos', wait: 'Aguarde…', count: 'Informe de um a três @s.', unavailable: 'Consulta indisponível.', failed: 'Não foi possível pesquisar.',
     na: 'Indisponível', noBio: 'Biografia indisponível', followers: 'Seguidores', posts: 'Publicações', sampled: 'Posts consultados',
@@ -31,7 +31,7 @@ const COPY = {
     auth2: 'The authorization includes reading the linked Page (pages_read_engagement), which Meta requires for the Business Discovery lookup, plus Instagram basic info, insights, the list of Pages and business assets. Data2Content only reads with these permissions; this feature never posts or changes content.',
     consent: 'I want to review on Meta the permissions required for the @ lookup.', review: 'Review authorization on Meta', manage: 'Manage or disconnect Instagram',
     startFailed: 'Could not start the authorization. Try again.',
-    handles: 'Professional accounts (up to three @s)', perProfile: 'Posts per profile',
+    handles: 'Professional accounts (up to three @s)', handlesPh: '@account1, @account2', perProfile: 'Posts per profile',
     note: 'Up to 50 posts per profile. Samples may cover different periods. Private reach, demographics, saves and shares of external accounts are not available.',
     search: 'Search public profiles', wait: 'Please wait…', count: 'Enter one to three @s.', unavailable: 'Lookup unavailable.', failed: 'The search failed.',
     na: 'Not available', noBio: 'Bio not available', followers: 'Followers', posts: 'Posts', sampled: 'Posts sampled',
@@ -82,7 +82,7 @@ export default function PublicResearch({ lang = 'pt' }: { lang?: ResearchLang })
       } catch (error) { setMessage(error instanceof Error ? error.message : t.failed); }
       finally { setBusy(false); }
     }}>
-      <label className="block">{t.handles}<input name="usernames" maxLength={95} required placeholder="@perfil1, @perfil2" className="mt-1 block w-full rounded border p-2" /></label>
+      <label className="block">{t.handles}<input name="usernames" maxLength={95} required placeholder={t.handlesPh} className="mt-1 block w-full rounded border p-2" /></label>
       <label className="block">{t.perProfile}<input name="limit" type="number" defaultValue={3} min={1} max={50} required className="ml-3 rounded border p-2" /></label>
       <p className="text-sm">{t.note}</p>
       <button disabled={busy} className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50">{busy ? t.wait : t.search}</button>
