@@ -12,7 +12,7 @@ export function classifyReadingFailure(message: string) {
   if (/gemini_provider_rejected/.test(message)) return { reason: "provider_rejected", delayMs: 30*60000, terminal: false };
 
   if (/temporariamente pausado/i.test(message)) return { reason: "provider_paused", delayMs: 6*3600000, terminal: false };
-  if (/prepayment.*depleted|insufficient.*credit|saldo|billing|payment.required/i.test(message)) return { reason: "provider_balance", delayMs: 6*3600000, terminal: false };
+  if (/gemini_provider_balance|prepayment.*depleted|insufficient.*credit|saldo|billing|payment.required/i.test(message)) return { reason: "provider_balance", delayMs: 6*3600000, terminal: false };
   if (/sem token|token.*invalid|oauth|HTTP 401/i.test(message)) return { reason: "instagram_auth", delayMs: 24*3600000, terminal: false };
   if (/HTTP 404|deleted|exclu[ií]d|m[eé]trica n[aã]o encontrada/i.test(message)) return { reason: "media_deleted", delayMs: 30*86400000, terminal: true };
   if (/acima do teto|grande demais|incompat[ií]vel|sem m[ií]dia compat[ií]vel|sem instagramMediaId/i.test(message)) return { reason: "unsupported_media", delayMs: 30*86400000, terminal: true };
@@ -92,15 +92,34 @@ export async function pauseGemini() {
   await ensure("provider:gemini", "v1");
   await State.updateOne({ _id: "provider:gemini" }, { $set: { state: "paused", reason: "provider_balance", nextAttemptAt: new Date(Date.now()+6*3600000), leaseUntil: EPOCH } });
 }
-/** Após a pausa, somente um job pode testar a recuperação do provedor. */
+/**
+ * Só leitura: pausa por saldo ou sonda em andamento. Enfileirar ou baixar mídia nesse
+ * intervalo não adianta — quem não é a sonda volta adiado seis horas. Uma sonda com
+ * posse vencida não bloqueia: o próximo job pode testar o provedor.
+ */
+export async function geminiUnavailable(): Promise<boolean> {
+  const state = await State.findById("provider:gemini").select("state nextAttemptAt leaseUntil").lean();
+  const now = new Date();
+  return Boolean(state && state.state !== "healthy" && (state.nextAttemptAt > now || state.leaseUntil > now));
+}
+/**
+ * Após a pausa, somente um job pode testar a recuperação do provedor. Chame logo antes
+ * de enviar ao Gemini: a sonda dura seis minutos e, se o job terminar antes (mídia
+ * incompatível, download falho), ninguém testou nada e todos os outros foram adiados.
+ */
 export async function claimGeminiAvailability(): Promise<boolean> {
   await connectToDatabase();
   const state = await State.findById("provider:gemini").lean();
   if (!state || state.state === "healthy") return true;
   if (state.nextAttemptAt > new Date()) return false;
-  const probe = await State.findOneAndUpdate({ _id: "provider:gemini", nextAttemptAt: { $lte: new Date() }, leaseUntil: { $lte: new Date() } },
+  // "Não saudável" no filtro: em 27/09/2026 um job leu o estado antigo, outro confirmou
+  // a recuperação no mesmo instante, e o primeiro devolveu o provedor para "testando"
+  // — com a fila inteira adiada seis horas por item, dinheiro na conta e o Gemini ok.
+  const probe = await State.findOneAndUpdate({ _id: "provider:gemini", state: { $ne: "healthy" }, nextAttemptAt: { $lte: new Date() }, leaseUntil: { $lte: new Date() } },
     { $set: { state: "probing", leaseUntil: new Date(Date.now()+360000) } }, { new: true }).lean();
-  return Boolean(probe);
+  if (probe) return true;
+  const atual = await State.findById("provider:gemini").select("state").lean();
+  return atual?.state === "healthy";
 }
 export async function markGeminiHealthy() {
   await State.updateOne({ _id: "provider:gemini", state: "probing" }, { $set: { state: "healthy", nextAttemptAt: EPOCH, leaseUntil: EPOCH, reason: null } });

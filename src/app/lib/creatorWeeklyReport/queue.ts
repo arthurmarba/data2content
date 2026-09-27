@@ -3,9 +3,9 @@ import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import Metric from '@/app/models/Metric';
 import User from '@/app/models/User';
-import State from '@/app/models/ContentReadingState';
 import Evidence from '@/app/models/PublishedContentEvidence';
 import { readingRevision } from '@/app/lib/relatorio/readingRevision';
+import { eligibleReadingIds, geminiUnavailable } from '@/app/lib/relatorio/contentReadingState';
 import { connectToDatabase } from '@/app/lib/mongoose';
 
 async function publish(path: string, body: Record<string, string>, deduplicationId: string, delay = 20) {
@@ -49,7 +49,11 @@ export async function enqueueOnboardingReadings(userId: string, limit = 30): Pro
 }
 
 /** O cron continua a recuperar falhas; a classificação concluída entrega o post
- * diretamente à leitura, respeitando acesso, versão e a pausa do provedor. */
+ * diretamente à leitura, respeitando acesso, versão e a pausa do provedor.
+ *
+ * Post encerrado nesta revisão (mídia incompatível, ilegível, revisão manual), adiado ou
+ * com posse ativa não é publicado: o worker recusaria. Sem isso a sincronização do
+ * Instagram republicava centenas de posts encerrados duas vezes por dia (26/09/2026). */
 export async function enqueuePublishedReading(metricId: string) {
   if (!Types.ObjectId.isValid(metricId)) return false;
   try {
@@ -58,12 +62,12 @@ export async function enqueuePublishedReading(metricId: string) {
     if (!metric || !metric.instagramMediaId || !['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'].includes(metric.type ?? '')) return false;
     if (new Date(metric.postDate).getTime() < Date.now() - 90 * 86400000) return false;
     if (metric.sceneElements?.version === readingRevision(metric.type) && await Evidence.exists({ metricId, userId: metric.user })) return false;
+    if (!(await eligibleReadingIds([metricId], readingRevision(metric.type))).length) return false;
     const user = await User.findById(metric.user).select('isInstagramConnected planStatus currentPeriodEnd cancelAtPeriodEnd').lean();
     const active = user?.planStatus === 'active' && (user.cancelAtPeriodEnd !== true || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date()));
     const nonRenewing = user?.planStatus === 'non_renewing' && user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date();
     if (!user?.isInstagramConnected || !(active || nonRenewing)) return false;
-    const provider = await State.findById('provider:gemini').select('state nextAttemptAt').lean();
-    if (provider && provider.state !== 'healthy' && provider.nextAttemptAt > new Date()) return false;
+    if (await geminiUnavailable()) return false;
     return publish('classify-published-scene', { metricId }, `perfil-cena-${metricId}-${Math.floor(Date.now() / 3600000)}`);
   } catch (error) {
     logger.warn('[perfil][falha_encadeamento_leitura]', { metricId, error: String(error) });

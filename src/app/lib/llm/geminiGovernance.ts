@@ -26,6 +26,23 @@ export class GeminiGovernanceError extends Error {
     super(`${code}: ${message}`);
   }
 }
+/**
+ * Falta de saldo pausa o provedor inteiro por seis horas; cota por minuto passa sozinha.
+ *
+ * O status RESOURCE_EXHAUSTED vem nos dois casos. Em 26/09/2026 o crédito esgotado
+ * chegou como HTTP 402 com esse status, e excluir "resource_exhausted" fez a falta de
+ * saldo virar resultado incerto: a pausa nunca voltava e cada sonda encerrava um post
+ * para revisão manual. Decide o código 402 ou o texto explícito do crédito; "billing"
+ * sozinho continua exigindo ausência de cota (a mensagem de cota fala em billing).
+ */
+export function isGeminiBalanceError(status: unknown, mensagem: string): boolean {
+  const codigo = Number(status);
+  if (codigo === 402) return true;
+  if (!(codigo >= 400)) return false;
+  if (/prepayment credits? (?:are )?depleted|insufficient (?:prepaid )?credits?/i.test(mensagem)) return true;
+  return /billing (?:account )?(?:is )?(?:disabled|not enabled|required)|payment required/i.test(mensagem)
+    && !/quota|rate.?limit/i.test(mensagem);
+}
 type Rates = { inputUsdPerMillion: number; outputUsdPerMillion: number };
 /** O que fica reservado antes do envio: identidade da operação e o dinheiro apartado. */
 export type Reserva = { id: string; rates?: Rates; reservedMicros: number; bucketIds: string[] };
@@ -139,9 +156,7 @@ async function executeAndSettle(
     // um limite de taxa em rajada de cron virou "sem saldo" e pausou a fila inteira por
     // seis horas, com dinheiro na conta e o modelo respondendo normalmente.
     const mensagem = String(error?.message ?? "");
-    const semSaldo = /prepayment credits? (?:are )?depleted|insufficient (?:prepaid )?credits?|billing (?:account )?(?:is )?(?:disabled|not enabled|required)|payment required/i.test(mensagem)
-      && !/quota|rate.?limit|resource_exhausted/i.test(mensagem);
-    if (Number(error?.status) >= 400 && semSaldo) {
+    if (isGeminiBalanceError(error?.status, mensagem)) {
       await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 6 * 3600000), reason: "saldo", error: mensagem.slice(0, 300) } });
       throw new GeminiGovernanceError("gemini_provider_balance", "Provedor sem saldo; aguardar recuperação.");
     }
@@ -151,6 +166,11 @@ async function executeAndSettle(
       await Operation.updateOne({ _id: id, state: "started" }, { $set: { state: "rejected", retryAt: new Date(Date.now() + 30 * 60000), reason: `HTTP ${error.status}`, error: mensagem.slice(0, 300) } });
       throw new GeminiGovernanceError("gemini_provider_rejected", `HTTP ${error.status}; aguardar antes de nova tentativa.`);
     }
+    // Continua "started" (sem reenvio), mas com a causa: em 27/09/2026, 32 leituras caíram
+    // aqui logo após a recarga e nada dizia se era rede, timeout ou recusa do modelo.
+    await Operation.updateOne({ _id: id, state: "started" }, { $set: { error: `${error?.status ?? "sem status"}: ${mensagem}`.slice(0, 300) } })
+      .catch(() => undefined);
+    logger.warn("[gemini] Envio sem resposta; resultado incerto.", { operationId: id, tag, status: error?.status ?? null, error: mensagem.slice(0, 300) });
     throw new GeminiGovernanceError("gemini_result_unknown", "Envio interrompido ou recusado; resultado precisa de revisão.");
   }
   await settleReserva(reserva, tag, request.model, scope, response);

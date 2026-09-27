@@ -6,8 +6,9 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import type { GoogleGenAI, GenerateContentParameters } from "@google/genai";
 import Operation from "@/app/models/GeminiOperation";
 import { GeminiBudgetBucket, GeminiBudgetPolicy } from "@/app/models/GeminiBudget";
-import { governedGenerateContent, withGeminiGovernance, estimatedMicros } from "./geminiGovernance";
+import { governedGenerateContent, withGeminiGovernance, estimatedMicros, isGeminiBalanceError } from "./geminiGovernance";
 
+jest.setTimeout(30000); // Mongo real em memória; sob carga, 5 s não bastam.
 jest.mock("@/app/lib/mongoose", () => ({ connectToDatabase: jest.fn() }));
 jest.mock("./geminiUsageLog", () => ({ logGeminiUsage: jest.fn() }));
 let db: MongoMemoryReplSet;
@@ -17,7 +18,7 @@ const ai = { models: { generateContent, countTokens } } as unknown as GoogleGenA
 const request: GenerateContentParameters = { model: "teste", contents: "vídeo", config: { maxOutputTokens: 100, systemInstruction: "instrução" } };
 const run = (contentKey = "post", creatorId = "criador", fingerprint = "mapa") => withGeminiGovernance({ contentKey, creatorId, fingerprint }, () => governedGenerateContent(ai, request, "cena"));
 beforeAll(async () => {
-  db = await MongoMemoryReplSet.create({ binary: { downloadDir: "/private/tmp/collabs-mongodb" }, replSet: { count: 1 } });
+  db = await MongoMemoryReplSet.create({ binary: { downloadDir: "/private/tmp/collabs-mongodb" }, instanceOpts: [{ launchTimeout: 60000 }], replSet: { count: 1 } });
   await mongoose.connect(db.getUri("gemini_governance_test"));
   await Promise.all([Operation.init(), GeminiBudgetBucket.init(), GeminiBudgetPolicy.init(), ScenePolicy.init()]);
 }, 180000);
@@ -43,6 +44,8 @@ it("fila e recuperação concorrentes pagam uma única vez", async () => {
 it("timeout depois do envio permanece bloqueado mesmo em outra execução", async () => {
   generateContent.mockRejectedValue(new Error("timeout"));
   await expect(run()).rejects.toThrow("gemini_result_unknown");
+  // Sem reenvio, mas com a causa guardada para quem for revisar.
+  expect(await Operation.findOne({}).lean()).toMatchObject({ state: "started", error: "sem status: timeout" });
   await expect(run()).rejects.toThrow("gemini_result_unknown");
   expect(generateContent).toHaveBeenCalledTimes(1);
 });
@@ -135,6 +138,32 @@ it("limite de taxa não vira falta de saldo, e a mensagem do provedor fica no re
   const operation = await Operation.findOne({}).lean();
   expect(operation?.reason).toBe("HTTP 429");
   expect(operation?.error).toContain("Quota exceeded");
+});
+// Resposta real do provedor em 26/09/2026, como o SDK entrega: status numérico e o corpo
+// JSON na mensagem, com RESOURCE_EXHAUSTED mesmo sendo falta de crédito.
+const SALDO_402 = '{"error":{"code":402,"message":"Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing. Learn more at https://ai.google.dev/gemini-api/docs/billing#prepay. ","status":"RESOURCE_EXHAUSTED"}}';
+it("crédito esgotado com status RESOURCE_EXHAUSTED é falta de saldo, não resultado incerto", async () => {
+  generateContent.mockRejectedValue({ status: 402, message: SALDO_402 });
+  await expect(run()).rejects.toThrow("gemini_provider_balance");
+  const operation = await Operation.findOne({}).lean();
+  expect(operation).toMatchObject({ state: "rejected", reason: "saldo" });
+  expect(operation?.retryAt?.getTime()).toBeGreaterThan(Date.now() + 5 * 3600000);
+  expect(operation?.error).toContain("prepayment credits are depleted");
+  // Durante a espera, a mesma leitura continua dizendo "sem saldo" sem chamar de novo.
+  await expect(run()).rejects.toThrow("gemini_provider_balance");
+  expect(generateContent).toHaveBeenCalledTimes(1);
+});
+it.each([
+  ["402 de crédito esgotado (26/09/2026)", true, 402, SALDO_402],
+  ["429 de crédito esgotado (primeiro incidente)", true, 429, '{"error":{"code":429,"message":"Your prepayment credits are depleted","status":"RESOURCE_EXHAUSTED"}}'],
+  ["402 sem corpo", true, 402, "Payment Required"],
+  ["faturamento desativado", true, 403, "Billing account is disabled"],
+  ["cota que cita billing (18/09/2026)", false, 429, "Quota exceeded for quota metric 'Generate requests'; check your billing plan"],
+  ["cota por minuto", false, 429, '{"error":{"code":429,"message":"Resource has been exhausted","status":"RESOURCE_EXHAUSTED"}}'],
+  ["billing junto de rate limit", false, 429, "billing required? rate limit exceeded"],
+  ["mensagem sem status HTTP", false, undefined, "prepayment credits are depleted"],
+])("%s → saldo: %s", (_rotulo, saldo, status, mensagem) => {
+  expect(isGeminiBalanceError(status, mensagem as string)).toBe(saldo);
 });
 it("permite limite apenas global, sem impor cota por criador", async () => {
   await budget();

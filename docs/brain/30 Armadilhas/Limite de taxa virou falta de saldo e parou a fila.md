@@ -43,9 +43,13 @@ SDK usa normalmente.
 
 - Saldo agora exige mensagem explícita (crédito esgotado, pagamento requerido,
   faturamento desabilitado) **e** ausência de quota/limite de taxa na mesma mensagem.
+  **Revisto em 26/09/2026:** o crédito esgotado de verdade chega como HTTP 402 com status
+  `RESOURCE_EXHAUSTED`, e excluir essa palavra fez a pausa nunca voltar. Hoje 402 e o
+  texto explícito do crédito decidem sozinhos; só "billing" solto exige ausência de cota
+  (`isGeminiBalanceError`). Ver [[Sonda do Gemini presa sem voltar à pausa]].
 - O recibo passa a guardar a mensagem crua do provedor (`error`).
 - Teste de regressão em `geminiGovernance.test.ts`.
 
 ## Ligações
 
-[[Crédito do Gemini paralisa a leitura publicada]] · [[Filas e rotinas]]
+[[Crédito do Gemini paralisa a leitura publicada]] · [[Filas e rotinas]] · [[Sonda do Gemini presa sem voltar à pausa]]

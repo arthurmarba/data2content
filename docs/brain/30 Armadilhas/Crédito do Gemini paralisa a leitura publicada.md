@@ -36,4 +36,4 @@ URL e quantidade de imagens. Sem isso, HTTP 200 parecia sucesso embora nada foss
 
 ## Ligações
 
-[[Filas e rotinas]] · [[Variável só no .env.local]] · [[Pautas e Roteiros]]
+[[Filas e rotinas]] · [[Variável só no .env.local]] · [[Pautas e Roteiros]] · [[Sonda do Gemini presa sem voltar à pausa]]
