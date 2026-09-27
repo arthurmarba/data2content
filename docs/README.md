@@ -24,6 +24,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 | Documento | Data | Sobre |
 | --- | --- | --- |
+| `brain/30 Armadilhas/Retrato da semana gravado sem números.md` | 09/2026 | W37 e W38 congeladas sem alcance porque a Meta recusava `follows` nos Reels; por que refazer com os números de hoje foi ganho e como o congelamento de números evita repetir |
 | `brain/40 Decisões/Padrão consistente liberado depois do piloto.md` | 09/2026 | Promoção de padrão a "consistente" ligada depois dos dois fechamentos do piloto: critério, evidência (25 candidatos, nenhum abaixo do normal na semana seguinte) e limites |
 | `brain/30 Armadilhas/Parágrafo da Jornada engole o tamanho do componente.md` | 09/2026 | `.j-workspace p` vence as classes de tamanho dos componentes; texto com tamanho próprio vira `div`. Inclui a sombra rosa do botão primário |
 | `brain/40 Decisões/O Perfil mostra diagnóstico, não cartões.md` | 09/2026 | O Perfil troca os cartões de padrão por um diagnóstico escrito toda segunda pelo Gemini, com trava de número e gancho para o Claude; etapas 2 e 3 pendentes |

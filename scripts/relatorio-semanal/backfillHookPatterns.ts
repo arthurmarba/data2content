@@ -107,7 +107,7 @@ async function main() {
     const week = parseWeek(weekKey);
     const window = await loadWindow(week);
     if (window.weekPosts.length === 0) {
-      console.warn(`${week.weekKey}: ignorada — nenhum post classificado na semana.`);
+      console.warn(`${week.weekKey}: ignorada — nenhum post na semana.`);
       continue;
     }
     const built = buildWeeklyReport({

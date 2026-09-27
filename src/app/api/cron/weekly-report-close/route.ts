@@ -13,12 +13,22 @@
  * reconstruída depois com os números que tinha — e sem o histórico não existe coluna
  * de movimento nem resultado de previsão. Semana perdida é perdida para sempre.
  * Por isso ele roda antes e independente da composição/render.
+ *
+ * Desde 26/09/2026 o fechamento também congela os NÚMEROS de cada post da semana
+ * (`WeeklyStatsFreeze`). Refechar com `?week=` depois — quando a leitura de cena
+ * alcança a semana — usa esses números e só completa assunto, tom e asset. Semana
+ * fechada antes disso não tem números congelados: refechar exige
+ * `aceitarNumerosDeHoje=1`, porque aí entram os números do dia.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { logger } from "@/app/lib/logger";
 import { closeWeek } from "@/app/lib/relatorio/weeklyReportService";
+import {
+  ReclosingWithoutFrozenStatsError,
+  WeekNotEndedError,
+} from "@/app/lib/relatorio/statsFreeze";
 import { lastClosedWeek, weekWindowFor } from "@/app/lib/relatorio/weekWindow";
 
 export const runtime = "nodejs";
@@ -65,6 +75,7 @@ export async function POST(request: NextRequest) {
   // ?week=2026-W30 permite refazer uma semana específica (só reescreve o snapshot
   // daquela chave; não toca nas outras).
   const weekParam = request.nextUrl.searchParams.get("week");
+  const acceptTodayStats = request.nextUrl.searchParams.get("aceitarNumerosDeHoje") === "1";
   let week = lastClosedWeek();
   if (weekParam) {
     const match = /^(\d{4})-W(\d{1,2})$/.exec(weekParam);
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await closeWeek({ week });
+    const result = await closeWeek({ week, acceptTodayStats });
     logger.info(
       `${TAG} ${result.weekKey} fechada · ${result.territories.length} territórios · ` +
         `${result.report.cover.videos} vídeos de ${result.report.cover.creators} criadores.`,
@@ -88,8 +99,13 @@ export async function POST(request: NextRequest) {
       territories: result.territories,
       videos: result.report.cover.videos,
       creators: result.report.cover.creators,
+      coverage: result.coverage,
+      freeze: result.freeze,
     });
   } catch (error) {
+    if (error instanceof ReclosingWithoutFrozenStatsError || error instanceof WeekNotEndedError) {
+      return NextResponse.json({ message: error.message }, { status: 409 });
+    }
     logger.error(`${TAG} falha ao fechar ${week.weekKey}:`, error);
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Erro ao fechar a semana." },

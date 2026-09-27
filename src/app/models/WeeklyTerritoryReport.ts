@@ -11,6 +11,10 @@
 //
 // Consequência operacional: semana que não roda o job é semana perdida para sempre.
 // É por isso que este modelo vem antes de qualquer tela.
+//
+// Desde 26/09/2026 os NÚMEROS que alimentam o retrato também ficam congelados, em
+// `WeeklyStatsFreeze`. Refechar dias depois usa esses números e só completa a leitura
+// de cena; `coverage` diz quanto da semana o retrato conseguiu ler.
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import type { ElementKind, ReportMetric } from "@/app/lib/relatorio/types";
@@ -36,6 +40,20 @@ export interface IWeeklyTerritoryElement {
   fitsOutOf: number;
   pullsDown: boolean;
   evidence: string;
+}
+
+/** Quanto da semana do território o retrato conseguiu ler. */
+export interface IWeeklyTerritoryCoverage {
+  posts: number;
+  /** Com alcance ou visualização. */
+  withStats: number;
+  /** Com números congelados; os demais entraram com o número do dia. */
+  frozen: number;
+  classified: number;
+  /** Com leitura de cena — a fonte de assunto, tom, asset e gancho. */
+  sceneRead: number;
+  /** Quando a semana ganhou os primeiros números congelados. null = nunca. */
+  statsFrozenAt: Date | null;
 }
 
 export interface IWeeklyTerritoryReport extends Document {
@@ -64,6 +82,8 @@ export interface IWeeklyTerritoryReport extends Document {
    * regra precisa ser lida do snapshot, não recalculada.
    */
   highlightWinners: string[];
+  /** Ausente nos retratos gravados antes de 27/09/2026. */
+  coverage?: IWeeklyTerritoryCoverage;
   cutoff: {
     minOccurrences: number;
     minCreators: number;
@@ -121,6 +141,20 @@ const weeklyTerritoryReportSchema = new Schema<IWeeklyTerritoryReport>(
     elements: { type: [elementSchema], default: [] },
     overviewRank: { type: Number, default: null },
     highlightWinners: { type: [String], default: [] },
+    coverage: {
+      type: new Schema<IWeeklyTerritoryCoverage>(
+        {
+          posts: { type: Number, default: 0 },
+          withStats: { type: Number, default: 0 },
+          frozen: { type: Number, default: 0 },
+          classified: { type: Number, default: 0 },
+          sceneRead: { type: Number, default: 0 },
+          statsFrozenAt: { type: Date, default: null },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     cutoff: {
       minOccurrences: { type: Number, required: true },
       minCreators: { type: Number, required: true },

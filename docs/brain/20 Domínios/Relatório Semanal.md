@@ -24,7 +24,8 @@ Confundir os dois é o erro mais comum desta área.
 | Contexto | `patternContextService.ts` |
 | Geração pela fila | `/api/worker/generate-creator-weekly-report` |
 | Fechamento no relógio | `/api/cron/weekly-report-close`, `/api/cron/creator-weekly-reports` |
-| Fechar à mão | `npm run relatorio:fechar` (tem `--dry-run`) |
+| Fechar à mão | `npm run relatorio:fechar` (tem `--dry-run` e `--aceitar-numeros-de-hoje`) |
+| Números congelados | `relatorio/statsFreeze.ts` (regras), `statsFreezeStore.ts` (banco), modelo `WeeklyStatsFreeze` |
 | Renderizar | `npm run relatorio:render` |
 | Auditar o mapa | `npm run relatorio:auditar-mapa` |
 
@@ -40,11 +41,24 @@ Para não deixar um vídeo fora da curva distorcer tudo, o motor usa **mediana**
 
 Território, narrativa, asset e tom vêm do card "Seu Mapa" — **não da legenda do post**. O registro canônico só agrupa o que o mapa já nomeou. Ver [[O mapa é o dicionário]].
 
-## O que não volta
+## O que não volta — e o que completa depois
 
-O fechamento da semana grava um retrato do momento. **Esse retrato é irrecuperável**: se fechar errado, não dá pra reconstruir depois com os dados de hoje. Use `--dry-run` antes.
+O fechamento da semana (segunda 01h, `closeWeek`) grava um retrato do momento. Desde 27/09/2026 ele também **congela os números** de cada post da semana em `WeeklyStatsFreeze`, antes de calcular. A regra:
 
-Post com classificação pendente **fica fora do retrato** (`loadWindow` só lê `completed`). Se a IA ficou sem saldo durante a semana, drene a fila antes de segunda 01h BRT com `npm run requeue:classification-retryable -- --week=<semana> --write --enqueue`. Refechar depois com `?week=` inclui os posts, mas regrava a semana inteira com os números do dia, não os da segunda. Ver [[Crédito do Gemini paralisa a leitura publicada]].
+> **O que estava medido na segunda fica; o que faltava completa depois.**
+
+- **Números** (alcance, curtidas, retenção…) entram congelados no primeiro fechamento que encontra o post com alcance ou visualização. Nunca são reescritos. Post ainda sem número espera o próximo fechamento.
+- **Leitura de cena** (assunto, tom, asset, gancho) entra em qualquer refechamento. Por isso refechar com `?week=` ou `npm run relatorio:fechar -- --week=<semana>` dias depois, quando a leitura alcançar a semana, é seguro: completa a leitura sem trocar os números da segunda pelos do dia.
+- **Todo post entra**, classificado ou não. A classificação da legenda só alimenta formato e a evidência "a legenda sugere outro território"; território vem do mapa, números não dependem de IA, e assunto/tom/asset vêm da leitura de cena. Até 26/09 o fechamento descartava post pendente — a W38 perdeu 108 de 397 posts assim.
+- **Cobertura**: cada retrato guarda `coverage` — posts, com número, congelados, classificados, com leitura de cena e quando os números foram congelados. O comando `relatorio:fechar` imprime isso.
+- **Variação de engajamento** compara os números congelados de cada semana (posts de 1 a 7 dias contra posts de 1 a 7 dias). Semana sem congelamento cai nos números do dia.
+- **Previsão ao refechar**: a aposta da semana anterior é medida de novo só se foi esta semana que a resolveu; aposta desta semana que a seguinte já mediu não é reescrita.
+
+**Semana fechada antes do congelamento (até 2026-W38) não tem números guardados.** Refechá-la grava os números do dia, e o fechamento recusa sem `--aceitar-numeros-de-hoje` (na rota, `aceitarNumerosDeHoje=1`). Use `--dry-run` antes.
+
+O que continua com o número do dia num refechamento: as linhas de base de 90 dias (retenção esperada por duração, alcance típico do criador, média própria dos destaques), que usam posts antigos. Muda pouco — post antigo quase não cresce.
+
+Se a IA ficar sem saldo, drene a fila antes de segunda 01h BRT com `npm run requeue:classification-retryable -- --week=<semana> --write --enqueue`: sem classificação não há leitura de cena. Ver [[Crédito do Gemini paralisa a leitura publicada]] e [[Retrato da semana gravado sem números]].
 
 ## Assets de cena
 
