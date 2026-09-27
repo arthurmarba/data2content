@@ -138,3 +138,4 @@ Documento de planejamento mora em `docs/`, **nunca junto do código**. A única 
 
 Ao criar documento novo, acrescente uma linha aqui. Um sótão só continua sendo arquivo enquanto alguém escreve no índice.
 - [Justificativas e roteiro do reenvio à Meta](meta-review/JUSTIFICATIVAS_REENVIO.md) — textos em inglês e roteiro dos dois screencasts depois da rejeição de 21/09/2026
+- [Reenvio à Meta de 27/09/2026](meta-review/REENVIO_2026-09-27.md) — por que o primeiro pedido foi recusado, o que mudou na tela, os vídeos novos e o estado do pedido `1609042077624690`

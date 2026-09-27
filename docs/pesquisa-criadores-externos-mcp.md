@@ -614,3 +614,13 @@ país Brasil, **não** houve entrega de dados a pedidos de segurança nacional n
 Google, OpenAI, Upstash, MongoDB Atlas e Vercel. As instruções para o analista
 ganharam dois passo a passo novos — pesquisa por @ em `/creator-research` e
 descoberta de criadores para campanhas —, acrescentados ao fim do texto que já existia.
+
+### Recusa de 21/09 e reenvio — 27/09/2026
+
+As duas permissões novas foram recusadas; as oito renovações, aprovadas. Marketplace: o analista
+não conseguiu ver a busca com os filtros aprovados (nicho, alcance, audiência) nem os resultados
+com bio, seguidores e alcance. `pages_read_engagement`: caso de uso considerado desnecessário.
+A tela ganhou filtros de audiência e contas engajadas, métricas do criador nos resultados,
+detalhe por @ e versão em inglês (`?lang=en`); PRs #916 e #917. Vídeos novos gravados e textos
+reescritos em inglês. Diagnóstico, vídeos e estado do pedido `1609042077624690` em
+`docs/meta-review/REENVIO_2026-09-27.md`.
