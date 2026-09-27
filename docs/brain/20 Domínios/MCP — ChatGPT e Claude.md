@@ -221,6 +221,15 @@ O MCP oficial da Meta falhou antes do login; acesso pelo painel web funciona.
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.
 
+## Imagens no MCP administrativo
+
+`get_creator_images` entrega foto e capas dentro da resposta. Quando `contentIds` é informado,
+mesmo com IDs inválidos, a consulta deve ficar restrita a esses posts e avisar quais não foram
+encontrados; nunca substituir silenciosamente por capas recentes. O limite de 12 imagens inclui
+a foto de perfil, então um post cortado por esse limite não deve ser marcado como inexistente.
+O download aceita somente hosts de imagem do Instagram, sem redirecionamento, e interrompe
+o corpo ao ultrapassar 8 MB mesmo sem `Content-Length`.
+
 ## Conferir
 
 ```bash

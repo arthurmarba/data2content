@@ -3,6 +3,7 @@
 import { getMcpCreatorImages, isAllowedInstagramImageUrl } from "./creatorImages";
 import { getInstagramConnectionDetails } from "@/app/lib/instagram/db/userActions";
 import { fetchSingleInstagramMedia } from "@/app/lib/instagram/api/fetchers";
+import MetricModel from "@/app/models/Metric";
 
 const userId = "507f1f77bcf86cd799439021";
 const metricId = "507f1f77bcf86cd799439031";
@@ -70,6 +71,49 @@ describe("getMcpCreatorImages", () => {
     ]);
     expect(result?.images).toHaveLength(2);
     expect(result?.images[1]).toEqual({ index: 1, data: Buffer.from("jpeg").toString("base64"), mimeType: "image/jpeg" });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://scontent.cdninstagram.com/perfil.jpg",
+      expect.objectContaining({ redirect: "error" }),
+    );
+  });
+
+  it("não troca um ID inválido pelas capas recentes", async () => {
+    mockConnection.mockResolvedValue(null);
+    const result = await getMcpCreatorImages({
+      userId,
+      contentIds: ["post:invalido"],
+      includeProfilePicture: false,
+    });
+
+    expect(MetricModel.find).not.toHaveBeenCalled();
+    expect(result?.items).toEqual([]);
+    expect(result?.coverage.warnings).toContain("some_content_ids_not_found_for_creator");
+  });
+
+  it("não chama de ausente a capa que ficou fora do limite", async () => {
+    mockConnection.mockResolvedValue(null);
+    global.fetch = jest.fn(async () => imageResponse()) as any;
+    const contentIds = Array.from({ length: 12 }, (_, index) => (index + 1).toString(16).padStart(24, "0"));
+    (MetricModel.find as jest.Mock).mockImplementationOnce(() => leanQuery(contentIds.slice(0, 11).map((_id) => ({ _id }))));
+
+    const result = await getMcpCreatorImages({ userId, contentIds });
+
+    expect(result?.coverage.warnings).toContain("only_first_11_contents_returned");
+    expect(result?.coverage.warnings).not.toContain("some_content_ids_not_found_for_creator");
+    expect(result?.items).toHaveLength(12);
+  });
+
+  it("interrompe download sem tamanho declarado quando passa de 8 MB", async () => {
+    mockConnection.mockResolvedValue(null);
+    global.fetch = jest.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(8 * 1024 * 1024 + 1));
+      },
+    }), { headers: { "content-type": "image/jpeg" } })) as any;
+
+    const result = await getMcpCreatorImages({ userId, recentLimit: 0 });
+
+    expect(result?.items[0]).toMatchObject({ delivered: false, failure: "url_expired_and_account_disconnected" });
   });
 
   it("reports an expired cover honestly when the account is disconnected", async () => {

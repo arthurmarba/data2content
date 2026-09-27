@@ -72,6 +72,7 @@ async function downloadImage(url: string): Promise<{ bytes: Buffer; mimeType: st
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      redirect: "error",
       headers: { accept: "image/*", referer: "https://www.instagram.com/" },
     });
     if (!response.ok) return null;
@@ -79,8 +80,22 @@ async function downloadImage(url: string): Promise<{ bytes: Buffer; mimeType: st
     if (!mimeType.startsWith("image/")) return null;
     const declared = Number(response.headers.get("content-length") || 0);
     if (declared > MAX_SOURCE_BYTES) return null;
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_SOURCE_BYTES) return null;
+    if (!response.body) return null;
+    const reader = response.body.getReader();
+    const chunks: Buffer[] = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_SOURCE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+    if (!received) return null;
+    const bytes = Buffer.concat(chunks, received);
     return { bytes, mimeType };
   } catch {
     return null;
@@ -136,7 +151,7 @@ async function freshProfilePictureUrl(accountId: string, accessToken: string): P
 }
 
 function normalizeContentIds(contentIds: string[]): Types.ObjectId[] {
-  return [...new Set(contentIds.map((id) => id.replace(/^post:/i, "").trim()))]
+  return [...new Set(contentIds.map((id) => id.replace(/^post:/i, "").trim().toLowerCase()))]
     .filter((id) => mongoose.isValidObjectId(id) && id.length === 24)
     .map((id) => new Types.ObjectId(id));
 }
@@ -152,24 +167,26 @@ export async function getMcpCreatorImages(params: {
   const user = await UserModel.findById(userObjectId).select("_id profile_picture_url").lean<{ profile_picture_url?: string }>();
   if (!user) return null;
 
+  const explicitContentIds = Boolean(params.contentIds?.length);
   const requestedIds = normalizeContentIds(params.contentIds ?? []);
   const includeProfilePicture = params.includeProfilePicture !== false;
   const coverSlots = Math.max(0, MCP_CREATOR_IMAGES_MAX - (includeProfilePicture ? 1 : 0));
   const recentLimit = Math.min(Math.max(params.recentLimit ?? 6, 0), coverSlots);
   const warnings: string[] = [];
 
-  const metricFilter = requestedIds.length
+  const metricFilter = explicitContentIds
     ? { user: userObjectId, _id: { $in: requestedIds.slice(0, coverSlots) } }
     : { user: userObjectId };
-  const metrics = (requestedIds.length || recentLimit > 0)
+  const metrics = (explicitContentIds ? requestedIds.length > 0 : recentLimit > 0)
     ? await MetricModel.find(metricFilter)
       .select("_id instagramMediaId coverUrl thumbnailUrl postDate type postLink description")
       .sort({ postDate: -1 })
-      .limit(requestedIds.length ? coverSlots : recentLimit)
+      .limit(explicitContentIds ? coverSlots : recentLimit)
       .lean<Array<Record<string, any>>>()
     : [];
   if (requestedIds.length > coverSlots) warnings.push(`only_first_${coverSlots}_contents_returned`);
-  if ((params.contentIds?.length ?? 0) > metrics.length && requestedIds.length) {
+  const distinctInputIds = new Set((params.contentIds ?? []).map((id) => id.replace(/^post:/i, "").trim().toLowerCase())).size;
+  if (explicitContentIds && (distinctInputIds > requestedIds.length || metrics.length < Math.min(requestedIds.length, coverSlots))) {
     warnings.push("some_content_ids_not_found_for_creator");
   }
 
