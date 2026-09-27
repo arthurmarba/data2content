@@ -29,6 +29,23 @@ Pastas de trabalho como `tmp/` **não estavam no `.gitignore`** — e continham 
 
 Se o build local voltar a falhar em algo dentro de uma pasta de trabalho, é sinal de que alguma coisa nova escapou do `.gitignore` — limpe antes de acreditar no erro.
 
+## Build em cópia de trabalho (`.claude/worktrees/`)
+
+As cópias de trabalho das sessões de IA **não têm `.env.local`**. O build compila e
+passa na conferência de tipos, mas quebra depois, em "Collecting page data", com
+`Variáveis ausentes: STRIPE_SECRET_KEY…` ou `OPENAI_API_KEY … missing`. Não é erro do
+código: rotas conferem variáveis ao serem carregadas.
+
+Para rodar o build ali, sem chave real: copie o `.env.example` para um
+`.env.production.local` temporário (o `.gitignore` já ignora), complete com texto de
+mentira `OPENAI_API_KEY`, `GEMINI_API_KEY` e `NEXTAUTH_SECRET`, rode `npm run build` e
+apague o arquivo. O aviso `MONGODB_URI não definida` na geração de páginas não derruba
+o build.
+
+A máquina tem 8 GB. Um `next build` usa cerca de 3 GB; três em paralelo, de sessões
+diferentes, esgotaram a memória em 26/09/2026 e nenhum terminava em uma hora. Sozinho,
+com a compilação em cache, leva uns três minutos. Espere os outros acabarem.
+
 ## Ligações
 
 [[11 Como rodar e verificar]]

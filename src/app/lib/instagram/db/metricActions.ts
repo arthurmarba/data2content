@@ -11,6 +11,7 @@ import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
 import { differenceInDays, startOfDay } from 'date-fns';
 import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
+import { decideSyncClassificationEnqueue, syncClassificationDeduplicationId } from '@/app/lib/classificationRequeue';
 
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
@@ -213,18 +214,33 @@ export async function saveMetricData(
 
     const classificationWorkerUrl = process.env.CLASSIFICATION_WORKER_URL;
     if (qstashClassificationClient && classificationWorkerUrl) {
-      if (savedMetric.classificationStatus === 'pending' && savedMetric.description && savedMetric.description.trim() !== '') {
+      // Post adiado por falta de saldo é do cron recover-content-intelligence; reenviar a
+      // cada sincronização encheu a DLQ em 26/09/2026. Ver classificationRequeue.ts.
+      const now = new Date();
+      const decision = decideSyncClassificationEnqueue(savedMetric, now);
+      if (decision.enqueue) {
+        const metricId = savedMetric._id.toString();
         try {
           await qstashClassificationClient.publishJSON({
             url: classificationWorkerUrl,
-            body: { metricId: savedMetric._id.toString() },
+            body: { metricId },
+            retries: 2,
+            deduplicationId: syncClassificationDeduplicationId(metricId, now),
           });
-          logger.info(`${TAG} Tarefa de classificação enviada para QStash para Metric ${savedMetric._id}.`);
+          logger.info(`${TAG} Tarefa de classificação enviada para QStash para Metric ${metricId}.`);
+          try {
+            await MetricModel.updateOne(
+              { _id: savedMetric._id, classificationStatus: 'pending' },
+              { $set: { classificationLastQueuedAt: now } },
+            );
+          } catch (markError) {
+            logger.warn(`${TAG} Classificação enviada, mas classificationLastQueuedAt não foi gravado para Metric ${metricId}.`, markError);
+          }
         } catch (qstashError) {
-          logger.error(`${TAG} ERRO ao enviar tarefa de classificação para QStash para Metric ${savedMetric._id}.`, qstashError);
+          logger.error(`${TAG} ERRO ao enviar tarefa de classificação para QStash para Metric ${metricId}.`, qstashError);
         }
       } else {
-        logger.debug(`${TAG} Pulando agendamento de classificação para Metric ${savedMetric._id}. Status: ${savedMetric.classificationStatus}, Descrição: ${savedMetric.description ? 'Existe' : 'Não existe'}`);
+        logger.debug(`${TAG} Pulando agendamento de classificação para Metric ${savedMetric._id}. Motivo: ${decision.reason}.`);
       }
     } else if (!classificationWorkerUrl && qstashClassificationClient) {
       logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definido. Classificação automática de conteúdo não será agendada.`);

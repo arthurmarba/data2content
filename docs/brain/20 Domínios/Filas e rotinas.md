@@ -67,6 +67,11 @@ de eventos por criador. Falha de publicação na fila não invalida a evidência
 cron `recover-content-intelligence` é a retaguarda. O lote reserva espaço para
 pendências antigas e alterna criadores dentro de cada faixa de idade.
 
+A classificação de texto tem duas portas: a sincronização envia o post novo e o
+cron recupera o adiado por saldo ou limite. A sincronização não reenvia post adiado
+nem post enviado dentro da janela de `INTELLIGENCE_RECOVERY_REQUEUE_HOURS` — ver
+[[Sincronização reenviava post adiado e enchia a DLQ]].
+
 O enriquecimento do Instagram usa posse temporária, checkpoint e revisão de
 conteúdo. Mudança apenas de métricas não provoca outra geração do mapa. A
 sincronização não espera pela IA de enriquecimento.

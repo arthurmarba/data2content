@@ -7,6 +7,7 @@ import UserModel from "@/app/models/User";
 import { logger } from "@/app/lib/logger";
 import { SCENE_EVALUATION_VERSION } from "@/app/lib/relatorio/sceneEvaluation";
 import { findPendingReadingBatch } from "@/app/lib/relatorio/contentReadingState";
+import { classificationRequeueAfterMs, DEFERRED_CLASSIFICATION_ERROR } from "@/app/lib/classificationRequeue";
 
 import { enqueueProfileRefresh, enqueueInstagramMapEnrichment } from '@/app/lib/creatorWeeklyReport/queue';
 
@@ -34,7 +35,9 @@ const MAX_CLASSIFICATIONS = Number(process.env.INTELLIGENCE_RECOVERY_CLASSIFICAT
 // abrir a torneira: o teto real de gasto é a trava de orçamento do Gemini, e quem já
 // tem leitura nunca é reenfileirado.
 const MAX_SCENES = Number(process.env.INTELLIGENCE_RECOVERY_SCENE_LIMIT || 150);
-const REQUEUE_AFTER_MS = Number(process.env.INTELLIGENCE_RECOVERY_REQUEUE_HOURS || 6) * 60 * 60 * 1000;
+// A sincronização do Instagram pula os posts adiados contando com este cron; a regra
+// e a janela vêm do mesmo lugar para as duas portas não divergirem.
+const REQUEUE_AFTER_MS = classificationRequeueAfterMs();
 
 async function authorized(request: NextRequest, body: string): Promise<boolean> {
   const bearer = request.headers.get("authorization");
@@ -108,14 +111,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const retryableError = /(classifica.{0,8}adiada|rate.?limit|quota|saldo|resource_exhausted|too many requests)/i;
     const pending = (await MetricModel.find(
       {
         user: { $in: subscriberIds },
         postDate: { $gte: contentSince },
         classificationStatus: { $in: ["pending", "failed"] },
         description: { $exists: true, $nin: [null, ""] },
-        classificationError: retryableError,
+        classificationError: DEFERRED_CLASSIFICATION_ERROR,
         $or: [
           { classificationLastQueuedAt: null },
           { classificationLastQueuedAt: { $exists: false } },
