@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-27
+atualizado: 2026-09-29
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -36,14 +36,14 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 31 |
+| `CRON_SECRET` | 33 |
 
 ## FACEBOOK
 
 | Variável | Usos no código |
 | --- | --- |
-| `FACEBOOK_CLIENT_ID` | 13 |
-| `FACEBOOK_CLIENT_SECRET` | 12 |
+| `FACEBOOK_CLIENT_ID` | 14 |
+| `FACEBOOK_CLIENT_SECRET` | 13 |
 
 ## GEMINI
 
@@ -93,7 +93,7 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `MCP_CAMPAIGN_RADAR_ENABLED` | 21 |
+| `MCP_CAMPAIGN_RADAR_ENABLED` | 22 |
 | `MCP_SUPPORTED_SCOPES` | 15 |
 | `MCP_ADMIN_SUPPORTED_SCOPES` | 12 |
 | `MCP_CONNECTION_SCOPES` | 11 |
@@ -338,6 +338,7 @@ atualizado: 2026-09-27
 | `CHROME_BIN` | 4 |
 | `PLAYWRIGHT_CHROMIUM_BIN` | 4 |
 | `PLAYWRIGHT_EXECUTABLE_PATH` | 4 |
+| `USAGE_EVENTS_DISABLED` | 4 |
 | `ADMIN_TOKEN` | 3 |
 | `ALLOW_LOCAL_E2E_ROUTES` | 3 |
 | `CLASSIFICATION_CACHE_ENABLED` | 3 |
@@ -349,7 +350,6 @@ atualizado: 2026-09-27
 | `PROPOSAL_ANALYSIS_V2_ENABLED` | 3 |
 | `UPSTASH_REDIS_REST_TOKEN` | 3 |
 | `UPSTASH_REDIS_REST_URL` | 3 |
-| `USAGE_EVENTS_DISABLED` | 3 |
 | `USER` | 3 |
 | `ACK_SKIP_THRESHOLD_MINUTES` | 2 |
 | `ANSWER_ENGINE_ENABLED` | 2 |

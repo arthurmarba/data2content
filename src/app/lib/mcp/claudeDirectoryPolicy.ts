@@ -25,6 +25,14 @@ export const ASSISTANT_DIRECTIVE_KEYS = [
   "conversationPolicy",
   "onboardingPrompt",
   "closingReminder",
+  // Achados na conferência ao vivo de 29/09/2026: blocos de orientação ao
+  // assistente dentro de respostas de seguidores, roteiro e inspirações.
+  "analysisContract",
+  "rules",
+  "nextStep",
+  "avoid",
+  "adaptationInstruction",
+  "rubric",
 ] as const;
 
 const DIRECTIVE_KEY_SET: ReadonlySet<string> = new Set(ASSISTANT_DIRECTIVE_KEYS);

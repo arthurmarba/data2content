@@ -13,7 +13,7 @@ Em 29/09/2026 a Anthropic devolveu a submissão do diretório de conectores. As 
 Quando a conexão vem do Claude (`clientSurface === "claude"`, decidido pelo registro OAuth em `clientSurface.ts`):
 
 - **Instruções** (`buildClaudeServerInstructions`): o que cada ferramenta faz e quando serve, o vocabulário do mapa como definição e como ler os dados. Menos de 1.900 caracteres; o portal cortou a versão anterior por volta de 2.040.
-- **Respostas:** saem, em qualquer profundidade, `instruction`, `usage`, `nextAction`, `technicalDetail(Audience)`, `conversationPolicy`, `onboardingPrompt` e `closingReminder`. Saem também do formato declarado de cada ferramenta, senão a validação da biblioteca recusa a resposta.
+- **Respostas:** saem, em qualquer profundidade, `instruction`, `usage`, `nextAction`, `technicalDetail(Audience)`, `conversationPolicy`, `onboardingPrompt`, `closingReminder`, `analysisContract`, `rules` e `nextStep` (de `responseContract`), `avoid` (de `adaptationGuidance`), `adaptationInstruction` e `rubric`. Os seis últimos só apareceram na conferência ao vivo: a primeira busca procurou certos verbos e esses blocos usam outros. Saem também do formato declarado de cada ferramenta, senão a validação da biblioteca recusa a resposta.
 - **Conta gratuita:** sem lembrete no fim. O limite continua voltando como erro com o código do recurso e o link do perfil, como dado.
 - **Collab:** a descrição diz que só aparece quem ativou "aparecer para collab" e que métricas privadas nunca saem.
 
@@ -33,6 +33,9 @@ A OpenAI estava revisando a versão enviada em 26/09 com as instruções antigas
 O lembrete ao fim das respostas gratuitas era peça do [[Funil do plugin]]. No Claude ele deixa de existir; o caminho para o site passa a ser só o link devolvido quando um recurso está fora do plano.
 
 ## Conferir
+
+`npx tsx --env-file=.env.local ./scripts/smokeClaudeConnector.ts` roda todas as ferramentas como o Claude, na conta fictícia, e falha se achar campo de ordem ou frase que comece com verbo de ordem fora do que é conteúdo para o criador (pontos de roteiro, recomendações, mensagens ao usuário). `--write-demo` inclui as ferramentas que gravam, só na conta fictícia. **Rodar antes de cada envio ao diretório** — nome de campo novo com orientação ao assistente escapa da lista.
+
 
 `npm run test:mcp` — `claudeDirectoryPolicy.test.ts` mede as instruções e procura verbos de ordem; `server.test.ts` confere, no Claude, que nenhuma ferramenta declara campo de ordem e que as duas ferramentas publicam seus campos nos dois chats.
 
