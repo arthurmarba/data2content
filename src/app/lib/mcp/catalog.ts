@@ -365,6 +365,7 @@ export async function getMcpCollabCreatorSuggestions(params: {
       themeKeyword: params.themeKeyword,
       periodDays: params.periodDays,
       limit: params.limit,
+      onlyCollabDiscoveryOptIn: true,
     }),
     suggestMcpCollabCreators({ userId: params.userId, limit: 5 }).catch(() => null),
     loadMcpCreatorMap(params.userId).catch(() => null),

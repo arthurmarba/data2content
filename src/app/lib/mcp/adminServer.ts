@@ -33,7 +33,7 @@ import { getMcpCreatorImages, MCP_CREATOR_IMAGES_MAX } from "./creatorImages";
 import { buildMcpUsageReport } from "./usageReport";
 import { SCRIPT_GOALS } from "@/app/lib/scripts/scriptEvidenceSelection";
 import { comparePublicInstagramCreators, getPublicInstagramCreator, PublicInstagramResearchError,
-  publicInstagramComparisonSchema, publicInstagramInputSchema } from "./publicInstagramResearch";
+  publicInstagramComparisonInputSchema, publicInstagramInputSchema } from "./publicInstagramResearch";
 
 export interface D2CAdminMcpContext {
   identity: McpAuthenticatedIdentity;
@@ -301,9 +301,9 @@ export function createD2CAdminMcpServer(context: D2CAdminMcpContext): McpServer 
   registerTool("compare_public_instagram_creators", {
     title: "Comparar criadores externos pelos @s",
     description: "Consulta entre dois e três perfis profissionais externos na Meta, com amostras e lacunas por perfil. Não é levantamento completo de mercado. Mesma quantidade de posts não garante mesmo período. Não compare engajamento por seguidores com engajamento por alcance nem invente métricas ausentes.",
-    inputSchema: publicInstagramComparisonSchema, outputSchema: z.object({}).passthrough(),
+    inputSchema: publicInstagramComparisonInputSchema, outputSchema: z.object({}).passthrough(),
     annotations: { ...READ_ONLY_ANNOTATIONS, openWorldHint: true },
-  }, async (args: z.input<typeof publicInstagramComparisonSchema>) => {
+  }, async (args: z.input<typeof publicInstagramComparisonInputSchema>) => {
     const result = await comparePublicInstagramCreators(context.identity.userId, args);
     return { ...structuredJsonResult(result), ...(result.coverage.availableCreators === 0 ? { isError: true } : {}) };
   });

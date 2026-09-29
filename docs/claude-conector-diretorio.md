@@ -102,3 +102,44 @@ Pontos a conferir contra o nosso servidor antes de marcar:
 
 Duas promessas da descrição não batiam com o servidor e foram corrigidas: "criadores que dividem território com você" (a ferramenta de collab não trazia território; agora traz `sharedTerritories` e as propostas da aba Collabs) e "comparados com a sua própria mediana de 90 dias" (agora `analyze_creator_period` devolve medianas). A lista de ferramentas sincroniza sozinha no portal; nomes e quantidade não mudaram.
 
+
+## Devolução da Anthropic — 29/09/2026
+
+Quatro correções pedidas e a listagem em inglês. O que mudou no código está em `docs/brain/40 Decisões/Conector do Claude sem ordens.md`. Depois do deploy, reconectar no portal (etapa Connection) para ele reler instruções e ferramentas.
+
+### Listing em inglês
+
+- **Name:** Data2Content
+- **One-liner:**
+  > Your creator map inside Claude: what to post, whether an idea is worth posting, how your week went, collabs and scripts in your own voice, backed by your own Instagram numbers.
+- **Description:**
+  > Data2Content reads a creator's life as a narrative and turns it into decisions backed by evidence. With the connector, Claude reads your map (narrative, territories, life assets and content ideas) and the numbers of your own Instagram posts, so answers use your vocabulary instead of generic advice for anyone in the same niche.
+  >
+  > What you can ask:
+  > • What to post now: up to three content ideas anchored in your narrative, each with a hook and the reason it fits you.
+  > • Is this worth posting? A yes-or-no verdict on three axes: narrative, audience and brand fit.
+  > • How your week went: your last 7 days compared with your own 90-day median, never with other creators.
+  > • Daily follower growth and your best posts, always stating the metric, the period and the data coverage.
+  > • Collabs: creators who opted in to collab recommendations and share a territory with you, with a recording idea.
+  > • Reels scripts written from your own videos that performed best.
+  >
+  > Almost everything is read-only on your own account. The connector only writes when you ask: your North statement, a script saved to your library, or your voice preferences. It never posts to Instagram or sends messages.
+  >
+  > Requires a Data2Content account. Analysis of your own posts requires Instagram connected inside Data2Content. The account content is in Brazilian Portuguese.
+
+### Resposta ao e-mail (rascunho, Arthur envia)
+
+> Hi Anthropic Directory team,
+>
+> Thank you for the detailed review. All items are addressed and live on https://data2content.ai/api/mcp:
+>
+> 1. Server instructions no longer direct Claude. They only describe what each tool does and how to read the data. "siga conversationPolicy", the onboarding prompt directive and the per-response reminder were removed. get_account_state now returns plain data (northDeclared, contextDepth, instagramConnected, profile links). No tool response carries conversationPolicy, onboardingPrompt, closingReminder or other assistant-directed fields, and those fields were removed from the declared output schemas. The instructions are now about 1,860 characters, so they are no longer truncated.
+> 2. The community-invite and limitation-suppression directives were removed. Plan-gated tools return an explicit error with the feature code and a profile link as data.
+> 3. recommend_collab_creators now only surfaces creators who turned on the Collabs option to be recommended to other creators. Their private Instagram metrics are never returned; scores are relative (0–100 and 0–1) and followers is the public count. This is stated in the tool description and in our privacy policy (https://data2content.ai/politica-de-privacidade, "Sugestões de collab").
+> 4. compare_public_instagram_creators now publishes a required usernames array (minItems 2, maxItems 3), and record_script_feedback publishes scriptId (required), voiceMatch, preferredDirection and notes. The cause was a refinement wrapper that hid the schema from the tool list; it applied to both tools and is fixed.
+> 5. The listing is now in English.
+>
+> We reconnected the server in the developer portal so the snapshot matches what is served.
+>
+> Best,
+> Arthur Marbá, Data2Content
