@@ -21,10 +21,16 @@ export const publicInstagramInputSchema = z.object({
   username: publicInstagramUsernameSchema,
   postLimit: z.number().int().min(1).max(50).default(25),
 });
-export const publicInstagramComparisonSchema = z.object({
-  usernames: z.array(publicInstagramUsernameSchema).min(2).max(3),
+// O formato publicado na lista de ferramentas precisa ser um objeto simples: com
+// .refine() a montagem da lista não reconhece o esquema e publica "sem campos",
+// e nenhum assistente sabe o que mandar. A regra dos @s repetidos fica abaixo.
+export const publicInstagramComparisonInputSchema = z.object({
+  usernames: z.array(publicInstagramUsernameSchema).min(2).max(3)
+    .describe("De dois a três @s profissionais públicos, diferentes entre si"),
   postLimit: z.number().int().min(1).max(50).default(25),
-}).refine(value => new Set(value.usernames).size === value.usernames.length, {
+});
+
+export const publicInstagramComparisonSchema = publicInstagramComparisonInputSchema.refine(value => new Set(value.usernames).size === value.usernames.length, {
   message: "Informe perfis diferentes para comparar.",
 });
 
@@ -119,7 +125,10 @@ export async function getPublicInstagramCreator(actorUserId: string, input: z.in
 }
 
 export async function comparePublicInstagramCreators(actorUserId: string, input: z.input<typeof publicInstagramComparisonSchema>) {
-  const { usernames, postLimit } = publicInstagramComparisonSchema.parse(input);
+  const { usernames, postLimit } = publicInstagramComparisonInputSchema.parse(input);
+  if (new Set(usernames).size !== usernames.length) {
+    throw new PublicInstagramResearchError("duplicate_usernames", "Informe perfis diferentes para comparar.");
+  }
   const outcomes = await Promise.all(usernames.map(async username => {
     try { return { username, data: await getPublicInstagramCreator(actorUserId, { username, postLimit }) }; }
     catch (error) {

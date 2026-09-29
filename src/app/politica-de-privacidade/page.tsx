@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-4 text-sm text-[var(--ds-color-text-muted)]">
-              <strong>Última Atualização:</strong> 26 de setembro de 2026
+              <strong>Última Atualização:</strong> 29 de setembro de 2026
             </p>
           </header>
 
@@ -89,6 +89,7 @@ export default function PrivacyPolicyPage() {
               <li><strong>Entrega ao assistente:</strong> os dados necessários para responder ao seu pedido são enviados, por meio da resposta da ferramenta, à OpenAI quando você usa o ChatGPT, ou à Anthropic quando você usa o Claude.</li>
               <li><strong>Mapa e evidências próprias:</strong> quando disponíveis e autorizados, retornamos narrativa, territórios, elementos de vida declarados, pautas, padrões de voz e sinais de desempenho, incluindo a variação observada de seguidores; transcrições próprias são incluídas nas ferramentas e pedidos que as requerem para analisar ou escrever com essas referências.</li>
               <li><strong>Preparação e revisão de roteiros:</strong> podemos guardar temporariamente referências próprias, métricas e o rascunho gerado para revisar o texto com as mesmas evidências. Adicionar o roteiro à biblioteca exige confirmação explícita. Avaliações e preferências de voz só são registradas quando você pede e podem substituir sua avaliação anterior.</li>
+              <li><strong>Sugestões de collab:</strong> quando o plugin ou o conector sugere outros criadores para uma collab, aparecem apenas criadores que ativaram, na aba Collabs, a opção de serem recomendados a outros criadores — e que podem desativá-la a qualquer momento. Das pessoas sugeridas mostramos nome, @, foto de perfil, contagem pública de seguidores, link do mídia kit, territórios em comum, quantidade de posts considerados, data do post mais recente e uma pontuação relativa de afinidade; métricas privadas do Instagram delas, como alcance, visualizações e interações, nunca são exibidas.</li>
               <li><strong>Radar de publicidades:</strong> a consulta usa um catálogo previamente revisado e não envia candidaturas nem contata marcas. Para contas gratuitas, guardamos a oportunidade selecionada na semana e um identificador derivado da conta por até 21 dias para manter a mesma seleção.</li>
             </ul>
 

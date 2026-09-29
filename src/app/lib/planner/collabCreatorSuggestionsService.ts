@@ -7,6 +7,7 @@ import {
 import { connectToDatabase } from "@/app/lib/mongoose";
 import MetricModel from "@/app/models/Metric";
 import UserModel from "@/app/models/User";
+import { discoveryQuery } from "@/app/lib/collabs/eligibility";
 import { getCategoryById, getCategoryByValue, getCategoryWithSubcategoryIds } from "@/app/lib/classification";
 import {
   scoreCollabCreator,
@@ -90,6 +91,11 @@ export type BuildCollabCreatorSuggestionsInput = {
   periodDays?: number | null;
   limit?: number | null;
   now?: Date;
+  /**
+   * Só criadores que ativaram "aparecer para collab" na aba Collabs. O MCP usa:
+   * mostrar outro criador a um terceiro sem esse aceite expõe quem não pediu.
+   */
+  onlyCollabDiscoveryOptIn?: boolean;
 };
 
 export type BuildCollabCreatorSuggestionsResult = {
@@ -349,7 +355,10 @@ export async function buildCollabCreatorSuggestions(
   const candidateCreatorIds = candidateEntries.map(([id]) => id);
   const [users, metricSummaries] = await Promise.all([
     candidateEntries.length
-      ? UserModel.find({ _id: { $in: candidateCreatorIds } })
+      ? UserModel.find({
+          _id: { $in: candidateCreatorIds },
+          ...(input.onlyCollabDiscoveryOptIn ? discoveryQuery() : {}),
+        })
           .select("name username profile_picture_url followers_count mediaKitSlug")
           .lean()
       : [],
@@ -362,7 +371,12 @@ export async function buildCollabCreatorSuggestions(
   ]);
   const userMap = new Map((users as any[]).map((user: any) => [user._id?.toString(), user]));
 
-  const scoredCandidates = candidateEntries
+  // Sem o aceite, o criador não vem na busca de usuários e sai do ranking inteiro,
+  // inclusive das referências de máximo usadas para as notas relativas.
+  const rankedEntries = input.onlyCollabDiscoveryOptIn
+    ? candidateEntries.filter(([id]) => userMap.has(id))
+    : candidateEntries;
+  const scoredCandidates = rankedEntries
     .map(([id, entry]) => {
       const user = userMap.get(id) as any;
       const summary = metricSummaries.get(id);
