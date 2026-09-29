@@ -730,7 +730,8 @@ describe("Data2Content MCP server", () => {
     const { client, server } = await connect(true, undefined, "pro", "claude");
     try {
       const { tools } = await client.listTools();
-      const forbidden = ["instruction", "usage", "nextAction", "conversationPolicy", "closingReminder", "onboardingPrompt"];
+      const forbidden = ["instruction", "usage", "nextAction", "conversationPolicy", "closingReminder", "onboardingPrompt",
+        "analysisContract", "rules", "nextStep", "avoid", "adaptationInstruction", "rubric"];
       for (const tool of tools) {
         const keys = schemaKeysDeep(tool.outputSchema);
         expect({ tool: tool.name, found: forbidden.filter((key) => keys.has(key)) })

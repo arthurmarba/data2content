@@ -27,8 +27,19 @@ describe('política do Claude', () => {
       usage: ['x'],
       save: { nextTool: 'save_script', instruction: 'Mostre o rascunho' },
       list: [{ nextAction: 'open', keep: true }],
+      analysisContract: ['Fale em saldo'],
+      responseContract: { safeSummary: 'resumo', rules: ['Mostre'], nextStep: 'Escreva' },
+      adaptationGuidance: { borrow: ['A lógica de abertura'], avoid: 'Não copie' },
+      voiceReview: { rubric: ['Explique'], limitations: ['Heurística'] },
     });
-    expect(cleaned).toEqual({ a: 1, save: { nextTool: 'save_script' }, list: [{ keep: true }] });
+    expect(cleaned).toEqual({
+      a: 1,
+      save: { nextTool: 'save_script' },
+      list: [{ keep: true }],
+      responseContract: { safeSummary: 'resumo' },
+      adaptationGuidance: { borrow: ['A lógica de abertura'] },
+      voiceReview: { limitations: ['Heurística'] },
+    });
   });
 
   it('limpa também o texto em JSON e deixa texto comum intacto', () => {

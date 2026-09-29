@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-27
+atualizado: 2026-09-29
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
