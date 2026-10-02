@@ -218,7 +218,7 @@ describe("MCP exact period analysis", () => {
       evidenceLimit: 10,
       generatedAt: new Date("2026-10-02T12:00:00.000Z"),
       documents: [
-        { _id: "reel1", type: "REEL", postDate: new Date("2026-04-10T15:00:00.000Z"), stats: { reach: 900, views: 1200 } },
+        { _id: "reel1", type: "REEL", postDate: new Date("2026-04-10T15:00:00.000Z"), stats: { reach: 900, views: 1200, ig_reels_avg_watch_time: 4000 } },
         { _id: "reel2", type: "REEL", postDate: "2026-03-29T15:32:05.000Z", postLink: "https://www.instagram.com/reel/x/", stats: { video_duration_seconds: 119 } },
       ],
     });
@@ -227,6 +227,8 @@ describe("MCP exact period analysis", () => {
     expect(result.coverage.metricGaps.map((gap) => [gap.metric, gap.reason])).toEqual([
       ["follows", "instagram_does_not_report_for_reels"],
       ["profile_visits", "instagram_does_not_report_for_reels"],
+      // Tempo médio sem duração: Reel com música protegida, não retenção zero.
+      ["retention_rate", "instagram_does_not_provide_video_duration"],
     ]);
     expect(result.coverage.warnings).toEqual(expect.arrayContaining([
       "follower_metrics_not_reported_for_reels",

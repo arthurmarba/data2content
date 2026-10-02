@@ -32,6 +32,15 @@ rótulo — parece falha nossa e é restrição do Instagram.
 - Se um dia a leitura por miniatura valer a pena, `thumbnail_url` existe — mas perde
   fala e movimento, que é o que alimenta mapa e roteiros.
 
+## Também some a retenção (02/10/2026)
+
+Sem arquivo, também não vem `video_duration` (pedir o campo no nó do post dá
+`(#100) Tried accessing nonexisting field`). Retenção é tempo médio ÷ duração, então
+esses Reels ficam sem retenção — ~1,7 mil Reels recentes na base. O tempo médio
+assistido continua vindo. O conector explica a lacuna em
+`coverage.metricGaps` (`instagram_does_not_provide_video_duration`) em vez de mostrar
+retenção vazia sem motivo.
+
 ## Como conferir
 
 Buscar `id,media_type,media_product_type,media_url,thumbnail_url` do
