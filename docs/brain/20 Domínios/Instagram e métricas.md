@@ -22,6 +22,12 @@ tipo: domínio
 
 **O token expira.** Existe um fluxo inteiro de reconexão porque a autorização do criador cai sozinha com o tempo. Uma conta "sem dados" quase sempre é uma conta desconectada.
 
+**Carrossel sumia da listagem.** Pedir `media_product_type` dentro de
+`children{}` faz a Graph API omitir o carrossel inteiro da página, sem erro (25
+itens viram 23). Foi assim de 16/05/2025 a 02/10/2026: a base tinha **um**
+carrossel. Os campos dos itens moram em `CAROUSEL_CHILD_FIELDS` (`fetchers.ts`),
+com teste de regressão. Ver [[Carrossel some quando se pede o tipo dos itens]].
+
 **Retenção é conta nossa, não da Meta.** O Instagram manda o tempo médio
 assistido (`ig_reels_avg_watch_time`, em milissegundos); a duração vem da mídia.
 `saveMetricData` junta as duas em `stats.retention_rate` — antes de 02/10/2026 a
