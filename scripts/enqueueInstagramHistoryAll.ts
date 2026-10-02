@@ -8,7 +8,12 @@
  * o Atlas gratuito (limite de conexões).
  *
  * Uso (APP_BASE_URL precisa apontar para produção):
- *   APP_BASE_URL=https://data2content.ai npx tsx --env-file=.env.local scripts/enqueueInstagramHistoryAll.ts [--dry-run]
+ *   APP_BASE_URL=https://data2content.ai npx tsx --env-file=.env.local scripts/enqueueInstagramHistoryAll.ts [--dry-run] [--limit N]
+ *
+ * Quem está com o histórico em andamento é pulado: enfileirar de novo abriria uma
+ * segunda corrente do começo. Para retomar uma corrente que parou (o passo falhou
+ * até a fila desistir), passe `--user <id>`: ela recomeça do início e pula o que já
+ * foi gravado.
  */
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -17,10 +22,13 @@ import { needsHistoryBackfill } from '@/app/lib/instagram/sync/historyBackfill';
 import { enqueueInstagramHistoryBackfill } from '@/app/lib/instagram/historyBackfillQueue';
 
 /** Intervalo entre o início de um criador e o do seguinte. */
-const STAGGER_SECONDS = 90;
+const STAGGER_SECONDS = 300;
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
+  const limitArg = process.argv.indexOf('--limit');
+  const limit = limitArg >= 0 ? Number(process.argv[limitArg + 1]) : Infinity;
+  const onlyUsers = process.argv.flatMap((arg, index) => (process.argv[index - 1] === '--user' ? [arg] : []));
   await connectToDatabase();
   const users = await DbUser.find({
     isInstagramConnected: true,
@@ -31,7 +39,12 @@ async function main() {
     instagramHistoryBackfill?: { status?: string | null; instagramAccountId?: string | null };
   }>>();
 
-  const pending = users.filter((user) => needsHistoryBackfill(user.instagramHistoryBackfill, user.instagramAccountId));
+  const pending = (onlyUsers.length
+    ? users.filter((user) => onlyUsers.includes(String(user._id)))
+    : users
+      .filter((user) => needsHistoryBackfill(user.instagramHistoryBackfill, user.instagramAccountId))
+      .filter((user) => user.instagramHistoryBackfill?.status !== 'running')
+  ).slice(0, limit);
   console.log(`${dryRun ? '[simulação] ' : ''}conectados: ${users.length} · sem histórico: ${pending.length}`);
   if (dryRun) return;
 

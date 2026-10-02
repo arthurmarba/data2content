@@ -66,6 +66,8 @@ export type HistoryBackfillStepResult = HistoryBackfillStep & {
   pagesRead: number;
   postsSaved: number;
   postsWithoutInsights: number;
+  /** Posts que o banco recusou; ficam de fora sem travar o resto da conta. */
+  postsFailed: number;
   followerDaysSaved: number;
 };
 
@@ -83,6 +85,20 @@ export function afterCursorFromNextPageUrl(nextPageUrl: string | null | undefine
   } catch {
     return null;
   }
+}
+
+/**
+ * Post antigo recusa quase tudo: "does not support the views, likes, … metric for
+ * this media product type". A chamada é atômica, então a recusa derrubava até o
+ * alcance. Devolve a lista sem as recusadas (o que sobra costuma ser reach,saved),
+ * ou `null` se a mensagem não é dessa recusa.
+ */
+export function metricsLeftAfterRejection(message: string | null | undefined, requested: string): string | null {
+  const rejected = /does not support the ([a-z_, ]+?) metrics? for this media/i.exec(message ?? '')?.[1];
+  if (!rejected) return null;
+  const drop = new Set(rejected.split(',').map((metric) => metric.trim().toLowerCase()).filter(Boolean));
+  const left = requested.split(',').map((metric) => metric.trim()).filter((metric) => metric && !drop.has(metric));
+  return left.length && left.length < requested.split(',').length ? left.join(',') : null;
 }
 
 /** Mesma escolha de métricas da sincronização periódica. */
@@ -163,7 +179,7 @@ export async function runInstagramHistoryBackfillStep(params: {
   const dryRun = Boolean(params.dryRun);
   const now = params.now ?? new Date();
   const startedAt = Date.now();
-  const counters = { pagesRead: 0, postsSaved: 0, postsWithoutInsights: 0, followerDaysSaved: 0 };
+  const counters = { pagesRead: 0, postsSaved: 0, postsWithoutInsights: 0, postsFailed: 0, followerDaysSaved: 0 };
   const finish = (step: HistoryBackfillStep): HistoryBackfillStepResult => ({ ...step, ...counters });
 
   await connectToDatabase();
@@ -231,7 +247,9 @@ export async function runInstagramHistoryBackfillStep(params: {
     await Promise.all(pending.map((media) => limitInsights(async () => {
       if (stop.rateLimited || stop.tokenInvalid) return;
       const metrics = insightMetricsForMedia(media);
-      const insights = metrics ? await fetchMediaInsights(media.id, token, metrics) : null;
+      let insights = metrics ? await fetchMediaInsights(media.id, token, metrics) : null;
+      const accepted = metrics && insights && !insights.success ? metricsLeftAfterRejection(insights.error, metrics) : null;
+      if (accepted) insights = await fetchMediaInsights(media.id, token, accepted);
       if (insights && !insights.success) {
         if (isInstagramRateLimitError(insights.error)) { stop.rateLimited = true; return; }
         if (isTokenInvalidError(undefined, undefined, insights.error ?? undefined)) { stop.tokenInvalid = insights.error ?? 'token'; return; }
@@ -239,10 +257,18 @@ export async function runInstagramHistoryBackfillStep(params: {
       const stats: IMetricStats = insights?.success && insights.data
         ? { ...insights.data, ...calcFormulas([insights.data as Record<string, unknown>], media.media_type) } as IMetricStats
         : {} as IMetricStats;
-      if (!insights?.success) counters.postsWithoutInsights += 1;
       if (!dryRun) {
-        await saveMetricData(userId, await withVideoDuration(media), stats, { skipAiReadings: true, skipMediaUrls: true });
+        try {
+          await saveMetricData(userId, await withVideoDuration(media), stats, { skipAiReadings: true, skipMediaUrls: true });
+        } catch (error) {
+          // Um post recusado pelo banco não pode travar a conta inteira: antes, o erro
+          // derrubava o passo e a fila repetia o mesmo passo até desistir.
+          logger.warn(`${TAG} Post ${media.id} de ${params.userId} não gravado: ${error instanceof Error ? error.message : error}`);
+          counters.postsFailed += 1;
+          return;
+        }
       }
+      if (!insights?.success) counters.postsWithoutInsights += 1;
       counters.postsSaved += 1;
     })));
 
@@ -274,6 +300,6 @@ export async function runInstagramHistoryBackfillStep(params: {
     });
   }
 
-  logger.info(`${TAG} User ${params.userId}: ${outcome.status}, ${counters.pagesRead} páginas, ${counters.postsSaved} posts antigos gravados (${counters.postsWithoutInsights} sem números), ${counters.followerDaysSaved} dias de seguidores.`);
+  logger.info(`${TAG} User ${params.userId}: ${outcome.status}, ${counters.pagesRead} páginas, ${counters.postsSaved} posts antigos gravados (${counters.postsWithoutInsights} sem números, ${counters.postsFailed} recusados), ${counters.followerDaysSaved} dias de seguidores.`);
   return finish(outcome);
 }

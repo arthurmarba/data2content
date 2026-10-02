@@ -7,7 +7,7 @@ import { enqueuePublishedReading } from '@/app/lib/creatorWeeklyReport/queue';
 jest.mock('@/app/lib/creatorWeeklyReport/queue', () => ({ enqueuePublishedReading: jest.fn().mockResolvedValue(true) }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/lib/logger', () => ({ logger: { info: jest.fn(), debug: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@/app/lib/classificationRuntime', () => ({ createEmptyMetricClassificationUpdate: () => ({}) }));
+jest.mock('@/app/lib/classificationRuntime', () => ({ createEmptyMetricClassificationUpdate: () => ({ format: [], proposal: [] }) }));
 jest.mock('@/app/models/Metric', () => ({ __esModule: true, default: { findOneAndUpdate: jest.fn() } }));
 jest.mock('@upstash/qstash', () => ({ Client: jest.fn().mockImplementation(() => ({ publishJSON: jest.fn() })) }));
 
@@ -77,4 +77,14 @@ it('histórico antigo não guarda os links de mídia, que expiram em dias', asyn
   expect(update.$set).not.toHaveProperty('mediaUrl');
   expect(update.$set).not.toHaveProperty('coverUrl');
   expect(update.$set).not.toHaveProperty('thumbnailUrl');
+});
+it('post sem legenda não escreve format em $set e $setOnInsert ao mesmo tempo', async () => {
+  (Metric.findOneAndUpdate as jest.Mock).mockImplementation(async (_filter, update) => ({
+    _id: new Types.ObjectId(), ...update.$set, ...update.$setOnInsert,
+  }));
+  await saveMetricData(new Types.ObjectId(), { id: 'sem-legenda', media_type: 'IMAGE', timestamp: new Date(Date.now() - 400 * 86400000).toISOString() } as any, {} as any);
+  const update = (Metric.findOneAndUpdate as jest.Mock).mock.calls[0][1];
+  expect(update.$set).toHaveProperty('format');
+  expect(update.$setOnInsert).not.toHaveProperty('format');
+  expect(update.$setOnInsert).toHaveProperty('proposal');
 });

@@ -23,12 +23,13 @@ async function main() {
   }
 
   let after: string | null = null;
-  const total = { pagesRead: 0, postsSaved: 0, postsWithoutInsights: 0, followerDaysSaved: 0 };
+  const total = { pagesRead: 0, postsSaved: 0, postsWithoutInsights: 0, postsFailed: 0, followerDaysSaved: 0 };
   for (;;) {
     const step = await runInstagramHistoryBackfillStep({ userId, after, dryRun });
     total.pagesRead += step.pagesRead;
     total.postsSaved += step.postsSaved;
     total.postsWithoutInsights += step.postsWithoutInsights;
+    total.postsFailed += step.postsFailed;
     total.followerDaysSaved += step.followerDaysSaved;
     console.log(`passo: ${step.status} · ${step.pagesRead} páginas · ${step.postsSaved} posts antigos`);
     if (step.status !== 'continue') {
@@ -40,7 +41,7 @@ async function main() {
     after = step.after;
   }
 
-  console.log(`${dryRun ? '[simulação] ' : ''}Total: ${total.pagesRead} páginas, ${total.postsSaved} posts antigos ${dryRun ? 'seriam gravados' : 'gravados'} (${total.postsWithoutInsights} sem números), ${total.followerDaysSaved} dias de novos seguidores.`);
+  console.log(`${dryRun ? '[simulação] ' : ''}Total: ${total.pagesRead} páginas, ${total.postsSaved} posts antigos ${dryRun ? 'seriam gravados' : 'gravados'} (${total.postsWithoutInsights} sem números, ${total.postsFailed} recusados), ${total.followerDaysSaved} dias de novos seguidores.`);
   await mongoose.disconnect();
 }
 

@@ -52,6 +52,14 @@ e fica com `classificationStatus: "pending"` — a repescagem só olha 90 dias, 
 ninguém o manda para a IA depois. Vídeo antigo vem sem `video_duration`; a duração
 é lida no cabeçalho do arquivo (2 MB, sem IA) para a retenção existir.
 
+Post sem legenda quebrava a gravação ("would create a conflict at 'format'"): a
+classificação vazia do `$setOnInsert` traz `format`, que o `$set` também grava.
+`saveMetricData` agora tira do `$setOnInsert` o que já está no `$set` — o erro era
+antigo e também derrubava post novo sem legenda na sincronização periódica. Post
+muito antigo recusa quase todas as métricas numa chamada atômica; o histórico
+repete só com as aceitas (em geral alcance e salvamentos). Post recusado pelo banco
+é pulado em vez de travar a conta.
+
 Roda em passos de até 12 páginas, guarda só o cursor `after` (a URL da Meta traz o
 token) e, se o Instagram pedir pausa, volta em 1 h, até 24 vezes. O estado fica em
 `User.instagramHistoryBackfill`; conta que já tem `done` para o mesmo
