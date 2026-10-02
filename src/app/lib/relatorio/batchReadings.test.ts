@@ -6,7 +6,7 @@
 import { enviarLoteDeLeituras, coletarLotes } from "./batchReadings";
 import BatchJob from "@/app/models/GeminiBatchJob";
 import { rejectBatchOperation, settleBatchOperation } from "@/app/lib/llm/geminiGovernance";
-import { releaseBatched, markBatched, deferReading } from "./contentReadingState";
+import { releaseBatched, markBatched, deferReading, completeBatched } from "./contentReadingState";
 import { persistPublishedReading } from "./persistPublishedReading";
 
 const criarJob = jest.fn();
@@ -35,7 +35,7 @@ jest.mock("@/app/models/User", () => ({ __esModule: true, default: {
 jest.mock("./contentReadingState", () => ({
   findPendingReadingBatch: jest.fn(async () => [{ _id: "post1", user: "criador1", type: "REEL", stats: { video_duration_seconds: 30 }, instagramMediaId: "ig1" }]),
   acquireReading: jest.fn(async () => ({ token: "posse", result: null })),
-  markBatched: jest.fn(), releaseBatched: jest.fn(async () => 1), deferReading: jest.fn(),
+  markBatched: jest.fn(), releaseBatched: jest.fn(async () => 1), deferReading: jest.fn(), completeBatched: jest.fn(),
 }));
 jest.mock("./mapProfiles", () => ({ loadMapProfiles: jest.fn(async () => new Map([["criador1", { creatorId: "criador1", assets: [], toneIds: [], subjects: [], territoryIds: [], primaryTerritoryId: null, narrative: null, narrativeConfirmed: false, misplacedTerritoryLabels: [], maturity: null }]])) }));
 jest.mock("./publishedMedia", () => ({ freshPublishedMedia: jest.fn(async () => ({ mediaType: "VIDEO", mediaUrl: "https://video", imageUrls: [], items: [] })) }));
@@ -105,6 +105,8 @@ it("coleta grava a leitura, quita a operação e só então apaga o arquivo", as
   expect(await coletarLotes()).toMatchObject({ jobs: 1, lidos: 1, devolvidos: 0 });
   expect(settleBatchOperation).toHaveBeenCalled();
   expect(persistPublishedReading).toHaveBeenCalledWith(expect.objectContaining({ metricId: "post1", creatorId: "criador1" }));
+  // Sem isto a leitura existia e a etiqueta ficava presa em "batched".
+  expect(completeBatched).toHaveBeenCalledWith("post1");
   expect(apagarArquivo).toHaveBeenCalledWith({ name: "files/arquivo1" });
 });
 

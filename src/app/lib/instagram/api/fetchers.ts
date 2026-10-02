@@ -30,7 +30,8 @@ import axios, { AxiosError } from 'axios';
 export async function fetchInstagramMedia(
   accountId: string,
   accessToken: string,
-  pageUrl?: string
+  pageUrl?: string,
+  options: { after?: string } = {}
 ): Promise<FetchMediaResult> {
   const logContext = pageUrl ? 'fetchInstagramMedia (Paginação)' : 'fetchInstagramMedia';
   logger.info(`[${logContext}] Iniciando busca de mídias para Conta IG ${accountId}...`);
@@ -47,7 +48,10 @@ export async function fetchInstagramMedia(
   } else {
     const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,video_duration,children{id,media_type,media_product_type,media_url,thumbnail_url,video_duration},parent_id';
     const limit = 25;
-    url = `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
+    // `after` retoma a paginação de uma execução anterior sem guardar a URL do
+    // Instagram, que carrega o token.
+    const afterParam = options.after ? `&after=${encodeURIComponent(options.after)}` : '';
+    url = `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}${afterParam}&access_token=${accessToken}`;
   }
   logger.debug(`[${logContext}] URL da requisição de mídia: ${url.replace(accessToken, '[TOKEN_OCULTO]')}`);
 
@@ -498,5 +502,57 @@ export async function fetchBasicAccountData(
     logger.error(`[${logContext}] Erro final ao buscar dados básicos para Conta ${accountId}:`, error);
     const message = error.message || String(error);
     return { success: false, error: `Erro interno ao buscar dados básicos da conta: ${message}` };
+  }
+}
+
+export interface InstagramDailyNewFollowers {
+  /** Fim do dia do Instagram (meia-noite no horário do Pacífico), como a API devolve. */
+  endTime: Date;
+  /** Contas que começaram a seguir naquele dia, segundo o Instagram. Não desconta quem saiu. */
+  newFollowers: number;
+}
+
+/**
+ * Novos seguidores por dia, como o próprio Instagram informa (`follower_count`,
+ * `period=day`). É a única forma de ter série de seguidores antes da conexão: a
+ * API guarda só os últimos 30 dias e não informa para contas com menos de 100
+ * seguidores.
+ *
+ * Os dois dias mais recentes chegam zerados enquanto o Instagram ainda não
+ * fechou a conta deles — por isso tudo que termina a menos de 48 h de agora é
+ * descartado, em vez de virar um zero falso.
+ */
+export async function fetchDailyNewFollowers(
+  accountId: string,
+  accessToken: string,
+  days = 30,
+  now = new Date()
+): Promise<{ success: boolean; data?: InstagramDailyNewFollowers[]; error?: string }> {
+  const logContext = 'fetchDailyNewFollowers';
+  if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
+  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
+
+  const until = Math.floor(now.getTime() / 1000);
+  // A API recusa janela maior que 30 dias; uma hora de folga evita cair fora dela.
+  const since = until - Math.min(30, Math.max(1, days)) * 86_400 + 3_600;
+  const url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=follower_count&period=day&since=${since}&until=${until}&access_token=${accessToken}`;
+
+  try {
+    const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, logContext, accessToken);
+    if (response.error) {
+      return { success: false, error: `Falha API (${response.error.code}): ${response.error.message}` };
+    }
+    const settledBefore = now.getTime() - 48 * 3_600_000;
+    const values = response.data?.find((item) => item.name === 'follower_count')?.values ?? [];
+    const data = values
+      .map((entry) => ({ endTime: new Date(String(entry.end_time ?? '')), value: entry.value }))
+      .filter((entry): entry is { endTime: Date; value: number } =>
+        typeof entry.value === 'number' && Number.isFinite(entry.value) && entry.value >= 0 &&
+        Number.isFinite(entry.endTime.getTime()) && entry.endTime.getTime() <= settledBefore)
+      .map((entry) => ({ endTime: entry.endTime, newFollowers: entry.value }));
+    return { success: true, data };
+  } catch (error: any) {
+    logger.warn(`[${logContext}] Falha ao buscar novos seguidores por dia da conta ${accountId}: ${error?.message ?? error}`);
+    return { success: false, error: error?.message ?? String(error) };
   }
 }

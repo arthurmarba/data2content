@@ -32,7 +32,7 @@ import {
   SCENE_MAX_OUTPUT_TOKENS, SCENE_EVALUATION_VERSION,
 } from "./sceneEvaluation";
 import { LEGACY_SCENE_FORMAT } from "./compactSceneFormat";
-import { findPendingReadingBatch, acquireReading, markBatched, releaseBatched, deferReading } from "./contentReadingState";
+import { findPendingReadingBatch, acquireReading, markBatched, releaseBatched, completeBatched, deferReading } from "./contentReadingState";
 import { persistPublishedReading } from "./persistPublishedReading";
 import { readingRevision } from "./readingRevision";
 
@@ -228,6 +228,7 @@ export async function coletarLotes(): Promise<{ jobs: number; lidos: number; dev
         if (!lida) throw new Error("Resposta ilegível.");
 
         await persistPublishedReading({ metricId, creatorId: String(item.creatorId), scene: { ...lida, provider: registro.model } as any });
+        await completeBatched(metricId);
         await BatchJob.updateOne({ _id: registro._id, "items.metricId": metricId }, { $set: { "items.$.state": "done" } });
         lidos++;
       } catch (erro) {

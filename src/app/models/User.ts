@@ -334,6 +334,21 @@ export interface IUser extends Document {
   instagramReconnectUpdatedAt?: Date | null;
   instagramAccessTokenExpiresAt?: Date | null;
   instagramDisconnectCount?: number;
+  /**
+   * Histórico antigo do Instagram, puxado uma vez na conexão: posts além da janela
+   * da sincronização periódica e os 30 dias de seguidores anteriores à conexão.
+   * Só chamadas ao Instagram — nenhuma leitura de IA.
+   */
+  instagramHistoryBackfill?: {
+    instagramAccountId?: string | null;
+    status?: 'running' | 'done' | 'failed' | null;
+    startedAt?: Date | null;
+    finishedAt?: Date | null;
+    postsSaved?: number;
+    pagesRead?: number;
+    followerDaysSaved?: number;
+    lastError?: string | null;
+  };
   username?: string | null;
   biography?: string;
   website?: string;
@@ -715,6 +730,19 @@ const userSchema = new Schema<IUser>(
     instagramReconnectFlowId: { type: String, default: null, index: true },
     instagramReconnectUpdatedAt: { type: Date, default: null },
     instagramDisconnectCount: { type: Number, default: 0 },
+    instagramHistoryBackfill: {
+      type: new Schema({
+        instagramAccountId: { type: String, default: null },
+        status: { type: String, enum: ['running', 'done', 'failed', null], default: null },
+        startedAt: { type: Date, default: null },
+        finishedAt: { type: Date, default: null },
+        postsSaved: { type: Number, default: 0 },
+        pagesRead: { type: Number, default: 0 },
+        followerDaysSaved: { type: Number, default: 0 },
+        lastError: { type: String, default: null, maxlength: 500 },
+      }, { _id: false }),
+      default: undefined,
+    },
     username: { type: String, sparse: true, default: null },
     biography: { type: String },
     website: { type: String },

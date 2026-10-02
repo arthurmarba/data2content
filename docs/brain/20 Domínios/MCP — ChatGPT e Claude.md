@@ -143,6 +143,16 @@ pelo Instagram, e as regras que impedem o modelo de mentir com ele estão em
 [[Seguidores]]. `analyze_creator_portfolio` traz o mesmo saldo por criador e da
 base inteira.
 
+## Número que falta tem motivo — 02/10/2026
+
+Resposta vazia sem motivo é lida como zero. `src/app/lib/mcp/dataAvailability.ts`
+explica cada lacuna: `instagram_does_not_report_for_reels` (seguidores ganhos e
+visitas ao perfil só existem para foto e carrossel), `missing_for_posts_in_period`
+ou `no_posts_in_period`. `list_top_content` devolve `coverage`,
+`get_performance_summary` devolve `metricAvailability`, e `analyze_creator_period`
+ganhou `follows`/`profile_visits`, `coverage.metricGaps`, a lista dos posts sem
+número nenhum (`postsWithoutMetrics`) e o ritmo de atualização (12 h).
+
 ## Situação do ChatGPT
 
 O plugin depende de aprovação da OpenAI e de um plano caro. Por isso a landing pública fala **só do Claude** até o aplicativo ser aprovado. Ver [[ChatGPT fora da landing]].

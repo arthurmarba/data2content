@@ -176,3 +176,19 @@ export function calcFormulas(
   logger.debug(`${TAG} Métricas calculadas:`, calculatedStats);
   return calculatedStats;
 }
+
+/**
+ * Retenção de um vídeo: que fração dele, em média, as pessoas assistem.
+ *
+ * As duas metades chegam por caminhos diferentes — o tempo médio vem dos insights
+ * do Instagram em milissegundos (`ig_reels_avg_watch_time`) e a duração vem da
+ * mídia, em segundos —, por isso a conta mora aqui e é chamada só quando as duas
+ * já estão juntas. Sem uma delas não há retenção: devolve `null`, nunca zero.
+ * Passa de 1 quando as pessoas reveem o vídeo.
+ */
+export function retentionRateFromWatchTime(avgWatchTimeMs: unknown, durationSeconds: unknown): number | null {
+  const watchMs = typeof avgWatchTimeMs === 'number' && Number.isFinite(avgWatchTimeMs) ? avgWatchTimeMs : null;
+  const duration = typeof durationSeconds === 'number' && Number.isFinite(durationSeconds) ? durationSeconds : null;
+  if (watchMs === null || watchMs <= 0 || duration === null || duration <= 0) return null;
+  return parseFloat((watchMs / 1000 / duration).toFixed(4));
+}

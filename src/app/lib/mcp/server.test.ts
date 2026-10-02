@@ -480,6 +480,7 @@ jest.mock("./catalog", () => ({
   })),
   getMcpPerformanceSummary: jest.fn(async () => null),
   listMcpTopContent: jest.fn(async () => []),
+  describeMcpTopContentCoverage: jest.fn(async () => ({ postsInPeriod: 0, postsWithMetric: 0, reason: "no_posts_in_period", notes: [] })),
   listMcpCreatorContentIdeas: jest.fn(async () => ({
     schemaVersion: "creator_content_ideas_v1",
     generatedAt: "2026-09-26T12:00:00.000Z",

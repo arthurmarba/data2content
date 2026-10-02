@@ -78,6 +78,18 @@ export async function markBatched(metricId: string, token: string, jobName: stri
   if (saved.matchedCount !== 1) throw new Error("reading_lease_lost");
 }
 
+/**
+ * Leitura do lote gravada: o item sai de "batched" para "complete". Sem isto a
+ * leitura existia e a etiqueta ficava presa em "batched" para sempre (363 itens de
+ * 18 a 27/09/2026) — contagem errada e cara de fila travada.
+ */
+export async function completeBatched(metricId: string) {
+  await State.updateOne({ _id: metricId, state: "batched" }, { $set: {
+    state: "complete", reason: null, lastError: null, batchJobName: null,
+    nextAttemptAt: EPOCH, leaseUntil: EPOCH, leaseToken: null,
+  } });
+}
+
 /** Job morto (expirado, cancelado ou item sem resposta): volta para a fila normal. */
 export async function releaseBatched(metricIds: string[], motivo = "batch_incompleto") {
   if (!metricIds.length) return 0;
