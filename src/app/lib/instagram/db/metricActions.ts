@@ -59,6 +59,9 @@ if (!qstashClassificationClient && process.env.NODE_ENV === 'production') {
  * @param saveOptions.skipAiReadings - Grava números e metadados sem mandar o post para
  *   classificação nem leitura de cena. Usado no histórico antigo puxado na conexão:
  *   só chamadas ao Instagram, nenhuma leitura paga de IA.
+ * @param saveOptions.skipMediaUrls - Não guarda os endereços de mídia e capa. São
+ *   links do CDN do Instagram que expiram em dias e somam ~2,6 KB por post — no
+ *   histórico antigo, 63% do documento por um dado que vira 403.
  * @returns Uma promessa que resolve quando os dados são salvos.
  * @throws Lança um erro se houver uma falha crítica ao salvar a métrica.
  */
@@ -66,7 +69,7 @@ export async function saveMetricData(
   userId: Types.ObjectId,
   media: InstagramMedia,
   insights: IMetricStats,
-  saveOptions: { skipAiReadings?: boolean } = {}
+  saveOptions: { skipAiReadings?: boolean; skipMediaUrls?: boolean } = {}
 ): Promise<void> {
   const TAG = '[saveMetricData v2.2.1]'; // Versão atualizada
   const startTime = Date.now();
@@ -201,9 +204,9 @@ export async function saveMetricData(
         format: format,
         updatedAt: new Date(),
         ...(Object.keys(statsUpdate).length > 0 ? statsUpdate : {}),
-        ...(coverUrl ? { coverUrl } : {}),
-        ...(mediaUrl ? { mediaUrl } : {}),
-        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(coverUrl && !saveOptions.skipMediaUrls ? { coverUrl } : {}),
+        ...(mediaUrl && !saveOptions.skipMediaUrls ? { mediaUrl } : {}),
+        ...(thumbnailUrl && !saveOptions.skipMediaUrls ? { thumbnailUrl } : {}),
       },
       $setOnInsert: {
         createdAt: new Date(),
