@@ -27,6 +27,13 @@ import axios, { AxiosError } from 'axios';
 
 // --- As funções fetchInstagramMedia, fetchMediaInsights, e fetchBasicAccountData permanecem as mesmas ---
 
+/**
+ * Campos de cada item interno do carrossel. Sem `media_product_type`: com ele, a
+ * Graph API omite o carrossel inteiro da listagem em silêncio. Foi assim que a base
+ * chegou a 02/10/2026 com um carrossel só.
+ */
+export const CAROUSEL_CHILD_FIELDS = 'id,media_type,media_url,thumbnail_url,video_duration';
+
 export async function fetchInstagramMedia(
   accountId: string,
   accessToken: string,
@@ -46,7 +53,9 @@ export async function fetchInstagramMedia(
       url += (url.includes('?') ? '&' : '?') + `access_token=${accessToken}`;
     }
   } else {
-    const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,video_duration,children{id,media_type,media_product_type,media_url,thumbnail_url,video_duration},parent_id';
+    // Nunca pedir media_product_type dentro de children: a API some com o carrossel
+    // inteiro da página, sem erro (23 de 25 itens, zero carrosséis — 02/10/2026).
+    const fields = `id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,video_duration,children{${CAROUSEL_CHILD_FIELDS}},parent_id`;
     const limit = 25;
     // `after` retoma a paginação de uma execução anterior sem guardar a URL do
     // Instagram, que carrega o token.
@@ -88,7 +97,7 @@ export async function fetchSingleInstagramMedia(
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
   // Keep this lean to maximize compatibility across Graph API versions and media types.
-  const fields = 'id,media_type,media_product_type,media_url,thumbnail_url,video_duration,children{id,media_type,media_product_type,media_url,thumbnail_url,video_duration}';
+  const fields = `id,media_type,media_product_type,media_url,thumbnail_url,video_duration,children{${CAROUSEL_CHILD_FIELDS}}`;
   const encodedFields = encodeURIComponent(fields);
   const url = `${BASE_URL}/${API_VERSION}/${mediaId}?fields=${encodedFields}&access_token=${accessToken}`;
 
