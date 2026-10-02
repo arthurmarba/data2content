@@ -2,6 +2,7 @@
 import { Types } from 'mongoose';
 import {
   afterCursorFromNextPageUrl,
+  metricsLeftAfterRejection,
   instagramDayFromEndTime,
   isInstagramRateLimitError,
   needsHistoryBackfill,
@@ -134,4 +135,39 @@ it('para no limite de dois anos em vez de puxar a conta inteira', async () => {
 
   expect(result).toMatchObject({ status: 'done', pagesRead: 1, postsSaved: 1 });
   expect((saveMetricData as jest.Mock).mock.calls.map((call) => call[1].id)).toEqual(['um-ano']);
+});
+
+it('post antigo que recusa quase tudo ainda guarda alcance e salvamentos', async () => {
+  const recusa = 'Falha na requisição (Erro 400): (#100) The Media Insights API does not support the views, likes, comments, shares, total_interactions, profile_activity, profile_visits, follows metric for this media product type.';
+  expect(metricsLeftAfterRejection(recusa, 'reach,views,likes,comments,saved,shares,total_interactions,profile_activity,profile_visits,follows')).toBe('reach,saved');
+  expect(metricsLeftAfterRejection('(#4) Application request limit reached', 'reach,views')).toBeNull();
+
+  (fetchInstagramMedia as jest.Mock).mockResolvedValue({ success: true, nextPageUrl: null, data: [
+    { id: 'foto-velha', media_type: 'IMAGE', media_product_type: 'FEED', timestamp: daysAgo(600) },
+  ] });
+  (MetricModel.find as jest.Mock).mockReturnValue(chain([]));
+  (fetchMediaInsights as jest.Mock)
+    .mockResolvedValueOnce({ success: false, error: recusa })
+    .mockResolvedValueOnce({ success: true, data: { reach: 300, saved: 4 } });
+
+  const result = await runInstagramHistoryBackfillStep({ userId, now });
+
+  expect(result).toMatchObject({ status: 'done', postsSaved: 1, postsWithoutInsights: 0 });
+  expect((fetchMediaInsights as jest.Mock).mock.calls[1][2]).toBe('reach,saved');
+  expect((saveMetricData as jest.Mock).mock.calls[0][2]).toMatchObject({ reach: 300, saved: 4 });
+});
+
+it('post recusado pelo banco não trava a conta inteira', async () => {
+  (fetchInstagramMedia as jest.Mock).mockResolvedValue({ success: true, nextPageUrl: null, data: [
+    { id: 'quebra', media_type: 'IMAGE', media_product_type: 'FEED', timestamp: daysAgo(300) },
+    { id: 'ok', media_type: 'IMAGE', media_product_type: 'FEED', timestamp: daysAgo(301) },
+  ] });
+  (MetricModel.find as jest.Mock).mockReturnValue(chain([]));
+  (saveMetricData as jest.Mock).mockImplementation(async (_user, media) => {
+    if (media.id === 'quebra') throw new Error("Updating the path 'format' would create a conflict at 'format'");
+  });
+
+  const result = await runInstagramHistoryBackfillStep({ userId, now });
+
+  expect(result).toMatchObject({ status: 'done', postsSaved: 1, postsFailed: 1 });
 });

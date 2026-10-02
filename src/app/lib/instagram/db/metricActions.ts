@@ -218,6 +218,12 @@ export async function saveMetricData(
     if (Object.keys(statsUpdate).length === 0 && finalUpdateOperation.$set.stats) {
       delete finalUpdateOperation.$set.stats;
     }
+    // O mesmo campo em $set e $setOnInsert derruba o update inteiro ("would create a
+    // conflict at 'format'"). A classificação vazia do post sem legenda traz `format`,
+    // que o $set já grava a partir do tipo da mídia — o $set vence.
+    for (const key of Object.keys(finalUpdateOperation.$setOnInsert)) {
+      if (key in finalUpdateOperation.$set) delete finalUpdateOperation.$setOnInsert[key];
+    }
 
     const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
     savedMetric = await MetricModel.findOneAndUpdate(filter, finalUpdateOperation, options);
