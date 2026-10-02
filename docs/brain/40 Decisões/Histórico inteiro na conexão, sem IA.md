@@ -33,6 +33,16 @@ Chamada ao Instagram não custa dinheiro; leitura de IA custa. Os números antig
 já respondem quase tudo que o criador pergunta sobre o passado; a leitura de cena
 só vale para o que ele ainda vai decidir.
 
+## Aplicado em 02/10/2026
+
+Rodado para os 57 conectados pelos workers de produção
+(`scripts/enqueueInstagramHistoryAll.ts`, um a cada 2 min): 56 concluídos, 11 mil
+posts antigos gravados, carrosséis na base de 1 para ~3 mil, banco de 385 para 408
+MB. A única falha (@100amarras) é token bloqueado pelo Facebook até a pessoa entrar
+no Facebook — só ela resolve. Ficaram fora de propósito ~40 mil posts com mais de
+dois anos. Os carrosséis recentes (entre os 250 mais novos) entram pela
+sincronização periódica, já com a correção.
+
 ## Onde vive
 
 `src/app/lib/instagram/sync/historyBackfill.ts`, disparado pela conexão em
