@@ -33,6 +33,7 @@ import {
   FEED_MEDIA_INSIGHTS_METRICS,
   INSIGHT_FETCH_CUTOFF_DAYS,
   INSIGHTS_CONCURRENCY_LIMIT,
+  MAX_PAGES_MEDIA,
   REEL_INSIGHTS_METRICS,
 } from '../config/instagramApiConfig';
 import { fetchDailyNewFollowers, fetchInstagramMedia, fetchMediaInsights } from '../api/fetchers';
@@ -50,8 +51,12 @@ const TAG = '[instagramHistoryBackfill]';
  */
 export const HISTORY_MAX_AGE_DAYS = 730;
 
-/** Páginas de 25 posts por execução: ~300 posts cabem com folga em uma função. */
-const PAGES_PER_STEP = 12;
+/**
+ * Páginas de 25 posts por execução: ~300 posts cabem com folga em uma função. Tem
+ * de ser maior que `MAX_PAGES_MEDIA`: o primeiro passo é quem sabe onde termina o
+ * alcance da sincronização periódica.
+ */
+const PAGES_PER_STEP = Math.max(12, MAX_PAGES_MEDIA + 1);
 /** Para antes do teto da função (300 s) mesmo se ainda houver página no passo. */
 const TIME_BUDGET_MS = 200_000;
 
@@ -220,11 +225,17 @@ export async function runInstagramHistoryBackfillStep(params: {
       break;
     }
     counters.pagesRead += 1;
+    // A sincronização periódica só lê as `MAX_PAGES_MEDIA` primeiras páginas. Quem posta
+    // muito tem posts dos últimos 180 dias além delas, que ela nunca alcança: esses
+    // também são do histórico (continuação de passo é sempre além do alcance).
+    const beyondRegularReach = Boolean(params.after) || counters.pagesRead > MAX_PAGES_MEDIA;
 
     const oldMedia = (page.data ?? []).filter((media) => {
       if (!media.id || !media.timestamp || (media as { parent_id?: string }).parent_id) return false;
       const postDate = new Date(media.timestamp);
-      return Number.isFinite(postDate.getTime()) && postDate < regularWindowStart && postDate >= historyStart;
+      return Number.isFinite(postDate.getTime())
+        && postDate >= historyStart
+        && (postDate < regularWindowStart || beyondRegularReach);
     });
     // A API lista do mais novo para o mais velho: página que já passou do limite encerra.
     const reachedHistoryLimit = (page.data ?? []).some((media) =>
