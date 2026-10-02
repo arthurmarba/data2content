@@ -87,6 +87,7 @@
     "relatorio:cenas": "tsx --env-file=.env.local ./scripts/relatorio-semanal/backfillScenes.ts",
     "relatorio:cenas:dry-run": "npm run relatorio:cenas -- --dry-run --limit=5",
     "refresh:metrics:user": "tsx --env-file=.env.local ./scripts/refreshMetricsByUser.ts",
+    "backfill:instagram-history": "tsx --env-file=.env.local ./scripts/instagramHistoryBackfill.ts",
     "refresh:metrics:all-users": "tsx --env-file=.env.local ./scripts/refreshMetricsAllConnectedUsers.ts",
     "audit:classification-legacy": "tsx --env-file=.env.local ./scripts/auditClassificationLegacy.ts",
     "migrate:classification-canonical": "tsx --env-file=.env.local ./scripts/migrateCanonicalCategories.ts",

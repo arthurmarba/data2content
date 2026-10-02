@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -12,10 +12,10 @@ Os números crus, pra dar noção de escala antes de mexer em qualquer coisa.
 
 | | |
 | --- | --- |
-| Arquivos de código | 2190 |
-| Arquivos de teste | 762 |
+| Arquivos de código | 2196 |
+| Arquivos de teste | 764 |
 | Componentes de tela (.tsx) | 704 |
-| Rotas de API | 442 |
-| Documentos em `docs/` | 212 |
+| Rotas de API | 443 |
+| Documentos em `docs/` | 215 |
 
 Um projeto deste tamanho não cabe na cabeça de ninguém — nem na da IA. Por isso o cérebro existe: [[00 Comece por aqui]].

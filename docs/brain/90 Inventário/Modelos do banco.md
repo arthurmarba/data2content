@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-29
 
 # Modelos do banco
 
-Todo dado persistido é um modelo Mongoose. **100 modelos.**
+Todo dado persistido é um modelo Mongoose. **101 modelos.**
 
 A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demais o Mongoose pluraliza o nome do modelo.
 
@@ -71,6 +71,7 @@ A coluna *Coleção* só aparece quando o arquivo fixa o nome à mão; nos demai
 | **GeminiShadowComparison** | `geminishadowcomparisons` | `src/app/models/GeminiShadowComparison.ts` |
 | **GeminiUsageLog** | `geminiusagelogs` | `src/app/models/GeminiUsageLog.ts` |
 | **InstagramMarketplaceConnection** | `instagram_marketplace_connections` | `src/app/models/InstagramMarketplaceConnection.ts` |
+| **InstagramNewFollowersDay** | `instagram_new_followers_days` | `src/app/models/InstagramNewFollowersDay.ts` |
 | **MapaSeed** | `mapasseed` | `src/app/models/MapaSeed.ts` |
 | **McpAdminAuditEvent** | `mcp_admin_audit_events` | `src/app/models/McpAdminAuditEvent.ts` |
 | **McpOAuthAuthorizationCode** | `mcp_oauth_authorization_codes` | `src/app/models/McpOAuthAuthorizationCode.ts` |

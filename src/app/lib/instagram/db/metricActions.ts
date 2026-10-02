@@ -11,6 +11,7 @@ import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
 import { differenceInDays, startOfDay } from 'date-fns';
 import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
+import { retentionRateFromWatchTime } from '@/app/lib/formulas';
 
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
@@ -55,13 +56,17 @@ if (!qstashClassificationClient && process.env.NODE_ENV === 'production') {
  * @param userId - O ObjectId do usuário.
  * @param media - O objeto InstagramMedia contendo os detalhes da mídia.
  * @param insights - Os insights (IMetricStats) coletados para esta mídia.
+ * @param saveOptions.skipAiReadings - Grava números e metadados sem mandar o post para
+ *   classificação nem leitura de cena. Usado no histórico antigo puxado na conexão:
+ *   só chamadas ao Instagram, nenhuma leitura paga de IA.
  * @returns Uma promessa que resolve quando os dados são salvos.
  * @throws Lança um erro se houver uma falha crítica ao salvar a métrica.
  */
 export async function saveMetricData(
   userId: Types.ObjectId,
   media: InstagramMedia,
-  insights: IMetricStats
+  insights: IMetricStats,
+  saveOptions: { skipAiReadings?: boolean } = {}
 ): Promise<void> {
   const TAG = '[saveMetricData v2.2.1]'; // Versão atualizada
   const startTime = Date.now();
@@ -146,6 +151,15 @@ export async function saveMetricData(
     if (mediaVideoDurationSeconds && !currentDurationFromInsights) {
       statsUpdate['stats.video_duration_seconds'] = mediaVideoDurationSeconds;
     }
+    // Só aqui o tempo médio (insights) e a duração (mídia) estão juntos. Antes a conta
+    // rodava em calcFormulas, sem a duração, e a retenção nunca era gravada.
+    if (videoApplicable) {
+      const retentionRate = retentionRateFromWatchTime(
+        statsUpdate['stats.ig_reels_avg_watch_time'],
+        statsUpdate['stats.video_duration_seconds'],
+      );
+      if (retentionRate !== null) statsUpdate['stats.retention_rate'] = retentionRate;
+    }
 
     // Determine the best cover URL based on media type
     let coverUrl: string | null = null;
@@ -212,7 +226,9 @@ export async function saveMetricData(
     logger.debug(`${TAG} Métrica ${savedMetric._id} (Media IG: ${media.id}, Tipo: ${metricType}) salva/atualizada com sucesso para User ${userId}. Formato: ${format}.`);
 
     const classificationWorkerUrl = process.env.CLASSIFICATION_WORKER_URL;
-    if (qstashClassificationClient && classificationWorkerUrl) {
+    if (saveOptions.skipAiReadings) {
+      logger.debug(`${TAG} Metric ${savedMetric._id} gravada sem leitura de IA (histórico antigo).`);
+    } else if (qstashClassificationClient && classificationWorkerUrl) {
       if (savedMetric.classificationStatus === 'pending' && savedMetric.description && savedMetric.description.trim() !== '') {
         try {
           await qstashClassificationClient.publishJSON({
@@ -231,7 +247,7 @@ export async function saveMetricData(
     }
 
     // Posts sem legenda já nascem classificados e não passam pelo worker de texto.
-    if (savedMetric.classificationStatus === 'completed') {
+    if (!saveOptions.skipAiReadings && savedMetric.classificationStatus === 'completed') {
       await enqueuePublishedReading(String(savedMetric._id));
     }
 

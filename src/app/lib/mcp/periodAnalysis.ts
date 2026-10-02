@@ -1,3 +1,5 @@
+import { DATA_FRESHNESS_NOTE, explainMetricGap, METRICS_NOT_REPORTED_FOR_REELS } from "./dataAvailability";
+
 export const MCP_PERIOD_ANALYSIS_VERSION = "period_analysis_v1" as const;
 
 export type McpPeriodContentFormat = "all" | "reel" | "carousel" | "photo";
@@ -13,6 +15,8 @@ export const MCP_PERIOD_METRIC_KEYS = [
   "likes",
   "retention_rate",
   "ig_reels_avg_watch_time",
+  "follows",
+  "profile_visits",
 ] as const;
 
 export type McpPeriodMetricKey = (typeof MCP_PERIOD_METRIC_KEYS)[number];
@@ -29,8 +33,10 @@ export const MCP_PERIOD_METRIC_UNITS: Record<McpPeriodMetricKey, string> = {
   shares: "contagem",
   comments: "contagem",
   likes: "contagem",
-  retention_rate: "fração de 0 a 1 (0.35 = 35%)",
+  retention_rate: "fração do vídeo assistida em média (0.35 = 35%); passa de 1 quando as pessoas reveem",
   ig_reels_avg_watch_time: "milissegundos (divida por 1000 para segundos)",
+  follows: "contagem (o Instagram só informa para foto e carrossel)",
+  profile_visits: "contagem (o Instagram só informa para foto e carrossel)",
 };
 
 /** Métricas em que somar posts faz sentido. Taxa e tempo médio não se somam. */
@@ -42,6 +48,8 @@ const SUMMABLE_PERIOD_METRICS = new Set<McpPeriodMetricKey>([
   "shares",
   "comments",
   "likes",
+  "follows",
+  "profile_visits",
 ]);
 
 /** Post mais novo que isto ainda acumula alcance e interações. */
@@ -473,6 +481,31 @@ export function buildMcpPeriodAnalysis(params: {
   }
   if (postsYoungerThanMature > 0) warnings.push("recent_posts_still_accumulating");
 
+  // Número que falta precisa de motivo: seguidores e visitas em Reel são do
+  // Instagram, não lacuna nossa; post sem número nenhum é lacuna e tem nome.
+  const metricGaps = METRICS_NOT_REPORTED_FOR_REELS
+    .map((key) => explainMetricGap({
+      metric: key,
+      postsInPeriod: total,
+      postsWithMetric: metricsCoverage[key].available,
+      byFormat,
+    }))
+    .filter((gap): gap is NonNullable<typeof gap> => gap !== null && gap.reason !== "no_posts_in_period");
+  if (metricGaps.some((gap) => gap.reason === "instagram_does_not_report_for_reels")) {
+    warnings.push("follower_metrics_not_reported_for_reels");
+  }
+  const postsWithoutMetrics = sortedDocuments
+    .filter((document) => {
+      const stats = document.stats && typeof document.stats === "object" ? (document.stats as Record<string, unknown>) : {};
+      return readMetric(stats, "reach") === null && readMetric(stats, "views") === null;
+    })
+    .map((document) => ({
+      id: String(document._id),
+      postDate: toIsoDate(document.postDate),
+      url: hasText(document.postLink) ? String(document.postLink).trim() : null,
+    }));
+  if (postsWithoutMetrics.length) warnings.push("posts_without_instagram_metrics");
+
   return {
     schemaVersion: MCP_PERIOD_ANALYSIS_VERSION,
     requestedPeriod: {
@@ -520,6 +553,10 @@ export function buildMcpPeriodAnalysis(params: {
         total - transcriptEligible.length,
       ),
       metrics: metricsCoverage,
+      metricGaps,
+      postsWithoutMetrics: postsWithoutMetrics.slice(0, 10),
+      postsWithoutMetricsTotal: postsWithoutMetrics.length,
+      dataFreshness: DATA_FRESHNESS_NOTE,
       warnings,
     },
     posts,

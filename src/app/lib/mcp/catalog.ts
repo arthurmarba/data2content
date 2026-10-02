@@ -21,6 +21,13 @@ import { suggestMcpCollabCreators } from "./collabIntelligence";
 import { getMcpAppBaseUrl } from "./config";
 import { loadMcpCreatorMap, summarizeMcpCreatorMap } from "./creatorMap";
 import {
+  DATA_FRESHNESS_NOTE,
+  explainMetricGap,
+  formatOfType,
+  METRICS_NOT_REPORTED_FOR_REELS,
+  type PostFormatCounts,
+} from "./dataAvailability";
+import {
   buildMcpVisualPlaybook,
   MCP_CREATOR_INTELLIGENCE_VERSION,
   type McpVisualMetricDocument,
@@ -713,8 +720,77 @@ export async function getMcpCreatorProfile(userId: string) {
   };
 }
 
+/** Quantos posts há no período, por formato, e quantos têm cada métrica. */
+async function countMetricAvailability(params: {
+  userId: string;
+  since: Date;
+  until?: Date;
+  extraQuery?: Record<string, unknown>;
+  metrics: readonly string[];
+}): Promise<{ postsInPeriod: number; byFormat: PostFormatCounts; withMetric: Record<string, number> }> {
+  await connectToDatabase();
+  const rows = await MetricModel.aggregate<{ _id: unknown; posts: number } & Record<string, number>>([
+    {
+      $match: {
+        user: new Types.ObjectId(params.userId),
+        postDate: { $gte: params.since, ...(params.until ? { $lt: params.until } : {}) },
+        ...(params.extraQuery ?? {}),
+      },
+    },
+    {
+      $group: {
+        _id: "$type",
+        posts: { $sum: 1 },
+        ...Object.fromEntries(params.metrics.map((metric) => [
+          metric,
+          { $sum: { $cond: [{ $isNumber: `$stats.${metric}` }, 1, 0] } },
+        ])),
+      },
+    },
+  ]).option({ maxTimeMS: 10_000 });
+
+  const byFormat: PostFormatCounts = { reel: 0, carousel: 0, photo: 0, other: 0 };
+  const withMetric = Object.fromEntries(params.metrics.map((metric) => [metric, 0])) as Record<string, number>;
+  let postsInPeriod = 0;
+  for (const row of rows) {
+    postsInPeriod += row.posts;
+    byFormat[formatOfType(row._id)] += row.posts;
+    for (const metric of params.metrics) withMetric[metric] = (withMetric[metric] ?? 0) + (row[metric] ?? 0);
+  }
+  return { postsInPeriod, byFormat, withMetric };
+}
+
 export async function getMcpPerformanceSummary(userId: string) {
-  return buildInstagramMetricsSummary(userId);
+  const summary = await buildInstagramMetricsSummary(userId);
+  if (!summary) return null;
+
+  // Médias nulas de seguidores e visitas precisam dizer por quê: em conta só de
+  // Reels, o motivo é o Instagram, não a falta de resultado.
+  const counts = await countMetricAvailability({
+    userId,
+    since: new Date(Date.now() - summary.sampleWindowDays * 86_400_000),
+    metrics: METRICS_NOT_REPORTED_FOR_REELS,
+  });
+  const gaps = METRICS_NOT_REPORTED_FOR_REELS
+    .map((metric) => explainMetricGap({
+      metric,
+      postsInPeriod: counts.postsInPeriod,
+      postsWithMetric: counts.withMetric[metric] ?? 0,
+      byFormat: counts.byFormat,
+    }))
+    .filter((gap): gap is NonNullable<typeof gap> => gap !== null);
+
+  return {
+    ...summary,
+    metricAvailability: {
+      postsInWindow: counts.postsInPeriod,
+      postsByFormat: counts.byFormat,
+      postsWithFollows: counts.withMetric.follows ?? 0,
+      postsWithProfileVisits: counts.withMetric.profile_visits ?? 0,
+      gaps,
+      dataFreshness: DATA_FRESHNESS_NOTE,
+    },
+  };
 }
 
 function buildMcpPeriodFormatQuery(format: McpPeriodContentFormat): Record<string, unknown> | null {
@@ -1238,6 +1314,49 @@ export async function listMcpTopContent(params: {
       followersGained: typeof stats.follows === "number" ? stats.follows : null,
     };
   });
+}
+
+/**
+ * Por que a lista veio curta ou vazia. Sem isto, `items: []` em `follows` lia
+ * como "nenhum post trouxe seguidor" quando o motivo era o Instagram não informar
+ * esse número para Reels.
+ */
+export async function describeMcpTopContentCoverage(params: {
+  userId: string;
+  metric: McpTopContentMetric;
+  format: McpContentFormat;
+  periodDays: number;
+  itemsReturned: number;
+}) {
+  const since = new Date(Date.now() - params.periodDays * 86_400_000);
+  const typeQuery: Record<string, unknown> =
+    params.format === "reel" ? { type: { $in: ["REEL", "VIDEO"] } }
+      : params.format === "carousel" ? { type: "CAROUSEL_ALBUM" }
+        : params.format === "photo" ? { type: "IMAGE" }
+          : {};
+  const counts = await countMetricAvailability({
+    userId: params.userId,
+    since,
+    extraQuery: typeQuery,
+    metrics: [params.metric],
+  });
+  const postsWithMetric = counts.withMetric[params.metric] ?? 0;
+  const gap = explainMetricGap({
+    metric: params.metric,
+    postsInPeriod: counts.postsInPeriod,
+    postsWithMetric,
+    byFormat: counts.byFormat,
+  });
+  return {
+    postsInPeriod: counts.postsInPeriod,
+    postsWithMetric,
+    postsByFormat: counts.byFormat,
+    reason: params.itemsReturned === 0 ? gap?.reason ?? "missing_for_posts_in_period" : null,
+    notes: [
+      ...(gap ? [gap.note] : []),
+      DATA_FRESHNESS_NOTE,
+    ],
+  };
 }
 
 export function isMcpTopContentMetric(value: string): value is McpTopContentMetric {

@@ -20,6 +20,7 @@ tem**, mas não **quantos ganhou ontem**.
 | Saldo por criador na base | `src/app/lib/mcp/adminAnalytics.ts` |
 | Seguidores por post | `Metric.stats.follows` |
 | Coleta | `src/app/lib/instagram/api/fetchers.ts`, `config/instagramApiConfig.ts` |
+| Novos seguidores antes da conexão | `src/app/models/InstagramNewFollowersDay.ts`, `src/app/lib/followers/instagramReportedNewFollowers.ts` |
 
 ## O dado que já existia e ninguém usava
 
@@ -32,7 +33,7 @@ Ou seja: a série sempre esteve lá. Faltava a subtração.
 ## A regra: o Instagram não conta ganho, ele conta total
 
 Nenhuma métrica da API devolve "seguidores ganhos no dia" para a janela que a
-gente quiser. O que a API devolve é o total naquele instante. O ganho é uma
+gente quiser (a exceção, só para trás e só 30 dias, está em "Antes da conexão"). O que a API devolve é o total naquele instante. O ganho é uma
 diferença que **nós** calculamos — e por isso ele carrega três honestidades que
 não podem ser apagadas por conveniência de tela:
 
@@ -86,6 +87,32 @@ sincronização, no pior caso, e nunca custa o post.
 Se dentro de alguns dias `stats.follows` continuar aparecendo só em posts de
 imagem, é a API dizendo que não entrega para Reels — e a resposta certa é aceitar,
 não insistir.
+
+**Confirmado em 02/10/2026:** de 35.899 Reels na base, 1 tem `follows`; das 1.872
+fotos, todas. Visitas ao perfil, o mesmo. A Meta não entrega esses dois números
+por Reel. Um criador só de Reels reclamou que o conector "não sabia" que conteúdo
+traz seguidor — o problema não era o número faltar, era a resposta vazia sem
+motivo. Desde então `list_top_content`, `get_performance_summary` e
+`analyze_creator_period` dizem `instagram_does_not_report_for_reels` quando é o
+caso (`src/app/lib/mcp/dataAvailability.ts`).
+
+## Antes da conexão: o número do Instagram
+
+As leituras de `AccountInsight` começam no dia em que o criador conecta. Para os
+dias de antes existe uma única fonte: a métrica `follower_count` da conta, com
+`period=day`, que a API guarda por **30 dias** (e não informa para conta com menos
+de 100 seguidores).
+
+Ela não é o saldo. Conta **quem começou a seguir** e não desconta quem saiu — na
+conta medida em 02/10/2026, ficou ~15% acima da diferença entre as nossas
+leituras. Também fecha o dia à meia-noite do **Pacífico**, e os dois dias mais
+recentes chegam zerados até a Meta fechar a conta deles.
+
+Por isso ela vive separada: `InstagramNewFollowersDay`, puxada uma vez na conexão
+pelo histórico antigo (`sync/historyBackfill.ts`), e devolvida pelo
+`get_follower_growth` em `instagramReportedNewFollowers`, em bloco próprio, com o
+aviso de nunca somar ao saldo. Dias terminados há menos de 48 h são descartados
+em vez de virar zero.
 
 ## No Claude e no ChatGPT
 

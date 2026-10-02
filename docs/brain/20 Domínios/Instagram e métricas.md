@@ -22,6 +22,34 @@ tipo: domínio
 
 **O token expira.** Existe um fluxo inteiro de reconexão porque a autorização do criador cai sozinha com o tempo. Uma conta "sem dados" quase sempre é uma conta desconectada.
 
+**Retenção é conta nossa, não da Meta.** O Instagram manda o tempo médio
+assistido (`ig_reels_avg_watch_time`, em milissegundos); a duração vem da mídia.
+`saveMetricData` junta as duas em `stats.retention_rate` — antes de 02/10/2026 a
+conta nunca acontecia e a base tinha 33 mil zeros falsos. Ver
+[[Retenção gravada como zero]]. Passa de 1 quando as pessoas reveem o vídeo.
+
+## A janela da sincronização e o histórico da conexão
+
+A sincronização periódica (a cada 12 h) só olha posts dos últimos
+`INSIGHT_FETCH_CUTOFF_DAYS` (180) dias — post mais velho nem entra no banco. Até
+02/10/2026 isso valia também para a conexão: um criador com 175 posts chegava ao
+conector com 103, e nada dizia que faltava.
+
+Desde então, a conexão dispara `/api/worker/instagram-history-backfill`
+(`sync/historyBackfill.ts` + `historyBackfillQueue.ts`): pagina a conta inteira,
+grava só os posts **mais velhos** que a janela, com os números de hoje, e puxa os
+30 dias de novos seguidores (ver [[Seguidores]]). **Só chamadas ao Instagram:** o
+post antigo é gravado com `skipAiReadings`, sem classificação nem leitura de cena,
+e fica com `classificationStatus: "pending"` — a repescagem só olha 90 dias, então
+ninguém o manda para a IA depois. Vídeo antigo vem sem `video_duration`; a duração
+é lida no cabeçalho do arquivo (2 MB, sem IA) para a retenção existir.
+
+Roda em passos de até 12 páginas, guarda só o cursor `after` (a URL da Meta traz o
+token) e, se o Instagram pedir pausa, volta em 1 h, até 24 vezes. O estado fica em
+`User.instagramHistoryBackfill`; conta que já tem `done` para o mesmo
+`instagramAccountId` não repete. Para quem conectou antes disso:
+`npm run backfill:instagram-history -- <userId> [--dry-run]`.
+
 ## Ferramentas
 
 Retenção aprovada em 07/09/2026: `daily_metric_snapshots` conserva oito meses e
@@ -70,6 +98,7 @@ Nenhuma dessas mudanças foi aplicada como parte desta avaliação.
 
 ```bash
 npm run refresh:metrics:user      # atualiza um criador específico
+npm run backfill:instagram-history -- <userId> --dry-run  # histórico antigo, sem IA
 npm run backfill:demographics     # preenche demografia histórica
 npm run test:demographics         # confere o que a Meta devolve hoje
 npm run ensure-indexes            # garante os índices do banco

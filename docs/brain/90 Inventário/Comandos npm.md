@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-09-29
 
 # Comandos npm
 
-**100 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
+**101 comandos.** Os que carregam `--env-file=.env.local` mexem no banco de verdade — leia antes de rodar.
 
 ## básicos
 
@@ -60,6 +60,7 @@ atualizado: 2026-09-29
 | --- | --- |
 | `npm run backfill:classification-v2` | `tsx --env-file=.env.local ./scripts/backfillClassificationV2.ts` |
 | `npm run backfill:demographics` | `tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts` |
+| `npm run backfill:instagram-history` | `tsx --env-file=.env.local ./scripts/instagramHistoryBackfill.ts` |
 | `npm run backfill:script-evidence` | `tsx --env-file=.env.local ./scripts/relatorio-semanal/backfillScenes.ts` |
 
 ## benchmark

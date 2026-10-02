@@ -26,6 +26,7 @@ import {
   getMcpPerformanceSummary,
   listMcpCreatorContentIdeas,
   listMcpTopContent,
+  describeMcpTopContentCoverage,
   researchMcpInspirationContent,
   saveMcpScript,
   searchMcpKnowledge,
@@ -2251,6 +2252,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
             "As métricas são o total acumulado hoje. A janela atual tem posts mais novos que a anterior, que tiveram menos tempo para acumular: não chame de queda uma diferença pequena sem dizer isso.",
             "Os valores por post são médias: um post fora da curva puxa a média. Para mediana de um período exato, use analyze_creator_period.",
             "Taxas são frações de 0 a 1 (0.05 = 5%). Tempos de Reels estão em segundos.",
+            "Média nula não é zero. metricAvailability.gaps diz o motivo de cada número que falta — por exemplo, o Instagram não informa seguidores ganhos nem visitas ao perfil por Reel.",
           ],
         }),
       };
@@ -2262,7 +2264,7 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Saldo de seguidores por dia",
       description:
-        "Use this when the user asks how many followers they gained or lost, per day or in a period — growth, drops, best day, or whether an audience is still growing. It returns the daily net follower balance derived from stored account readings, plus coverage. The balance already subtracts unfollows, days without a reading are never reported as zero, and it never attributes growth to a specific post.",
+        "Use this when the user asks how many followers they gained or lost, per day or in a period — growth, drops, best day, or whether an audience is still growing. It returns the daily net follower balance derived from stored account readings, plus coverage. The balance already subtracts unfollows, days without a reading are never reported as zero, and it never attributes growth to a specific post. For the 30 days before the creator connected, instagramReportedNewFollowers carries Instagram's own daily count of new followers — gross, not net of unfollows.",
       inputSchema: z.object({
         startDate: z
           .string()
@@ -2316,12 +2318,12 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
     {
       title: "Listar melhores conteúdos",
       description:
-        "Use this when the user asks for their best posts, Reels, carousels, or photos ranked by a specific Instagram metric — including which content brought the most new followers (metric: follows). Ranking by follows only lists posts where Instagram reported that number; a missing value is not zero followers.",
+        "Use this when the user asks for their best posts, Reels, carousels, or photos ranked by a specific Instagram metric. Instagram reports follows (followers gained) only for photos and carousels, never for Reels: for a Reels-only account, follows comes back empty with coverage.reason instagram_does_not_report_for_reels — say that, and use get_follower_growth for follower growth. coverage tells how many posts are in the period, how many have the metric and why the list is short or empty; a missing value is never zero.",
       inputSchema: z.object({
         metric: z
           .enum(["reach", "views", "total_interactions", "saved", "shares", "comments", "likes", "follows"])
           .default("total_interactions")
-          .describe("follows = seguidores conquistados a partir do conteúdo; só lista posts que têm esse dado"),
+          .describe("follows = seguidores conquistados a partir do conteúdo; o Instagram só informa para foto e carrossel, nunca para Reel"),
         format: z.enum(["all", "reel", "carousel", "photo"]).default("all"),
         periodDays: z.number().int().min(7).max(365).default(90),
         limit: z.number().int().min(1).max(10).default(5),
@@ -2340,7 +2342,14 @@ export function createD2CMcpServer(context: D2CMcpContext): McpServer {
         periodDays,
         limit,
       });
-      const result = { metric, format, periodDays, items };
+      const coverage = await describeMcpTopContentCoverage({
+        userId: context.identity.userId,
+        metric,
+        format,
+        periodDays,
+        itemsReturned: items.length,
+      });
+      const result = { metric, format, periodDays, items, coverage };
       return { content: jsonText(result) };
     },
   );

@@ -25,3 +25,41 @@ it('classificação pendente continua a disparar leitura pelo worker de texto', 
   await saveMetricData(new Types.ObjectId(), { id: 'instagram', media_type: 'IMAGE', caption: 'legenda', timestamp: new Date().toISOString() }, {} as any);
   expect(enqueuePublishedReading).not.toHaveBeenCalled();
 });
+it('histórico antigo puxado sem IA não dispara leitura nenhuma', async () => {
+  const id = new Types.ObjectId();
+  (Metric.findOneAndUpdate as jest.Mock).mockImplementation(async (_filter, update) => ({
+    _id: id, ...update.$set, ...update.$setOnInsert,
+  }));
+  await saveMetricData(
+    new Types.ObjectId(),
+    { id: 'instagram', media_type: 'IMAGE', timestamp: new Date(Date.now() - 400 * 86400000).toISOString() },
+    {} as any,
+    { skipAiReadings: true },
+  );
+  expect(enqueuePublishedReading).not.toHaveBeenCalled();
+});
+it('Reel grava a retenção juntando o tempo médio dos insights com a duração da mídia', async () => {
+  (Metric.findOneAndUpdate as jest.Mock).mockImplementation(async (_filter, update) => ({
+    _id: new Types.ObjectId(), ...update.$set, ...update.$setOnInsert,
+  }));
+  await saveMetricData(
+    new Types.ObjectId(),
+    { id: 'reel', media_type: 'VIDEO', media_product_type: 'REELS', video_duration: 40, timestamp: new Date(Date.now() - 40 * 86400000).toISOString() } as any,
+    { ig_reels_avg_watch_time: 10_000, reach: 100 } as any,
+  );
+  const update = (Metric.findOneAndUpdate as jest.Mock).mock.calls[0][1];
+  expect(update.$set['stats.video_duration_seconds']).toBe(40);
+  expect(update.$set['stats.retention_rate']).toBe(0.25);
+});
+it('Reel sem tempo médio não ganha retenção zero', async () => {
+  (Metric.findOneAndUpdate as jest.Mock).mockImplementation(async (_filter, update) => ({
+    _id: new Types.ObjectId(), ...update.$set, ...update.$setOnInsert,
+  }));
+  await saveMetricData(
+    new Types.ObjectId(),
+    { id: 'reel', media_type: 'VIDEO', media_product_type: 'REELS', video_duration: 40, timestamp: new Date(Date.now() - 40 * 86400000).toISOString() } as any,
+    { reach: 100 } as any,
+  );
+  const update = (Metric.findOneAndUpdate as jest.Mock).mock.calls[0][1];
+  expect(update.$set).not.toHaveProperty(['stats.retention_rate']);
+});

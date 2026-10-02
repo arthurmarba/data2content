@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -36,7 +36,7 @@ atualizado: 2026-09-29
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 33 |
+| `CRON_SECRET` | 35 |
 
 ## FACEBOOK
 
@@ -143,7 +143,7 @@ atualizado: 2026-09-29
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 68 |
+| `NEXT_PUBLIC_APP_URL` | 69 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -223,9 +223,9 @@ atualizado: 2026-09-29
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 41 |
-| `QSTASH_NEXT_SIGNING_KEY` | 41 |
-| `QSTASH_TOKEN` | 30 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 43 |
+| `QSTASH_NEXT_SIGNING_KEY` | 43 |
+| `QSTASH_TOKEN` | 31 |
 | `QSTASH_WORKER_URL` | 1 |
 
 ## REDIS
@@ -318,8 +318,8 @@ atualizado: 2026-09-29
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 126 |
-| `APP_BASE_URL` | 22 |
+| `NODE_ENV` | 127 |
+| `APP_BASE_URL` | 23 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
 | `DB_NAME` | 10 |
