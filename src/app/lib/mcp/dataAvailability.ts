@@ -25,7 +25,19 @@ export const REEL_FOLLOWER_METRICS_NOTE =
 export type MetricGapReason =
   | "no_posts_in_period"
   | "instagram_does_not_report_for_reels"
+  | "instagram_does_not_provide_video_duration"
   | "missing_for_posts_in_period";
+
+/**
+ * Reel com música protegida: o Instagram não entrega o arquivo nem a duração, só o
+ * tempo médio assistido. Sem duração não existe retenção (02/10/2026: ~1,7 mil
+ * Reels recentes na base).
+ */
+export function retentionWithoutDurationNote(posts: number): string {
+  return `${posts} Reel(s) do período têm tempo médio assistido mas não têm retenção: o Instagram não entrega ` +
+    "o arquivo nem a duração de Reels com música protegida, e retenção é tempo médio ÷ duração. " +
+    "Use ig_reels_avg_watch_time desses posts; não trate a ausência como retenção zero.";
+}
 
 export interface MetricGap {
   metric: string;

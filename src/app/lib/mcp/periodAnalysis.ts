@@ -1,4 +1,10 @@
-import { DATA_FRESHNESS_NOTE, explainMetricGap, METRICS_NOT_REPORTED_FOR_REELS } from "./dataAvailability";
+import {
+  DATA_FRESHNESS_NOTE,
+  explainMetricGap,
+  METRICS_NOT_REPORTED_FOR_REELS,
+  retentionWithoutDurationNote,
+  type MetricGap,
+} from "./dataAvailability";
 
 export const MCP_PERIOD_ANALYSIS_VERSION = "period_analysis_v1" as const;
 
@@ -483,7 +489,7 @@ export function buildMcpPeriodAnalysis(params: {
 
   // Número que falta precisa de motivo: seguidores e visitas em Reel são do
   // Instagram, não lacuna nossa; post sem número nenhum é lacuna e tem nome.
-  const metricGaps = METRICS_NOT_REPORTED_FOR_REELS
+  const metricGaps: MetricGap[] = METRICS_NOT_REPORTED_FOR_REELS
     .map((key) => explainMetricGap({
       metric: key,
       postsInPeriod: total,
@@ -491,6 +497,19 @@ export function buildMcpPeriodAnalysis(params: {
       byFormat,
     }))
     .filter((gap): gap is NonNullable<typeof gap> => gap !== null && gap.reason !== "no_posts_in_period");
+  const reelsWithoutDuration = sortedDocuments.filter((document) => {
+    const stats = document.stats && typeof document.stats === "object" ? (document.stats as Record<string, unknown>) : {};
+    return resolveMcpContentFormat(document) === "reel"
+      && readMetric(stats, "ig_reels_avg_watch_time") !== null
+      && readMetric(stats, "retention_rate") === null;
+  }).length;
+  if (reelsWithoutDuration > 0) {
+    metricGaps.push({
+      metric: "retention_rate",
+      reason: "instagram_does_not_provide_video_duration",
+      note: retentionWithoutDurationNote(reelsWithoutDuration),
+    });
+  }
   if (metricGaps.some((gap) => gap.reason === "instagram_does_not_report_for_reels")) {
     warnings.push("follower_metrics_not_reported_for_reels");
   }
