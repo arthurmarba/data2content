@@ -52,6 +52,11 @@ e fica com `classificationStatus: "pending"` — a repescagem só olha 90 dias, 
 ninguém o manda para a IA depois. Vídeo antigo vem sem `video_duration`; a duração
 é lida no cabeçalho do arquivo (2 MB, sem IA) para a retenção existir.
 
+A sincronização periódica também tem teto de páginas (`MAX_PAGES_MEDIA` = 10, ou
+seja 250 posts): quem posta muito tem posts dos últimos 180 dias além dele, que ela
+nunca alcança (298 carrosséis recentes num só criador). O histórico trata como seu
+tudo que passa da 10ª página, inclusive o recente — também sem IA.
+
 Post sem legenda quebrava a gravação ("would create a conflict at 'format'"): a
 classificação vazia do `$setOnInsert` traz `format`, que o `$set` também grava.
 `saveMetricData` agora tira do `$setOnInsert` o que já está no `$set` — o erro era

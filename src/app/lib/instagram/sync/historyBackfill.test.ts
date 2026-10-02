@@ -171,3 +171,17 @@ it('post recusado pelo banco não trava a conta inteira', async () => {
 
   expect(result).toMatchObject({ status: 'done', postsSaved: 1, postsFailed: 1 });
 });
+
+it('post recente além do alcance da sincronização periódica também entra', async () => {
+  const page = (n: number) => ({ success: true, nextPageUrl: n < 11 ? `https://x/media?after=P${n + 1}` : null, data: [
+    { id: `recente-${n}`, media_type: 'CAROUSEL_ALBUM', media_product_type: 'FEED', timestamp: daysAgo(20 + n) },
+  ] });
+  (fetchInstagramMedia as jest.Mock).mockImplementation(async (_conta, _token, _url, opts) => page(opts?.after ? Number(String(opts.after).slice(1)) : 1));
+  (MetricModel.find as jest.Mock).mockReturnValue(chain([]));
+
+  const result = await runInstagramHistoryBackfillStep({ userId, now });
+
+  // Páginas 1 a 10 são da sincronização periódica; a 11ª ela não alcança.
+  expect(result).toMatchObject({ status: 'done', pagesRead: 11, postsSaved: 1 });
+  expect((saveMetricData as jest.Mock).mock.calls.map((call) => call[1].id)).toEqual(['recente-11']);
+});
