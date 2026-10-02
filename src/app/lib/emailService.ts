@@ -1,7 +1,6 @@
 import { logger } from '@/app/lib/logger';
 import { guestMigrationNotice } from '@/emails/guestMigrationNotice';
 import { instagramReconnectNotice } from '@/emails/instagramReconnectNotice';
-import { proWelcomeEmail } from '@/emails/proWelcome';
 import { paymentFailureEmail } from '@/emails/paymentFailure';
 import { subscriptionCanceledEmail } from '@/emails/subscriptionCanceled';
 import { paymentReceiptEmail } from '@/emails/paymentReceipt';
@@ -109,6 +108,10 @@ export async function sendProWelcomeEmail(
   to: string,
   params: { name?: string | null; planInterval?: 'month' | 'year' | null }
 ) {
+  // Carregado só aqui: o template lê o convite VIP de um módulo com
+  // `import "server-only"`, que só existe no Next. Import no topo derrubava
+  // todo script com tsx que encostasse neste arquivo (ex.: refresh:metrics:user).
+  const { proWelcomeEmail } = await import('@/emails/proWelcome');
   const template = proWelcomeEmail(params);
   try {
     await sendMail({ to, subject: template.subject, text: template.text, html: template.html });

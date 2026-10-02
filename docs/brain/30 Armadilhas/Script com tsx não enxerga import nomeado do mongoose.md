@@ -52,4 +52,5 @@ Qualquer script que importe o núcleo serve de canário. O mais barato hoje é
 `npm run smoke:mcp-admin-portfolio`, que puxa `catalog.ts` inteiro e, por tabela,
 metade do `dataService`.
 
-Ligações: [[Build antes do push]] · [[Import que arrasta o servidor pro cliente]]
+Ligações: [[Build antes do push]] · [[Import que arrasta o servidor pro cliente]] ·
+[[Script com tsx não acha o server-only]]
