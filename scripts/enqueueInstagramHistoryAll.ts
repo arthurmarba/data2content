@@ -22,7 +22,7 @@ import { needsHistoryBackfill } from '@/app/lib/instagram/sync/historyBackfill';
 import { enqueueInstagramHistoryBackfill } from '@/app/lib/instagram/historyBackfillQueue';
 
 /** Intervalo entre o início de um criador e o do seguinte. */
-const STAGGER_SECONDS = 300;
+const STAGGER_SECONDS = 120;
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
