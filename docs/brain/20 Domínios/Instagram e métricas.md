@@ -42,8 +42,10 @@ A sincronização periódica (a cada 12 h) só olha posts dos últimos
 conector com 103, e nada dizia que faltava.
 
 Desde então, a conexão dispara `/api/worker/instagram-history-backfill`
-(`sync/historyBackfill.ts` + `historyBackfillQueue.ts`): pagina a conta inteira,
-grava só os posts **mais velhos** que a janela, com os números de hoje, e puxa os
+(`sync/historyBackfill.ts` + `historyBackfillQueue.ts`): pagina a conta até **dois
+anos** atrás (o banco gratuito não comporta mais — ver
+[[Histórico inteiro na conexão, sem IA]]), grava só os posts **mais velhos** que a
+janela, com os números de hoje e sem os links de mídia (expiram), e puxa os
 30 dias de novos seguidores (ver [[Seguidores]]). **Só chamadas ao Instagram:** o
 post antigo é gravado com `skipAiReadings`, sem classificação nem leitura de cena,
 e fica com `classificationStatus: "pending"` — a repescagem só olha 90 dias, então

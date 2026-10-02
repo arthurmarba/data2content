@@ -77,7 +77,7 @@ it('grava só posts mais velhos que a janela do sync, sem IA, e pula o que já t
   expect(fetchMediaInsights).toHaveBeenCalledTimes(1);
   expect(saveMetricData).toHaveBeenCalledTimes(1);
   expect((saveMetricData as jest.Mock).mock.calls[0][1]).toMatchObject({ id: 'antigo', video_duration: 42 });
-  expect((saveMetricData as jest.Mock).mock.calls[0][3]).toEqual({ skipAiReadings: true });
+  expect((saveMetricData as jest.Mock).mock.calls[0][3]).toEqual({ skipAiReadings: true, skipMediaUrls: true });
   expect(InstagramNewFollowersDayModel.bulkWrite).toHaveBeenCalledWith([expect.objectContaining({
     updateOne: expect.objectContaining({ filter: expect.objectContaining({ date: '2026-09-28' }) }),
   })]);
@@ -121,4 +121,17 @@ it('vídeo antigo já medido mas sem duração volta para ganhar retenção', as
   const result = await runInstagramHistoryBackfillStep({ userId, now });
 
   expect(result).toMatchObject({ status: 'done', postsSaved: 1 });
+});
+
+it('para no limite de dois anos em vez de puxar a conta inteira', async () => {
+  (fetchInstagramMedia as jest.Mock).mockResolvedValue({ success: true, nextPageUrl: 'https://x/media?after=MAIS', data: [
+    { id: 'um-ano', media_type: 'VIDEO', media_product_type: 'REELS', media_url: 'https://cdn/a.mp4', timestamp: daysAgo(365) },
+    { id: 'tres-anos', media_type: 'IMAGE', media_product_type: 'FEED', timestamp: daysAgo(1095) },
+  ] });
+  (MetricModel.find as jest.Mock).mockReturnValue(chain([]));
+
+  const result = await runInstagramHistoryBackfillStep({ userId, now });
+
+  expect(result).toMatchObject({ status: 'done', pagesRead: 1, postsSaved: 1 });
+  expect((saveMetricData as jest.Mock).mock.calls.map((call) => call[1].id)).toEqual(['um-ano']);
 });

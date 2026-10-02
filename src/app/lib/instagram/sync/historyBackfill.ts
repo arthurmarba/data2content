@@ -8,7 +8,8 @@
  *
  * Este trabalho cobre exatamente o que a sincronização periódica não cobre:
  *
- * - posts mais antigos que a janela dela, com os números de hoje do Instagram;
+ * - posts mais antigos que a janela dela, até `HISTORY_MAX_AGE_DAYS`, com os
+ *   números de hoje do Instagram e sem os links de mídia (expiram em dias);
  * - os 30 dias de novos seguidores anteriores à conexão, que é tudo o que a API
  *   guarda.
  *
@@ -41,6 +42,13 @@ import { probeVideoDurationSecondsFromUrl } from '../utils/videoDurationFromUrl'
 import type { InstagramMedia } from '../types';
 
 const TAG = '[instagramHistoryBackfill]';
+
+/**
+ * Até onde o histórico vai. O banco é o Atlas gratuito (512 MB): em 02/10/2026 os
+ * 55 criadores conectados tinham 50 mil posts fora do banco (~95 MB); os de até
+ * dois anos eram 11,8 mil (~22 MB). Ir além disso pede banco maior.
+ */
+export const HISTORY_MAX_AGE_DAYS = 730;
 
 /** Páginas de 25 posts por execução: ~300 posts cabem com folga em uma função. */
 const PAGES_PER_STEP = 12;
@@ -181,6 +189,7 @@ export async function runInstagramHistoryBackfillStep(params: {
 
   // Tudo que é mais novo que isto é da sincronização periódica, com leitura de IA.
   const regularWindowStart = new Date(now.getTime() - INSIGHT_FETCH_CUTOFF_DAYS * 86_400_000);
+  const historyStart = new Date(now.getTime() - HISTORY_MAX_AGE_DAYS * 86_400_000);
   const limitInsights = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
   let after: string | null = params.after ?? null;
   let step: HistoryBackfillStep | null = null;
@@ -199,8 +208,11 @@ export async function runInstagramHistoryBackfillStep(params: {
     const oldMedia = (page.data ?? []).filter((media) => {
       if (!media.id || !media.timestamp || (media as { parent_id?: string }).parent_id) return false;
       const postDate = new Date(media.timestamp);
-      return Number.isFinite(postDate.getTime()) && postDate < regularWindowStart;
+      return Number.isFinite(postDate.getTime()) && postDate < regularWindowStart && postDate >= historyStart;
     });
+    // A API lista do mais novo para o mais velho: página que já passou do limite encerra.
+    const reachedHistoryLimit = (page.data ?? []).some((media) =>
+      media.timestamp && new Date(media.timestamp) < historyStart);
 
     // Post antigo que já tem número (de quando era recente) não gasta chamada de
     // novo — a não ser vídeo sem duração, que fica sem retenção.
@@ -228,7 +240,9 @@ export async function runInstagramHistoryBackfillStep(params: {
         ? { ...insights.data, ...calcFormulas([insights.data as Record<string, unknown>], media.media_type) } as IMetricStats
         : {} as IMetricStats;
       if (!insights?.success) counters.postsWithoutInsights += 1;
-      if (!dryRun) await saveMetricData(userId, await withVideoDuration(media), stats, { skipAiReadings: true });
+      if (!dryRun) {
+        await saveMetricData(userId, await withVideoDuration(media), stats, { skipAiReadings: true, skipMediaUrls: true });
+      }
       counters.postsSaved += 1;
     })));
 
@@ -237,7 +251,7 @@ export async function runInstagramHistoryBackfillStep(params: {
     if (stop.rateLimited) { step = { status: 'rate_limited', after }; break; }
 
     const next = afterCursorFromNextPageUrl(page.nextPageUrl);
-    if (!next) { step = { status: 'done' }; break; }
+    if (!next || reachedHistoryLimit) { step = { status: 'done' }; break; }
     after = next;
     if (counters.pagesRead >= PAGES_PER_STEP || Date.now() - startedAt > TIME_BUDGET_MS) {
       step = { status: 'continue', after };
