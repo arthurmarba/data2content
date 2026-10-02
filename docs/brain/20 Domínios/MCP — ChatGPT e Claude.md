@@ -227,6 +227,11 @@ padrão, sem análise solicitada. O Marketplace mostra empresa e acesso verifica
 mas ainda falta análise do app. Isso não comprova scopes do token consultante.
 O MCP oficial da Meta falhou antes do login; acesso pelo painel web funciona.
 
+A Meta recusou as duas permissões novas em 21/09. Em 27/09 a tela `/creator-research` ganhou
+filtros de audiência, métricas do criador e versão em inglês, e o pedido foi refeito (nº
+`1609042077624690`) — ver `docs/meta-review/REENVIO_2026-09-27.md`. O anexo do vídeo trava pela
+automação: [[Screencast da Meta não anexa pela automação]].
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.
