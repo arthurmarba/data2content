@@ -88,18 +88,45 @@ test('envia nicho, alcance e audiência no formato da Meta e lê as métricas do
   expect(result.dataMode).toBe('live');
   expect(result.creators[0].metrics).toMatchObject({ followers: 20000, reachThisMonth: 5000, engagedAccountsThisMonth: 1200, reelsInteractionRate90d: 4.5, reachPerFollowerPercent: 25 });
 });
-test('detalhe consulta um único @ e devolve posts recentes sem link inseguro', async () => {
+test('detalhe consulta um único @ em três partes e devolve posts recentes sem link inseguro', async () => {
   connected();
   (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '1', username: 'real', has_brand_partnership_experience: true, past_brand_partnership_partners: ['Marca'],
     recent_media: { data: [{ id: 'm1', media_type: 'VIDEO', product_type: 'REELS', permalink: 'https://www.instagram.com/reel/x/', creation_time: '2026-09-20T10:00:00+0000', caption: 'Bolo' },
       { id: 'm2', permalink: 'javascript:alert(1)' }] } }] }) });
   const result = await getMarketplaceCreatorDetails(owner, '@real');
-  const url = new URL((global.fetch as jest.Mock).mock.calls[0][0]);
-  expect(url.searchParams.get('username')).toBe('real');
-  expect(url.searchParams.get('creator_countries')).toBeNull();
+  const urls = (global.fetch as jest.Mock).mock.calls.map(([u]) => new URL(u));
+  expect(urls).toHaveLength(3);
+  expect(urls.every(u => u.searchParams.get('username') === 'real' && u.searchParams.get('creator_countries') === null)).toBe(true);
+  // Nenhuma consulta junta posts com parcerias: com dados reais a Meta recusa o pedido inteiro.
+  expect(urls.some(u => /recent_media/.test(u.searchParams.get('fields')!) && /partner/.test(u.searchParams.get('fields')!))).toBe(false);
   expect(result.creator).toMatchObject({ brandPartnershipExperience: true, pastBrandPartners: ['Marca'] });
   expect(result.recentMedia.map(m => m.url)).toEqual(['https://www.instagram.com/reel/x/', null]);
+  expect(result.coverage).toEqual({ partnershipsAvailable: true, recentMediaAvailable: true });
   await expect(getMarketplaceCreatorDetails(owner, 'nome com espaço')).rejects.toBeDefined();
+});
+test('detalhe sobrevive quando a Meta recusa as parcerias', async () => {
+  connected();
+  (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+    const fields = new URL(url).searchParams.get('fields')!;
+    if (/partner/.test(fields)) return { ok: false, status: 500, json: async () => ({ error: { code: 1, message: 'Please reduce the amount of data' } }) };
+    if (/recent_media/.test(fields)) return { ok: true, json: async () => ({ data: [{ id: '1', username: 'real', recent_media: { data: [{ id: 'm1', product_type: 'FEED' }] } }] }) };
+    return { ok: true, json: async () => ({ data: [{ id: '1', username: 'real', biography: 'Receitas', insights: { data: [{ name: 'total_followers', total_value: { value: 900 } }] } }] }) };
+  });
+  const result = await getMarketplaceCreatorDetails(owner, 'real');
+  expect(result.dataMode).toBe('live');
+  expect(result.creator).toMatchObject({ username: 'real', brandPartnershipExperience: null, pastBrandPartners: [] });
+  expect(result.creator.metrics.followers).toBe(900);
+  expect(result.recentMedia).toHaveLength(1);
+  expect(result.coverage).toEqual({ partnershipsAvailable: false, recentMediaAvailable: true });
+});
+test('detalhe falha quando a Meta recusa o perfil', async () => {
+  connected();
+  (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+    const fields = new URL(url).searchParams.get('fields')!;
+    if (/insights/.test(fields)) return { ok: false, status: 500, json: async () => ({ error: { code: 1, message: 'x' } }) };
+    return { ok: true, json: async () => ({ data: [{ id: '1', username: 'real' }] }) };
+  });
+  await expect(getMarketplaceCreatorDetails(owner, 'real')).rejects.toMatchObject({ code: 'marketplace_query_rejected' });
 });
 test('erro do provedor não vaza credencial nem mensagem bruta', async () => {
   connected();

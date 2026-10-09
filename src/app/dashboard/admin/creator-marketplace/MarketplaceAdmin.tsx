@@ -26,7 +26,8 @@ const COPY = {
   pt: {
     title: 'Descoberta de criadores para campanhas',
     intro: 'Encontre criadores elegíveis do Marketplace de Criadores do Instagram por nicho, alcance e audiência e avalie cada um antes de convidar para uma campanha ou parceria.',
-    sample: 'Acesso padrão da Meta: até o acesso avançado ser aprovado, a API do Marketplace devolve perfis de teste (a própria Meta escreve “mocked creator data” na biografia). A busca, os filtros e as métricas abaixo são as mesmas chamadas usadas com dados reais.',
+    sample: 'A Meta devolveu perfis de teste (ela mesma escreve “mocked creator data” na biografia). Não use estes resultados para escolher parceiros.',
+    noMedia: 'A Meta não devolveu os posts recentes deste criador agora.',
     step1: '1. Conecte a conta da marca', connected: 'Página autorizada', none: 'Nenhuma Página conectada ainda.',
     step1Text: 'Pelo Login do Facebook para Empresas, a D2C pede à Meta: descobrir criadores no Marketplace de Criadores do Instagram, informações básicas do Instagram, lista de Páginas, metadados da Página e ativos da empresa. Você escolhe a Página ligada ao Instagram da marca. A D2C só lê; não publica nem envia mensagens.',
     connect: 'Conectar com o Facebook', renew: 'Renovar autorização', remove: 'Remover conexão da D2C',
@@ -47,7 +48,8 @@ const COPY = {
   en: {
     title: 'Creator discovery for campaigns',
     intro: 'Find eligible creators in the Instagram Creator Marketplace by industry, reach and audience, and evaluate each one before inviting them to a campaign or partnership.',
-    sample: 'Meta standard access: until advanced access is approved, the Marketplace API returns sample profiles (Meta itself writes “mocked creator data” in the bio). The search, filters and metrics below are the same calls used with real data.',
+    sample: 'Meta returned sample profiles (Meta itself writes “mocked creator data” in the bio). Do not use these results to choose partners.',
+    noMedia: 'Meta did not return this creator’s recent posts right now.',
     step1: '1. Connect the brand account', connected: 'Authorized Page', none: 'No Page connected yet.',
     step1Text: 'With Facebook Login for Business, Data2Content asks Meta for: discovering creators on the Instagram Creator Marketplace, basic Instagram info, your list of Pages, Page metadata and business assets. You choose the Page linked to the brand’s Instagram account. Data2Content only reads; it never posts or sends messages.',
     connect: 'Connect with Facebook', renew: 'Renew authorization', remove: 'Remove connection from Data2Content',
@@ -115,7 +117,7 @@ export default function MarketplaceAdmin({ lang = 'pt' }: { lang?: ResearchLang 
   return <main id="marketplace" className="mx-auto max-w-4xl space-y-6 p-6">
     <h1 className="text-2xl font-semibold">{t.title}</h1>
     <p>{t.intro}</p>
-    {result?.dataMode !== 'live' && <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">{t.sample}</p>}
+    {result?.dataMode === 'test' && <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">{t.sample}</p>}
     <section className="space-y-3 rounded-lg border bg-white p-5">
       <h2 className="text-lg font-semibold">{t.step1}</h2>
       <p className="text-sm text-gray-600">{t.step1Text}</p>
@@ -211,6 +213,7 @@ export default function MarketplaceAdmin({ lang = 'pt' }: { lang?: ResearchLang 
             <p><strong>{t.partnership}:</strong> {extra.creator.brandPartnershipExperience == null ? t.na : extra.creator.brandPartnershipExperience ? t.yes : t.no}
               {!!extra.creator.pastBrandPartners.length && <> · <strong>{t.partners}:</strong> {extra.creator.pastBrandPartners.join(', ')}</>}</p>
             <h4 className="font-semibold">{t.recent}</h4>
+            {!extra.recentMedia.length && <p className="text-sm text-gray-600">{t.noMedia}</p>}
             {extra.recentMedia.map(media => <div key={media.id} className="space-y-1 rounded bg-gray-50 p-3 text-sm">
               <p className="text-gray-600">{[media.type, media.publishedAt && new Date(media.publishedAt).toLocaleDateString(locale)].filter(Boolean).join(' · ')}</p>
               <p className="line-clamp-2">{media.caption || t.na}</p>
