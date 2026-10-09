@@ -164,3 +164,9 @@ Diferenças em relação ao plano, descobertas na API real:
 - A ficha e a avaliação não usam cache ainda; cada chamada vai à Meta.
 
 Medido com dados reais: ficha em ~7 s; publis de 3 @s em ~11 s; 5 finalistas em ~9 s.
+
+Publis com o Jev (#937, 09/10/2026): o filtro perdia "publi" solto no fim da legenda e toda publi sem
+marcação, porque exigia "@" e a Meta devolve a legenda sem ele. Agora o post sem marcação passa por uma
+segunda leitura do Jev (TypeSafe), que dá `publiChance`. Nas 6.403 legendas dos 15 perfis de outubro, o
+resultado foi 690 de 701 publis, contra 364 antes, com US$ 0,16 de custo. Com dados reais, 4 perfis
+levaram 11,8 s. Teste em `output/publis-15-perfis/teste-jev/`.

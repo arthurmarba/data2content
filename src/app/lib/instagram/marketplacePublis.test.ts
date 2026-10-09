@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { askJev } from '@/app/lib/ai/jev';
 import { getPublicInstagramCreator } from '@/app/lib/mcp/publicInstagramResearch';
 import { graph, marketplaceToken } from './marketplace';
 import { findCreatorPublis } from './marketplacePublis';
@@ -7,6 +8,7 @@ jest.mock('@/app/lib/mcp/publicInstagramResearch', () => {
   const actual = jest.requireActual('@/app/lib/mcp/publicInstagramResearch');
   return { ...actual, getPublicInstagramCreator: jest.fn() };
 });
+jest.mock('@/app/lib/ai/jev', () => ({ askJev: jest.fn() }));
 jest.mock('./marketplace', () => ({
   graph: jest.fn(), marketplaceToken: jest.fn(), requireMarketplaceAdmin: jest.fn(), throttle: jest.fn(),
 }));
@@ -17,6 +19,8 @@ const post = (n: number, caption: string, ago: number) => ({ id: `p${n}`, captio
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Sem o Jev (sem chave ou fora do ar), vale o filtro de palavras.
+  (askJev as jest.Mock).mockResolvedValue(null);
   (marketplaceToken as jest.Mock).mockResolvedValue({ accountId: '1', token: 't' });
   (graph as jest.Mock).mockImplementation(async (path: string) => {
     const fields = new URLSearchParams(path.split('?')[1]).get('fields')!;
@@ -74,4 +78,36 @@ test('um @ com erro não derruba os outros e o Marketplace é opcional', async (
   expect(result.creators.map((c: any) => [c.username, c.status])).toEqual([['pessoal', 'error'], ['ok', 'ok']]);
   expect(result.creators[1].marketplace).toBeNull();
   expect(graph).not.toHaveBeenCalled();
+});
+
+test('pega "publi" solto no fim e campanha sem @, como a Meta devolve as legendas', async () => {
+  (getPublicInstagramCreator as jest.Mock).mockResolvedValue({
+    creator: { followersCount: 1000, publishedMediaCount: 10 },
+    posts: [post(1, 'aqui comemos a selectbymonello pra castrados 💖 publi', 2), post(2, 'tem cupom GATOMIU pra desconto na patasegravatas 💖', 3),
+      post(3, 'vou publicar amanhã', 4)],
+  });
+  const result = await findCreatorPublis(owner, { usernames: ['gatomiu'] });
+  expect(result.creators[0].publis.map((p: any) => [p.kind, p.publiChance])).toEqual([['marcada', null], ['possivel_sem_marcacao', null]]);
+  expect(result.creators[0].unmarkedCheck).toEqual({ posts: 2, readByModel: 0 });
+});
+
+test('a segunda leitura decide as sem marcação e não relê as marcadas', async () => {
+  const chance: Record<string, number> = { racao: 0.8, cupom: 0.1, look: 0.2 };
+  (askJev as jest.Mock).mockImplementation(async ({ legenda }: { legenda: string }) => {
+    const key = Object.keys(chance).find(k => legenda.includes(k))!;
+    return { publi: { type: 'choice', choice: 'x', probabilities: { nao_publi: 1 - chance[key]! } } };
+  });
+  (getPublicInstagramCreator as jest.Mock).mockResolvedValue({
+    creator: { followersCount: 1000, publishedMediaCount: 10 },
+    posts: [post(1, '#publi da sheinbrasil', 1), post(2, 'hora de comprar a racao do Fred na petz', 2),
+      post(3, 'meu cupom de afiliada da shein, link na bio', 3), post(4, 'look todo da shein', 4)],
+  });
+  const result = await findCreatorPublis(owner, { usernames: ['ana'] });
+  const ana = result.creators[0];
+  expect(ana.publis.map((p: any) => [p.kind, p.publiChance])).toEqual([['marcada', null], ['possivel_sem_marcacao', 0.8]]);
+  expect(ana.unmarkedCheck).toEqual({ posts: 3, readByModel: 3 });
+  expect(askJev).toHaveBeenCalledTimes(3);
+  // Com a marca procurada, o que a leitura descarta e cita a marca vira menção.
+  const shein = await findCreatorPublis(owner, { usernames: ['ana'], brands: ['Shein'] });
+  expect(shein.creators[0].publis.map((p: any) => p.kind)).toEqual(['marcada', 'mencao_da_marca', 'mencao_da_marca']);
 });
