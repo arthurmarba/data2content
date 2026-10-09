@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-10-02
+atualizado: 2026-10-09
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -8,7 +8,7 @@ atualizado: 2026-10-02
 
 # Variáveis de ambiente
 
-**436 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
+**437 variáveis** lidas pelo código. `NEXT_PUBLIC_*` vaza pro navegador — nunca guarde segredo aí.
 
 > As que ligam e desligam funcionalidades (`*_ENABLED`) moram no `.env.local` e **precisam ser repetidas na Vercel**, senão a funcionalidade some em produção.
 
@@ -338,6 +338,7 @@ atualizado: 2026-10-02
 | `CHROME_BIN` | 4 |
 | `PLAYWRIGHT_CHROMIUM_BIN` | 4 |
 | `PLAYWRIGHT_EXECUTABLE_PATH` | 4 |
+| `TYPESAFE_API_KEY` | 4 |
 | `USAGE_EVENTS_DISABLED` | 4 |
 | `ADMIN_TOKEN` | 3 |
 | `ALLOW_LOCAL_E2E_ROUTES` | 3 |
