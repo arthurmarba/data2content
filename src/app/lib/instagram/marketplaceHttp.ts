@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { ZodError } from 'zod';
 import { PublicInstagramResearchError } from '@/app/lib/mcp/publicInstagramResearch';
-import { beginMarketplaceConnection, disconnectMarketplace, finishMarketplaceConnection, getMarketplaceCreatorDetails, marketplaceOrigin, marketplaceStatus, searchMarketplaceCreators } from './marketplace';
+import { beginMarketplaceConnection, disconnectMarketplace, finishMarketplaceConnection, marketplaceOrigin, marketplaceStatus, searchMarketplaceCreators } from './marketplace';
+import { getMarketplaceCreatorDetails } from './marketplaceCreator';
 
 const COOKIE = 'd2c-marketplace-state';
 async function owner() {

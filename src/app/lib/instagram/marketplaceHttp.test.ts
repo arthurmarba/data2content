@@ -10,6 +10,7 @@ jest.mock('./marketplace', () => ({
   beginMarketplaceConnection: jest.fn(), finishMarketplaceConnection: jest.fn(),
   searchMarketplaceCreators: jest.fn(), marketplaceStatus: jest.fn(), disconnectMarketplace: jest.fn(),
 }));
+jest.mock('./marketplaceCreator', () => ({ getMarketplaceCreatorDetails: jest.fn() }));
 beforeEach(() => { jest.clearAllMocks(); (getServerSession as jest.Mock).mockResolvedValue({ user: { id: 'dono' } }); });
 test('recusa origem externa antes de iniciar OAuth ou consultar', async () => {
   const result = await handleMarketplacePost(new NextRequest('https://data2content.ai/api/admin/creator-marketplace', { method: 'POST', headers: { origin: 'https://outro.example' }, body: JSON.stringify({ action: 'connect' }) }));
