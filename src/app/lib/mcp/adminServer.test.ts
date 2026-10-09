@@ -218,6 +218,13 @@ describe("Data2Content admin MCP server", () => {
         "compare_creators",
         "get_creator_images",
       ]);
+      const search = tools.find(tool => tool.name === "search_external_creators");
+      expect(Object.keys((search?.inputSchema as any)?.properties ?? {})).toEqual(expect.arrayContaining(["query", "similarTo", "audienceGender", "sortBy", "cursor"]));
+      // Esquema com .refine() é publicado sem campos; toda ferramenta com entrada precisa expor os seus.
+      const empty = tools.filter(tool => !Object.keys((tool.inputSchema as any)?.properties ?? {}).length).map(tool => tool.name);
+      expect(empty).toEqual([]);
+      const profile = tools.find(tool => tool.name === "get_marketplace_creator");
+      expect(Object.keys((profile?.inputSchema as any)?.properties ?? {})).toEqual(["username"]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
       expect(tools.every((tool) => tool.annotations?.destructiveHint === false)).toBe(true);
       expect(tools.filter(tool => /public_instagram|marketplace|external/.test(tool.name)).every(tool => tool.annotations?.openWorldHint === true)).toBe(true);
@@ -241,6 +248,10 @@ describe("Data2Content admin MCP server", () => {
       expect(textPayload(result).dataMode).toBe('test');
       expect(searchMarketplaceCreators).toHaveBeenCalledWith('507f1f77bcf86cd799439011', { query: 'receitas', countries: ['BR'], sortBy: 'engaged_accounts', limit: 20 });
       jest.mocked(searchMarketplaceCreators).mockClear();
+      const combined = await allowed.client.callTool({ name: 'search_external_creators', arguments: { query: 'maternidade', similarTo: ['ana'] } });
+      expect(combined.isError).toBe(true);
+      expect(textPayload(combined).message).toMatch(/parecidos com/);
+      expect(searchMarketplaceCreators).not.toHaveBeenCalled();
       const invalid = await allowed.client.callTool({ name: 'search_external_creators', arguments: { city: 'Rio', actorUserId: 'outro' } });
       expect(invalid.isError).toBe(true);
       expect(searchMarketplaceCreators).not.toHaveBeenCalled();
