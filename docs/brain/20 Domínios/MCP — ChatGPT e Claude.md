@@ -243,6 +243,11 @@ Desde 09/10/2026 o MCP admin tem o caminho completo para campanhas com criadores
 Play9) → `evaluate_campaign_shortlist` (finalistas). Plano e diferenças medidas em
 `docs/plano-marketplace-mcp-admin-2026-10-08.md`. Cuidado com [[Esquema com refine some na lista do MCP]].
 
+Nas publis, marcação sai por palavra e o post sem marcação passa por uma segunda leitura do Jev
+(TypeSafe, `src/app/lib/ai/jev.ts`, chave `TYPESAFE_API_KEY`), que devolve `publiChance`. Sem a chave,
+ou com o Jev fora do ar, vale só o filtro de palavras. Medido em 09/10/2026 com 6.403 legendas: 690 de 701
+publis, contra 364 do filtro anterior. Ver [[Legenda da Meta vem sem @]].
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.
