@@ -201,7 +201,7 @@ describe("Data2Content admin MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
-        "search_external_creators", "get_marketplace_creator",
+        "search_external_creators", "get_marketplace_creator", "find_creator_publis", "evaluate_campaign_shortlist",
         "get_public_instagram_creator", "compare_public_instagram_creators",
         "get_connector_usage",
         "list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map",

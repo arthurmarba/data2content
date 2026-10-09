@@ -52,7 +52,7 @@ const clip = (value: string | null | undefined, size: number) => value ? value.r
 // ({ dimension_value, percentage }); seguidor x não seguidor, em contagem ({ dimension_value, value }).
 const breakdownSchema = z.object({ dimension_value: z.string().nullish(), dimension_values: z.array(z.string()).nullish(),
   value: z.number().nullish(), percentage: z.number().nullish() });
-function breakdown(raw: unknown) {
+export function breakdown(raw: unknown) {
   const metric = (raw as any)?.data?.find?.((r: any) => r)?.insights?.data?.[0];
   const holder = metric?.total_value?.breakdowns;
   const results = z.array(breakdownSchema).safeParse(Array.isArray(holder) ? holder[0]?.results : holder?.results);
