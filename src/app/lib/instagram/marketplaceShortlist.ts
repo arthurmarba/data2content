@@ -86,7 +86,7 @@ export async function evaluateCampaignShortlist(owner: string, raw: z.input<type
         results.push({ username, status: 'error', reason: error instanceof PublicInstagramResearchError ? error.message : 'A Meta não devolveu este @ em nenhuma das fontes.' });
         continue;
       }
-      const publis = pub ? scanPublis(pub, brands, since) : null;
+      const publis = pub ? await scanPublis(pub, brands, since) : null;
       const ev = evidence.status === 'fulfilled' ? evidence.value : null;
       const competitorPosts = [...(publis?.publis.filter(p => p.brandsMatched.length && p.kind !== 'mencao_da_marca') ?? []),
         ...(ev?.paidPartnershipPosts?.filter(p => p.brandsMatched.length) ?? [])];

@@ -1,11 +1,13 @@
 import { z } from 'zod';
+import { askJev, type JevQuestion } from '@/app/lib/ai/jev';
 import { getPublicInstagramCreator, PublicInstagramResearchError, publicInstagramUsernameSchema } from '@/app/lib/mcp/publicInstagramResearch';
 import { graph, marketplaceToken, requireMarketplaceAdmin, throttle } from './marketplace';
 
 // Histórico de publis de candidatos a campanha. A API do Marketplace não busca "quem fez publi para a
 // marca X"; a fonte principal são as legendas dos últimos 50 posts (Business Discovery), lidas com os
-// critérios do casting Play9 (output/play9-casting-publis/criterios.md). O servidor só separa os
-// candidatos e as evidências; quem decide o que conta é o assistente, com as regras em `criteria`.
+// critérios do casting Play9 (output/play9-casting-publis/criterios.md). Marcação de publi sai por palavra;
+// publi sem marcação sai de uma segunda leitura pelo Jev. O servidor só separa os candidatos e as
+// evidências; quem decide o que conta é o assistente, com as regras em `criteria`.
 export const creatorPublisInputSchema = z.object({
   usernames: z.array(publicInstagramUsernameSchema).min(1).max(15)
     .describe('De 1 a 15 @s profissionais'),
@@ -14,12 +16,14 @@ export const creatorPublisInputSchema = z.object({
   sinceDays: z.number().int().min(1).max(365).default(60).describe('Período em dias até hoje'),
 }).strict();
 
-const MARKED = /(#publi\b|#publipost\b|#publicidade\b|\bpubli\s*[|:\-–]|\bpublicidade\b|#parceria\b|#parceriapaga\b|parceria paga|#ad\b|#ads\b|#sponsored\b|#an[uú]ncio\b|conte[uú]do patrocinado|\bpatrocinad[oa]\b|#recebido\b)/i;
+const MARKED = /(#publi\b|#publipost\b|#publicidade\b|\bpubli\b|\bpublicidade\b|#parceria\b|#parceriapaga\b|parceria paga|#ad\b|#ads\b|#sponsored\b|#an[uú]ncio\b|conte[uú]do patrocinado|\bpatrocinad[oa]\b|#recebido\b)/i;
 const CAMPAIGN = /(\bcupom\b|c[oó]digo\s+[A-Z0-9]{3,}|\b\d{1,2}\s?%\s*(off|de desconto)|corre pro site|j[aá] dispon[ií]vel|aproveite|garanta o seu|link na bio|aprecie com modera|se persistirem os sintomas)/i;
 const MENTION = /@([a-z0-9_.]{2,30})/gi;
 const fold = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const brandKey = (value: string) => fold(value).replace(/[@#\s]/g, '');
 
+// A Meta devolve a legenda sem o "@" das menções ("comemos a selectbymonello"), então campanha sem
+// marcação não pode depender de @ (só 8 de 6.403 legendas tinham um, no teste de 09/10/2026).
 function classify(caption: string, brands: string[]) {
   const folded = fold(caption);
   const compact = folded.replace(/\s+/g, '');
@@ -27,10 +31,31 @@ function classify(caption: string, brands: string[]) {
   const brandsMatched = brands.filter(b => compact.includes(brandKey(b)));
   const marked = MARKED.exec(caption)?.[0] ?? null;
   const campaign = CAMPAIGN.exec(caption)?.[0] ?? null;
-  const kind = marked ? 'marcada' as const
-    : campaign && (mentions.length || brandsMatched.length) ? 'possivel_sem_marcacao' as const
-      : brandsMatched.length ? 'mencao_da_marca' as const : null;
-  return { kind, marker: marked ?? campaign, mentions, brandsMatched };
+  return { marked, campaign, mentions, brandsMatched };
+}
+type Found = ReturnType<typeof classify>;
+// publiChance = chance de publi pela segunda leitura; null quando ela não respondeu e vale o filtro de palavras.
+function kindOf(found: Found, publiChance: number | null) {
+  if (found.marked) return 'marcada' as const;
+  const unmarked = publiChance === null ? !!found.campaign : publiChance >= 0.5;
+  return unmarked ? 'possivel_sem_marcacao' as const : found.brandsMatched.length ? 'mencao_da_marca' as const : null;
+}
+
+// Mesma régua do casting Play9. No teste com 6.403 legendas de 15 perfis, achou 218 das 229 publis sem
+// marcação; dos alarmes a mais, a maioria era caso que a régua não conta (embaixadora, produto próprio).
+const PUBLI_QUESTION: JevQuestion = {
+  type: 'choice',
+  instructions: 'O texto é a legenda de um post de Instagram de um criador de conteúdo brasileiro. Este post é publicidade de uma marca de terceiros?',
+  criteria: {
+    publi_marcada: 'A legenda tem marcação de publicidade (#publi, #publicidade, publi |, #ad, #parceria, parceria paga, conteúdo patrocinado) e fala de uma marca de terceiros.',
+    publi_sem_marcacao: 'Sem marcação, mas é campanha clara de uma empresa: cupom de desconto, hashtag de campanha, chamada para comprar, baixar, assinar, usar ou conhecer a marca, linguagem de lançamento ("já disponível", "corre pro site") ou aviso legal ("aprecie com moderação", "se persistirem os sintomas").',
+    nao_publi: 'Não é publicidade: post sem marca; marca citada só como elogio, crédito de look ou lista de produtos sem texto de anúncio; marca, loja, curso, clínica, filme ou projeto do próprio criador; convite, evento ou viagem sem marcação; doação, adoção ou causa; profissional individual (dentista, cabeleireiro).',
+  },
+};
+async function publiChance(caption: string) {
+  const answer = (await askJev({ legenda: caption }, { publi: PUBLI_QUESTION }))?.publi;
+  if (answer?.type !== 'choice') return null;
+  return Math.round(100 * (1 - (answer.probabilities.nao_publi ?? 0))) / 100;
 }
 
 const excerpt = (caption: string, brands: string[]) => {
@@ -70,20 +95,26 @@ export async function marketplaceEvidence(accountId: string, token: string, user
 
 type PublicProfile = Awaited<ReturnType<typeof getPublicInstagramCreator>>;
 // Lê as publis de um perfil já consultado; reaproveitada pela avaliação de finalistas.
-export function scanPublis(profile: PublicProfile, brands: string[], since: number) {
+export async function scanPublis(profile: PublicProfile, brands: string[], since: number) {
   const dated = profile.posts.filter(p => p.publishedAt);
   const oldest = dated.map(p => Date.parse(p.publishedAt!)).sort((a, b) => a - b)[0];
-  const publis = profile.posts
+  const read = profile.posts
     .filter(p => p.caption && (!p.publishedAt || Date.parse(p.publishedAt) >= since))
-    .map(p => ({ post: p, found: classify(p.caption!, brands) }))
-    .filter(({ found }) => found.kind && (!brands.length || found.brandsMatched.length || found.kind === 'marcada'))
-    .map(({ post, found }) => ({ publishedAt: post.publishedAt, url: post.url, kind: found.kind, marker: found.marker,
-      brandsMatched: found.brandsMatched, mentions: found.mentions, excerpt: excerpt(post.caption!, brands),
+    .map(p => ({ post: p, found: classify(p.caption!, brands) }));
+  // Só o que não tem marcação passa pela segunda leitura.
+  const chances = await Promise.all(read.map(({ post, found }) => found.marked ? null : publiChance(post.caption!)));
+  const unmarked = read.filter(({ found }) => !found.marked).length;
+  const publis = read
+    .map(({ post, found }, i) => ({ post, found, chance: chances[i] ?? null, kind: kindOf(found, chances[i] ?? null) }))
+    .filter(({ found, kind }) => kind && (!brands.length || found.brandsMatched.length || kind === 'marcada'))
+    .map(({ post, found, chance, kind }) => ({ publishedAt: post.publishedAt, url: post.url, kind, marker: found.marked ?? found.campaign,
+      publiChance: chance, brandsMatched: found.brandsMatched, mentions: found.mentions, excerpt: excerpt(post.caption!, brands),
       likes: post.likes, comments: post.comments, views: post.views }));
   return {
     postsRead: profile.posts.length, oldestPostRead: oldest ? new Date(oldest).toISOString() : null,
     // Coberto quando o post mais antigo lido já é anterior ao período, ou quando o perfil tem menos de 50 posts.
     periodFullyCovered: (oldest !== undefined && oldest <= since) || (profile.creator.publishedMediaCount ?? Infinity) <= profile.posts.length,
+    unmarkedCheck: { posts: unmarked, readByModel: chances.filter(c => c !== null).length },
     publis, counts: { marcada: publis.filter(p => p.kind === 'marcada').length,
       possivelSemMarcacao: publis.filter(p => p.kind === 'possivel_sem_marcacao').length,
       mencaoDaMarca: publis.filter(p => p.kind === 'mencao_da_marca').length,
@@ -92,7 +123,8 @@ export function scanPublis(profile: PublicProfile, brands: string[], since: numb
 }
 export const PUBLI_CRITERIA = [
   'marcada = legenda com marcação de publi (#publi, publicidade, parceria paga, #ad, conteúdo patrocinado e similares): conta como publi.',
-  'possivel_sem_marcacao = cupom, código, desconto ou chamada de compra com @ de marca: só conta se for campanha clara de empresa (perfil de cupons de afiliado não é publi paga).',
+  'possivel_sem_marcacao = sem marcação, mas a segunda leitura (modelo Jev; publiChance de 0 a 1) apontou campanha de marca, ou, quando ela não respondeu (publiChance null), o filtro achou cupom, código, desconto ou chamada de compra. Leia o trecho: só conta se for campanha clara de empresa. Embaixadora sem texto de anúncio, produto próprio e perfil de cupons de afiliado não são publi paga.',
+  'unmarkedCheck = quantos posts sem marcação havia e quantos a segunda leitura respondeu; readByModel menor que posts quer dizer que parte foi só pelo filtro de palavras.',
   'mencao_da_marca = a marca aparece sem sinal de publi: não conta sozinha (crédito de look, convite, evento, permuta).',
   'Não conta: marca própria do criador, convite ou viagem sem marcação, créditos de look, profissional individual (permuta), collab com criador sem marca.',
   'paidPartnershipPosts = posts com o selo de parceria paga do Instagram, vindos do Marketplace; contam como publi.',
@@ -119,7 +151,7 @@ export async function findCreatorPublis(owner: string, raw: z.input<typeof creat
           getPublicInstagramCreator(owner, { username, postLimit: 50 }),
           market ? marketplaceEvidence(market.accountId, market.token, username, brands, since).catch(() => null) : Promise.resolve(null),
         ]);
-        results.push({ username, status: 'ok', followers: profile.creator.followersCount, ...scanPublis(profile, brands, since), marketplace: evidence });
+        results.push({ username, status: 'ok', followers: profile.creator.followersCount, ...await scanPublis(profile, brands, since), marketplace: evidence });
       } catch (error) {
         results.push({ username, status: 'error', error: error instanceof PublicInstagramResearchError ? error.code : 'unavailable',
           reason: error instanceof PublicInstagramResearchError ? error.message : 'Não foi possível ler este @.' });

@@ -7,6 +7,7 @@ jest.mock('@/app/lib/mcp/publicInstagramResearch', () => {
   const actual = jest.requireActual('@/app/lib/mcp/publicInstagramResearch');
   return { ...actual, getPublicInstagramCreator: jest.fn() };
 });
+jest.mock('@/app/lib/ai/jev', () => ({ askJev: jest.fn().mockResolvedValue(null) }));
 jest.mock('./marketplace', () => {
   const actual = jest.requireActual('./marketplace');
   return { ...actual, graph: jest.fn(), marketplaceToken: jest.fn(), requireMarketplaceAdmin: jest.fn(), throttle: jest.fn(), d2cCreatorRefs: jest.fn() };
