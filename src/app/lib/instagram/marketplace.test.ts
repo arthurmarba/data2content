@@ -3,10 +3,11 @@ import Connection from '@/app/models/InstagramMarketplaceConnection';
 import User from '@/app/models/User';
 import { getCreatorResearchAccess } from './creatorResearchAccess';
 import { checkRateLimitStrict } from '@/utils/rateLimit';
-import { finishMarketplaceConnection, getMarketplaceCreatorDetails, MARKETPLACE_SCOPES, marketplaceSearchSchema, openMarketplaceToken, searchMarketplaceCreators, sealMarketplaceToken } from './marketplace';
+import { finishMarketplaceConnection, MARKETPLACE_SCOPES, marketplaceSearchSchema, openMarketplaceToken, searchMarketplaceCreators, sealMarketplaceToken } from './marketplace';
+import { getMarketplaceCreatorDetails, getMarketplaceCreatorProfile } from './marketplaceCreator';
 
 jest.mock('@/app/models/InstagramMarketplaceConnection', () => ({ __esModule: true, default: { findOne: jest.fn(), findOneAndUpdate: jest.fn(), updateOne: jest.fn() } }));
-jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
+jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn(), find: jest.fn() } }));
 jest.mock('./creatorResearchAccess', () => ({ getCreatorResearchAccess: jest.fn() }));
 jest.mock('@/utils/rateLimit', () => ({ checkRateLimitStrict: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
@@ -28,6 +29,11 @@ test('recusa cidade, campos desconhecidos e intervalo invertido', () => {
   expect(marketplaceSearchSchema.safeParse({ minEngagedAccounts: 50000, maxEngagedAccounts: 2000 }).success).toBe(false);
   expect(marketplaceSearchSchema.safeParse({ audienceAgeBuckets: ['30_to_40'] }).success).toBe(false);
   expect(marketplaceSearchSchema.safeParse({ audienceGender: 'other' }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ query: 'maternidade', similarTo: ['ana'] }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ query: 'maternidade', recommendation: 'high_ad_performance' }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ limit: 101 }).success).toBe(false);
+  expect(marketplaceSearchSchema.safeParse({ languages: ['pt-BR'] }).success).toBe(false);
+  expect(marketplaceSearchSchema.parse({ similarTo: ['@Amamaecegonha_'] })).toMatchObject({ similarTo: ['Amamaecegonha_'], sortBy: 'engaged_accounts', limit: 20, countries: ['BR'] });
 });
 test('criptografia vincula a credencial ao dono e detecta adulteração', () => {
   const sealed = sealMarketplaceToken('credencial-secreta', owner);
@@ -88,14 +94,14 @@ test('envia nicho, alcance e audiência no formato da Meta e lê as métricas do
   expect(result.dataMode).toBe('live');
   expect(result.creators[0].metrics).toMatchObject({ followers: 20000, reachThisMonth: 5000, engagedAccountsThisMonth: 1200, reelsInteractionRate90d: 4.5, reachPerFollowerPercent: 25 });
 });
-test('detalhe consulta um único @ em três partes e devolve posts recentes sem link inseguro', async () => {
+test('detalhe consulta o @ em partes separadas e devolve posts recentes sem link inseguro', async () => {
   connected();
   (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: '1', username: 'real', has_brand_partnership_experience: true, past_brand_partnership_partners: ['Marca'],
     recent_media: { data: [{ id: 'm1', media_type: 'VIDEO', product_type: 'REELS', permalink: 'https://www.instagram.com/reel/x/', creation_time: '2026-09-20T10:00:00+0000', caption: 'Bolo' },
       { id: 'm2', permalink: 'javascript:alert(1)' }] } }] }) });
   const result = await getMarketplaceCreatorDetails(owner, '@real');
   const urls = (global.fetch as jest.Mock).mock.calls.map(([u]) => new URL(u));
-  expect(urls).toHaveLength(3);
+  expect(urls.length).toBeGreaterThan(3);
   expect(urls.every(u => u.searchParams.get('username') === 'real' && u.searchParams.get('creator_countries') === null)).toBe(true);
   // Nenhuma consulta junta posts com parcerias: com dados reais a Meta recusa o pedido inteiro.
   expect(urls.some(u => /recent_media/.test(u.searchParams.get('fields')!) && /partner/.test(u.searchParams.get('fields')!))).toBe(false);
@@ -127,6 +133,77 @@ test('detalhe falha quando a Meta recusa o perfil', async () => {
     return { ok: true, json: async () => ({ data: [{ id: '1', username: 'real' }] }) };
   });
   await expect(getMarketplaceCreatorDetails(owner, 'real')).rejects.toMatchObject({ code: 'marketplace_query_rejected' });
+});
+test('busca percorre páginas até o limite, ordena por contas engajadas e marca quem já está na D2C', async () => {
+  connected();
+  (User.find as jest.Mock).mockReturnValue({ collation: () => ({ select: () => ({ lean: async () => [{ _id: '64b7f1f77bcf86cd79943901', username: 'Bia' }] }) }) });
+  const creator = (n: number, engaged: number) => ({ id: String(n), username: n === 2 ? 'bia' : `c${n}`, biography: 'Mãe de dois',
+    insights: { data: [{ name: 'creator_engaged_accounts', total_value: { value: engaged } }, { name: 'total_followers', total_value: { value: 1000 } }] } });
+  const pages = [
+    { data: Array.from({ length: 25 }, (_, i) => creator(i + 1, i === 1 ? 9000 : 100)), paging: { cursors: { after: 'CUR1' }, next: 'https://graph.facebook.com/x?access_token=segredo' } },
+    { data: [creator(51, 5000), creator(52, 10)], paging: { cursors: { after: 'CUR2' } } },
+  ];
+  (global.fetch as jest.Mock).mockImplementation(async () => ({ ok: true, json: async () => pages.shift() }));
+  const result = await searchMarketplaceCreators(owner, { query: 'maternidade', limit: 35, creatorGender: 'female', languages: ['pt'], hasPublicEmail: true });
+  const [first, second] = (global.fetch as jest.Mock).mock.calls.map(([u]) => new URL(u));
+  expect(first.searchParams.get('limit')).toBe('25');
+  expect(first.searchParams.get('creator_gender')).toBe('["female"]');
+  expect(first.searchParams.get('creator_language')).toBe('["pt"]');
+  expect(first.searchParams.get('has_public_contact_email')).toBe('true');
+  expect(second.searchParams.get('after')).toBe('CUR1');
+  expect(second.searchParams.get('limit')).toBe('10');
+  expect(result.coverage).toMatchObject({ pagesFetched: 2, returned: 27, hasMore: false, nextCursor: null });
+  expect(result.creators.slice(0, 2).map(c => [c.rank, c.username, c.metrics.engagedAccountsThisMonth])).toEqual([[1, 'bia', 9000], [2, 'c51', 5000]]);
+  expect(result.creators[0]).toMatchObject({ metaPosition: 2, d2cCreatorRef: 'creator:64b7f1f77bcf86cd79943901' });
+  expect(JSON.stringify(result)).not.toContain('segredo');
+});
+test('página recusada pelo tamanho é tentada de novo com a metade', async () => {
+  connected();
+  (User.find as jest.Mock).mockReturnValue({ collation: () => ({ select: () => ({ lean: async () => [] }) }) });
+  (global.fetch as jest.Mock)
+    .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: { code: 1, message: 'Please reduce the amount of data' } }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: '1', username: 'a' }] }) });
+  const result = await searchMarketplaceCreators(owner, { query: 'x', limit: 20 });
+  const sizes = (global.fetch as jest.Mock).mock.calls.map(([u]) => new URL(u).searchParams.get('limit'));
+  expect(sizes).toEqual(['20', '10']);
+  expect(result.coverage).toMatchObject({ pagesFetched: 1, returned: 1 });
+});
+test('busca devolve o que já tem quando uma página seguinte falha', async () => {
+  connected();
+  (User.find as jest.Mock).mockReturnValue({ collation: () => ({ select: () => ({ lean: async () => [] }) }) });
+  (global.fetch as jest.Mock)
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: '1', username: 'a' }], paging: { cursors: { after: 'C1' }, next: 'x' } }) })
+    .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: { code: 1, message: 'reduce' } }) });
+  const result = await searchMarketplaceCreators(owner, { query: 'x', limit: 100, sortBy: 'meta' });
+  expect(result.coverage).toMatchObject({ pagesFetched: 1, returned: 1 });
+  expect(result.coverage.partial).toMatch(/página seguinte/);
+});
+test('ficha junta janelas, público engajado e posts, e lista o que a Meta não entregou', async () => {
+  connected();
+  (User.find as jest.Mock).mockReturnValue({ collation: () => ({ select: () => ({ lean: async () => [] }) }) });
+  (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+    const fields = new URL(url).searchParams.get('fields')!;
+    const ok = (row: object) => ({ ok: true, json: async () => ({ data: [{ id: '1', username: 'real', ...row }] }) });
+    if (/breakdown\(top_cities\)/.test(fields)) return ok({ insights: { data: [{ name: 'creator_engaged_accounts', total_value: { value: 200,
+      breakdowns: { dimension_key: 'top_cities', results: [{ dimension_value: 'São Paulo, SP', percentage: 4.1 }, { dimension_value: 'Recife, PE', percentage: 6.5 }] } } }] } });
+    if (/breakdown\(follow_type\)/.test(fields)) return ok({ insights: { data: [{ name: 'creator_engaged_accounts', total_value: { value: 200,
+      breakdowns: { dimension_key: 'follow_type', results: [{ dimension_value: 'follower_count', value: 50 }, { dimension_value: 'non_follower_count', value: 150 }] } } }] } });
+    if (/time_range\(this_week\)/.test(fields)) return ok({ insights: { data: [{ name: 'creator_reach', total_value: { value: 777 } }] } });
+    if (/partner/.test(fields) || /breakdown/.test(fields)) return { ok: false, status: 500, json: async () => ({ error: { code: 1, message: 'reduce' } }) };
+    if (/recent_media\.limit\(12\)/.test(fields)) return ok({ recent_media: { data: [{ id: 'm1', insights: { data: [{ name: 'views', total_value: { value: 900 } }] } }] } });
+    if (/recent_media/.test(fields)) return ok({ recent_media: { data: [{ id: 'm1', product_type: 'REELS', permalink: 'https://instagram.com/reel/1/' }, { id: 'm2', product_type: 'FEED' }] } });
+    if (/branded_content_media|time_range\(last_14_days\)/.test(fields)) return { ok: false, status: 500, json: async () => ({ error: { code: 1 } }) };
+    return ok({ biography: 'Receitas', email: 'contato@real.com', insights: { data: [{ name: 'total_followers', total_value: { value: 1000 } }, { name: 'creator_reach', total_value: { value: 3000 } }] } });
+  });
+  const result = await getMarketplaceCreatorProfile(owner, 'real');
+  expect(result.creator).toMatchObject({ username: 'real', email: 'contato@real.com', d2cCreatorRef: null });
+  expect(result.metrics).toMatchObject({ followers: 1000, thisWeek: { reach: 777 }, last14Days: null, thisMonth: { reach: 3000 } });
+  expect(result.engagedAudienceThisMonth.topCities).toEqual([{ segment: 'Recife, PE', value: null, sharePercent: 6.5 }, { segment: 'São Paulo, SP', value: null, sharePercent: 4.1 }]);
+  expect(result.engagedAudienceThisMonth.followType).toEqual([{ segment: 'não seguidores', value: 150, sharePercent: 75 }, { segment: 'seguidores', value: 50, sharePercent: 25 }]);
+  expect(result.engagedAudienceThisMonth.age).toBeNull();
+  expect(result.recentPosts.map(p => [p.type, p.views])).toEqual([['REELS', 900], ['FEED', null]]);
+  expect(result.coverage.missing).toEqual(expect.arrayContaining(['marcas anteriores', 'idade do público engajado', 'números de 14 dias', 'conteúdo de marca']));
+  expect(result.coverage.missing).not.toContain('cidades do público engajado');
 });
 test('erro do provedor não vaza credencial nem mensagem bruta', async () => {
   connected();

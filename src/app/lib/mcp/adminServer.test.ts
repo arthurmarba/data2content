@@ -201,7 +201,7 @@ describe("Data2Content admin MCP server", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name)).toEqual([
-        "search_external_creators",
+        "search_external_creators", "get_marketplace_creator", "find_creator_publis", "evaluate_campaign_shortlist",
         "get_public_instagram_creator", "compare_public_instagram_creators",
         "get_connector_usage",
         "list_creators", "analyze_creator_portfolio", "get_creator_analysis", "get_creator_map",
@@ -218,9 +218,16 @@ describe("Data2Content admin MCP server", () => {
         "compare_creators",
         "get_creator_images",
       ]);
+      const search = tools.find(tool => tool.name === "search_external_creators");
+      expect(Object.keys((search?.inputSchema as any)?.properties ?? {})).toEqual(expect.arrayContaining(["query", "similarTo", "audienceGender", "sortBy", "cursor"]));
+      // Esquema com .refine() é publicado sem campos; toda ferramenta com entrada precisa expor os seus.
+      const empty = tools.filter(tool => !Object.keys((tool.inputSchema as any)?.properties ?? {}).length).map(tool => tool.name);
+      expect(empty).toEqual([]);
+      const profile = tools.find(tool => tool.name === "get_marketplace_creator");
+      expect(Object.keys((profile?.inputSchema as any)?.properties ?? {})).toEqual(["username"]);
       expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
       expect(tools.every((tool) => tool.annotations?.destructiveHint === false)).toBe(true);
-      expect(tools.filter(tool => tool.name.includes("public_instagram")).every(tool => tool.annotations?.openWorldHint === true)).toBe(true);
+      expect(tools.filter(tool => /public_instagram|marketplace|external/.test(tool.name)).every(tool => tool.annotations?.openWorldHint === true)).toBe(true);
     } finally {
       await client.close();
       await server.close();
@@ -239,8 +246,12 @@ describe("Data2Content admin MCP server", () => {
     try {
       const result = await allowed.client.callTool({ name: 'search_external_creators', arguments: { query: 'receitas' } });
       expect(textPayload(result).dataMode).toBe('test');
-      expect(searchMarketplaceCreators).toHaveBeenCalledWith('507f1f77bcf86cd799439011', { query: 'receitas', countries: ['BR'], limit: 10 });
+      expect(searchMarketplaceCreators).toHaveBeenCalledWith('507f1f77bcf86cd799439011', { query: 'receitas', countries: ['BR'], sortBy: 'engaged_accounts', limit: 20 });
       jest.mocked(searchMarketplaceCreators).mockClear();
+      const combined = await allowed.client.callTool({ name: 'search_external_creators', arguments: { query: 'maternidade', similarTo: ['ana'] } });
+      expect(combined.isError).toBe(true);
+      expect(textPayload(combined).message).toMatch(/parecidos com/);
+      expect(searchMarketplaceCreators).not.toHaveBeenCalled();
       const invalid = await allowed.client.callTool({ name: 'search_external_creators', arguments: { city: 'Rio', actorUserId: 'outro' } });
       expect(invalid.isError).toBe(true);
       expect(searchMarketplaceCreators).not.toHaveBeenCalled();
