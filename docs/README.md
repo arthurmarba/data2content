@@ -47,6 +47,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 | `radar-fontes-verificadas.md` | 09/2026 | Catálogo das origens já conferidas: o que rende, o que é vitrine, eventos e falsos positivos |
 | `plano-roteiros-baseados-em-conteudos-vencedores.md` | 09/2026 | Auditoria e plano: seleção de vencedores, fala real, geração no MCP, qualidade e custo |
 | `plano-gerador-gancho-video.md` | 09/2026 | Gerador de gancho para vídeo |
+| `plano-marketplace-mcp-admin-2026-10-08.md` | 10/2026 | Plano: busca ampla, ficha do criador, histórico de publis e avaliação de finalistas do Creator Marketplace no MCP admin |
 | `plano-ajuste-inteligente-roteiro-video.md` | 09/2026 | Ajuste de roteiro a partir do vídeo |
 | `mcp-data2content.md` | 09/2026 | O MCP — a referência principal |
 | `chatgpt-plugin-v1.md` · `-submission.md` · `-funnel-release-checklist.md` | 09/2026 | O plugin do ChatGPT e a submissão |
