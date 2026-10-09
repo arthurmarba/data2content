@@ -19,7 +19,9 @@ export const MARKETPLACE_RECOMMENDATIONS = ['most_relevant_for_me', 'high_ad_per
 export const MARKETPLACE_SORTS = ['engaged_accounts', 'reach', 'followers', 'reels_interaction_rate', 'reach_per_follower', 'meta'] as const;
 // Nicho = interesses do criador; alcance = seguidores e contas engajadas; audiência = país, idade e gênero do público.
 // Os nomes seguem a Meta; regras de combinação conferidas na API real em 08/10/2026.
-export const marketplaceSearchSchema = z.object({
+// Objeto simples para a lista de ferramentas do MCP: com .refine() o esquema publicado sai sem campos
+// e o assistente não sabe o que mandar. As regras de combinação ficam em marketplaceSearchSchema.
+export const marketplaceSearchInputSchema = z.object({
   query: z.string().trim().min(1).max(200).optional(),
   similarTo: z.array(marketplaceUsernameSchema).min(1).max(5).optional(),
   recommendation: z.enum(MARKETPLACE_RECOMMENDATIONS).optional(),
@@ -44,7 +46,8 @@ export const marketplaceSearchSchema = z.object({
   sortBy: z.enum(MARKETPLACE_SORTS).default('engaged_accounts'),
   limit: z.number().int().min(1).max(100).default(20),
   cursor: z.string().regex(/^[A-Za-z0-9_=-]{1,300}$/).optional(),
-}).strict().refine(v => v.minFollowers === undefined || v.maxFollowers === undefined || v.minFollowers <= v.maxFollowers,
+}).strict();
+export const marketplaceSearchSchema = marketplaceSearchInputSchema.refine(v => v.minFollowers === undefined || v.maxFollowers === undefined || v.minFollowers <= v.maxFollowers,
   'O mínimo de seguidores não pode superar o máximo.')
   .refine(v => v.minEngagedAccounts === undefined || v.maxEngagedAccounts === undefined || v.minEngagedAccounts <= v.maxEngagedAccounts,
     'O mínimo de contas engajadas não pode superar o máximo.')
