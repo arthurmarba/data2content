@@ -5,7 +5,7 @@ no Claude, pelo conector D2C Admin, pedir "ache e avalie criadores para a campan
 busca ampla com todos os filtros da Meta, uma ficha profunda de cada candidato, o histórico de publis
 e a comparação dos finalistas — sempre dizendo de onde veio cada número, o período e o que ficou de fora.
 
-Nada aqui foi implementado. O que está marcado como "testado" foi conferido na API real em 08/10.
+**Implementado em 09/10/2026** (PRs #934, #935 e #936), com as recomendações das decisões pendentes: ordem padrão por contas engajadas, e-mail de contato na ficha, etapas 1 e 2 primeiro. Ver "Estado" no fim.
 
 ## O que muda para quem usa
 
@@ -145,3 +145,22 @@ só um sinal e o `creator:<id>` para aprofundar com as ferramentas da base, sem 
 ficha, detecção de publi com legendas de exemplo do casting Play9, limite de tempo com resposta parcial,
 escopos no `adminServer.test.ts`. `npm run build` antes de publicar; conferência na API real com a
 credencial da Página "Arthur Marbá - D2C".
+
+## Estado — 09/10/2026
+
+No ar no conector D2C Admin: `search_external_creators` (busca ampla), `get_marketplace_creator` (ficha),
+`find_creator_publis` (publis e concorrentes) e `evaluate_campaign_shortlist` (finalistas), com as
+instruções do conector atualizadas.
+
+Diferenças em relação ao plano, descobertas na API real:
+
+- Páginas de **25**, não 50: com filtros e métricas, 50 por página volta 500 ("reduce the amount of
+  data"). Página recusada é tentada uma vez com a metade. 60 criadores levam ~30 s.
+- Cidade, idade e gênero do público engajado vêm em **porcentagem** (`dimension_value`, `percentage`);
+  seguidor x não seguidor vem em contagem.
+- `search_external_creators` era publicada **sem campos** desde #916: esquema com `.refine()` some na
+  lista de ferramentas. Corrigido em #935, com teste que impede qualquer ferramenta do MCP admin de sair
+  sem campos.
+- A ficha e a avaliação não usam cache ainda; cada chamada vai à Meta.
+
+Medido com dados reais: ficha em ~7 s; publis de 3 @s em ~11 s; 5 finalistas em ~9 s.

@@ -237,6 +237,12 @@ Em 08/10/2026 a Meta aprovou o Marketplace (dados reais desde então) e recusou 
 e sem essa permissão no token (7 contas conferidas). O detalhe por @ do Marketplace precisa ir em
 consultas separadas — perfil, parcerias e posts juntos voltam 500 com dados reais.
 
+Desde 09/10/2026 o MCP admin tem o caminho completo para campanhas com criadores de fora da base:
+`search_external_creators` (busca ampla, até 100 por chamada, cursor, ordenação, `d2cCreatorRef`) →
+`get_marketplace_creator` (ficha) → `find_creator_publis` (publis pelas legendas, critérios do casting
+Play9) → `evaluate_campaign_shortlist` (finalistas). Plano e diferenças medidas em
+`docs/plano-marketplace-mcp-admin-2026-10-08.md`. Cuidado com [[Esquema com refine some na lista do MCP]].
+
 ## Chaves de ambiente
 
 `MCP_ADMIN_ENABLED`, `MCP_CAMPAIGN_RADAR_ENABLED`, `MCP_SUPPORTED_SCOPES`, `MCP_CONNECTION_SCOPES`, `MCP_ADMIN_*`.
