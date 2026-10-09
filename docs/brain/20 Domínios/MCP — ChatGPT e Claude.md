@@ -143,6 +143,16 @@ pelo Instagram, e as regras que impedem o modelo de mentir com ele estão em
 [[Seguidores]]. `analyze_creator_portfolio` traz o mesmo saldo por criador e da
 base inteira.
 
+## Número que falta tem motivo — 02/10/2026
+
+Resposta vazia sem motivo é lida como zero. `src/app/lib/mcp/dataAvailability.ts`
+explica cada lacuna: `instagram_does_not_report_for_reels` (seguidores ganhos e
+visitas ao perfil só existem para foto e carrossel), `missing_for_posts_in_period`
+ou `no_posts_in_period`. `list_top_content` devolve `coverage`,
+`get_performance_summary` devolve `metricAvailability`, e `analyze_creator_period`
+ganhou `follows`/`profile_visits`, `coverage.metricGaps`, a lista dos posts sem
+número nenhum (`postsWithoutMetrics`) e o ritmo de atualização (12 h).
+
 ## Situação do ChatGPT
 
 O plugin depende de aprovação da OpenAI e de um plano caro. Por isso a landing pública fala **só do Claude** até o aplicativo ser aprovado. Ver [[ChatGPT fora da landing]].
@@ -443,3 +453,6 @@ A finalidade e os prazos estão na política de privacidade (26/09). Os dois reg
 
 Para ler: a ferramenta `get_connector_usage` no MCP administrativo (pergunte ao Claude "o que os creators mais pediram esta semana?"), `scripts/mcpUsageReport.ts` e o e-mail de toda segunda para quem estiver em `MCP_USAGE_REPORT_TO`. As rotinas estão no QStash desde 26/09, em UTC: `mcp-usage-weekly` segunda 11:00 (`scd_7vk473ZfTSGHX2tVp4FB5YfxUSdj`) e `plugin-weekly-email` segunda 13:00 (`scd_4ojnCN7ZKcKNqpW6bDSGg9acMPc6`). `MCP_USAGE_REPORT_TO` é arthur@data2content.ai. As 31 contas já conectadas em 26/09 receberam `pluginOrigin` por `scripts/backfillPluginOrigin.ts --apply`; o e-mail semanal do creator começou sem destinatário, porque quase todas são Pro. Contas internas (admin, e-mails da Data2Content, contas de revisão) ficam de fora por padrão. Depois do deploy, confirmar a expiração no banco real com `scripts/mcpUsageReport.ts --check-ttl` (ver [[Expiração declarada não garante limpeza no MongoDB]]).
 
+## Devolução da Anthropic — 29/09/2026
+
+O diretório pediu quatro correções. Três viraram o modo Claude do servidor e uma era defeito dos dois chats. A regra está em [[Conector do Claude sem ordens]]; o defeito, em [[Esquema com refine publica ferramenta sem campos]]. A listagem passou a ter texto em inglês (`docs/claude-conector-diretorio.md`).

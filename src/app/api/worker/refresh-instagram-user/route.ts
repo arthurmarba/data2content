@@ -7,6 +7,7 @@ import { triggerDataRefresh } from '@/app/lib/instagram';
 import mongoose from 'mongoose'; // Para validar ObjectId
 import { invalidateDashboardHomeSummaryCache } from '@/app/lib/cache/dashboardCache';
 import { enqueueInstagramMapEnrichment, enqueueOnboardingReadings } from '@/app/lib/creatorWeeklyReport/queue';
+import { startInstagramHistoryBackfillIfNeeded } from '@/app/lib/instagram/historyBackfillQueue';
 import { generateCreatorWeeklyReport } from '@/app/lib/creatorWeeklyReport/service';
 import { isCreatorWeeklyProfileExperienceEnabled } from '@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag';
 
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
             return 0;
           });
           logger.info(`${TAG} Conexão nova de User ${userId}: ${leituras} leituras iniciais enfileiradas.`);
+          // Histórico além da janela do sync e os 30 dias de seguidores anteriores à
+          // conexão: só chamadas ao Instagram, em passos na própria fila.
+          const historico = await startInstagramHistoryBackfillIfNeeded(userId);
+          logger.info(`${TAG} Conexão nova de User ${userId}: histórico antigo ${historico ? 'enfileirado' : 'já puxado ou indisponível'}.`);
         }
 
         // O relatório individual é materializado depois do sync, usando as

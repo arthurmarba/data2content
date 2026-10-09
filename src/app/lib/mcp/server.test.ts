@@ -480,6 +480,7 @@ jest.mock("./catalog", () => ({
   })),
   getMcpPerformanceSummary: jest.fn(async () => null),
   listMcpTopContent: jest.fn(async () => []),
+  describeMcpTopContentCoverage: jest.fn(async () => ({ postsInPeriod: 0, postsWithMetric: 0, reason: "no_posts_in_period", notes: [] })),
   listMcpCreatorContentIdeas: jest.fn(async () => ({
     schemaVersion: "creator_content_ideas_v1",
     generatedAt: "2026-09-26T12:00:00.000Z",
@@ -587,8 +588,10 @@ describe("Data2Content MCP server", () => {
       "campaigns:read",
     ],
     accessLevel: "free" | "pro" = "pro",
+    clientSurface?: "claude" | "chatgpt",
   ) {
     const server = createD2CMcpServer({
+      clientSurface,
       identity: {
         userId: "507f1f77bcf86cd799439011",
         subject: "oauth-subject",
@@ -647,6 +650,115 @@ describe("Data2Content MCP server", () => {
       expect(ideas.structuredContent).toMatchObject({
         planNote: { weeklyNewIdeasIncluded: false },
       });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  // ─── Diretório de conectores do Claude ─────────────────────────────────────
+  // A Anthropic recusou ordens ao assistente nas instruções e nas respostas,
+  // e ferramentas publicadas sem campos de entrada. Ver claudeDirectoryPolicy.ts.
+
+  function schemaKeysDeep(schema: unknown, found = new Set<string>()): Set<string> {
+    if (!schema || typeof schema !== "object") return found;
+    const node = schema as Record<string, unknown>;
+    const props = node.properties as Record<string, unknown> | undefined;
+    if (props) for (const [key, inner] of Object.entries(props)) { found.add(key); schemaKeysDeep(inner, found); }
+    for (const key of ["items", "additionalProperties", "anyOf", "oneOf", "allOf"]) {
+      const inner = node[key];
+      if (Array.isArray(inner)) inner.forEach((item) => schemaKeysDeep(item, found));
+      else schemaKeysDeep(inner, found);
+    }
+    return found;
+  }
+
+  it.each(["claude", "chatgpt"] as const)(
+    "%s: toda ferramenta que recebe dados publica os campos de entrada",
+    async (surface) => {
+      const { client, server } = await connect(true, undefined, "pro", surface);
+      try {
+        const { tools } = await client.listTools();
+        const compare = tools.find((tool) => tool.name === "compare_public_instagram_creators")!;
+        expect(compare.inputSchema.properties).toHaveProperty("usernames");
+        expect(compare.inputSchema.required).toContain("usernames");
+        expect((compare.inputSchema.properties as Record<string, { minItems?: number; maxItems?: number }>).usernames)
+          .toMatchObject({ minItems: 2, maxItems: 3 });
+        const feedback = tools.find((tool) => tool.name === "record_script_feedback")!;
+        expect(Object.keys(feedback.inputSchema.properties ?? {}))
+          .toEqual(expect.arrayContaining(["scriptId", "voiceMatch", "preferredDirection", "notes"]));
+        expect(feedback.inputSchema.required).toEqual(["scriptId"]);
+      } finally {
+        await client.close();
+        await server.close();
+      }
+    },
+  );
+
+  it("record_script_feedback sem nenhuma avaliação devolve erro claro", async () => {
+    const { client, server } = await connect(true, undefined, "pro", "claude");
+    try {
+      const result = await client.callTool({
+        name: "record_script_feedback",
+        arguments: { scriptId: "507f1f77bcf86cd799439012" },
+      });
+      expect(result.isError).toBe(true);
+      expect(textPayload(result)).toMatchObject({ error: "feedback_required" });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("no Claude, instruções curtas e sem ordens; no ChatGPT, as de antes", async () => {
+    const claude = await connect(true, undefined, "free", "claude");
+    const chatgpt = await connect(true, undefined, "free", "chatgpt");
+    try {
+      const claudeText = claude.client.getInstructions() ?? "";
+      expect(claudeText.length).toBeGreaterThan(200);
+      expect(claudeText.length).toBeLessThan(2000);
+      expect(claudeText).not.toMatch(/conversationPolicy|closingReminder|onboardingPrompt|convite|\bsiga\b/i);
+      expect(chatgpt.client.getInstructions() ?? "").toContain("siga conversationPolicy");
+    } finally {
+      await claude.client.close();
+      await claude.server.close();
+      await chatgpt.client.close();
+      await chatgpt.server.close();
+    }
+  });
+
+  it("no Claude, nenhuma ferramenta declara campo que dirige o assistente", async () => {
+    const { client, server } = await connect(true, undefined, "pro", "claude");
+    try {
+      const { tools } = await client.listTools();
+      const forbidden = ["instruction", "usage", "nextAction", "conversationPolicy", "closingReminder", "onboardingPrompt",
+        "analysisContract", "rules", "nextStep", "avoid", "adaptationInstruction", "rubric"];
+      for (const tool of tools) {
+        const keys = schemaKeysDeep(tool.outputSchema);
+        expect({ tool: tool.name, found: forbidden.filter((key) => keys.has(key)) })
+          .toEqual({ tool: tool.name, found: [] });
+      }
+      const collab = tools.find((tool) => tool.name === "recommend_collab_creators")!;
+      expect(collab.description).toMatch(/opt(ed)? in|turned on the Collabs option/i);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("no Claude, o estado da conta é dado e a conta gratuita não ganha lembrete", async () => {
+    const catalog = jest.requireMock("./catalog");
+    catalog.getMcpCreatorProfile.mockResolvedValueOnce({ name: "Creator de teste" });
+    const { client, server } = await connect(false, undefined, "free", "claude");
+    try {
+      const state = await client.callTool({ name: "get_account_state", arguments: {} });
+      expect(state.isError).not.toBe(true);
+      expect(state.structuredContent).toMatchObject({ northDeclared: true, accessLevel: "free" });
+      expect(state.structuredContent).not.toHaveProperty("conversationPolicy");
+      expect(JSON.stringify(state.content)).not.toMatch(/conversationPolicy|closingReminder|onboardingPrompt/);
+
+      const profile = await client.callTool({ name: "get_creator_profile", arguments: {} });
+      expect(JSON.stringify(profile.content)).not.toContain("free_closing_reminder_v1");
     } finally {
       await client.close();
       await server.close();

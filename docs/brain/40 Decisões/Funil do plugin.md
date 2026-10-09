@@ -22,6 +22,8 @@ O objetivo do ChatGPT e do Claude é gerar assinantes, dentro do que cada loja p
 5. **Fora do chat:** um e-mail por semana com uma pauta ainda não mostrada, até as de amostra acabarem. É comunicação do serviço, sem plano nem preço: a política exige consentimento para marketing, e quem conecta pelo chat não deu esse consentimento. A oferta fica na página de chegada, para onde o e-mail leva.
 6. **Só no Claude, e desligado até a aprovação:** a oferta na própria conexão (`MCP_CLAUDE_CONNECT_OFFER_ENABLED`), depois da narrativa e nunca antes dela.
 
+**Desde 29/09/2026, no Claude:** não há lembrete ao fim das respostas gratuitas nem convite da comunidade dirigido pelo servidor — o diretório da Anthropic não aceita. O limite continua devolvendo o link do perfil como dado. Ver [[Conector do Claude sem ordens]].
+
 ## O que não se faz
 
 - Tela de planos na conexão do ChatGPT.

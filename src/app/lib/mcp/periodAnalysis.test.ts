@@ -207,5 +207,37 @@ describe("MCP exact period analysis", () => {
     expect(result.coverage.warnings).toContain("recent_posts_still_accumulating");
     expect(result.receipt.metricsAreCurrentTotals).toBe(true);
   });
+  it("explica seguidores ausentes em Reels e nomeia o post sem número nenhum", () => {
+    const result = buildMcpPeriodAnalysis({
+      startDate: "2026-03-01",
+      endDate: "2026-04-30",
+      timeZone: "America/Sao_Paulo",
+      startInclusive: new Date("2026-03-01T03:00:00.000Z"),
+      endExclusive: new Date("2026-05-01T03:00:00.000Z"),
+      format: "all",
+      evidenceLimit: 10,
+      generatedAt: new Date("2026-10-02T12:00:00.000Z"),
+      documents: [
+        { _id: "reel1", type: "REEL", postDate: new Date("2026-04-10T15:00:00.000Z"), stats: { reach: 900, views: 1200, ig_reels_avg_watch_time: 4000 } },
+        { _id: "reel2", type: "REEL", postDate: "2026-03-29T15:32:05.000Z", postLink: "https://www.instagram.com/reel/x/", stats: { video_duration_seconds: 119 } },
+      ],
+    });
+
+    expect(result.summary.metrics.follows).toEqual({ availablePosts: 0, median: null, total: null });
+    expect(result.coverage.metricGaps.map((gap) => [gap.metric, gap.reason])).toEqual([
+      ["follows", "instagram_does_not_report_for_reels"],
+      ["profile_visits", "instagram_does_not_report_for_reels"],
+      // Tempo médio sem duração: Reel com música protegida, não retenção zero.
+      ["retention_rate", "instagram_does_not_provide_video_duration"],
+    ]);
+    expect(result.coverage.warnings).toEqual(expect.arrayContaining([
+      "follower_metrics_not_reported_for_reels",
+      "posts_without_instagram_metrics",
+    ]));
+    expect(result.coverage.postsWithoutMetrics).toEqual([
+      { id: "reel2", postDate: "2026-03-29T15:32:05.000Z", url: "https://www.instagram.com/reel/x/" },
+    ]);
+    expect(result.coverage.dataFreshness).toMatch(/12 horas/);
+  });
 });
 

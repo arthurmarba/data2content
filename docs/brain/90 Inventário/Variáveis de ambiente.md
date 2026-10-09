@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-09-27
+atualizado: 2026-10-02
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -36,14 +36,14 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `CRON_SECRET` | 31 |
+| `CRON_SECRET` | 35 |
 
 ## FACEBOOK
 
 | Variável | Usos no código |
 | --- | --- |
-| `FACEBOOK_CLIENT_ID` | 13 |
-| `FACEBOOK_CLIENT_SECRET` | 12 |
+| `FACEBOOK_CLIENT_ID` | 14 |
+| `FACEBOOK_CLIENT_SECRET` | 13 |
 
 ## GEMINI
 
@@ -93,7 +93,7 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `MCP_CAMPAIGN_RADAR_ENABLED` | 21 |
+| `MCP_CAMPAIGN_RADAR_ENABLED` | 22 |
 | `MCP_SUPPORTED_SCOPES` | 15 |
 | `MCP_ADMIN_SUPPORTED_SCOPES` | 12 |
 | `MCP_CONNECTION_SCOPES` | 11 |
@@ -143,7 +143,7 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | 68 |
+| `NEXT_PUBLIC_APP_URL` | 69 |
 | `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED` | 20 |
 | `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED` | 19 |
 | `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED` | 17 |
@@ -223,9 +223,9 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `QSTASH_CURRENT_SIGNING_KEY` | 41 |
-| `QSTASH_NEXT_SIGNING_KEY` | 41 |
-| `QSTASH_TOKEN` | 30 |
+| `QSTASH_CURRENT_SIGNING_KEY` | 43 |
+| `QSTASH_NEXT_SIGNING_KEY` | 43 |
+| `QSTASH_TOKEN` | 31 |
 | `QSTASH_WORKER_URL` | 1 |
 
 ## REDIS
@@ -318,8 +318,8 @@ atualizado: 2026-09-27
 
 | Variável | Usos no código |
 | --- | --- |
-| `NODE_ENV` | 126 |
-| `APP_BASE_URL` | 22 |
+| `NODE_ENV` | 127 |
+| `APP_BASE_URL` | 23 |
 | `LOG_LEVEL` | 15 |
 | `LLM_PROVIDER` | 11 |
 | `DB_NAME` | 10 |
@@ -338,6 +338,7 @@ atualizado: 2026-09-27
 | `CHROME_BIN` | 4 |
 | `PLAYWRIGHT_CHROMIUM_BIN` | 4 |
 | `PLAYWRIGHT_EXECUTABLE_PATH` | 4 |
+| `USAGE_EVENTS_DISABLED` | 4 |
 | `ADMIN_TOKEN` | 3 |
 | `ALLOW_LOCAL_E2E_ROUTES` | 3 |
 | `CLASSIFICATION_CACHE_ENABLED` | 3 |
@@ -349,7 +350,6 @@ atualizado: 2026-09-27
 | `PROPOSAL_ANALYSIS_V2_ENABLED` | 3 |
 | `UPSTASH_REDIS_REST_TOKEN` | 3 |
 | `UPSTASH_REDIS_REST_URL` | 3 |
-| `USAGE_EVENTS_DISABLED` | 3 |
 | `USER` | 3 |
 | `ACK_SKIP_THRESHOLD_MINUTES` | 2 |
 | `ANSWER_ENGINE_ENABLED` | 2 |

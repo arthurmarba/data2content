@@ -22,6 +22,55 @@ tipo: domínio
 
 **O token expira.** Existe um fluxo inteiro de reconexão porque a autorização do criador cai sozinha com o tempo. Uma conta "sem dados" quase sempre é uma conta desconectada.
 
+**Carrossel sumia da listagem.** Pedir `media_product_type` dentro de
+`children{}` faz a Graph API omitir o carrossel inteiro da página, sem erro (25
+itens viram 23). Foi assim de 16/05/2025 a 02/10/2026: a base tinha **um**
+carrossel. Os campos dos itens moram em `CAROUSEL_CHILD_FIELDS` (`fetchers.ts`),
+com teste de regressão. Ver [[Carrossel some quando se pede o tipo dos itens]].
+
+**Retenção é conta nossa, não da Meta.** O Instagram manda o tempo médio
+assistido (`ig_reels_avg_watch_time`, em milissegundos); a duração vem da mídia.
+`saveMetricData` junta as duas em `stats.retention_rate` — antes de 02/10/2026 a
+conta nunca acontecia e a base tinha 33 mil zeros falsos. Ver
+[[Retenção gravada como zero]]. Passa de 1 quando as pessoas reveem o vídeo.
+
+## A janela da sincronização e o histórico da conexão
+
+A sincronização periódica (a cada 12 h) só olha posts dos últimos
+`INSIGHT_FETCH_CUTOFF_DAYS` (180) dias — post mais velho nem entra no banco. Até
+02/10/2026 isso valia também para a conexão: um criador com 175 posts chegava ao
+conector com 103, e nada dizia que faltava.
+
+Desde então, a conexão dispara `/api/worker/instagram-history-backfill`
+(`sync/historyBackfill.ts` + `historyBackfillQueue.ts`): pagina a conta até **dois
+anos** atrás (o banco gratuito não comporta mais — ver
+[[Histórico inteiro na conexão, sem IA]]), grava só os posts **mais velhos** que a
+janela, com os números de hoje e sem os links de mídia (expiram), e puxa os
+30 dias de novos seguidores (ver [[Seguidores]]). **Só chamadas ao Instagram:** o
+post antigo é gravado com `skipAiReadings`, sem classificação nem leitura de cena,
+e fica com `classificationStatus: "pending"` — a repescagem só olha 90 dias, então
+ninguém o manda para a IA depois. Vídeo antigo vem sem `video_duration`; a duração
+é lida no cabeçalho do arquivo (2 MB, sem IA) para a retenção existir.
+
+A sincronização periódica também tem teto de páginas (`MAX_PAGES_MEDIA` = 10, ou
+seja 250 posts): quem posta muito tem posts dos últimos 180 dias além dele, que ela
+nunca alcança (298 carrosséis recentes num só criador). O histórico trata como seu
+tudo que passa da 10ª página, inclusive o recente — também sem IA.
+
+Post sem legenda quebrava a gravação ("would create a conflict at 'format'"): a
+classificação vazia do `$setOnInsert` traz `format`, que o `$set` também grava.
+`saveMetricData` agora tira do `$setOnInsert` o que já está no `$set` — o erro era
+antigo e também derrubava post novo sem legenda na sincronização periódica. Post
+muito antigo recusa quase todas as métricas numa chamada atômica; o histórico
+repete só com as aceitas (em geral alcance e salvamentos). Post recusado pelo banco
+é pulado em vez de travar a conta.
+
+Roda em passos de até 12 páginas, guarda só o cursor `after` (a URL da Meta traz o
+token) e, se o Instagram pedir pausa, volta em 1 h, até 24 vezes. O estado fica em
+`User.instagramHistoryBackfill`; conta que já tem `done` para o mesmo
+`instagramAccountId` não repete. Para quem conectou antes disso:
+`npm run backfill:instagram-history -- <userId> [--dry-run]`.
+
 ## Ferramentas
 
 Retenção aprovada em 07/09/2026: `daily_metric_snapshots` conserva oito meses e
@@ -70,6 +119,7 @@ Nenhuma dessas mudanças foi aplicada como parte desta avaliação.
 
 ```bash
 npm run refresh:metrics:user      # atualiza um criador específico
+npm run backfill:instagram-history -- <userId> --dry-run  # histórico antigo, sem IA
 npm run backfill:demographics     # preenche demografia histórica
 npm run test:demographics         # confere o que a Meta devolve hoje
 npm run ensure-indexes            # garante os índices do banco
