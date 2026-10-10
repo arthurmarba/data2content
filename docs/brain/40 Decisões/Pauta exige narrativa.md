@@ -9,9 +9,21 @@ tipo: decisão
 
 Gerar pauta exige **narrativa e territórios**. Audiência sozinha **não** libera.
 
-E a narrativa só conta como firme quando:
-- **duas leituras independentes concordam**, ou
-- o **criador confirma** explicitamente.
+## Dois portões que parecem um só
+
+Eles vivem em arquivos diferentes e respondem perguntas diferentes. Misturá-los já
+produziu documento errado.
+
+**Liberar pauta** (`contentIdeasReadinessGate.ts`) exige narrativa e territórios
+*presentes* — confirmados pelo criador **ou** detectados pela síntese. O gate está na V2:
+a confirmação explícita **enriquece** a pauta, mas deixou de ser portão duro. Se a síntese
+já carrega o dado, a geração segue.
+
+**Narrativa firme** (`creatorMap.ts`, `resolveEvidenceLevel`) é outro carimbo, e mais
+exigente: só com **duas leituras concordando** — Instagram e vídeo. Uma leitura só é
+`one_reading`; nenhuma é `declared`, o ponto de partida que o criador contou. A confirmação
+do criador **não** entra nessa conta: o que ela faz é impedir que o enriquecimento
+sobrescreva o núcleo (`coreStabilityLocks.ts`).
 
 ## Por que
 
@@ -21,7 +33,7 @@ Uma leitura só, sem confirmação, é palpite — e palpite virando pauta produ
 
 ## Onde vive
 
-`contentIdeasReadinessGate.ts`, `contentIdeaMapAnchors.ts`, e os travamentos de núcleo em `mapaSeed/coreStabilityLocks.ts`.
+`contentIdeasReadinessGate.ts` e `contentIdeaMapAnchors.ts` (o portão da pauta), `mcp/creatorMap.ts` (o carimbo de narrativa firme) e `mapaSeed/coreStabilityLocks.ts` (a confirmação protegendo o núcleo).
 
 ## Ligações
 
