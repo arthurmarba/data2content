@@ -10,6 +10,9 @@ import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
 import { normalizedBalanceMap, summarizeAffiliateLedger } from "@/server/affiliate/ledger";
+import { deleteMcpDataForUser } from "@/app/lib/mcp/accountDeletion";
+import { anonymizeCreatorInCommunityReports } from "@/app/lib/account/accountDataDeletion";
+import { enqueueAccountDataDeletion } from "@/app/lib/account/accountDataDeletionQueue";
 import mongoose from "mongoose";
 
 export const runtime = "nodejs";
@@ -200,6 +203,11 @@ export async function DELETE(req: NextRequest) {
         if (blockedAtCommit) return;
 
         await User.deleteOne({ _id: freshUser._id }, { session: deleteSession });
+        // A conexão com o Claude/ChatGPT e os registros de uso do conector saem
+        // junto com a conta, como promete a política de privacidade.
+        await deleteMcpDataForUser(freshUser._id, deleteSession);
+        // O nome sai dos relatórios da comunidade já fechados enquanto ainda é conhecido.
+        await anonymizeCreatorInCommunityReports(freshUser.name, deleteSession);
       });
     } finally {
       await deleteSession.endSession();
@@ -217,6 +225,12 @@ export async function DELETE(req: NextRequest) {
         { status: 409 },
       );
     }
+
+    // O resto dos dados (posts, números, mapa, roteiros, mídia kit) é grande
+    // demais para a transação: vai para a fila. Se a fila falhar, a conta
+    // continua excluída e scripts/accountDataOrphans.ts acha o que sobrou.
+    const queued = await enqueueAccountDataDeletion(String(user._id));
+    if (!queued) logger.warn("[account.delete] data cleanup not queued", { userId: user._id });
 
     // A limpeza externa ocorre somente depois que a exclusão local foi
     // confirmada; nunca removemos a conta de saque de um usuário retido.

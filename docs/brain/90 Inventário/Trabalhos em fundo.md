@@ -1,6 +1,6 @@
 ---
 gerado: automaticamente
-atualizado: 2026-10-09
+atualizado: 2026-10-10
 ---
 
 > [!warning] Nota gerada por script — não edite à mão.
@@ -40,7 +40,7 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `weekly-whatsapp-message` | `src/app/api/cron/weekly-whatsapp-message/route.ts` |
 | `whatsapp-trial` | `src/app/api/cron/whatsapp-trial/route.ts` |
 
-## Worker — 13 trabalhos enfileirados
+## Worker — 14 trabalhos enfileirados
 
 | Trabalho | Arquivo |
 | --- | --- |
@@ -49,6 +49,7 @@ Os dois grupos são protegidos: cron por `CRON_SECRET`, worker pela assinatura d
 | `classify-content` | `src/app/api/worker/classify-content/route.ts` |
 | `classify-published-scene` | `src/app/api/worker/classify-published-scene/route.ts` |
 | `collabs` | `src/app/api/worker/collabs/route.ts` |
+| `delete-account-data` | `src/app/api/worker/delete-account-data/route.ts` |
 | `enrich-mapa-instagram` | `src/app/api/worker/enrich-mapa-instagram/route.ts` |
 | `enrich-mapa-video` | `src/app/api/worker/enrich-mapa-video/route.ts` |
 | `generate-creator-weekly-diagnosis` | `src/app/api/worker/generate-creator-weekly-diagnosis/route.ts` |
