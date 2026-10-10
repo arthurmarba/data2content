@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -50,6 +51,29 @@ function safeDiagnosisId(diagnosisId: string): string {
 export function contentAnalysisThumbnailObjectKey(userId: string, diagnosisId: string): string {
   const privateOwner = createHash("sha256").update(userId).digest("hex").slice(0, 24);
   return `persistent/content-analysis-thumbnails/${privateOwner}/${safeDiagnosisId(diagnosisId)}.jpg`;
+}
+
+/**
+ * Apaga as capas de análise de uma conta excluída. A chave de acesso do R2 não
+ * pode listar a pasta, então o nome de cada capa sai do id da análise. Uma a uma,
+ * sem DeleteObjects: a exclusão em lote exige checksum, e checksum já quebrou o R2
+ * (ver a armadilha "Upload de vídeo dá 403"). Com dryRun, só conta.
+ */
+export async function deleteContentAnalysisThumbnails(
+  userId: string,
+  diagnosisIds: string[],
+  options: { dryRun?: boolean } = {},
+): Promise<number> {
+  const config = storageConfig();
+  if (!config || !diagnosisIds.length) return 0;
+  if (options.dryRun) return diagnosisIds.length;
+  for (const diagnosisId of diagnosisIds) {
+    await config.client.send(new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: contentAnalysisThumbnailObjectKey(userId, diagnosisId),
+    }));
+  }
+  return diagnosisIds.length;
 }
 
 export async function storeContentAnalysisThumbnail(params: {
