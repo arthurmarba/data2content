@@ -18,7 +18,7 @@ São 122 documentos acumulados ao longo de dois anos. Sem um mapa, isso é um s�
 
 ## O que está quente (mexido desde agosto de 2026)
 
-- [Plano de exclusão de conta](plano-exclusao-de-conta-2026-10-09.md) — 09/10/2026: o que fica no banco quando alguém exclui a conta, o que apagar, o que manter sem nome e as decisões pendentes.
+- [Plano de exclusão de conta](plano-exclusao-de-conta-2026-10-09.md) — 09/10/2026: o que fica no banco quando alguém exclui a conta, o que apagar, o que manter sem nome e o que Arthur decidiu.
 - [Plano de custo do Gemini](plano-custo-gemini.md) — 15/09/2026: onde está o gasto, o que foi descartado, cinco frentes em ordem, projeção e decisões pendentes.
 - [Leituras do Gemini em lote](plano-lote-gemini.md) — 14/09/2026: metade do preço pela Batch API, prazo de domingo antes do fechamento semanal, fases e prova de conceito.
 - [Próxima etapa de eficiência do Gemini](plano-eficiencia-gemini-etapa-2.md) — 14/09/2026: fala sem duplicação, comparação de qualidade e liberação gradual.
